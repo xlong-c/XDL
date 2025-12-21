@@ -136,6 +136,14 @@ def benchmark():
     print("-" * 48)
 
     for name, in_dtype, out_dtype, acc_dtype in test_types:
+        # 特殊处理: NVIDIA GPU 上的 Acc16
+        is_nvidia = torch.cuda.get_device_name().lower().find("nvidia") != -1
+        is_acc16 = (acc_dtype == torch.float16 or acc_dtype == torch.bfloat16)
+        
+        if is_nvidia and is_acc16:
+            print(f"{name:<15} | {'Not Supported':>15} | NVIDIA requires Acc32 for tl.dot")
+            continue
+
         if name == "TF32":
             torch.backends.cuda.matmul.allow_tf32 = True
         else:
@@ -143,11 +151,13 @@ def benchmark():
 
         try:
             # 准备数据
+            # 对于 FP8, 输入需要特殊处理
             if "FP8" in name:
-                a = torch.randn((M, K), device='cuda',
-                                dtype=torch.float16).to(in_dtype)
-                b = torch.randn((K, N), device='cuda', dtype=torch.float16).to(
-                    in_dtype).t().contiguous().t()
+                # 随机生成 FP16 然后转换到 FP8
+                a = torch.randn((M, K), device='cuda', dtype=torch.float16).to(in_dtype)
+                # Triton matmul 要求 b 是转置后的连续内存, 或者在加载时处理
+                # 这里简单处理
+                b = torch.randn((K, N), device='cuda', dtype=torch.float16).to(in_dtype)
             else:
                 a = torch.randn((M, K), device='cuda', dtype=in_dtype)
                 b = torch.randn((K, N), device='cuda', dtype=in_dtype)
@@ -160,27 +170,27 @@ def benchmark():
             latency = triton.testing.do_bench(
                 lambda: matmul(a, b, out_dtype=out_dtype, acc_dtype=acc_dtype))
 
-            # 确保 latency 不为 None, 满足 Pylance 的类型检查要求
+            # 确保 latency 不为 None
             if latency is None:
                 raise ValueError("Benchmark returned None")
 
-            # do_bench 返回的是中位数耗时 (ms)
-            ms = float(latency) if not isinstance(
-                latency, (list, tuple)) else float(latency[0])
+            if isinstance(latency, (list, tuple)):
+                ms = float(latency[0])
+            else:
+                ms = float(latency)
 
-            # 算力计算
             tflops = (2.0 * M * N * K) / (ms * 1e-3 * 1e12)
-
             print(f"{name:<15} | {ms:15.4f} | {tflops:12.2f}")
 
         except Exception as e:
-            # 显示更多错误信息以供调试
-            error_msg = str(e).replace("\n", " ")
+            # 打印简短错误
+            error_msg = str(e).split('\n')[0]
             print(f"{name:<15} | {'Error':>15} | {error_msg[:30]}")
 
     print("-" * 48)
     print("备注: 1. 4070 Ti Super 在 FP8 模式下理论峰值可达约 140+ TFLOPS。")
-    print("      2. 某些硬件/Triton 版本下, FP8 必须使用 FP32 累加 (Acc32)。")
+    print("      2. NVIDIA GPU 硬件上, tl.dot 强制要求使用 FP32 累加以利用 Tensor Core。")
+    print("      3. FP16 (Acc16) 在 NVIDIA 后端不被 Triton 支持, 故跳过。")
 
 
 if __name__ == "__main__":
