@@ -35,7 +35,7 @@ class LoggingCallback(Callback):
         rotation: str = "500 MB",
         retention: str = "10 days",
         compression: str = "zip",
-        enable_console: bool = True,
+        enable_console: bool = False,
     ):
         """
         初始化 loguru 日志回调
@@ -83,7 +83,7 @@ class LoggingCallback(Callback):
 
         # 1. 添加简洁的控制台处理器
         if self.enable_console:
-            console_format = "<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | <level>{message}</level>"
+            console_format = "<green>{time:HH:mm:ss}</green> | <level>{message}</level>"
             logger.add(sys.stdout, format=console_format, colorize=True, level="INFO")
 
         # 2. 获取有效的日志目录

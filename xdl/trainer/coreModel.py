@@ -568,7 +568,7 @@ class CoreModel(Module):
 
     # ========== 设备相关方法 ==========
 
-    def is_main_progress(self) -> bool:
+    def is_main_process(self) -> bool:
         """
         判断当前进程是否为主程序(主进程)
 
@@ -584,7 +584,7 @@ class CoreModel(Module):
                 self.log('train_loss', loss.item())
 
                 # 只有主进程才执行某些操作
-                if self.is_main_progress():
+                if self.is_main_process():
                     print(f"Epoch {self.current_epoch}, Batch {batch_idx}: Loss = {loss.item():.4f}")
                     # 保存某些信息到文件等操作
         """
@@ -773,7 +773,7 @@ class CoreModel(Module):
         include_components: Optional[List[str]] = None,
     ) -> str:
         """保存检查点"""
-        if not self.is_main_progress():
+        if not self.is_main_process():
             return ""
 
         save_dir = Path(base_dir) / generate_checkpoint_dirname(
@@ -870,19 +870,21 @@ class CoreModel(Module):
                 self._schedules = []
                 return
 
-            # 检查第一个元素是否为列表/元组 (嵌套格式: [[optimizers], [schedulers]])
-            if isinstance(optimizers_return[0], (Tuple, List)):
+            # 检查是否是 [optimizers, schedulers] 格式
+            # 这里的逻辑是：如果是两个元素的列表/元组，且第一个元素本身也是列表/元组，或者是包含调度器的格式
+            if len(optimizers_return) == 2 and isinstance(optimizers_return[0], (list, tuple)):
                 self._optimizers = list(optimizers_return[0])
-                self._schedulers = optimizers_return[1] if len(
-                    optimizers_return) > 0 else []
+                self._schedules = list(optimizers_return[1])
             else:
-                self._optimizers = [optimizers_return[0]]
-                self._schedulers = [optimizers_return[1]] if len(
-                    optimizers_return) > 0 else []
+                # 否则视为优化器列表
+                # 过滤掉非优化器对象（以防用户混入调度器但没按格式传）
+                self._optimizers = [opt for opt in optimizers_return if isinstance(opt, Optimizer)]
+                # 如果列表里还有调度器，则提取出来
+                self._schedules = [sch for sch in optimizers_return if not isinstance(sch, Optimizer)]
         else:
             # 单个优化器, 需要包装到列表中
             self._optimizers = [optimizers_return]
-            self._schedulers = []
+            self._schedules = []
 
     @property
     def schedulers(self):

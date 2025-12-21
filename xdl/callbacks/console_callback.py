@@ -30,8 +30,8 @@ class ConsoleCallback(Callback):
     def __init__(
         self,
         log_frequency: int = 50,
-        log_train: bool = True,
-        log_validation: bool = True,
+        log_train: bool = False,
+        log_validation: bool = False,
         log_validation_frequency: str = "epoch",  # "epoch" 或 "step"
         custom_format: Optional[str] = None,
         metric_keys: Optional[List[str]] = None,
@@ -79,7 +79,8 @@ class ConsoleCallback(Callback):
                 formatter = logging.Formatter(self.custom_format)
             else:
                 formatter = logging.Formatter(
-                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                    '%(asctime)s - %(message)s',
+                    datefmt='%H:%M:%S'
                 )
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
@@ -113,7 +114,7 @@ class ConsoleCallback(Callback):
         if self.show_epoch_info:
             self.logger.info(f"开始训练 Epoch {core_module.current_epoch}")
 
-    def on_train_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Any, batch: Any, batch_idx: int) -> None:
+    def on_train_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         """训练批次结束时的日志"""
         if not self.log_train or self.logger is None:
             return
@@ -158,7 +159,7 @@ class ConsoleCallback(Callback):
         if self.log_validation_frequency == "epoch":
             self.logger.info(f"开始验证 Epoch {core_module.current_epoch}")
 
-    def on_validation_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Any, batch: Any, batch_idx: int) -> None:
+    def on_validation_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         """验证批次结束时的日志"""
         if not self.log_validation or self.logger is None:
             return

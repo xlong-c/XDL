@@ -119,7 +119,7 @@ class Trainer:
         enable_tensorboard: bool = True,
         enable_checkpoint: bool = True,
         enable_tqdm: bool = True,
-        enable_console: bool = True,
+        enable_console: bool = False,
         enable_total_progress: bool = False,
         **kwargs
     ):
@@ -250,6 +250,14 @@ class Trainer:
         self._train_dataloader = train_dataloader
         self._val_dataloader = val_dataloader
         self._inference_data = inference_data
+
+        # 打印启用的回调
+        if self.is_main_process():
+            callback_names = [type(cb).__name__ for cb in self.callbacks]
+            if callback_names:
+                print(f"\n[Trainer] 已启用的回调: {', '.join(callback_names)}")
+            else:
+                print("\n[Trainer] 未启用任何回调")
 
         # 计算验证步数间隔
         original_steps_per_epoch = len(train_dataloader)
@@ -411,7 +419,7 @@ class Trainer:
                 model._step_metrics.clear_epoch()
 
         # 3. 执行推理采样 (生成式模型生图/采样)
-        if self._inference_data is not None and model.is_main_progress():
+        if self._inference_data is not None and model.is_main_process():
             with torch.no_grad():
                 processed_data = self._transfer_to_device(self._inference_data)
                 # 直接传入完整数据, 由模型自行决定如何处理(如 Batch 推理)
@@ -439,8 +447,21 @@ class Trainer:
             return [self._transfer_to_device(v) for v in data]
         return data
 
-    def _is_master(self) -> bool:
+    def is_main_process(self) -> bool:
         """判断当前进程是否为主进程"""
+        # 如果没有 accelerator, 说明是单机训练, 返回 True
+        if self._accelerator is None:
+            return True
+
+        # 使用 accelerator 的 is_main_process 方法来判断
+        if hasattr(self._accelerator, 'is_main_process'):
+            return self._accelerator.is_main_process
+
+        # 检查其他可能的属性
+        if hasattr(self._accelerator, 'is_local_main_process'):
+            return self._accelerator.is_local_main_process
+
+        # 默认情况下, 认为是主进程
         return True
 
     def _configure_optimizers(self):
