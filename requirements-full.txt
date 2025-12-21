@@ -1,0 +1,68 @@
+# XDL - 深度学习框架完整依赖
+# 安装命令: pip install -r requirements-full.txt
+
+# ============================================
+# 核心依赖 (必须)
+# ============================================
+torch>=1.12.0
+torchvision>=0.13.0
+numpy>=1.21.0
+pyyaml>=5.4.0
+tqdm>=4.62.0
+typing-extensions>=4.0.0
+
+# ============================================
+# 计算机视觉增强
+# ============================================
+opencv-python>=4.5.0          # 图像处理
+albumentations>=1.0.0         # 数据增强
+matplotlib>=3.5.0             # 可视化绘图
+
+# ============================================
+# 实验管理和日志
+# ============================================
+tensorboard>=2.10.0           # TensorBoard可视化
+wandb>=0.13.0                 # Weights & Biases跟踪
+
+# ============================================
+# 模型优化和加速
+# ============================================
+accelerate>=0.12.0            # HuggingFace加速库
+safetensors>=0.3.0            # 安全模型权重格式
+
+# ============================================
+# 高级优化 (可选，需要GPU支持)
+# ============================================
+torchao>=0.1.0                # PyTorch量化优化
+triton>=2.0.0                 # GPU内核优化
+tilelang>=0.1.0               # Tile语言优化
+
+# ============================================
+# 开发和测试 (可选)
+# ============================================
+pytest>=7.0.0                 # 测试框架
+pytest-cov>=4.0.0             # 测试覆盖率
+black>=22.0.0                 # 代码格式化
+isort>=5.10.0                 # 导入排序
+flake8>=5.0.0                 # 代码检查
+mypy>=0.991                   # 类型检查
+pre-commit>=2.20.0            # Git钩子
+
+# ============================================
+# 安装建议
+# ============================================
+# 基础使用:
+#   pip install -r requirements.txt
+#
+# 完整功能:
+#   pip install -r requirements-full.txt
+#
+# 仅核心+CV:
+#   pip install torch torchvision numpy pyyaml tqdm opencv-python albumentations matplotlib
+#
+# 仅核心+实验管理:
+#   pip install torch torchvision numpy pyyaml tqdm tensorboard wandb
+#
+# 开发环境:
+#   pip install -r requirements-full.txt
+#   pip install -e .

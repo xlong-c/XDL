@@ -1,0 +1,41 @@
+# 自动检测文本文件并进行行尾符规范化
+* text=auto
+
+# Python 源文件使用 LF
+*.py text eol=lf
+
+# 配置文件使用 LF
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+
+# Markdown 和文档文件使用 LF
+*.md text eol=lf
+*.txt text eol=lf
+
+# Shell 脚本使用 LF
+*.sh text eol=lf
+*.bash text eol=lf
+
+# 批处理脚本使用 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制文件不进行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.pth binary
+*.pt binary
+*.ckpt binary
+*.pkl binary
+*.pickle binary

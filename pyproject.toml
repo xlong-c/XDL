@@ -1,0 +1,103 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xdl"
+version = "0.1.0"
+description = "基于 PyTorch 的模块化深度学习框架"
+readme = "README.md"
+authors = [
+    { name = "Developer" }
+]
+requires-python = ">=3.8"
+license = { text = "MIT" }
+keywords = ["deep-learning", "pytorch", "computer-vision", "machine-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "torch>=1.12.0",
+    "torchvision>=0.13.0",
+    "numpy>=1.21.0",
+    "pyyaml>=5.4.0",
+    "tqdm>=4.62.0",
+    "typing-extensions>=4.0.0",
+]
+
+[project.optional-dependencies]
+# 计算机视觉增强
+cv = [
+    "opencv-python>=4.5.0",
+    "albumentations>=1.0.0",
+    "matplotlib>=3.5.0",
+]
+
+# 实验管理和日志
+logging = [
+    "tensorboard>=2.10.0",
+    "wandb>=0.13.0",
+]
+
+# 模型优化和加速
+accelerate = [
+    "accelerate>=0.12.0",
+    "safetensors>=0.3.0",
+]
+
+# 高级优化（可选）
+optimization = [
+    "torchao>=0.1.0",
+    "triton>=2.0.0",
+    "tilelang>=0.1.0",
+]
+
+# 完整安装（所有功能）
+all = [
+    "xdl[cv]",
+    "xdl[logging]",
+    "xdl[accelerate]",
+    "xdl[optimization]",
+]
+
+# 开发和测试
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "flake8>=5.0.0",
+    "mypy>=0.991",
+    "pre-commit>=2.20.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/xlong/xdl"
+Repository = "https://gitee.com/xlong_t/xdl"
+Documentation = "https://github.com/xlong/xdl#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xdl*"]
+
+[tool.setuptools.package-data]
+xdl = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
