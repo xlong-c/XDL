@@ -38,6 +38,7 @@ def matmul_kernel(
     stride_cm, stride_cn,
     BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr, BLOCK_SIZE_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
+    ACC_TYPE: tl.constexpr,
 ):
     pid = tl.program_id(0)
     num_pid_m = tl.cdiv(M, BLOCK_SIZE_M)
@@ -57,13 +58,13 @@ def matmul_kernel(
     b_ptrs = b_ptr + (offs_k[:, None] * stride_bk +
                       offs_bn[None, :] * stride_bn)
 
-    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=ACC_TYPE)
     for k in range(0, tl.cdiv(K, BLOCK_SIZE_K)):
         a = tl.load(a_ptrs, mask=offs_k[None, :]
                     < K - k * BLOCK_SIZE_K, other=0.0)
         b = tl.load(b_ptrs, mask=offs_k[:, None]
                     < K - k * BLOCK_SIZE_K, other=0.0)
-        accumulator += tl.dot(a, b)
+        accumulator = tl.dot(a, b, accumulator)
         a_ptrs += BLOCK_SIZE_K * stride_ak
         b_ptrs += BLOCK_SIZE_K * stride_bk
 
@@ -78,18 +79,30 @@ def matmul_kernel(
     tl.store(c_ptrs, c, mask=c_mask)
 
 
-def matmul(a, b, out_dtype=torch.float16):
+def matmul(a, b, out_dtype=torch.float16, acc_dtype=torch.float32):
     M, K = a.shape
     K, N = b.shape
     c = torch.empty((M, N), device=a.device, dtype=out_dtype)
     def grid(META): return (triton.cdiv(
         M, META['BLOCK_SIZE_M']) * triton.cdiv(N, META['BLOCK_SIZE_N']),)
+    
+    # 映射 Torch dtype 到 Triton dtype
+    if acc_dtype == torch.float32:
+        acc_type = tl.float32
+    elif acc_dtype == torch.float16:
+        acc_type = tl.float16
+    elif acc_dtype == torch.bfloat16:
+        acc_type = tl.bfloat16
+    else:
+        acc_type = tl.float32
+
     matmul_kernel[grid](
         a, b, c,
         M, N, K,
         a.stride(0), a.stride(1),
         b.stride(0), b.stride(1),
         c.stride(0), c.stride(1),
+        ACC_TYPE=acc_type,
     )
     return c
 
@@ -101,24 +114,28 @@ def benchmark():
     M, N, K = SIZE, SIZE, SIZE
 
     test_types = [
-        ("FP32", torch.float32, torch.float32, True),
-        ("TF32", torch.float32, torch.float32, True),
-        ("FP16", torch.float16, torch.float16, True),
-        ("BF16", torch.bfloat16, torch.bfloat16, True),
+        ("FP32", torch.float32, torch.float32, torch.float32),
+        ("TF32", torch.float32, torch.float32, torch.float32),
+        ("FP16 (Acc32)", torch.float16, torch.float16, torch.float32),
+        ("FP16 (Acc16)", torch.float16, torch.float16, torch.float16),
+        ("BF16 (Acc32)", torch.bfloat16, torch.bfloat16, torch.float32),
+        ("BF16 (Acc16)", torch.bfloat16, torch.bfloat16, torch.bfloat16),
     ]
 
     # FP8 检测
     if capability[0] >= 9 or (capability[0] == 8 and capability[1] >= 9):
         try:
             test_types.append(
-                ("FP8 (E4M3)", torch.float8_e4m3fn, torch.float16, True))
+                ("FP8 (Acc32)", torch.float8_e4m3fn, torch.float16, torch.float32))
+            test_types.append(
+                ("FP8 (Acc16)", torch.float8_e4m3fn, torch.float16, torch.float16))
         except AttributeError:
             pass
 
     print(f"\n{'Precision':<15} | {'Latency (ms)':>15} | {'TFLOPS':>12}")
     print("-" * 48)
 
-    for name, in_dtype, out_dtype, supported in test_types:
+    for name, in_dtype, out_dtype, acc_dtype in test_types:
         if name == "TF32":
             torch.backends.cuda.matmul.allow_tf32 = True
         else:
@@ -137,11 +154,11 @@ def benchmark():
 
             # 预热
             for _ in range(5):
-                matmul(a, b, out_dtype=out_dtype)
+                matmul(a, b, out_dtype=out_dtype, acc_dtype=acc_dtype)
 
             # 计时
             latency = triton.testing.do_bench(
-                lambda: matmul(a, b, out_dtype=out_dtype))
+                lambda: matmul(a, b, out_dtype=out_dtype, acc_dtype=acc_dtype))
 
             # 确保 latency 不为 None, 满足 Pylance 的类型检查要求
             if latency is None:
@@ -157,10 +174,13 @@ def benchmark():
             print(f"{name:<15} | {ms:15.4f} | {tflops:12.2f}")
 
         except Exception as e:
-            print(f"{name:<15} | {'Error':>15} | {str(e)[:15]}")
+            # 显示更多错误信息以供调试
+            error_msg = str(e).replace("\n", " ")
+            print(f"{name:<15} | {'Error':>15} | {error_msg[:30]}")
 
     print("-" * 48)
-    print("备注: 4070 Ti Super 在 FP8 模式下理论峰值可达约 140+ TFLOPS。")
+    print("备注: 1. 4070 Ti Super 在 FP8 模式下理论峰值可达约 140+ TFLOPS。")
+    print("      2. 某些硬件/Triton 版本下, FP8 必须使用 FP32 累加 (Acc32)。")
 
 
 if __name__ == "__main__":
