@@ -122,6 +122,7 @@ def jvp_demo():
     # 使用JVP计算损失相对于输入的变化率
     # loss_fn聚合了输出, 所以我们期望得到一个标量结果
     _, jvp_result = torch.autograd.functional.jvp(loss_fn, (x,), (vector,))
+    assert isinstance(jvp_result, torch.Tensor)
     print(f"JVP结果形状: {jvp_result.shape}")
     if jvp_result.numel() > 1:
         print(f"JVP结果统计: mean={jvp_result.mean():.6f}, std={jvp_result.std():.6f}\n")
@@ -142,7 +143,7 @@ def jvp_demo():
         torch.sqrt(torch.tensor(1 - alpha_bar)) * noise
 
     # 模拟去噪一步 (反向扩散过程的一部分)
-    denoised_x = model(x_noisy, t)
+    _ = model(x_noisy, t)
 
     # 计算从噪声状态到去噪状态的JVP
     def denoise_step(x_input):
@@ -150,6 +151,7 @@ def jvp_demo():
 
     _, jvp_denoise = torch.autograd.functional.jvp(
         denoise_step, (x_noisy,), (vector,))
+    assert isinstance(jvp_denoise, torch.Tensor)
     print(f"去噪步骤的JVP形状: {jvp_denoise.shape}")
     print(
         f"去噪步骤的JVP统计: mean={jvp_denoise.mean():.6f}, std={jvp_denoise.std():.6f}\n")
@@ -161,7 +163,7 @@ def jvp_demo():
     elements_count = torch.numel(x)
     print(
         f"  需要存储的参数数量: {elements_count}^2 ≈ {elements_count**2 / 1e6:.2f} 百万个参数")
-    print(f"  对于大图像, 这种方法会非常消耗内存\n")
+    print("  对于大图像, 这种方法会非常消耗内存\n")
 
     # JVP只计算J*v, 避免显式构造完整的Jacobian矩阵
     print(f"而JVP只计算J*v, 输出形状与输入相同({x.shape}), 内存效率更高")
@@ -208,6 +210,7 @@ def fisher_information_matrix_vjp_example():
     # 计算score function的JVP
     _, fisher_vjp = torch.autograd.functional.jvp(
         score_function, (dummy_params,), (vector,))
+    assert isinstance(fisher_vjp, torch.Tensor)
 
     print(f"Fisher信息矩阵向量积形状: {fisher_vjp.shape}")
     if fisher_vjp.numel() > 1:
@@ -248,6 +251,7 @@ def sensitivity_analysis_with_jvp():
         (x,),
         (perturbation_direction,)
     )
+    assert isinstance(sensitivity_jvp, torch.Tensor)
 
     print(f"敏感性(输出相对于输入扰动的变化率): {sensitivity_jvp.item():.6f}")
 
@@ -267,7 +271,6 @@ def advanced_jvp_example():
     model = SimpleUNet()
 
     # 获取模型参数
-    params = tuple(model.parameters())
     total_params = sum(p.numel() for p in model.parameters())
     print(f"模型参数总数: {total_params}\n")
 
@@ -355,6 +358,7 @@ def jvp_for_sampling():
         (x_T,),
         (vector,)
     )
+    assert isinstance(jvp_sample, torch.Tensor)
 
     print(f"采样步骤的JVP形状: {jvp_sample.shape}")
     if jvp_sample.numel() > 1:
