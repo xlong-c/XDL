@@ -76,8 +76,6 @@ def main():
 
     trainer = Trainer(
         max_epochs=2,
-        enable_console=False,
-        enable_tqdm=False
     )
 
     trainer.fit(model, train_loader, val_loader)
@@ -94,8 +92,6 @@ def main():
     trainer_accelerate = Trainer(
         max_epochs=2,
         accelerate_config=accelerate_config,
-        enable_console=False,
-        enable_tqdm=False
     )
 
     trainer_accelerate.fit(model_accelerate, train_loader, val_loader)

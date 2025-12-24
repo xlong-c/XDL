@@ -95,8 +95,6 @@ def run_simulation():
         max_epochs=10,
         device="cpu",
         callbacks=[checkpoint_callback],
-        enable_checkpointing=False,  # 禁用默认保存, 使用我们的 callback
-        enable_tqdm=True
     )
 
     print("开始双层 MLP 模拟训练 (10 Epochs, 10 Steps/Epoch)...")
