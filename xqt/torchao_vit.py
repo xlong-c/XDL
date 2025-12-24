@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import timm
-from torchvision.datasets import ImageNet
+from torchvision.datasets import ImageFolder  # 替换 ImageNet 为 ImageFolder
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 from torch.utils.data import DataLoader, Subset
-from torchao.quantization import quantize_, float8_weight_only, float8_dynamic_activation_float8_weight
+from torchao.quantization import quantize_, Float8DynamicActivationFloat8WeightConfig
 import time
 
 def get_autocast():
@@ -18,8 +18,8 @@ def get_autocast():
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 assert DEVICE == "cuda", "FP8量化建议在支持的NVIDIA GPU上运行"
 
-BATCH_SIZE = 8
-IMAGE_NET_ROOT = "/path/to/imagenet/val"  # 替换为你的ImageNet验证集路径
+BATCH_SIZE = 64  # 增大 Batch Size 以体现 FP8 优势
+IMAGE_NET_ROOT = r"E:\dataset\imagenet"  # 已修正，类别文件夹直接在此目录下
 RESULT_CSV = "layer_error_analysis.csv"  # 误差报告保存路径
 
 # 数据预处理(与ViT预训练一致)
@@ -35,35 +35,33 @@ def get_transform():
 def load_models():
     """加载原始FP32模型和FP8量化模型(针对4070Ti Super优化)"""
     model_name = 'vit_small_patch16_224'
-    # 1. 加载原始模型
-    model_fp32 = timm.create_model(model_name, pretrained=True).to(DEVICE)
+    # 1. 加载原始模型 (使用 BF16 以提高效率并匹配量化算子)
+    model_fp32 = timm.create_model(model_name, pretrained=True).to(DEVICE).to(torch.bfloat16)
     model_fp32.eval()
     
     # 2. 加载并量化模型(FP8 权重+激活动态量化)
-    model_quant = timm.create_model(model_name, pretrained=True).to(DEVICE)
+    model_quant = timm.create_model(model_name, pretrained=True).to(DEVICE).to(torch.bfloat16)
     model_quant.eval()
     
-    # 定义量化策略: 权重和激活都使用FP8, 这是Ada架构加速效果最明显的模式
-    # 动态量化不需要提前校准
-    quant_strategy = float8_dynamic_activation_float8_weight()
+    # 定义量化策略: 权重和激活都使用FP8
+    quant_strategy = Float8DynamicActivationFloat8WeightConfig()
     
-    print("正在执行 FP8 量化...")
-    quantize_(model_quant, quant_strategy)
+    print(f"正在为 {model_name} 执行 FP8 量化...")
+    
+    # 细化过滤逻辑：仅量化 Linear 层且排除 head
+    def filter_fn(module, name):
+        return isinstance(module, nn.Linear) and "head" not in name
 
-    # ------------------ 核心加速步骤 ------------------
-    print("正在使用 torch.compile 编译模型以加速 FP8 算子 (这可能需要几分钟)...")
-    # max-autotune 模式会针对 FP8 尝试不同的 Triton kernel 组合
-    model_quant = torch.compile(model_quant, mode="max-autotune")
-    # ------------------------------------------------
-    
+    quantize_(model_quant, quant_strategy, filter_fn)
+
     return model_fp32, model_quant
 
 # -------------------------- 2. 计算误差的核心函数 --------------------------
 def calculate_error(a, b):
     """计算两个张量的误差指标:MAE/MSE/余弦相似度"""
-    # 转为numpy(便于计算)
-    a_np = a.flatten().cpu().numpy()
-    b_np = b.flatten().cpu().numpy()
+    # 转为 float32 (numpy 不支持 bfloat16)
+    a_np = a.detach().to(torch.float32).flatten().cpu().numpy()
+    b_np = b.detach().to(torch.float32).flatten().cpu().numpy()
     
     # 计算指标
     mae = np.mean(np.abs(a_np - b_np))  # 平均绝对误差
@@ -74,9 +72,9 @@ def calculate_error(a, b):
     cos_sim = np.dot(a_np, b_np) / (norm_a * norm_b)
     
     return {
-        "mae": round(mae, 6),
-        "mse": round(mse, 6),
-        "cos_sim": round(cos_sim, 6)
+        "mae": round(float(mae), 6),
+        "mse": round(float(mse), 6),
+        "cos_sim": round(float(cos_sim), 6)
     }
 
 def get_layer_weights(model, layer_name):
@@ -123,11 +121,12 @@ def benchmark_performance(model, model_name="Model", num_iters=100):
 def analyze_layer_errors(model_fp32, model_quant):
     """逐层分析权重误差和激活误差"""
     # 1. 准备测试数据(用真实数据计算激活误差)
-    test_dataset = Subset(ImageNet(IMAGE_NET_ROOT, split="val", transform=get_transform()), 
+    # 使用 ImageFolder 加载解压后的数据
+    test_dataset = Subset(ImageFolder(IMAGE_NET_ROOT, transform=get_transform()), 
                           range(BATCH_SIZE))  # 取1个批次即可
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=8)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
     test_input, _ = next(iter(test_loader))
-    test_input = test_input.to(DEVICE, dtype=torch.float16)
+    test_input = test_input.to(DEVICE, dtype=torch.bfloat16)
     
     # 2. 注册钩子,提取所有层的激活输出
     activations_fp32 = {}  # 原始模型激活
@@ -243,16 +242,24 @@ if __name__ == "__main__":
     print("加载模型中...")
     model_fp32, model_quant = load_models()
     
+    # 逐层误差分析 (在编译前进行，确保钩子生效)
+    print("\n==================== 逐层误差分析 ====================")
+    layer_errors = analyze_layer_errors(model_fp32, model_quant)
+    
     # 性能测试
     print("\n==================== 性能基准测试 (4070Ti Super) ====================")
-    # 给FP32模型也编译一下, 保证对比公平
-    model_fp32_compiled = torch.compile(model_fp32)
-    time_fp32 = benchmark_performance(model_fp32_compiled, "FP32 (Compiled)")
-    time_fp8 = benchmark_performance(model_quant, "FP8 (Compiled)")
-    print(f"加速比: {time_fp32 / time_fp8:.2f}x")
-
-    # 逐层误差分析
-    layer_errors = analyze_layer_errors(model_fp32, model_quant)
+    print("正在预热并编译模型 (这可能需要几分钟)...")
+    
+    # 编译量化模型以获得加速
+    model_quant_compiled = torch.compile(model_quant)
+    
+    # 测试 BF16 性能
+    time_fp32 = benchmark_performance(model_fp32, "FP32 (BF16)")
+    
+    # 测试 Compiled FP8 性能
+    time_fp8 = benchmark_performance(model_quant_compiled, "FP8 (Compiled)")
+    
+    print(f"\n加速比 (Compiled FP8 vs BF16): {time_fp32 / time_fp8:.2f}x")
     
     # 额外提示:高误差层优化建议
     print("\n==================== 高误差层优化建议 ====================")
