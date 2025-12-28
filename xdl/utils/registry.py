@@ -23,7 +23,8 @@ class Registry:
         def decorator(cls_or_fn):
             register_name = name if name is not None else cls_or_fn.__name__
             if register_name in self._registry:
-                raise ValueError(f"'{register_name}' already registered in {self.name}")
+                logger.warning(f"'{register_name}' already registered in {self.name}. Skipping.")
+                return cls_or_fn
             self._registry[register_name] = cls_or_fn
             return cls_or_fn
         return decorator
