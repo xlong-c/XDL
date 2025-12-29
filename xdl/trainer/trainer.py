@@ -6,29 +6,30 @@
 此文件整合了所有训练器相关的类和功能
 """
 
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
 import torch
-from typing import Optional, List, Union, Dict, Any, TYPE_CHECKING
 
 # Conditional imports for type checking
 if TYPE_CHECKING:
     from accelerate import Accelerator
+# Accelerate 支持
+from accelerate import Accelerator
 from torch.utils.data import DataLoader
 
-from .coreModel import CoreModel
 from xdl.callbacks import Callback
-
-# 导入拆分后的模块
-from xdl.trainer.trainer_state import TrainerState
 from xdl.callbacks.callback_list import CallbackList
+from xdl.callbacks.console_callback import ConsoleCallback
+from xdl.callbacks.model_checkpoint import ModelCheckpoint
+from xdl.callbacks.tensorboard_callback import TensorBoardCallback
 
 # 导入新的独立回调类
 from xdl.callbacks.tqdm_callback import TqdmCallback
-from xdl.callbacks.console_callback import ConsoleCallback
-from xdl.callbacks.tensorboard_callback import TensorBoardCallback
-from xdl.callbacks.model_checkpoint import ModelCheckpoint
 
-# Accelerate 支持
-from accelerate import Accelerator
+# 导入拆分后的模块
+from xdl.trainer.trainer_state import TrainerState
+
+from .coreModel import CoreModel
 
 
 class Trainer:
@@ -112,7 +113,7 @@ class Trainer:
         log_dir: str = "./others/logs",
         checkpoint_dir: str = "./others/checkpoints",
         monitor: Optional[str] = "val_loss",
-        mode: str = 'min',
+        mode: str = "min",
         save_top_k: int = 1,
         log_every_n_steps: int = 50,
         every_n_epochs: int = 1,
@@ -121,56 +122,64 @@ class Trainer:
         enable_tqdm: bool = True,
         enable_console: bool = False,
         enable_total_progress: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         快速配置常用回调函数(日志、检查点、进度条等)
         """
         # 添加TqdmCallback(进度条管理)
         if enable_tqdm:
-            self.callback_list.add_callback(TqdmCallback(
-                log_frequency=log_every_n_steps,
-                show_metrics=True,
-                leave=True,
-                total_progress=enable_total_progress
-            ))
+            self.callback_list.add_callback(
+                TqdmCallback(
+                    log_frequency=log_every_n_steps,
+                    show_metrics=True,
+                    leave=True,
+                    total_progress=enable_total_progress,
+                )
+            )
 
         # 添加ConsoleCallback(控制台日志记录)
         if enable_console:
-            self.callback_list.add_callback(ConsoleCallback(
-                log_frequency=kwargs.get(
-                    "console_log_frequency", log_every_n_steps),
-                log_train=True,
-                log_validation=True,
-                log_validation_frequency="epoch"
-            ))
+            self.callback_list.add_callback(
+                ConsoleCallback(
+                    log_frequency=kwargs.get(
+                        "console_log_frequency", log_every_n_steps),
+                    log_train=True,
+                    log_validation=True,
+                    log_validation_frequency="epoch",
+                )
+            )
 
         # 添加TensorBoardCallback(TensorBoard日志记录)
         if enable_tensorboard:
-            self.callback_list.add_callback(TensorBoardCallback(
-                experiment_name=experiment_name,
-                log_dir=log_dir,
-                log_frequency=kwargs.get("tensorboard_log_frequency", 1),
-                log_train=True,
-                log_validation=True,
-                log_validation_frequency="epoch"
-            ))
+            self.callback_list.add_callback(
+                TensorBoardCallback(
+                    experiment_name=experiment_name,
+                    log_dir=log_dir,
+                    log_frequency=kwargs.get("tensorboard_log_frequency", 1),
+                    log_train=True,
+                    log_validation=True,
+                    log_validation_frequency="epoch",
+                )
+            )
 
         # 添加ModelCheckpoint(检查点保存)
         if enable_checkpoint:
-            self.callback_list.add_callback(ModelCheckpoint(
-                dirpath=checkpoint_dir,
-                monitor=monitor,
-                mode=mode,
-                save_top_k=save_top_k,
-                every_n_epochs=every_n_epochs,
-                save_last=kwargs.get("save_last", True)
-            ))
+            self.callback_list.add_callback(
+                ModelCheckpoint(
+                    dirpath=checkpoint_dir,
+                    monitor=monitor,
+                    mode=mode,
+                    save_top_k=save_top_k,
+                    every_n_epochs=every_n_epochs,
+                    save_last=kwargs.get("save_last", True),
+                )
+            )
 
     @property
     def steps_per_epoch(self) -> int:
         """获取每轮训练的步数(支持虚拟epoch)"""
-        if hasattr(self, '_virtual_steps_per_epoch') and self._virtual_steps_per_epoch is not None:
+        if hasattr(self, "_virtual_steps_per_epoch") and self._virtual_steps_per_epoch is not None:
             return self._virtual_steps_per_epoch
         return len(self._train_dataloader) if self._train_dataloader is not None else 0
 
@@ -191,32 +200,32 @@ class Trainer:
     @property
     def global_step(self) -> int:
         """获取全局训练步数"""
-        if self._model and hasattr(self._model, '_total_train_steps'):
+        if self._model and hasattr(self._model, "_total_train_steps"):
             return self._model._total_train_steps
-        return self.state.global_step if hasattr(self, 'state') else 0
+        return self.state.global_step if hasattr(self, "state") else 0
 
     @property
     def current_epoch(self) -> int:
         """获取当前epoch"""
-        if self._model and hasattr(self._model, '_current_epoch'):
+        if self._model and hasattr(self._model, "_current_epoch"):
             return self._model._current_epoch
-        return self.state.current_epoch if hasattr(self, 'state') else 0
+        return self.state.current_epoch if hasattr(self, "state") else 0
 
     @property
     def should_stop(self) -> bool:
         """获取是否应该停止训练"""
-        return self.state.should_stop if hasattr(self, 'state') else False
+        return self.state.should_stop if hasattr(self, "state") else False
 
     @should_stop.setter
     def should_stop(self, value: bool):
         """设置是否应该停止训练"""
-        if hasattr(self, 'state'):
+        if hasattr(self, "state"):
             self.state.should_stop = value
 
     @property
     def callbacks(self) -> List[Callback]:
         """获取回调列表 - 向后兼容"""
-        return self.callback_list.callbacks if hasattr(self, 'callback_list') else []
+        return self.callback_list.callbacks if hasattr(self, "callback_list") else []
 
     @property
     def callback_metrics(self) -> Dict[str, float]:
@@ -283,9 +292,9 @@ class Trainer:
             model._accelerator = self._accelerator
 
         # 阶段1-3：设置
-        self.callback_list.setup(trainer=self, core_module=model, stage='fit')
-        if hasattr(model, 'setup'):
-            model.setup('fit')
+        self.callback_list.setup(trainer=self, core_module=model, stage="fit")
+        if hasattr(model, "setup"):
+            model.setup("fit")
         self._setup()
 
         # 阶段4：训练开始
@@ -295,8 +304,7 @@ class Trainer:
         # 创建持久化训练数据迭代器
         def _infinite_loader(loader):
             while True:
-                for batch in loader:
-                    yield batch
+                yield from loader
 
         self._train_iterator = _infinite_loader(self._train_dataloader)
 
@@ -311,7 +319,9 @@ class Trainer:
             self._train_epoch()
 
             # 验证或推理采样
-            if (self._val_dataloader is not None or self._inference_data is not None) and epoch % check_val_every_n_epoch == 0:
+            if (
+                self._val_dataloader is not None or self._inference_data is not None
+            ) and epoch % check_val_every_n_epoch == 0:
                 self._validate_epoch()
 
             # 早停检查
@@ -324,7 +334,7 @@ class Trainer:
         if self._accelerator:
             self._accelerator.end_training()
         self.callback_list.teardown(
-            trainer=self, core_module=model, stage='fit')
+            trainer=self, core_module=model, stage="fit")
 
     def _train_epoch(self) -> Dict[str, Any]:
         """训练一个 (虚拟) epoch"""
@@ -348,26 +358,29 @@ class Trainer:
             model.on_train_step_start()
             model.on_train_batch_start()
             self.callback_list.train_batch_start(
-                trainer=self, core_module=model, batch=batch, batch_idx=step)
+                trainer=self, core_module=model, batch=batch, batch_idx=step
+            )
 
             # 执行训练
             if self._accelerator:
                 with self._accelerator.accumulate():
                     model.training_step(batch, step)
             else:
-                if hasattr(batch, '__iter__'):
+                if hasattr(batch, "__iter__"):
                     batch = [x.to(self.device) if torch.is_tensor(
                         x) else x for x in batch]
                 model.training_step(batch, step)
 
             model.on_train_batch_end()
             self.callback_list.train_batch_end(
-                trainer=self, core_module=model, outputs={}, batch=batch, batch_idx=step)
+                trainer=self, core_module=model, outputs={}, batch=batch, batch_idx=step
+            )
 
         # 获取平均指标并结束 epoch
-        epoch_avg_metrics = model._step_metrics.get_all_epoch_avg() if hasattr(model,
-                                                                               '_step_metrics') else {}
-        if hasattr(model, '_step_metrics'):
+        epoch_avg_metrics = (
+            model._step_metrics.get_all_epoch_avg() if hasattr(model, "_step_metrics") else {}
+        )
+        if hasattr(model, "_step_metrics"):
             model._step_metrics.clear_epoch()
 
         model.on_epoch_end()
@@ -403,7 +416,7 @@ class Trainer:
                     if self._accelerator:
                         model.validation_step(batch, step)
                     else:
-                        if hasattr(batch, '__iter__'):
+                        if hasattr(batch, "__iter__"):
                             batch = [x.to(self.device) if torch.is_tensor(
                                 x) else x for x in batch]
                         model.validation_step(batch, step)
@@ -414,7 +427,7 @@ class Trainer:
                     )
 
             # 整理指标
-            if hasattr(model, '_step_metrics'):
+            if hasattr(model, "_step_metrics"):
                 avg_metrics = model._step_metrics.get_all_epoch_avg()
                 model._step_metrics.clear_epoch()
 
@@ -432,10 +445,7 @@ class Trainer:
         model.on_validation_end()
         self.callback_list.validation_end(trainer=self, core_module=model)
 
-        return {
-            "epoch": self.current_epoch,
-            "avg_metrics": avg_metrics
-        }
+        return {"epoch": self.current_epoch, "avg_metrics": avg_metrics}
 
     def _transfer_to_device(self, data: Any) -> Any:
         """辅助方法:将采样数据递归移动到当前设备"""
@@ -454,11 +464,11 @@ class Trainer:
             return True
 
         # 使用 accelerator 的 is_main_process 方法来判断
-        if hasattr(self._accelerator, 'is_main_process'):
+        if hasattr(self._accelerator, "is_main_process"):
             return self._accelerator.is_main_process
 
         # 检查其他可能的属性
-        if hasattr(self._accelerator, 'is_local_main_process'):
+        if hasattr(self._accelerator, "is_local_main_process"):
             return self._accelerator.is_local_main_process
 
         # 默认情况下, 认为是主进程
@@ -466,25 +476,29 @@ class Trainer:
 
     def _configure_optimizers(self):
         """从 model 获取优化器配置"""
-        if self._model is None or not hasattr(self._model, 'configure_optimizers'):
+        if self._model is None or not hasattr(self._model, "configure_optimizers"):
             return
 
         optimizers_return = self._model.configure_optimizers()
         # 使用 CoreComponent 的配置处理方法
-        if hasattr(self._model, '_configure_optimizers_from_return'):
+        if hasattr(self._model, "_configure_optimizers_from_return"):
             self._model._configure_optimizers_from_return(optimizers_return)
 
         # 如果使用 Accelerate, 通过 Accelerator 准备优化器
-        if (self.accelerate_config and self._accelerator and
-                self._model is not None and hasattr(self._model, '_optimizers') and self._model._optimizers):
-
+        if (
+            self.accelerate_config
+            and self._accelerator
+            and self._model is not None
+            and hasattr(self._model, "_optimizers")
+            and self._model._optimizers
+        ):
             self._model._optimizers = [
                 self._accelerator.prepare_optimizer(_optimizer)
                 for _optimizer in self._model.optimizers
             ]
 
             # 准备调度器
-            if hasattr(self._model, '_schedules'):
+            if hasattr(self._model, "_schedules"):
                 self._model._schedules = [
                     self._accelerator.prepare_scheduler(_scheduler)
                     for _scheduler in self._model.schedulers
@@ -492,7 +506,7 @@ class Trainer:
 
     def _setup(self):
         """初始化设备和其他组件"""
-        if getattr(self, '_is_setup', False):
+        if getattr(self, "_is_setup", False):
             return
 
         # 初始化 Accelerate
@@ -519,7 +533,7 @@ class Trainer:
         prepare_list = []
 
         # 添加模型(所有 nn.Module 属性)
-        if hasattr(self._model, '__dict__'):
+        if hasattr(self._model, "__dict__"):
             for name, value in self._model.__dict__.items():
                 if isinstance(value, torch.nn.Module):
                     prepare_list.append(value)
@@ -536,7 +550,7 @@ class Trainer:
 
             # 重新分配准备好的对象
             idx = 0
-            if hasattr(self._model, '__dict__'):
+            if hasattr(self._model, "__dict__"):
                 for name, value in self._model.__dict__.items():
                     if isinstance(value, torch.nn.Module) and idx < len(prepared_items):
                         setattr(self._model, name, prepared_items[idx])
@@ -559,8 +573,8 @@ class Trainer:
         prepare_list = []
 
         # 添加模型(所有 nn.Module 属性)
-        if hasattr(self._model, '__dict__'):
-            for name, value in self._model.__dict__.items():
+        if hasattr(self._model, "__dict__"):
+            for _name, value in self._model.__dict__.items():
                 if isinstance(value, torch.nn.Module):
                     prepare_list.append(value)
                     # 设置 device
@@ -574,7 +588,7 @@ class Trainer:
 
         # 使用简单的设备分配
         for item in prepare_list:
-            if hasattr(item, 'to'):
+            if hasattr(item, "to"):
                 item.to(self._device)
 
     def test(
@@ -594,7 +608,7 @@ class Trainer:
         self._test_dataloader = test_dataloader
 
         # 确保已 setup
-        if not getattr(self, '_is_setup', False):
+        if not getattr(self, "_is_setup", False):
             self._setup()
 
         # 调用钩子
@@ -614,7 +628,7 @@ class Trainer:
         with torch.no_grad():
             for step, batch in enumerate(test_loader):
                 # 确保batch在正确的设备上
-                if hasattr(batch, '__iter__'):
+                if hasattr(batch, "__iter__"):
                     batch = [x.to(self.device) if torch.is_tensor(
                         x) else x for x in batch]
 

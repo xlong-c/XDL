@@ -3,7 +3,8 @@
 统一管理所有训练状态信息
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import torch
 
 
@@ -52,13 +53,11 @@ class TrainerState:
             epoch: 当前 epoch 编号
             epoch_metrics: epoch 指标字典
         """
-        self.training_history.append({
-            'epoch': epoch,
-            'step': self.global_step,
-            'metrics': epoch_metrics.copy()
-        })
+        self.training_history.append(
+            {"epoch": epoch, "step": self.global_step, "metrics": epoch_metrics.copy()}
+        )
 
-    def add_metric(self, name: str, value, where: str = 'logged'):
+    def add_metric(self, name: str, value, where: str = "logged"):
         """添加指标
 
         Args:
@@ -69,20 +68,16 @@ class TrainerState:
         if isinstance(value, torch.Tensor):
             value = value.item()
 
-        metric_info = {
-            'value': value,
-            'step': self.global_step,
-            'epoch': self.current_epoch
-        }
+        metric_info = {"value": value, "step": self.global_step, "epoch": self.current_epoch}
 
-        if where == 'callback':
+        if where == "callback":
             self.callback_metrics[name] = metric_info
-        elif where == 'logged':
+        elif where == "logged":
             self.logged_metrics[name] = metric_info
-        elif where == 'progress_bar':
+        elif where == "progress_bar":
             self.progress_bar_metrics[name] = metric_info
 
-    def get_metric(self, name: str, where: str = 'logged') -> Optional[float]:
+    def get_metric(self, name: str, where: str = "logged") -> Optional[float]:
         """获取指标
 
         Args:
@@ -92,8 +87,8 @@ class TrainerState:
         Returns:
             Optional[float]: 指标值, 不存在返回 None
         """
-        metrics = getattr(self, f'{where}_metrics', {})
-        return metrics.get(name, {}).get('value')
+        metrics = getattr(self, f"{where}_metrics", {})
+        return metrics.get(name, {}).get("value")
 
     def reset(self):
         """重置所有状态"""
@@ -113,12 +108,12 @@ class TrainerState:
             Dict[str, Any]: 状态字典
         """
         return {
-            'global_step': self.global_step,
-            'current_epoch': self.current_epoch,
-            'max_epochs': self.max_epochs,
-            'should_stop': self.should_stop,
-            'training_history': self.training_history,
-            'validation_history': self.validation_history,
+            "global_step": self.global_step,
+            "current_epoch": self.current_epoch,
+            "max_epochs": self.max_epochs,
+            "should_stop": self.should_stop,
+            "training_history": self.training_history,
+            "validation_history": self.validation_history,
         }
 
     def from_dict(self, state_dict: Dict[str, Any]):
@@ -127,9 +122,9 @@ class TrainerState:
         Args:
             state_dict: 状态字典
         """
-        self.global_step = state_dict.get('global_step', 0)
-        self.current_epoch = state_dict.get('current_epoch', 0)
-        self.max_epochs = state_dict.get('max_epochs', 0)
-        self.should_stop = state_dict.get('should_stop', False)
-        self.training_history = state_dict.get('training_history', [])
-        self.validation_history = state_dict.get('validation_history', [])
+        self.global_step = state_dict.get("global_step", 0)
+        self.current_epoch = state_dict.get("current_epoch", 0)
+        self.max_epochs = state_dict.get("max_epochs", 0)
+        self.should_stop = state_dict.get("should_stop", False)
+        self.training_history = state_dict.get("training_history", [])
+        self.validation_history = state_dict.get("validation_history", [])

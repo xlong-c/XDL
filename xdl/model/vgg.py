@@ -2,9 +2,10 @@
 VGG network implementation
 """
 
+from typing import Dict, List, Union
+
 import torch
 import torch.nn as nn
-from typing import List, Dict, Union
 
 
 class VGG(nn.Module):
@@ -17,7 +18,7 @@ class VGG(nn.Module):
         init_weights: bool = True,
         dropout: float = 0.5,
     ):
-        super(VGG, self).__init__()
+        super().__init__()
         self.features = features
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
@@ -128,9 +129,7 @@ cfgs: Dict[str, List[Union[int, str]]] = {
 
 def vgg11(num_classes: int = 1000, batch_norm: bool = False, **kwargs) -> VGG:
     """VGG 11-layer model"""
-    model = VGG(
-        make_layers(cfgs["A"], batch_norm=batch_norm), num_classes=num_classes, **kwargs
-    )
+    model = VGG(make_layers(cfgs["A"], batch_norm=batch_norm), num_classes=num_classes, **kwargs)
     return model
 
 
@@ -141,9 +140,7 @@ def vgg11_bn(num_classes: int = 1000, **kwargs) -> VGG:
 
 def vgg13(num_classes: int = 1000, batch_norm: bool = False, **kwargs) -> VGG:
     """VGG 13-layer model"""
-    model = VGG(
-        make_layers(cfgs["B"], batch_norm=batch_norm), num_classes=num_classes, **kwargs
-    )
+    model = VGG(make_layers(cfgs["B"], batch_norm=batch_norm), num_classes=num_classes, **kwargs)
     return model
 
 
@@ -154,9 +151,7 @@ def vgg13_bn(num_classes: int = 1000, **kwargs) -> VGG:
 
 def vgg16(num_classes: int = 1000, batch_norm: bool = False, **kwargs) -> VGG:
     """VGG 16-layer model"""
-    model = VGG(
-        make_layers(cfgs["D"], batch_norm=batch_norm), num_classes=num_classes, **kwargs
-    )
+    model = VGG(make_layers(cfgs["D"], batch_norm=batch_norm), num_classes=num_classes, **kwargs)
     return model
 
 
@@ -167,9 +162,7 @@ def vgg16_bn(num_classes: int = 1000, **kwargs) -> VGG:
 
 def vgg19(num_classes: int = 1000, batch_norm: bool = False, **kwargs) -> VGG:
     """VGG 19-layer model"""
-    model = VGG(
-        make_layers(cfgs["E"], batch_norm=batch_norm), num_classes=num_classes, **kwargs
-    )
+    model = VGG(make_layers(cfgs["E"], batch_norm=batch_norm), num_classes=num_classes, **kwargs)
     return model
 
 

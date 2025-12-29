@@ -4,14 +4,16 @@
 负责将训练和验证过程中的指标输出到控制台
 """
 
+import contextlib
 import logging
 import sys
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from .base import Callback
-    from xdl.trainer.trainer import Trainer
     from xdl.trainer.coreModel import CoreModel
+    from xdl.trainer.trainer import Trainer
+
+    from .base import Callback
 else:
     from .base import Callback
 
@@ -35,7 +37,7 @@ class ConsoleCallback(Callback):
         log_validation_frequency: str = "epoch",  # "epoch" 或 "step"
         custom_format: Optional[str] = None,
         metric_keys: Optional[List[str]] = None,
-        show_epoch_info: bool = True
+        show_epoch_info: bool = True,
     ):
         """
         初始化控制台日志回调
@@ -67,7 +69,7 @@ class ConsoleCallback(Callback):
         # 日志器
         self.logger: Optional[logging.Logger] = None
 
-    def setup(self, trainer: 'Trainer', core_module: 'CoreModel', stage: str) -> None:
+    def setup(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
         """初始化控制台日志器"""
         self.logger = logging.getLogger(f"console_callback.{id(self)}")
         self.logger.setLevel(logging.INFO)
@@ -78,10 +80,7 @@ class ConsoleCallback(Callback):
             if self.custom_format:
                 formatter = logging.Formatter(self.custom_format)
             else:
-                formatter = logging.Formatter(
-                    '%(asctime)s - %(message)s',
-                    datefmt='%H:%M:%S'
-                )
+                formatter = logging.Formatter("%(asctime)s - %(message)s", datefmt="%H:%M:%S")
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
@@ -91,7 +90,7 @@ class ConsoleCallback(Callback):
         self.train_batch_count = 0
         self.val_batch_count = 0
 
-    def on_train_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_train_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练开始时的日志"""
         if not self.log_train:
             return
@@ -99,13 +98,13 @@ class ConsoleCallback(Callback):
         if self.logger is None:
             return
 
-        self.logger.info("="*50)
+        self.logger.info("=" * 50)
         self.logger.info("训练开始")
-        if hasattr(trainer, 'max_epochs'):
+        if hasattr(trainer, "max_epochs"):
             self.logger.info(f"最大训练轮数: {trainer.max_epochs}")
-        self.logger.info("="*50)
+        self.logger.info("=" * 50)
 
-    def on_train_epoch_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_train_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练epoch开始时的日志"""
         if not self.log_train or self.logger is None:
             return
@@ -114,7 +113,15 @@ class ConsoleCallback(Callback):
         if self.show_epoch_info:
             self.logger.info(f"开始训练 Epoch {core_module.current_epoch}")
 
-    def on_train_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def on_train_batch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """训练批次结束时的日志"""
         if not self.log_train or self.logger is None:
             return
@@ -138,19 +145,19 @@ class ConsoleCallback(Callback):
 
                 self.logger.info(log_msg)
 
-    def on_train_epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_train_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练epoch结束时的日志"""
         if not self.log_train or self.logger is None:
             return
 
         # 获取epoch平均指标
-        if hasattr(core_module, '_step_metrics'):
+        if hasattr(core_module, "_step_metrics"):
             epoch_metrics = core_module._step_metrics.get_all_epoch_avg()
             if epoch_metrics:
                 metric_str = ", ".join([f"{k}: {v:.4f}" for k, v in epoch_metrics.items()])
                 self.logger.info(f"Epoch {core_module.current_epoch} 完成 - {metric_str}")
 
-    def on_validation_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_validation_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """验证开始时的日志"""
         if not self.log_validation or self.logger is None:
             return
@@ -159,7 +166,15 @@ class ConsoleCallback(Callback):
         if self.log_validation_frequency == "epoch":
             self.logger.info(f"开始验证 Epoch {core_module.current_epoch}")
 
-    def on_validation_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def on_validation_batch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """验证批次结束时的日志"""
         if not self.log_validation or self.logger is None:
             return
@@ -168,7 +183,10 @@ class ConsoleCallback(Callback):
         self.val_step += 1
 
         # 如果设置为按步骤记录验证日志
-        if self.log_validation_frequency == "step" and self.val_batch_count % self.log_frequency == 0:
+        if (
+            self.log_validation_frequency == "step"
+            and self.val_batch_count % self.log_frequency == 0
+        ):
             metrics = self._extract_metrics(core_module, outputs)
 
             if metrics:
@@ -181,29 +199,31 @@ class ConsoleCallback(Callback):
 
                 self.logger.info(log_msg)
 
-    def on_validation_epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_validation_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """验证epoch结束时的日志"""
         if not self.log_validation or self.logger is None:
             return
 
         if self.log_validation_frequency == "epoch":
             # 获取验证epoch平均指标
-            val_metrics = getattr(core_module, 'last_epoch_avg', {})
+            val_metrics = getattr(core_module, "last_epoch_avg", {})
             if val_metrics:
                 metric_str = ", ".join([f"{k}: {v:.4f}" for k, v in val_metrics.items()])
                 self.logger.info(f"验证 Epoch {core_module.current_epoch} 完成 - {metric_str}")
 
-    def on_train_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_train_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练结束时的日志"""
         if not self.log_train or self.logger is None:
             return
 
-        self.logger.info("="*50)
+        self.logger.info("=" * 50)
         self.logger.info("训练完成")
         self.logger.info(f"总共训练步骤: {self.train_step}")
-        self.logger.info("="*50)
+        self.logger.info("=" * 50)
 
-    def _extract_metrics(self, core_module: 'CoreModel', outputs: Optional[Dict[str, Any]]) -> Dict[str, float]:
+    def _extract_metrics(
+        self, core_module: "CoreModel", outputs: Optional[Dict[str, Any]]
+    ) -> Dict[str, float]:
         """
         从core_module和outputs中提取指标
 
@@ -217,24 +237,25 @@ class ConsoleCallback(Callback):
         metrics = {}
 
         # 优先从core模块的get_current_metrics方法获取
-        if hasattr(core_module, '_step_metrics'):
-            try:
+        if hasattr(core_module, "_step_metrics"):
+            with contextlib.suppress(AttributeError, TypeError):
                 metrics = core_module._step_metrics.get_all_current()
-            except (AttributeError, TypeError):
-                pass
 
         # 如果没有获取到指标, 尝试从outputs获取
         if not metrics and outputs and isinstance(outputs, dict):
             for key, value in outputs.items():
                 if isinstance(value, (int, float)):
                     metrics[key] = float(value)
-                elif hasattr(value, 'item'):  # Tensor
+                elif hasattr(value, "item"):  # Tensor
                     metrics[key] = float(value.item())
 
         # 如果指定了metric_keys, 只返回指定的指标
         if self.metric_keys and metrics:
-            metrics = {k: v for k, v in metrics.items()
-                      if any(target_key.lower() in k.lower() for target_key in self.metric_keys)}
+            metrics = {
+                k: v
+                for k, v in metrics.items()
+                if any(target_key.lower() in k.lower() for target_key in self.metric_keys)
+            }
 
         return metrics
 

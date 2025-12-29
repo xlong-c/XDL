@@ -3,8 +3,8 @@ Accelerate 配置管理
 用于统一管理 Accelerate 相关的配置参数
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, Union, List, Dict, Any
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
 
 
 @dataclass
@@ -14,6 +14,7 @@ class AccelerateConfig:
 
     基于 Hugging Face Accelerate 的核心配置选项
     """
+
     # 基础配置
     mixed_precision: Optional[str] = None  # 'no', 'fp16', 'bf16', 'fp8'
     gradient_accumulation_steps: int = 1
@@ -50,7 +51,7 @@ class AccelerateConfig:
     def __post_init__(self):
         """初始化后的验证和默认值设置"""
         # 验证 mixed_precision 参数
-        valid_precision = ['no', 'fp16', 'bf16', 'fp8', None]
+        valid_precision = ["no", "fp16", "bf16", "fp8", None]
         if self.mixed_precision not in valid_precision:
             raise ValueError(f"mixed_precision 必须是 {valid_precision} 中的一个")
 
@@ -68,6 +69,7 @@ class DistributedConfig:
     """
     分布式训练配置
     """
+
     # 基本分布式设置
     use_distributed: bool = False
     backend: str = "nccl"  # 'nccl', 'gloo', 'mpi'
@@ -93,6 +95,7 @@ class LoggingConfig:
     """
     Accelerate 日志配置
     """
+
     # 实验跟踪
     log_with: Optional[Union[str, List[str]]] = None
     project_name: str = "accelerate-experiment"

@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 GAN MNIST训练脚本
 使用项目的trainer框架进行GAN模型的训练
 """
 
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
-import matplotlib.pyplot as plt
-import numpy as np
-import os
+
+from xdl.callbacks.logging_callback import LoggingCallback
 
 # 导入项目的trainer框架
 from xdl.trainer.coreModel import CoreModel
 from xdl.trainer.trainer import Trainer
-from xdl.callbacks.logging_callback import LoggingCallback
 
 # 设置中文字体
 plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']

@@ -3,13 +3,14 @@
 仅负责建立名称到对象的映射, 不再包含任何配置解析或权重处理逻辑。
 """
 
-import logging
 import difflib
 import inspect
-from typing import Dict, Any, Optional, List, Callable
+import logging
+from typing import Any, Callable, Dict, List, Optional
 
 # 设置日志
 logger = logging.getLogger(__name__)
+
 
 class Registry:
     """最简注册表, 仅提供映射管理。"""
@@ -20,6 +21,7 @@ class Registry:
 
     def register(self, name: Optional[str] = None) -> Callable:
         """注册装饰器。"""
+
         def decorator(cls_or_fn):
             register_name = name if name is not None else cls_or_fn.__name__
             if register_name in self._registry:
@@ -27,6 +29,7 @@ class Registry:
                 return cls_or_fn
             self._registry[register_name] = cls_or_fn
             return cls_or_fn
+
         return decorator
 
     def get(self, name: str) -> Any:
@@ -48,11 +51,12 @@ class Registry:
             # 如果是类, 获取 __init__ 的签名; 否则获取对象本身的签名
             sig_obj = obj.__init__ if hasattr(obj, "__init__") else obj
             sig = inspect.signature(sig_obj)
-            
+
             params = []
             for p_name, param in sig.parameters.items():
-                if p_name == 'self': continue
-                
+                if p_name == "self":
+                    continue
+
                 # 构造参数显示字符串: name: type = default
                 p_str = f"{p_name}"
                 if param.annotation is not inspect.Parameter.empty:
@@ -60,7 +64,7 @@ class Registry:
                 if param.default is not inspect.Parameter.empty:
                     p_str += f" = {repr(param.default)}"
                 params.append(p_str)
-            
+
             return f"{name}({', '.join(params)})"
         except Exception as e:
             return f"Could not get signature for {name}: {e}"
@@ -89,23 +93,28 @@ register_transform = TRANSFORM_REGISTRY.register
 
 # --- 检查/帮助辅助函数 ---
 
+
 def inspect_model(name: str):
     """打印构建模型所需的参数。"""
     print(f"[MODEL] {MODEL_REGISTRY.get_signature(name)}")
 
+
 def inspect_optimizer(name: str):
     print(f"[OPTIMIZER] {OPTIMIZER_REGISTRY.get_signature(name)}")
+
 
 def inspect_dataset(name: str):
     print(f"[DATASET] {DATASET_REGISTRY.get_signature(name)}")
 
+
 # --- 常用组件预注册 (PyTorch 原生) ---
 try:
     import torch
-    for opt in ['Adam', 'AdamW', 'SGD', 'RMSprop']:
+
+    for opt in ["Adam", "AdamW", "SGD", "RMSprop"]:
         if hasattr(torch.optim, opt):
             OPTIMIZER_REGISTRY.register(opt)(getattr(torch.optim, opt))
-    for loss in ['CrossEntropyLoss', 'MSELoss', 'L1Loss', 'BCEWithLogitsLoss']:
+    for loss in ["CrossEntropyLoss", "MSELoss", "L1Loss", "BCEWithLogitsLoss"]:
         if hasattr(torch.nn, loss):
             LOSS_REGISTRY.register(loss)(getattr(torch.nn, loss))
 except ImportError:
@@ -114,24 +123,31 @@ except ImportError:
 
 # --- 统一入口 (仅查找, 实例化由调用方完成) ---
 
+
 def build_model(name: str):
     """用法: model = build_model('vgg19')(num_classes=10)"""
     return MODEL_REGISTRY.get(name)
 
+
 def build_dataset(name: str):
     return DATASET_REGISTRY.get(name)
+
 
 def build_optimizer(name: str):
     return OPTIMIZER_REGISTRY.get(name)
 
+
 def build_scheduler(name: str):
     return SCHEDULER_REGISTRY.get(name)
+
 
 def build_loss(name: str):
     return LOSS_REGISTRY.get(name)
 
+
 def build_metric(name: str):
     return METRIC_REGISTRY.get(name)
+
 
 def build_transform(name: str):
     return TRANSFORM_REGISTRY.get(name)

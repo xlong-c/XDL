@@ -51,7 +51,7 @@ class Precision:
     精确率指标
     """
 
-    def __init__(self, num_classes: int | None = None, average: str = 'macro'):
+    def __init__(self, num_classes: int | None = None, average: str = "macro"):
         """
         Args:
             num_classes: 分类数量
@@ -81,8 +81,8 @@ class Precision:
 
         precision_sum = torch.tensor(0.0, device=target.device)
         for class_idx in range(self.num_classes):
-            pred_positive = (pred_labels == class_idx)
-            true_positive = (target == class_idx)
+            pred_positive = pred_labels == class_idx
+            true_positive = target == class_idx
             tp = (pred_positive & true_positive).sum().float()
             fp = (pred_positive & ~true_positive).sum().float()
 
@@ -97,7 +97,7 @@ class Recall:
     召回率指标
     """
 
-    def __init__(self, num_classes: int | None = None, average: str = 'macro'):
+    def __init__(self, num_classes: int | None = None, average: str = "macro"):
         """
         Args:
             num_classes: 分类数量
@@ -127,8 +127,8 @@ class Recall:
 
         recall_sum = torch.tensor(0.0, device=target.device)
         for class_idx in range(self.num_classes):
-            pred_positive = (pred_labels == class_idx)
-            true_positive = (target == class_idx)
+            pred_positive = pred_labels == class_idx
+            true_positive = target == class_idx
             tp = (pred_positive & true_positive).sum().float()
             fn = (~pred_positive & true_positive).sum().float()
 
@@ -143,7 +143,7 @@ class F1Score:
     F1分数指标
     """
 
-    def __init__(self, num_classes: int | None = None, average: str = 'macro'):
+    def __init__(self, num_classes: int | None = None, average: str = "macro"):
         """
         Args:
             num_classes: 分类数量
@@ -173,8 +173,8 @@ class F1Score:
 
         f1_sum = torch.tensor(0.0, device=target.device)
         for class_idx in range(self.num_classes):
-            pred_positive = (pred_labels == class_idx)
-            true_positive = (target == class_idx)
+            pred_positive = pred_labels == class_idx
+            true_positive = target == class_idx
             tp = (pred_positive & true_positive).sum().float()
             fp = (pred_positive & ~true_positive).sum().float()
             fn = (~pred_positive & true_positive).sum().float()
@@ -334,7 +334,9 @@ class IoU:
 
         return iou.item()
 
-    def __call_multi_class__(self, pred: torch.Tensor, target: torch.Tensor, num_classes: int) -> float:
+    def __call_multi_class__(
+        self, pred: torch.Tensor, target: torch.Tensor, num_classes: int
+    ) -> float:
         """
         计算多类IoU的平均值
 
@@ -347,7 +349,9 @@ class IoU:
             平均IoU分数
         """
         if pred.dim() != 4 or target.dim() != 3:
-            raise ValueError("多类IoU需要pred形状为(batch_size, num_classes, height, width),target形状为(batch_size, height, width)")
+            raise ValueError(
+                "多类IoU需要pred形状为(batch_size, num_classes, height, width),target形状为(batch_size, height, width)"
+            )
 
         pred_labels = torch.argmax(pred, dim=1)
         iou_sum = torch.tensor(0.0, device=target.device)
@@ -414,7 +418,9 @@ class DiceCoefficient:
 
         return dice.item()
 
-    def __call_multi_class__(self, pred: torch.Tensor, target: torch.Tensor, num_classes: int) -> float:
+    def __call_multi_class__(
+        self, pred: torch.Tensor, target: torch.Tensor, num_classes: int
+    ) -> float:
         """
         计算多类Dice系数的平均值
 
@@ -427,7 +433,9 @@ class DiceCoefficient:
             平均Dice系数
         """
         if pred.dim() != 4 or target.dim() != 3:
-            raise ValueError("多类Dice系数需要pred形状为(batch_size, num_classes, height, width),target形状为(batch_size, height, width)")
+            raise ValueError(
+                "多类Dice系数需要pred形状为(batch_size, num_classes, height, width),target形状为(batch_size, height, width)"
+            )
 
         pred_labels = torch.argmax(pred, dim=1)
         dice_sum = torch.tensor(0.0, device=target.device)

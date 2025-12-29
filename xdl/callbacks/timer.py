@@ -6,7 +6,8 @@ Timer Callback
 """
 
 import time
-from typing import Dict, Any, List
+from typing import Dict
+
 from .base import Callback
 
 
@@ -26,7 +27,9 @@ class Timer(Callback):
         track_batch_speed: 是否跟踪批次处理速度
     """
 
-    def __init__(self, verbose: bool = True, track_eta: bool = True, track_batch_speed: bool = True):
+    def __init__(
+        self, verbose: bool = True, track_eta: bool = True, track_batch_speed: bool = True
+    ):
         super().__init__()
 
         self.verbose = verbose
@@ -34,14 +37,16 @@ class Timer(Callback):
         self.track_batch_speed = track_batch_speed
 
         # 状态管理
-        self._state.update({
-            'timers': {},
-            'epoch_times': [],
-            'batch_times': [],
-            'stage_start_times': {},
-            'total_samples': 0,
-            'processed_samples': 0
-        })
+        self._state.update(
+            {
+                "timers": {},
+                "epoch_times": [],
+                "batch_times": [],
+                "stage_start_times": {},
+                "total_samples": 0,
+                "processed_samples": 0,
+            }
+        )
 
         # 内部计时器
         self._timers = {}
@@ -66,9 +71,9 @@ class Timer(Callback):
         del self._timers[name]
 
         # 保存到状态
-        if 'timers' not in self._state:
-            self._state['timers'] = {}
-        self._state['timers'][name] = elapsed
+        if "timers" not in self._state:
+            self._state["timers"] = {}
+        self._state["timers"][name] = elapsed
 
         return elapsed
 
@@ -76,8 +81,8 @@ class Timer(Callback):
         """获取已运行时间"""
         if name in self._timers:
             return time.time() - self._timers[name]
-        elif name in self._state.get('timers', {}):
-            return self._state['timers'][name]
+        elif name in self._state.get("timers", {}):
+            return self._state["timers"][name]
         return 0.0
 
     # ========================================
@@ -86,77 +91,84 @@ class Timer(Callback):
 
     def on_train_start(self, trainer, core_module):
         """训练开始时初始化计时器"""
-        self._start_timer('total_training')
-        self._state['epoch_times'] = []
-        self._state['batch_times'] = []
+        self._start_timer("total_training")
+        self._state["epoch_times"] = []
+        self._state["batch_times"] = []
 
         if self.verbose:
             print("Timer started - training initialized")
 
     def on_train_end(self, trainer, core_module):
         """训练结束时记录总时间"""
-        total_time = self._end_timer('total_training')
-        self._state['total_training_time'] = total_time
+        total_time = self._end_timer("total_training")
+        self._state["total_training_time"] = total_time
 
         if self.verbose:
-            print(f"\nTraining completed in {total_time:.2f} seconds ({total_time/3600:.2f} hours)")
+            print(
+                f"\nTraining completed in {total_time:.2f} seconds ({total_time / 3600:.2f} hours)"
+            )
 
     def on_train_epoch_start(self, trainer, core_module):
         """epoch开始时计时"""
-        epoch_num = getattr(core_module, 'current_epoch', 0)
-        self._start_timer(f'epoch_{epoch_num}')
-        self._state['epoch_start_time'] = time.time()
-        self._state['epoch_batch_times'] = []
+        epoch_num = getattr(core_module, "current_epoch", 0)
+        self._start_timer(f"epoch_{epoch_num}")
+        self._state["epoch_start_time"] = time.time()
+        self._state["epoch_batch_times"] = []
 
     def on_train_epoch_end(self, trainer, core_module):
         """epoch结束时记录时间"""
-        epoch_num = getattr(core_module, 'current_epoch', 0)
-        epoch_time = self._end_timer(f'epoch_{epoch_num}')
+        epoch_num = getattr(core_module, "current_epoch", 0)
+        epoch_time = self._end_timer(f"epoch_{epoch_num}")
 
         epoch_info = {
-            'epoch': epoch_num,
-            'duration': epoch_time,
-            'batch_times': self._state.get('epoch_batch_times', []),
-            'timestamp': time.time()
+            "epoch": epoch_num,
+            "duration": epoch_time,
+            "batch_times": self._state.get("epoch_batch_times", []),
+            "timestamp": time.time(),
         }
 
-        self._state['epoch_times'].append(epoch_info)
+        self._state["epoch_times"].append(epoch_info)
 
         if self.verbose:
-            avg_batch_time = sum(epoch_info['batch_times']) / len(epoch_info['batch_times']) if epoch_info['batch_times'] else 0
-            print(f"Epoch {epoch_num} completed in {epoch_time:.2f}s (avg batch: {avg_batch_time:.4f}s)")
+            avg_batch_time = (
+                sum(epoch_info["batch_times"]) / len(epoch_info["batch_times"])
+                if epoch_info["batch_times"]
+                else 0
+            )
+            print(
+                f"Epoch {epoch_num} completed in {epoch_time:.2f}s (avg batch: {avg_batch_time:.4f}s)"
+            )
 
     def on_train_batch_start(self, trainer, core_module, batch, batch_idx):
         """批次开始时计时"""
-        self._start_timer(f'batch_{batch_idx}')
+        self._start_timer(f"batch_{batch_idx}")
 
     def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
         """批次结束时记录时间"""
-        batch_time = self._end_timer(f'batch_{batch_idx}')
+        batch_time = self._end_timer(f"batch_{batch_idx}")
 
         # 记录批次时间
-        self._state['batch_times'].append(batch_time)
+        self._state["batch_times"].append(batch_time)
 
-        if 'epoch_batch_times' in self._state:
-            self._state['epoch_batch_times'].append(batch_time)
+        if "epoch_batch_times" in self._state:
+            self._state["epoch_batch_times"].append(batch_time)
 
         # 更新样本计数
-        if hasattr(batch, 'size') and hasattr(batch, '__len__'):
+        if hasattr(batch, "size") and hasattr(batch, "__len__"):
             try:
                 batch_size = len(batch)
-                self._state['processed_samples'] += batch_size
+                self._state["processed_samples"] += batch_size
             except Exception:
                 pass
 
         # 计算批次速度
-        if self.track_batch_speed and batch_time > 0:
-            if hasattr(batch, '__len__'):
-                try:
-                    batch_size = len(batch)
-                    samples_per_sec = batch_size / batch_time
-                    self._state['current_samples_per_sec'] = samples_per_sec
-                except Exception:
-                    pass
+        if self.track_batch_speed and batch_time > 0 and hasattr(batch, "__len__"):
+            try:
+                batch_size = len(batch)
+                samples_per_sec = batch_size / batch_time
+                self._state["current_samples_per_sec"] = samples_per_sec
+            except Exception:
+                pass
 
     # ========================================
     # 验证生命周期钩子
@@ -164,12 +176,12 @@ class Timer(Callback):
 
     def on_validation_start(self, trainer, core_module):
         """验证开始时计时"""
-        self._start_timer('validation')
+        self._start_timer("validation")
 
     def on_validation_end(self, trainer, core_module):
         """验证结束时记录时间"""
-        val_time = self._end_timer('validation')
-        self._state['last_validation_time'] = val_time
+        val_time = self._end_timer("validation")
+        self._state["last_validation_time"] = val_time
 
         if self.verbose:
             print(f"Validation completed in {val_time:.2f}s")
@@ -183,38 +195,43 @@ class Timer(Callback):
         stats = {}
 
         # 平均批次时间
-        batch_times = self._state.get('batch_times', [])
+        batch_times = self._state.get("batch_times", [])
         if batch_times:
-            stats['avg_batch_time'] = sum(batch_times) / len(batch_times)
-            stats['min_batch_time'] = min(batch_times)
-            stats['max_batch_time'] = max(batch_times)
+            stats["avg_batch_time"] = sum(batch_times) / len(batch_times)
+            stats["min_batch_time"] = min(batch_times)
+            stats["max_batch_time"] = max(batch_times)
 
         # 平均epoch时间
-        epoch_times = self._state.get('epoch_times', [])
+        epoch_times = self._state.get("epoch_times", [])
         if epoch_times:
-            durations = [e['duration'] for e in epoch_times]
-            stats['avg_epoch_time'] = sum(durations) / len(durations)
-            stats['min_epoch_time'] = min(durations)
-            stats['max_epoch_time'] = max(durations)
+            durations = [e["duration"] for e in epoch_times]
+            stats["avg_epoch_time"] = sum(durations) / len(durations)
+            stats["min_epoch_time"] = min(durations)
+            stats["max_epoch_time"] = max(durations)
 
         # 样本处理速度
-        if 'current_samples_per_sec' in self._state:
-            stats['current_samples_per_sec'] = self._state['current_samples_per_sec']
+        if "current_samples_per_sec" in self._state:
+            stats["current_samples_per_sec"] = self._state["current_samples_per_sec"]
 
-        if self._state.get('processed_samples', 0) > 0 and self._state.get('total_training_time', 0) > 0:
-            stats['avg_samples_per_sec'] = self._state['processed_samples'] / self._state['total_training_time']
+        if (
+            self._state.get("processed_samples", 0) > 0
+            and self._state.get("total_training_time", 0) > 0
+        ):
+            stats["avg_samples_per_sec"] = (
+                self._state["processed_samples"] / self._state["total_training_time"]
+            )
 
         return stats
 
     def estimate_eta(self, current_epoch: int, total_epochs: int) -> float:
         """估算剩余训练时间"""
-        epoch_times = self._state.get('epoch_times', [])
+        epoch_times = self._state.get("epoch_times", [])
         if not epoch_times or current_epoch >= total_epochs:
             return 0.0
 
         # 使用最近的epoch平均时间
-        recent_epochs = epoch_times[-min(5, len(epoch_times)):]  # 最近5个epoch
-        avg_epoch_time = sum(e['duration'] for e in recent_epochs) / len(recent_epochs)
+        recent_epochs = epoch_times[-min(5, len(epoch_times)) :]  # 最近5个epoch
+        avg_epoch_time = sum(e["duration"] for e in recent_epochs) / len(recent_epochs)
 
         remaining_epochs = total_epochs - current_epoch
         eta_seconds = avg_epoch_time * remaining_epochs
@@ -238,23 +255,23 @@ class Timer(Callback):
 
     def print_time_summary(self):
         """打印时间统计摘要"""
-        if not self._state.get('epoch_times') and not self._state.get('batch_times'):
+        if not self._state.get("epoch_times") and not self._state.get("batch_times"):
             print("No timing data available.")
             return
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("TRAINING TIME SUMMARY")
-        print("="*60)
+        print("=" * 60)
 
         # 总训练时间
-        total_time = self._state.get('total_training_time', 0)
+        total_time = self._state.get("total_training_time", 0)
         if total_time > 0:
             print(f"\nTotal training time: {self.format_time(total_time)}")
 
         # Epoch统计
-        epoch_times = self._state.get('epoch_times', [])
+        epoch_times = self._state.get("epoch_times", [])
         if epoch_times:
-            durations = [e['duration'] for e in epoch_times]
+            durations = [e["duration"] for e in epoch_times]
             avg_epoch = sum(durations) / len(durations)
             print(f"Epochs completed: {len(epoch_times)}")
             print(f"Average epoch time: {self.format_time(avg_epoch)}")
@@ -262,7 +279,7 @@ class Timer(Callback):
             print(f"Slowest epoch: {self.format_time(max(durations))}")
 
         # Batch统计
-        batch_times = self._state.get('batch_times', [])
+        batch_times = self._state.get("batch_times", [])
         if batch_times:
             total_batches = len(batch_times)
             avg_batch = sum(batch_times) / total_batches
@@ -273,16 +290,16 @@ class Timer(Callback):
 
             # 速度统计
             current_epoch = len(epoch_times) if epoch_times else 0
-            if current_epoch > 0 and self._state.get('processed_samples', 0) > 0:
-                avg_samples_per_sec = self._state['processed_samples'] / total_time
+            if current_epoch > 0 and self._state.get("processed_samples", 0) > 0:
+                avg_samples_per_sec = self._state["processed_samples"] / total_time
                 print(f"Average processing speed: {avg_samples_per_sec:.1f} samples/sec")
 
         # 验证时间
-        val_time = self._state.get('last_validation_time', 0)
+        val_time = self._state.get("last_validation_time", 0)
         if val_time > 0:
             print(f"Last validation time: {self.format_time(val_time)}")
 
-        print("="*60)
+        print("=" * 60)
 
     def get_eta_report(self, current_epoch: int, total_epochs: int) -> str:
         """获取ETA报告"""

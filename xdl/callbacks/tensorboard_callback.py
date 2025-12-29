@@ -4,16 +4,19 @@ TensorBoard日志回调
 负责将训练和验证过程中的指标记录到TensorBoard
 """
 
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 # 尝试导入TensorBoard
 try:
     from torch.utils.tensorboard.writer import SummaryWriter
+
     TENSORBOARD_AVAILABLE = True
 except ImportError:
     SummaryWriter = None
     TENSORBOARD_AVAILABLE = False
+
+import contextlib
 
 from .base import Callback
 
@@ -38,7 +41,7 @@ class TensorBoardCallback(Callback):
         log_validation: bool = True,
         log_validation_frequency: str = "epoch",  # "epoch" 或 "step"
         flush_frequency: int = 100,
-        metric_prefix: bool = True
+        metric_prefix: bool = True,
     ):
         """
         初始化TensorBoard日志回调
@@ -69,10 +72,10 @@ class TensorBoardCallback(Callback):
         self.train_batch_count = 0
         self.val_batch_count = 0
         self.last_flush_step = 0
-        
+
         # TensorBoard writer
         self.writer: Optional[Any] = None
-        
+
         if TENSORBOARD_AVAILABLE and SummaryWriter is not None:
             # 创建实验目录
             experiment_dir = self.log_dir / self.experiment_name
@@ -96,16 +99,14 @@ class TensorBoardCallback(Callback):
         self.train_batch_count = 0
         self.val_batch_count = 0
         self.last_flush_step = 0
-    
+
     def teardown(self, trainer, core_module, stage: str):
         """清理TensorBoard writer"""
         if self.writer:
-            try:
+            with contextlib.suppress(Exception):
                 self.writer.close()
-            except Exception:
-                pass
             self.writer = None
-    
+
     def on_train_start(self, trainer, core_module):
         """训练开始时记录超参数"""
         if not self.log_train or not self.writer:
@@ -117,7 +118,9 @@ class TensorBoardCallback(Callback):
             self.writer.add_hparams(hparams, {})
             self.hparams_cache.update(hparams)
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx: int = 0, **kwargs):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx: int = 0, **kwargs
+    ):
         """训练批次结束时的TensorBoard记录"""
         if not self.log_train or not self.writer:
             return
@@ -133,7 +136,7 @@ class TensorBoardCallback(Callback):
             if metrics:
                 # 记录到TensorBoard
                 for name, value in metrics.items():
-                    if self.metric_prefix and not name.startswith('train/'):
+                    if self.metric_prefix and not name.startswith("train/"):
                         name = f"train/{name}"
                     self.writer.add_scalar(name, value, self.train_step)
 
@@ -146,17 +149,19 @@ class TensorBoardCallback(Callback):
             return
 
         # 记录epoch级别的指标
-        epoch_metrics = getattr(core_module, 'last_epoch_avg', {})
+        epoch_metrics = getattr(core_module, "last_epoch_avg", {})
         if epoch_metrics:
             for name, value in epoch_metrics.items():
-                if self.metric_prefix and not name.startswith('train_epoch/'):
+                if self.metric_prefix and not name.startswith("train_epoch/"):
                     name = f"train_epoch/{name}"
                 self.writer.add_scalar(name, value, self.train_step)
 
         # 定期刷新
         self._maybe_flush()
 
-    def on_validation_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx: int = 0, **kwargs):
+    def on_validation_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx: int = 0, **kwargs
+    ):
         """验证批次结束时的TensorBoard记录"""
         if not self.log_validation or not self.writer:
             return
@@ -165,12 +170,15 @@ class TensorBoardCallback(Callback):
         self.val_step += 1
 
         # 如果设置为按步骤记录验证日志
-        if self.log_validation_frequency == "step" and self.val_batch_count % self.log_frequency == 0:
+        if (
+            self.log_validation_frequency == "step"
+            and self.val_batch_count % self.log_frequency == 0
+        ):
             metrics = self._extract_metrics(core_module, outputs)
 
             if metrics:
                 for name, value in metrics.items():
-                    if self.metric_prefix and not name.startswith('val/'):
+                    if self.metric_prefix and not name.startswith("val/"):
                         name = f"val/{name}"
                     self.writer.add_scalar(name, value, self.train_step)  # 使用全局训练步数
 
@@ -184,10 +192,10 @@ class TensorBoardCallback(Callback):
 
         if self.log_validation_frequency == "epoch":
             # 获取验证epoch平均指标
-            val_metrics = getattr(core_module, 'last_epoch_avg', {})
+            val_metrics = getattr(core_module, "last_epoch_avg", {})
             if val_metrics:
                 for name, value in val_metrics.items():
-                    if self.metric_prefix and not name.startswith('val/'):
+                    if self.metric_prefix and not name.startswith("val/"):
                         name = f"val/{name}"
                     self.writer.add_scalar(name, value, self.train_step)  # 使用全局训练步数
 
@@ -199,32 +207,32 @@ class TensorBoardCallback(Callback):
         hparams = {}
 
         # 从trainer收集参数
-        if hasattr(trainer, 'max_epochs'):
-            hparams['trainer/max_epochs'] = trainer.max_epochs
-        if hasattr(trainer, 'learning_rate'):
-            hparams['trainer/learning_rate'] = trainer.learning_rate
-        if hasattr(trainer, 'batch_size'):
-            hparams['trainer/batch_size'] = trainer.batch_size
+        if hasattr(trainer, "max_epochs"):
+            hparams["trainer/max_epochs"] = trainer.max_epochs
+        if hasattr(trainer, "learning_rate"):
+            hparams["trainer/learning_rate"] = trainer.learning_rate
+        if hasattr(trainer, "batch_size"):
+            hparams["trainer/batch_size"] = trainer.batch_size
 
         # 从数据加载器收集参数
-        if hasattr(trainer, '_train_dataloader') and trainer._train_dataloader:
+        if hasattr(trainer, "_train_dataloader") and trainer._train_dataloader:
             train_loader = trainer._train_dataloader
-            if hasattr(train_loader, 'batch_size'):
-                hparams['dataset/train_batch_size'] = train_loader.batch_size
-            if hasattr(train_loader, '__len__'):
-                hparams['dataset/train_steps_per_epoch'] = len(train_loader)
+            if hasattr(train_loader, "batch_size"):
+                hparams["dataset/train_batch_size"] = train_loader.batch_size
+            if hasattr(train_loader, "__len__"):
+                hparams["dataset/train_steps_per_epoch"] = len(train_loader)
 
-        if hasattr(trainer, '_val_dataloader') and trainer._val_dataloader:
+        if hasattr(trainer, "_val_dataloader") and trainer._val_dataloader:
             val_loader = trainer._val_dataloader
-            if hasattr(val_loader, 'batch_size'):
-                hparams['dataset/val_batch_size'] = val_loader.batch_size
+            if hasattr(val_loader, "batch_size"):
+                hparams["dataset/val_batch_size"] = val_loader.batch_size
 
         # 从模型收集参数
-        if hasattr(core_module, 'parameters'):
+        if hasattr(core_module, "parameters"):
             total_params = sum(p.numel() for p in core_module.parameters())
             trainable_params = sum(p.numel() for p in core_module.parameters() if p.requires_grad)
-            hparams['model/total_parameters'] = total_params
-            hparams['model/trainable_parameters'] = trainable_params
+            hparams["model/total_parameters"] = total_params
+            hparams["model/trainable_parameters"] = trainable_params
 
         return hparams
 
@@ -242,7 +250,7 @@ class TensorBoardCallback(Callback):
         metrics = {}
 
         # 优先从core模块的current_metrics属性获取
-        if hasattr(core_module, 'current_metrics'):
+        if hasattr(core_module, "current_metrics"):
             metrics = core_module.current_metrics
 
         # 如果没有获取到指标, 尝试从outputs获取
@@ -250,7 +258,7 @@ class TensorBoardCallback(Callback):
             for key, value in outputs.items():
                 if isinstance(value, (int, float)):
                     metrics[key] = float(value)
-                elif hasattr(value, 'item'):  # Tensor
+                elif hasattr(value, "item"):  # Tensor
                     metrics[key] = float(value.item())
 
         return metrics

@@ -5,12 +5,12 @@
 from xdl.utils.registry import register_optimizer
 
 # Muon优化器
-from .muon import Muon, SingleDeviceMuon, MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
+from .muon import Muon, MuonWithAuxAdam, SingleDeviceMuon, SingleDeviceMuonWithAuxAdam
 
 
 def _register_optimizers():
     """统一注册所有优化器到OPTIMIZER_REGISTRY"""
-    
+
     # 注册Muon系列
     register_optimizer("Muon")(Muon)
     register_optimizer("SingleDeviceMuon")(SingleDeviceMuon)
@@ -23,8 +23,8 @@ _register_optimizers()
 
 __all__ = [
     # Muon
-    'Muon',
-    'SingleDeviceMuon',
-    'MuonWithAuxAdam',
-    'SingleDeviceMuonWithAuxAdam'
+    "Muon",
+    "SingleDeviceMuon",
+    "MuonWithAuxAdam",
+    "SingleDeviceMuonWithAuxAdam",
 ]

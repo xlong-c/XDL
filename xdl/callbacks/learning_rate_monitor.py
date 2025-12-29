@@ -6,7 +6,8 @@ LearningRate Monitor Callback
 """
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
+
 from .base import Callback
 
 
@@ -31,7 +32,7 @@ class LearningRateMonitor(Callback):
         logging_interval: str = "epoch",
         log_momentum: bool = False,
         log_weight_decay: bool = False,
-        verbose: bool = False
+        verbose: bool = False,
     ):
         super().__init__()
 
@@ -45,10 +46,7 @@ class LearningRateMonitor(Callback):
             raise ValueError(f"logging_interval must be 'epoch' or 'step', got {logging_interval}")
 
         # 状态管理
-        self._state.update({
-            'last_lr_values': {},
-            'lr_history': []
-        })
+        self._state.update({"last_lr_values": {}, "lr_history": []})
 
         self._logger = logging.getLogger(__name__)
 
@@ -82,18 +80,20 @@ class LearningRateMonitor(Callback):
                 return
 
             # 记录到状态
-            self._state['lr_history'].append({
-                'step_type': step_type,
-                'epoch': getattr(core_module, 'current_epoch', 0),
-                'step': getattr(trainer, 'global_step', 0),
-                'lr_info': lr_info.copy(),
-                'timestamp': __import__('time').time()
-            })
+            self._state["lr_history"].append(
+                {
+                    "step_type": step_type,
+                    "epoch": getattr(core_module, "current_epoch", 0),
+                    "step": getattr(trainer, "global_step", 0),
+                    "lr_info": lr_info.copy(),
+                    "timestamp": __import__("time").time(),
+                }
+            )
 
             # 输出日志
             for name, info in lr_info.items():
                 if isinstance(info, dict):
-                    lr = info.get('lr', 0)
+                    lr = info.get("lr", 0)
                     if self.verbose:
                         self._logger.info(f"LearningRateMonitor - {name}: lr={lr:.6e}")
                 else:
@@ -125,20 +125,28 @@ class LearningRateMonitor(Callback):
 
             try:
                 # 获取学习率
-                lrs = [param_group['lr'] for param_group in optimizer.param_groups]
+                lrs = [param_group["lr"] for param_group in optimizer.param_groups]
                 lr_info[f"{name}_lr"] = lrs[0] if len(lrs) == 1 else lrs
 
                 # 记录动量(如果启用)
                 if self.log_momentum:
-                    momentums = [param_group.get('momentum', 0) for param_group in optimizer.param_groups]
+                    momentums = [
+                        param_group.get("momentum", 0) for param_group in optimizer.param_groups
+                    ]
                     if any(m > 0 for m in momentums):
-                        lr_info[f"{name}_momentum"] = momentums[0] if len(momentums) == 1 else momentums
+                        lr_info[f"{name}_momentum"] = (
+                            momentums[0] if len(momentums) == 1 else momentums
+                        )
 
                 # 记录权重衰减(如果启用)
                 if self.log_weight_decay:
-                    weight_decays = [param_group.get('weight_decay', 0) for param_group in optimizer.param_groups]
+                    weight_decays = [
+                        param_group.get("weight_decay", 0) for param_group in optimizer.param_groups
+                    ]
                     if any(wd > 0 for wd in weight_decays):
-                        lr_info[f"{name}_weight_decay"] = weight_decays[0] if len(weight_decays) == 1 else weight_decays
+                        lr_info[f"{name}_weight_decay"] = (
+                            weight_decays[0] if len(weight_decays) == 1 else weight_decays
+                        )
 
             except Exception as e:
                 self._logger.warning(f"Error extracting learning rate info from {name}: {e}")
@@ -159,7 +167,7 @@ class LearningRateMonitor(Callback):
         optimizers = {}
 
         # 尝试从core_module获取
-        if hasattr(core_module, '_optimizers') and core_module._optimizers:
+        if hasattr(core_module, "_optimizers") and core_module._optimizers:
             opts = core_module._optimizers
             if isinstance(opts, dict):
                 # 字典格式的多个优化器
@@ -167,39 +175,39 @@ class LearningRateMonitor(Callback):
             elif isinstance(opts, list):
                 # 列表格式的多个优化器
                 for i, opt in enumerate(opts):
-                    optimizers[f'optimizer_{i}'] = opt
+                    optimizers[f"optimizer_{i}"] = opt
             else:
                 # 单个优化器
-                optimizers['optimizer'] = opts
+                optimizers["optimizer"] = opts
 
         # 尝试从trainer获取
-        if hasattr(trainer, '_optimizers') and trainer._optimizers:
+        if hasattr(trainer, "_optimizers") and trainer._optimizers:
             opts = trainer._optimizers
             if isinstance(opts, dict):
                 optimizers.update(opts)
             elif isinstance(opts, list):
                 for i, opt in enumerate(opts):
-                    if f'optimizer_{i}' not in optimizers:
-                        optimizers[f'trainer_optimizer_{i}'] = opt
+                    if f"optimizer_{i}" not in optimizers:
+                        optimizers[f"trainer_optimizer_{i}"] = opt
             else:
-                if 'optimizer' not in optimizers:
-                    optimizers['trainer_optimizer'] = opts
+                if "optimizer" not in optimizers:
+                    optimizers["trainer_optimizer"] = opts
 
         # 尝试从optimizer属性获取
-        if hasattr(core_module, 'optimizer') and core_module.optimizer:
-            if 'optimizer' not in optimizers:
-                optimizers['optimizer'] = core_module.optimizer
+        if hasattr(core_module, "optimizer") and core_module.optimizer:
+            if "optimizer" not in optimizers:
+                optimizers["optimizer"] = core_module.optimizer
 
         return optimizers
 
     def get_lr_history(self) -> List[Dict[str, Any]]:
         """获取学习率历史记录"""
-        return self._state.get('lr_history', [])
+        return self._state.get("lr_history", [])
 
     def get_current_lrs(self) -> Dict[str, float]:
         """获取当前学习率"""
-        if self._state['lr_history']:
-            return self._state['lr_history'][-1]['lr_info']
+        if self._state["lr_history"]:
+            return self._state["lr_history"][-1]["lr_info"]
         return {}
 
     def print_lr_summary(self):
@@ -209,9 +217,9 @@ class LearningRateMonitor(Callback):
             print("No learning rate history available.")
             return
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("LEARNING RATE SUMMARY")
-        print("="*60)
+        print("=" * 60)
 
         current_lrs = self.get_current_lrs()
         if current_lrs:
@@ -223,4 +231,4 @@ class LearningRateMonitor(Callback):
                     print(f"  {name}: {lr}")
 
         print(f"\nTotal logged updates: {len(history)}")
-        print("="*60)
+        print("=" * 60)

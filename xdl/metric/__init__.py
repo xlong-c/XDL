@@ -1,7 +1,6 @@
 from ..utils.registry import register_metric
+from .metrics import Accuracy, DiceCoefficient, F1Score, IoU, Precision, Recall, TopKAccuracy
 
-
-from .metrics import Accuracy, Precision, Recall, F1Score, IoU, DiceCoefficient, TopKAccuracy
 
 # 注册名保持和类名一直大写开头
 def _register_metrics():

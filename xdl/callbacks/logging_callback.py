@@ -4,10 +4,12 @@
 提供自动化的日志记录功能, 基于标准Python logging系统。
 """
 
-import time
+import contextlib
 import os
 import sys
-from typing import Optional, Any
+import time
+from typing import Any, Optional
+
 from loguru import logger
 
 from .base import Callback
@@ -76,10 +78,8 @@ class LoggingCallback(Callback):
             return
 
         # 移除默认的处理器 (通常 ID 为 0)，避免冗余的模块名和行号显示
-        try:
+        with contextlib.suppress(ValueError):
             logger.remove(0)
-        except ValueError:
-            pass
 
         # 1. 添加简洁的控制台处理器
         if self.enable_console:
@@ -88,14 +88,14 @@ class LoggingCallback(Callback):
 
         # 2. 获取有效的日志目录
         effective_log_dir = self.log_dir
-        if not effective_log_dir and hasattr(trainer, 'log_dir'):
+        if not effective_log_dir and hasattr(trainer, "log_dir"):
             effective_log_dir = trainer.log_dir
-        
+
         if not effective_log_dir:
             effective_log_dir = os.path.join("others", "logs")
 
         os.makedirs(effective_log_dir, exist_ok=True)
-        
+
         # 确定文件名
         effective_filename = self.log_filename or f"train_{time.strftime('%Y%m%d_%H%M%S')}.log"
         log_path = os.path.join(effective_log_dir, effective_filename)
@@ -109,9 +109,9 @@ class LoggingCallback(Callback):
             level="INFO",
             enqueue=True,
             format="{time:YYYY-MM-DD HH:mm:ss} | {level: <7} | {message}",
-            encoding="utf-8"
+            encoding="utf-8",
         )
-        
+
         logger.info(f"Loguru 日志系统已就绪 (文件: {log_path})")
 
     def teardown(self, trainer: Any, core_module: Any, stage: str):
@@ -142,18 +142,18 @@ class LoggingCallback(Callback):
 
         if self.train_batch_count % self.log_frequency == 0:
             metrics = {}
-            if hasattr(core_module, 'current_metrics'):
+            if hasattr(core_module, "current_metrics"):
                 current_metrics = core_module.current_metrics
                 for key, value in current_metrics.items():
                     if isinstance(value, (int, float)):
                         metrics[f"train/{key}"] = float(value)
 
             # 记录学习率
-            if self.log_learning_rate and hasattr(core_module, '_optimizers'):
+            if self.log_learning_rate and hasattr(core_module, "_optimizers"):
                 optimizers = core_module._optimizers
                 for i, optimizer in enumerate(optimizers):
                     for param_group in optimizer.param_groups:
-                        lr = param_group.get('lr', 0)
+                        lr = param_group.get("lr", 0)
                         if len(optimizers) == 1:
                             metrics["train/lr"] = lr
                         else:
@@ -161,7 +161,11 @@ class LoggingCallback(Callback):
 
             if metrics:
                 metric_str = " | ".join([f"{k}: <cyan>{v:.4f}</cyan>" for k, v in metrics.items()])
-                step = core_module.global_step if hasattr(core_module, 'global_step') else self.train_batch_count
+                step = (
+                    core_module.global_step
+                    if hasattr(core_module, "global_step")
+                    else self.train_batch_count
+                )
                 logger.opt(colors=True).info(f"Step {step:05d} - {metric_str}")
 
     def on_validation_epoch_start(self, trainer, core_module):
@@ -170,7 +174,9 @@ class LoggingCallback(Callback):
             return
         logger.info(f"🔍 开始验证 Epoch {core_module.current_epoch}")
 
-    def on_validation_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_validation_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """验证批次结束时记录指标"""
         if not self.log_val_metrics:
             return
@@ -179,37 +185,47 @@ class LoggingCallback(Callback):
 
         if self.val_batch_count % self.log_frequency == 0:
             metrics = {}
-            if hasattr(core_module, 'current_metrics'):
+            if hasattr(core_module, "current_metrics"):
                 current_metrics = core_module.current_metrics
                 for key, value in current_metrics.items():
                     if isinstance(value, (int, float)):
                         metrics[f"val/{key}"] = float(value)
 
             if metrics:
-                metric_str = " | ".join([f"{k}: <yellow>{v:.4f}</yellow>" for k, v in metrics.items()])
+                metric_str = " | ".join(
+                    [f"{k}: <yellow>{v:.4f}</yellow>" for k, v in metrics.items()]
+                )
                 logger.opt(colors=True).info(f"Val Batch {self.val_batch_count} - {metric_str}")
 
     def on_train_epoch_end(self, trainer, core_module):
         """训练epoch结束时的钩子"""
         if self.log_train_metrics:
-            epoch_metrics = getattr(core_module, 'last_epoch_avg', {})
+            epoch_metrics = getattr(core_module, "last_epoch_avg", {})
             if epoch_metrics:
-                metric_str = " | ".join([f"{k}: <cyan>{v:.4f}</cyan>" for k, v in epoch_metrics.items()])
+                metric_str = " | ".join(
+                    [f"{k}: <cyan>{v:.4f}</cyan>" for k, v in epoch_metrics.items()]
+                )
                 duration = time.time() - self.epoch_start_time
-                logger.opt(colors=True).success(f"✅ Epoch {core_module.current_epoch} 训练完成 | {metric_str} | Time: {duration:.2f}s")
+                logger.opt(colors=True).success(
+                    f"✅ Epoch {core_module.current_epoch} 训练完成 | {metric_str} | Time: {duration:.2f}s"
+                )
 
     def on_validation_epoch_end(self, trainer, core_module):
         """验证epoch结束时的钩子"""
         if not self.log_val_metrics:
             return
 
-        epoch_metrics = getattr(core_module, 'last_epoch_avg', {})
-        if not epoch_metrics and hasattr(core_module, '_latest_val_metrics'):
+        epoch_metrics = getattr(core_module, "last_epoch_avg", {})
+        if not epoch_metrics and hasattr(core_module, "_latest_val_metrics"):
             epoch_metrics = core_module._latest_val_metrics
 
         if epoch_metrics:
-            metric_str = " | ".join([f"{k}: <yellow>{v:.4f}</yellow>" for k, v in epoch_metrics.items()])
-            logger.opt(colors=True).success(f"📊 Epoch {core_module.current_epoch} 验证完成 | {metric_str}")
+            metric_str = " | ".join(
+                [f"{k}: <yellow>{v:.4f}</yellow>" for k, v in epoch_metrics.items()]
+            )
+            logger.opt(colors=True).success(
+                f"📊 Epoch {core_module.current_epoch} 验证完成 | {metric_str}"
+            )
 
     def on_train_end(self, trainer, core_module):
         """训练结束时的钩子"""
@@ -228,7 +244,7 @@ class SystemStatsCallback(Callback):
 
     def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
         """记录系统状态"""
-        step = getattr(trainer, 'global_step', batch_idx)
+        step = getattr(trainer, "global_step", batch_idx)
         if step % self.log_frequency != 0:
             return
 
@@ -242,6 +258,7 @@ class SystemStatsCallback(Callback):
 
         try:
             import torch
+
             if torch.cuda.is_available():
                 for i in range(torch.cuda.device_count()):
                     mem = torch.cuda.memory_allocated(i) / 1024**3
@@ -255,7 +272,4 @@ class SystemStatsCallback(Callback):
 
 
 # 导出所有回调类
-__all__ = [
-    'LoggingCallback',
-    'SystemStatsCallback'
-]
+__all__ = ["LoggingCallback", "SystemStatsCallback"]

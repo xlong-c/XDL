@@ -1,13 +1,13 @@
+from typing import Tuple, Union
+
 import torch
 from torch import nn
 from torch.nn import functional as F
-from typing import Union, Tuple
-
 
 
 class layer1(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(layer1, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, 1, bias=False)
         self.conv2 = nn.Conv2d(in_channels, out_channels, 1, bias=False)
 
@@ -15,24 +15,26 @@ class layer1(nn.Module):
 class GlobalFilter(nn.Module):
     def __init__(self, dim, dim2, h=14, w=8):
         super().__init__()
-        self.complex_weight = nn.Parameter(torch.randn(dim, h // 2 + 1, w, 2, dtype=torch.float32) * 0.02)
+        self.complex_weight = nn.Parameter(
+            torch.randn(dim, h // 2 + 1, w, 2, dtype=torch.float32) * 0.02
+        )
         self.w = w
         self.h = h
         self.conv = nn.Conv2d(dim, dim2, 1, bias=False)
 
     def forward(self, x, spatial_size=None):
         x = x.to(torch.float32)
-        x = torch.fft.rfft2(x, dim=(1, 2), norm='ortho')
+        x = torch.fft.rfft2(x, dim=(1, 2), norm="ortho")
         weight = torch.view_as_complex(self.complex_weight)
         x = x * weight
-        x = torch.fft.irfft2(x, dim=(1, 2), norm='ortho')
+        x = torch.fft.irfft2(x, dim=(1, 2), norm="ortho")
         x = self.conv(x)
         return x
 
 
 class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
-        super(ChannelAttention, self).__init__()
+        super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
 
@@ -51,9 +53,9 @@ class ChannelAttention(nn.Module):
 
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size=7):
-        super(SpatialAttention, self).__init__()
+        super().__init__()
 
-        assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
+        assert kernel_size in (3, 7), "kernel size must be 3 or 7"
         padding = 3 if kernel_size == 7 else 1
 
         self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
@@ -69,7 +71,7 @@ class SpatialAttention(nn.Module):
 
 class CBAM(nn.Module):
     def __init__(self, in_planes, ratio=16, kernel_size=7):
-        super(CBAM, self).__init__()
+        super().__init__()
         self.channel_attention = ChannelAttention(in_planes, ratio)
         self.spatial_attention = SpatialAttention(kernel_size)
 
@@ -80,7 +82,9 @@ class CBAM(nn.Module):
         return out
 
 
-def autopad(k: Union[int, Tuple[int, int]], p: Union[int, Tuple[int, int], None] = None, d: int = 1) -> Union[int, Tuple[int, int]]:  # kernel, padding, dilation
+def autopad(
+    k: Union[int, Tuple[int, int]], p: Union[int, Tuple[int, int], None] = None, d: int = 1
+) -> Union[int, Tuple[int, int]]:  # kernel, padding, dilation
     """Pad to 'same' shape outputs."""
     if d > 1:
         if isinstance(k, int):
@@ -98,8 +102,17 @@ class Conv(nn.Module):
 
     default_act = nn.SiLU()  # default activation
 
-    def __init__(self, c1: int, c2: int, k: Union[int, Tuple[int, int]] = 1, s: Union[int, Tuple[int, int]] = 1,
-                 p: Union[int, Tuple[int, int], None] = None, g: int = 1, d: int = 1, act: bool = True):
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        k: Union[int, Tuple[int, int]] = 1,
+        s: Union[int, Tuple[int, int]] = 1,
+        p: Union[int, Tuple[int, int], None] = None,
+        g: int = 1,
+        d: int = 1,
+        act: bool = True,
+    ):
         """Initialize Conv layer with given arguments including activation.
 
         Args:
@@ -115,7 +128,13 @@ class Conv(nn.Module):
         super().__init__()
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False)
         self.bn = nn.BatchNorm2d(c2)
-        self.act = self.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+        self.act = (
+            self.default_act
+            if act is True
+            else act
+            if isinstance(act, nn.Module)
+            else nn.Identity()
+        )
 
     def forward(self, x):
         """Apply convolution, batch normalization and activation to input tensor."""
@@ -127,7 +146,7 @@ class Conv(nn.Module):
 
 
 class PConv(nn.Module):
-    ''' Pinwheel-shaped Convolution using the Asymmetric Padding method. '''
+    """Pinwheel-shaped Convolution using the Asymmetric Padding method."""
 
     def __init__(self, c1, c2, k, s):
         super().__init__()
@@ -149,7 +168,7 @@ class PConv(nn.Module):
 
 class FATT(nn.Module):
     def __init__(self, dim=32, dims=(64, 128, 320, 512)):
-        super(FATT, self).__init__()
+        super().__init__()
         channels = dims
         self.size_fea = (88, 44, 22, 11)
         self.pinwheel1 = PConv(channels[0], dim, 4, 1)
@@ -162,15 +181,13 @@ class FATT(nn.Module):
         self.avp = nn.AdaptiveAvgPool2d(1)
 
         self.cbam1 = nn.Sequential(
-            CBAM(32, ratio=4, kernel_size=3),
-            CBAM(32, ratio=4, kernel_size=3))
+            CBAM(32, ratio=4, kernel_size=3), CBAM(32, ratio=4, kernel_size=3)
+        )
         self.cbam2 = nn.Sequential(
-            CBAM(32, ratio=4, kernel_size=3),
-            CBAM(32, ratio=4, kernel_size=3)
+            CBAM(32, ratio=4, kernel_size=3), CBAM(32, ratio=4, kernel_size=3)
         )
         self.cbam3 = nn.Sequential(
-            CBAM(32, ratio=4, kernel_size=7),
-            CBAM(32, ratio=4, kernel_size=7)
+            CBAM(32, ratio=4, kernel_size=7), CBAM(32, ratio=4, kernel_size=7)
         )
 
         self.ca1 = nn.Sequential(
@@ -192,45 +209,58 @@ class FATT(nn.Module):
     def forward(self, x):
         x1, x2, x3, x4 = x
         out_size = [x1.shape[2] * 4, x1.shape[3] * 4]
-        x1 = F.interpolate(self.pinwheel1(x1), size=self.size_fea[0], mode='bilinear', align_corners=True)  # 88
-        x2 = F.interpolate(self.pinwheel2(x2), size=self.size_fea[1], mode='bilinear', align_corners=True)  # 44
-        x3 = F.interpolate(self.pinwheel3(x3), size=self.size_fea[2], mode='bilinear', align_corners=True)  # 22
-        x4 = F.interpolate(self.pinwheel4(x4), size=self.size_fea[3], mode='bilinear', align_corners=True)  # 11
+        x1 = F.interpolate(
+            self.pinwheel1(x1), size=self.size_fea[0], mode="bilinear", align_corners=True
+        )  # 88
+        x2 = F.interpolate(
+            self.pinwheel2(x2), size=self.size_fea[1], mode="bilinear", align_corners=True
+        )  # 44
+        x3 = F.interpolate(
+            self.pinwheel3(x3), size=self.size_fea[2], mode="bilinear", align_corners=True
+        )  # 22
+        x4 = F.interpolate(
+            self.pinwheel4(x4), size=self.size_fea[3], mode="bilinear", align_corners=True
+        )  # 11
 
-        fea = torch.cat([
-            torch.mean(x1, dim=1, keepdim=True),
-            F.interpolate(torch.mean(x2, dim=1, keepdim=True),
-                          x1.shape[2:],
-                          mode='bilinear',
-                          align_corners=False),
-            F.interpolate(torch.mean(x3, dim=1, keepdim=True),
-                          x1.shape[2:],
-                          mode='bilinear',
-                          align_corners=False),
-        ], dim=1)
-        can = torch.cat([
-            self.avp(x1),
-            self.avp(x2),
-            self.avp(x3)
-        ], dim=1)
+        fea = torch.cat(
+            [
+                torch.mean(x1, dim=1, keepdim=True),
+                F.interpolate(
+                    torch.mean(x2, dim=1, keepdim=True),
+                    x1.shape[2:],
+                    mode="bilinear",
+                    align_corners=False,
+                ),
+                F.interpolate(
+                    torch.mean(x3, dim=1, keepdim=True),
+                    x1.shape[2:],
+                    mode="bilinear",
+                    align_corners=False,
+                ),
+            ],
+            dim=1,
+        )
+        can = torch.cat([self.avp(x1), self.avp(x2), self.avp(x3)], dim=1)
 
-        xx = F.interpolate(x4, x3.shape[2:], mode='bilinear', align_corners=False)
+        xx = F.interpolate(x4, x3.shape[2:], mode="bilinear", align_corners=False)
         # gf的输入是x1,x2,x3的平均化特征维度是[B,1,H,W],转换为对于的频域特征,在gf内部使用相同大小的权重进行点乘,然后转换回到空域最后的结果是[B,1,H,W]的
-        xx = self.cbam1(x3 * self.gf3(
-            F.interpolate(fea, x3.shape[2:], mode='bilinear', align_corners=False)
-        ) + xx) * self.ca1(can)
+        xx = self.cbam1(
+            x3 * self.gf3(F.interpolate(fea, x3.shape[2:], mode="bilinear", align_corners=False))
+            + xx
+        ) * self.ca1(can)
         # ca1的输入是来自x1,x2,x3的特征图的全局平均池化,最后的结果是一个[B,C*3,1,1]的通道特征向量
-        xx = F.interpolate(xx, x2.shape[2:], mode='bilinear', align_corners=False)
-        xx = self.cbam2(x2 * self.gf2(
-            F.interpolate(fea, x2.shape[2:], mode='bilinear', align_corners=False)
-        ) + xx) * self.ca2(can)
+        xx = F.interpolate(xx, x2.shape[2:], mode="bilinear", align_corners=False)
+        xx = self.cbam2(
+            x2 * self.gf2(F.interpolate(fea, x2.shape[2:], mode="bilinear", align_corners=False))
+            + xx
+        ) * self.ca2(can)
 
-        xx = F.interpolate(xx, x1.shape[2:], mode='bilinear', align_corners=False)
-        xx = self.cbam3(x1 * self.gf1(
-            F.interpolate(fea, x1.shape[2:], mode='bilinear', align_corners=False)
-        ) + xx) * self.ca3(can)
+        xx = F.interpolate(xx, x1.shape[2:], mode="bilinear", align_corners=False)
+        xx = self.cbam3(
+            x1 * self.gf1(F.interpolate(fea, x1.shape[2:], mode="bilinear", align_corners=False))
+            + xx
+        ) * self.ca3(can)
         xx = self.out(xx)
-        xx = F.interpolate(xx, out_size, mode='bilinear', align_corners=False)
+        xx = F.interpolate(xx, out_size, mode="bilinear", align_corners=False)
         return xx
         # 64,128,320,512
-

@@ -5,14 +5,14 @@
 参考 PyTorch Lightning 的 callback 管理机制, 提供错误隔离、执行统计和状态管理功能。
 """
 
-import time
 import logging
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from xdl.callbacks import Callback
-    from xdl.trainer.trainer import Trainer
     from xdl.trainer.coreModel import CoreModel
+    from xdl.trainer.trainer import Trainer
 
 
 class CallbackList:
@@ -25,7 +25,7 @@ class CallbackList:
     - 性能诊断和时间统计
     """
 
-    def __init__(self, callbacks: Optional[List['Callback']] = None, fast_fail: bool = False):
+    def __init__(self, callbacks: Optional[List["Callback"]] = None, fast_fail: bool = False):
         """
         初始化回调管理器
 
@@ -33,8 +33,8 @@ class CallbackList:
             callbacks: 初始回调列表, 可选
             fast_fail: 是否在回调失败时快速失败, 默认False(错误隔离模式)
         """
-        self.callbacks: List['Callback'] = []
-        self._callback_metadata: Dict['Callback', Dict[str, Any]] = {}  # 存储回调元数据
+        self.callbacks: List[Callback] = []
+        self._callback_metadata: Dict[Callback, Dict[str, Any]] = {}  # 存储回调元数据
         self.fast_fail = fast_fail
 
         # 执行统计和监控
@@ -51,7 +51,7 @@ class CallbackList:
             for callback in callbacks:
                 self.add_callback(callback)
 
-    def add_callback(self, callback: 'Callback', priority: int = 999) -> None:
+    def add_callback(self, callback: "Callback", priority: int = 999) -> None:
         """添加回调
 
         Args:
@@ -59,13 +59,13 @@ class CallbackList:
             priority: 优先级, 数字越小优先级越高
         """
         self._callback_metadata[callback] = {
-            'priority': priority,
-            'name': callback.__class__.__name__
+            "priority": priority,
+            "name": callback.__class__.__name__,
         }
         self.callbacks.append(callback)
         self._sort_callbacks()
 
-    def remove_callback(self, callback: 'Callback') -> None:
+    def remove_callback(self, callback: "Callback") -> None:
         """移除回调
 
         Args:
@@ -77,16 +77,10 @@ class CallbackList:
 
     def _sort_callbacks(self):
         """按优先级排序回调"""
-        self.callbacks.sort(
-            key=lambda cb: self._callback_metadata.get(cb, {}).get('priority', 999)
-        )
+        self.callbacks.sort(key=lambda cb: self._callback_metadata.get(cb, {}).get("priority", 999))
 
     def invoke_callbacks(
-        self,
-        hook_name: str,
-        trainer: 'Trainer',
-        core_module: 'CoreModel',
-        **kwargs: Any
+        self, hook_name: str, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
     ) -> None:
         """统一调用回调, 支持错误隔离和性能监控
 
@@ -118,16 +112,22 @@ class CallbackList:
             except Exception as e:
                 # 记录执行统计
                 execution_time = time.time() - start_time
-                self._record_execution_stats(callback_name, hook_name, execution_time, success=False, error=e)
+                self._record_execution_stats(
+                    callback_name, hook_name, execution_time, success=False, error=e
+                )
 
                 # 处理错误
                 self._handle_callback_error(callback, hook_name, e)
 
                 # 快速失败模式
                 if self.fast_fail:
-                    raise RuntimeError(f"Callback {callback_name}.{hook_name} failed in fast_fail mode") from e
+                    raise RuntimeError(
+                        f"Callback {callback_name}.{hook_name} failed in fast_fail mode"
+                    ) from e
 
-    def _handle_callback_error(self, callback: 'Callback', hook_name: str, error: Exception) -> None:
+    def _handle_callback_error(
+        self, callback: "Callback", hook_name: str, error: Exception
+    ) -> None:
         """处理回调错误
 
         Args:
@@ -141,10 +141,10 @@ class CallbackList:
         # 记录错误历史
         self._error_count += 1
         error_info: Dict[str, Any] = {
-            'callback': callback_name,
-            'hook': hook_name,
-            'error': str(error),
-            'timestamp': time.time()
+            "callback": callback_name,
+            "hook": hook_name,
+            "error": str(error),
+            "timestamp": time.time(),
         }
 
         # 限制错误历史记录数量
@@ -166,7 +166,7 @@ class CallbackList:
         """
         state = {}
         for callback in self.callbacks:
-            if hasattr(callback, 'state_dict'):
+            if hasattr(callback, "state_dict"):
                 state[callback.__class__.__name__] = callback.state_dict()
         return state
 
@@ -178,7 +178,7 @@ class CallbackList:
         """
         for callback in self.callbacks:
             callback_name = callback.__class__.__name__
-            if callback_name in state and hasattr(callback, 'load_state_dict'):
+            if callback_name in state and hasattr(callback, "load_state_dict"):
                 callback.load_state_dict(state[callback_name])
 
     def __len__(self) -> int:
@@ -193,7 +193,7 @@ class CallbackList:
         """迭代回调"""
         return iter(self.callbacks)
 
-    def __getitem__(self, index: int) -> 'Callback':
+    def __getitem__(self, index: int) -> "Callback":
         """获取指定索引的回调
 
         Args:
@@ -209,175 +209,270 @@ class CallbackList:
     # ============================================================================
 
     # Fit生命周期方法
-    def fit_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def fit_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练开始回调"""
-        self.invoke_callbacks('on_fit_start', trainer, core_module)
+        self.invoke_callbacks("on_fit_start", trainer, core_module)
 
-    def fit_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def fit_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练结束回调"""
-        self.invoke_callbacks('on_fit_end', trainer, core_module)
+        self.invoke_callbacks("on_fit_end", trainer, core_module)
 
     # 设置相关方法
-    def setup(self, trainer: 'Trainer', core_module: 'CoreModel', stage: str) -> None:
+    def setup(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
         """设置回调"""
-        self.invoke_callbacks('setup', trainer, core_module, stage=stage)
+        self.invoke_callbacks("setup", trainer, core_module, stage=stage)
 
-    def teardown(self, trainer: 'Trainer', core_module: 'CoreModel', stage: str) -> None:
+    def teardown(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
         """清理回调"""
-        self.invoke_callbacks('teardown', trainer, core_module, stage=stage)
+        self.invoke_callbacks("teardown", trainer, core_module, stage=stage)
 
     # 训练生命周期方法
-    def train_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def train_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练开始回调"""
-        self.invoke_callbacks('on_train_start', trainer, core_module)
+        self.invoke_callbacks("on_train_start", trainer, core_module)
 
-    def train_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def train_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练结束回调"""
-        self.invoke_callbacks('on_train_end', trainer, core_module)
+        self.invoke_callbacks("on_train_end", trainer, core_module)
 
     # Epoch相关方法
-    def epoch_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """Epoch开始回调"""
-        self.invoke_callbacks('on_train_epoch_start', trainer, core_module)
+        self.invoke_callbacks("on_train_epoch_start", trainer, core_module)
 
-    def epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """Epoch结束回调"""
-        self.invoke_callbacks('on_train_epoch_end', trainer, core_module)
+        self.invoke_callbacks("on_train_epoch_end", trainer, core_module)
 
     # 验证相关方法
-    def validation_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def validation_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """验证开始回调"""
-        self.invoke_callbacks('on_validation_start', trainer, core_module)
+        self.invoke_callbacks("on_validation_start", trainer, core_module)
 
-    def validation_epoch_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """验证epoch开始回调"""
-        self.invoke_callbacks('on_validation_epoch_start', trainer, core_module)
+        self.invoke_callbacks("on_validation_epoch_start", trainer, core_module)
 
-    def validation_epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Optional[Any] = None) -> None:
+    def validation_epoch_end(
+        self, trainer: "Trainer", core_module: "CoreModel", outputs: Optional[Any] = None
+    ) -> None:
         """验证epoch结束回调"""
-        kwargs = {'outputs': outputs} if outputs is not None else {}
-        self.invoke_callbacks('on_validation_epoch_end', trainer, core_module, **kwargs)
+        kwargs = {"outputs": outputs} if outputs is not None else {}
+        self.invoke_callbacks("on_validation_epoch_end", trainer, core_module, **kwargs)
 
-    def validation_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def validation_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """验证结束回调"""
-        self.invoke_callbacks('on_validation_end', trainer, core_module)
+        self.invoke_callbacks("on_validation_end", trainer, core_module)
 
-    def train_batch_start(self, trainer: 'Trainer', core_module: 'CoreModel',
-                          batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def train_batch_start(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """训练批次开始回调"""
-        self.invoke_callbacks('on_train_batch_start', trainer, core_module,
-                           batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
+        self.invoke_callbacks(
+            "on_train_batch_start",
+            trainer,
+            core_module,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
-    def train_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel',
-                        outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def train_batch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """训练批次结束回调"""
-        self.invoke_callbacks('on_train_batch_end', trainer, core_module,
-                           outputs=outputs, batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
+        self.invoke_callbacks(
+            "on_train_batch_end",
+            trainer,
+            core_module,
+            outputs=outputs,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
-    def validation_batch_start(self, trainer: 'Trainer', core_module: 'CoreModel',
-                              batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def validation_batch_start(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """验证批次开始回调"""
-        self.invoke_callbacks('on_validation_batch_start', trainer, core_module,
-                           batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
+        self.invoke_callbacks(
+            "on_validation_batch_start",
+            trainer,
+            core_module,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
-    def validation_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel',
-                            outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def validation_batch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """验证批次结束回调"""
-        self.invoke_callbacks('on_validation_batch_end', trainer, core_module,
-                           outputs=outputs, batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
+        self.invoke_callbacks(
+            "on_validation_batch_end",
+            trainer,
+            core_module,
+            outputs=outputs,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
     # 测试相关方法
-    def test_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def test_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """测试开始回调"""
-        self.invoke_callbacks('on_test_start', trainer, core_module)
+        self.invoke_callbacks("on_test_start", trainer, core_module)
 
-    def test_epoch_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def test_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """测试epoch开始回调"""
-        self.invoke_callbacks('on_test_epoch_start', trainer, core_module)
+        self.invoke_callbacks("on_test_epoch_start", trainer, core_module)
 
-    def test_epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def test_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """测试epoch结束回调"""
-        self.invoke_callbacks('on_test_epoch_end', trainer, core_module)
+        self.invoke_callbacks("on_test_epoch_end", trainer, core_module)
 
-    def test_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def test_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """测试结束回调"""
-        self.invoke_callbacks('on_test_end', trainer, core_module)
+        self.invoke_callbacks("on_test_end", trainer, core_module)
 
-    def test_batch_start(self, trainer: 'Trainer', core_module: 'CoreModel',
-                         batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def test_batch_start(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """测试批次开始回调"""
-        self.invoke_callbacks('on_test_batch_start', trainer, core_module,
-                           batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
+        self.invoke_callbacks(
+            "on_test_batch_start",
+            trainer,
+            core_module,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
-    def test_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel',
-                       outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def test_batch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """测试批次结束回调"""
-        self.invoke_callbacks('on_test_batch_end', trainer, core_module,
-                           outputs=outputs, batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
+        self.invoke_callbacks(
+            "on_test_batch_end",
+            trainer,
+            core_module,
+            outputs=outputs,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
     # 预测相关方法
-    def predict_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def predict_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """预测开始回调"""
-        self.invoke_callbacks('on_predict_start', trainer, core_module)
+        self.invoke_callbacks("on_predict_start", trainer, core_module)
 
-    def predict_epoch_start(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def predict_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """预测epoch开始回调"""
-        self.invoke_callbacks('on_predict_epoch_start', trainer, core_module)
+        self.invoke_callbacks("on_predict_epoch_start", trainer, core_module)
 
-    def predict_epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def predict_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """预测epoch结束回调"""
-        self.invoke_callbacks('on_predict_epoch_end', trainer, core_module)
+        self.invoke_callbacks("on_predict_epoch_end", trainer, core_module)
 
-    def predict_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def predict_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """预测结束回调"""
-        self.invoke_callbacks('on_predict_end', trainer, core_module)
+        self.invoke_callbacks("on_predict_end", trainer, core_module)
 
-    def predict_batch_start(self, trainer: 'Trainer', core_module: 'CoreModel',
-                            batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def predict_batch_start(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """预测批次开始回调"""
-        self.invoke_callbacks('on_predict_batch_start', trainer, core_module,
-                           batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
+        self.invoke_callbacks(
+            "on_predict_batch_start",
+            trainer,
+            core_module,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
-    def predict_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel',
-                          outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def predict_batch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """预测批次结束回调"""
-        self.invoke_callbacks('on_predict_batch_end', trainer, core_module,
-                           outputs=outputs, batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
-
-    # Backward相关方法
-    def before_backward(self, trainer: 'Trainer', core_module: 'CoreModel', loss: Any) -> None:
-        """反向传播前回调"""
-        self.invoke_callbacks('on_before_backward', trainer, core_module, loss=loss)
-
-    def after_backward(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
-        """反向传播后回调"""
-        self.invoke_callbacks('on_after_backward', trainer, core_module)
-
-    def before_zero_grad(self, trainer: 'Trainer', core_module: 'CoreModel', optimizer: Any) -> None:
-        """零梯度前回调"""
-        self.invoke_callbacks('on_before_zero_grad', trainer, core_module, optimizer=optimizer)
-
-    def before_optimizer_step(self, trainer: 'Trainer', core_module: 'CoreModel',
-                              optimizer: Any, optimizer_idx: int) -> None:
-        """优化器步进前回调"""
-        self.invoke_callbacks('on_before_optimizer_step', trainer, core_module,
-                           optimizer=optimizer, optimizer_idx=optimizer_idx)
+        self.invoke_callbacks(
+            "on_predict_batch_end",
+            trainer,
+            core_module,
+            outputs=outputs,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
     # 检查点相关方法
-    def save_checkpoint(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def save_checkpoint(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """保存检查点回调"""
-        self.invoke_callbacks('on_save_checkpoint', trainer, core_module)
+        self.invoke_callbacks("on_save_checkpoint", trainer, core_module)
 
-    def load_checkpoint(self, trainer: 'Trainer', core_module: 'CoreModel', checkpoint: Any) -> None:
+    def load_checkpoint(
+        self, trainer: "Trainer", core_module: "CoreModel", checkpoint: Any
+    ) -> None:
         """加载检查点回调"""
-        self.invoke_callbacks('on_load_checkpoint', trainer, core_module, checkpoint=checkpoint)
+        self.invoke_callbacks("on_load_checkpoint", trainer, core_module, checkpoint=checkpoint)
 
     # ========================================
     # 错误处理和性能监控辅助方法
     # ========================================
 
-    def _record_execution_stats(self, callback_name: str, hook_name: str,
-                              execution_time: float, success: bool, error: Optional[Exception] = None):
+    def _record_execution_stats(
+        self,
+        callback_name: str,
+        hook_name: str,
+        execution_time: float,
+        success: bool,
+        error: Optional[Exception] = None,
+    ):
         """记录回调执行统计信息
 
         Args:
@@ -391,28 +486,28 @@ class CallbackList:
 
         if key not in self._execution_stats:
             self._execution_stats[key] = {
-                'total_calls': 0,
-                'success_calls': 0,
-                'failed_calls': 0,
-                'total_time': 0.0,
-                'avg_time': 0.0,
-                'max_time': 0.0,
-                'min_time': float('inf'),
-                'last_error': None
+                "total_calls": 0,
+                "success_calls": 0,
+                "failed_calls": 0,
+                "total_time": 0.0,
+                "avg_time": 0.0,
+                "max_time": 0.0,
+                "min_time": float("inf"),
+                "last_error": None,
             }
 
         stats = self._execution_stats[key]
-        stats['total_calls'] += 1
-        stats['total_time'] += execution_time
-        stats['avg_time'] = stats['total_time'] / stats['total_calls']
-        stats['max_time'] = max(stats['max_time'], execution_time)
-        stats['min_time'] = min(stats['min_time'], execution_time)
+        stats["total_calls"] += 1
+        stats["total_time"] += execution_time
+        stats["avg_time"] = stats["total_time"] / stats["total_calls"]
+        stats["max_time"] = max(stats["max_time"], execution_time)
+        stats["min_time"] = min(stats["min_time"], execution_time)
 
         if success:
-            stats['success_calls'] += 1
+            stats["success_calls"] += 1
         else:
-            stats['failed_calls'] += 1
-            stats['last_error'] = str(error)
+            stats["failed_calls"] += 1
+            stats["last_error"] = str(error)
 
     def get_execution_stats(self) -> Dict[str, Any]:
         """获取执行统计信息
@@ -442,12 +537,16 @@ class CallbackList:
             print("No callback execution statistics available.")
             return
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("CALLBACK PERFORMANCE SUMMARY")
-        print("="*80)
+        print("=" * 80)
 
         for key, stats in self._execution_stats.items():
-            success_rate = (stats['success_calls'] / stats['total_calls']) * 100 if stats['total_calls'] > 0 else 0
+            success_rate = (
+                (stats["success_calls"] / stats["total_calls"]) * 100
+                if stats["total_calls"] > 0
+                else 0
+            )
 
             print(f"\n{key}:")
             print(f"  Total calls: {stats['total_calls']}")
@@ -456,7 +555,7 @@ class CallbackList:
             print(f"  Max time: {stats['max_time']:.4f}s")
             print(f"  Min time: {stats['min_time']:.4f}s")
 
-            if stats['failed_calls'] > 0:
+            if stats["failed_calls"] > 0:
                 print(f"  Last error: {stats['last_error']}")
 
         if self._error_count > 0:
@@ -465,13 +564,15 @@ class CallbackList:
             for error in self._error_history[-5:]:  # 显示最近5个错误
                 print(f"  - {error['callback']}.{error['hook']}: {error['error']}")
 
-        print("="*80)
+        print("=" * 80)
 
     # ========================================
     # 异常处理钩子方法
     # ========================================
 
-    def handle_exception(self, trainer: 'Trainer', core_module: 'CoreModel', exception: Exception) -> None:
+    def handle_exception(
+        self, trainer: "Trainer", core_module: "CoreModel", exception: Exception
+    ) -> None:
         """处理训练异常
 
         Args:
@@ -479,4 +580,4 @@ class CallbackList:
             core_module: 核心模块
             exception: 异常对象
         """
-        self.invoke_callbacks('on_exception', trainer, core_module, exception=exception)
+        self.invoke_callbacks("on_exception", trainer, core_module, exception=exception)

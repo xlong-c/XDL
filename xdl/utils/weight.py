@@ -1,15 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 负责初始化模型权重,包含自定义初始和权重加载
 """
-import torch
+
 import os
+
+import torch
 import torch.nn as nn
-from typing import Optional, Union, Dict, Any
+
 try:
     from safetensors.torch import load_file as load_safetensors
 except ImportError:
     load_safetensors = None
+
 
 def normal_init(module, mean=0.0, std=1.0, bias=0.0):
     """
@@ -22,8 +24,9 @@ def normal_init(module, mean=0.0, std=1.0, bias=0.0):
         bias (float): 偏置项的初始化值.
     """
     nn.init.normal_(module.weight, mean, std)
-    if hasattr(module, 'bias') and module.bias is not None:
+    if hasattr(module, "bias") and module.bias is not None:
         nn.init.constant_(module.bias, bias)
+
 
 def constant_init(module, val, bias=0):
     """
@@ -35,10 +38,11 @@ def constant_init(module, val, bias=0):
         bias (float): 偏置项的初始化值.
     """
     nn.init.constant_(module.weight, val)
-    if hasattr(module, 'bias') and module.bias is not None:
+    if hasattr(module, "bias") and module.bias is not None:
         nn.init.constant_(module.bias, bias)
 
-def xavier_init(module, gain=1, bias=0, distribution='normal'):
+
+def xavier_init(module, gain=1, bias=0, distribution="normal"):
     """
     使用Xavier初始化方法初始化模块的权重.
 
@@ -48,20 +52,18 @@ def xavier_init(module, gain=1, bias=0, distribution='normal'):
         bias (float): 偏置项的初始化值.
         distribution (str): 'normal' 或 'uniform', 选择不同的Xavier初始化分布.
     """
-    assert distribution in ['normal', 'uniform']
-    if distribution == 'normal':
+    assert distribution in ["normal", "uniform"]
+    if distribution == "normal":
         nn.init.xavier_normal_(module.weight, gain=gain)
     else:
         nn.init.xavier_uniform_(module.weight, gain=gain)
-    if hasattr(module, 'bias') and module.bias is not None:
+    if hasattr(module, "bias") and module.bias is not None:
         nn.init.constant_(module.bias, bias)
 
-def kaiming_init(module,
-                 a=0,
-                 mode='fan_in',
-                 nonlinearity='leaky_relu',
-                 bias=0,
-                 distribution='normal'):
+
+def kaiming_init(
+    module, a=0, mode="fan_in", nonlinearity="leaky_relu", bias=0, distribution="normal"
+):
     """
     使用Kaiming初始化方法初始化模块的权重.
 
@@ -73,33 +75,33 @@ def kaiming_init(module,
         bias (float): 偏置项的初始化值.
         distribution (str): 'normal' 或 'uniform'.
     """
-    assert distribution in ['normal', 'uniform']
+    assert distribution in ["normal", "uniform"]
     # 验证mode参数的有效性
-    assert mode in ['fan_in', 'fan_out'], f"mode参数必须是'fan_in'或'fan_out',当前值为'{mode}'"
-    if distribution == 'normal':
-        nn.init.kaiming_normal_(
-            module.weight, a=a, mode=mode, nonlinearity=nonlinearity)  # type: ignore
+    assert mode in ["fan_in", "fan_out"], f"mode参数必须是'fan_in'或'fan_out',当前值为'{mode}'"
+    if distribution == "normal":
+        nn.init.kaiming_normal_(module.weight, a=a, mode=mode, nonlinearity=nonlinearity)  # type: ignore
     else:
-        nn.init.kaiming_uniform_(
-            module.weight, a=a, mode=mode, nonlinearity=nonlinearity)  # type: ignore
-    if hasattr(module, 'bias') and module.bias is not None:
+        nn.init.kaiming_uniform_(module.weight, a=a, mode=mode, nonlinearity=nonlinearity)  # type: ignore
+    if hasattr(module, "bias") and module.bias is not None:
         nn.init.constant_(module.bias, bias)
+
 
 def default_init(model):
     """
     默认权重初始化方法.
     对卷积层使用Kaiming初始化,对线性层使用Xavier初始化.
     """
+
     def init_fn(m):
         if isinstance(m, nn.Conv2d):
-            kaiming_init(m, mode='fan_in', nonlinearity='relu')
+            kaiming_init(m, mode="fan_in", nonlinearity="relu")
         elif isinstance(m, nn.Linear):
-            xavier_init(m, distribution='normal')
-        elif hasattr(m, 'weight') and hasattr(m.weight, 'data'):
+            xavier_init(m, distribution="normal")
+        elif hasattr(m, "weight") and hasattr(m.weight, "data"):
             # 对于其他有权重的层,使用正态分布初始化
             if m.weight is not None:
                 nn.init.normal_(m.weight, 0, 0.02)
-            if hasattr(m, 'bias') and m.bias is not None:
+            if hasattr(m, "bias") and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
     model.apply(init_fn)
@@ -109,11 +111,12 @@ def vit_init(model):
     """
     Vision Transformer专用的权重初始化方法.
     """
+
     def vit_init_fn(m):
         if isinstance(m, nn.Linear):
             # 对于Linear层使用截断正态分布初始化
             nn.init.trunc_normal_(m.weight, std=0.02)
-            if hasattr(m, 'bias') and m.bias is not None:
+            if hasattr(m, "bias") and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
             # LayerNorm使用常数初始化
@@ -121,12 +124,12 @@ def vit_init(model):
             nn.init.constant_(m.weight, 1.0)
         elif isinstance(m, nn.Conv2d):
             # 对于patch embedding的卷积层
-            kaiming_init(m, mode='fan_in', nonlinearity='relu')
-        elif hasattr(m, 'weight') and hasattr(m.weight, 'data'):
+            kaiming_init(m, mode="fan_in", nonlinearity="relu")
+        elif hasattr(m, "weight") and hasattr(m.weight, "data"):
             # 其他有权重的层
             if m.weight is not None:
                 nn.init.normal_(m.weight, 0, 0.02)
-            if hasattr(m, 'bias') and m.bias is not None:
+            if hasattr(m, "bias") and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
     model.apply(vit_init_fn)
@@ -136,28 +139,29 @@ def cnn_init(model):
     """
     CNN专用的权重初始化方法.
     """
+
     def cnn_init_fn(m):
         if isinstance(m, nn.Conv2d):
             # 卷积层使用Kaiming初始化
-            kaiming_init(m, mode='fan_in', nonlinearity='relu')
+            kaiming_init(m, mode="fan_in", nonlinearity="relu")
         elif isinstance(m, nn.Linear):
             # 全连接层使用Xavier初始化
-            xavier_init(m, distribution='normal')
-        elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+            xavier_init(m, distribution="normal")
+        elif isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
             # 批归一化层初始化
             nn.init.constant_(m.weight, 1)
             nn.init.constant_(m.bias, 0)
-        elif hasattr(m, 'weight') and hasattr(m.weight, 'data'):
+        elif hasattr(m, "weight") and hasattr(m.weight, "data"):
             # 其他有权重的层
             if m.weight is not None:
                 nn.init.normal_(m.weight, 0, 0.02)
-            if hasattr(m, 'bias') and m.bias is not None:
+            if hasattr(m, "bias") and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
     model.apply(cnn_init_fn)
 
 
-def weight_init(model, init_fn: str = 'default'):
+def weight_init(model, init_fn: str = "default"):
     """
     对模型进行权重初始化.
 
@@ -165,14 +169,15 @@ def weight_init(model, init_fn: str = 'default'):
         model (nn.Module): 需要初始化的模型.
         init_fn (str): 初始化函数名称, 支持 'default', 'vit', 'cnn' 等.
     """
-    if init_fn == 'default':
+    if init_fn == "default":
         default_init(model)
-    elif init_fn == 'vit':
+    elif init_fn == "vit":
         vit_init(model)
-    elif init_fn == 'cnn':
+    elif init_fn == "cnn":
         cnn_init(model)
     else:
         raise ValueError(f"不支持的初始化方法: {init_fn}")
+
 
 def load_weight(model: nn.Module, ckpt_path: str) -> None:
     """
@@ -196,19 +201,19 @@ def load_weight(model: nn.Module, ckpt_path: str) -> None:
     file_ext = os.path.splitext(ckpt_path)[1].lower()
 
     try:
-        if file_ext in ['.pt', '.pth']:
+        if file_ext in [".pt", ".pth"]:
             # 使用torch加载权重文件
-            checkpoint = torch.load(ckpt_path, map_location='cpu')
+            checkpoint = torch.load(ckpt_path, map_location="cpu")
 
             # 处理不同的checkpoint格式
             if isinstance(checkpoint, dict):
                 # 如果是字典格式, 尝试常见的键名
-                if 'state_dict' in checkpoint:
-                    state_dict = checkpoint['state_dict']
-                elif 'model' in checkpoint:
-                    state_dict = checkpoint['model']
-                elif 'net' in checkpoint:
-                    state_dict = checkpoint['net']
+                if "state_dict" in checkpoint:
+                    state_dict = checkpoint["state_dict"]
+                elif "model" in checkpoint:
+                    state_dict = checkpoint["model"]
+                elif "net" in checkpoint:
+                    state_dict = checkpoint["net"]
                 else:
                     # 如果没有常见键名, 假设整个字典就是state_dict
                     state_dict = checkpoint
@@ -216,18 +221,19 @@ def load_weight(model: nn.Module, ckpt_path: str) -> None:
                 # 如果不是字典, 直接作为state_dict使用
                 state_dict = checkpoint
 
-        elif file_ext == '.safetensors':
+        elif file_ext == ".safetensors":
             # 使用safetensors加载权重文件
             if load_safetensors is None:
                 raise ImportError(
-                    "safetensors库未安装, 无法加载.safetensors文件。"
-                    "请安装: pip install safetensors"
+                    "safetensors库未安装, 无法加载.safetensors文件。请安装: pip install safetensors"
                 )
 
             state_dict = load_safetensors(ckpt_path)
 
         else:
-            raise ValueError(f"不支持的权重文件格式: {file_ext}. 支持的格式: .pt, .pth, .safetensors")
+            raise ValueError(
+                f"不支持的权重文件格式: {file_ext}. 支持的格式: .pt, .pth, .safetensors"
+            )
 
         # 加载权重到模型中
         model.load_state_dict(state_dict, strict=False)

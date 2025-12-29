@@ -4,11 +4,12 @@ WandB日志回调
 负责将训练和验证过程中的指标记录到Weights & Biases
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 # 尝试导入WandB
 try:
     import wandb  # type: ignore
+
     WANDB_AVAILABLE = True
 except ImportError:
     wandb = None
@@ -40,7 +41,7 @@ class WandbCallback(Callback):
         log_train: bool = True,
         log_validation: bool = True,
         log_validation_frequency: str = "epoch",  # "epoch" 或 "step"
-        upload_frequency: int = 50
+        upload_frequency: int = 50,
     ):
         """
         初始化WandB日志回调
@@ -102,7 +103,7 @@ class WandbCallback(Callback):
                 tags=self.tags,
                 notes=self.notes,
                 config=self.config,
-                reinit=True
+                reinit=True,
             )
             if self.run:
                 print(f"WandB运行已初始化: {self.project}/{self.run.name}")
@@ -159,11 +160,9 @@ class WandbCallback(Callback):
 
             if metrics:
                 # 添加到缓冲区
-                self.metrics_buffer.append({
-                    'metrics': metrics,
-                    'step': self.train_step,
-                    'prefix': 'train/'
-                })
+                self.metrics_buffer.append(
+                    {"metrics": metrics, "step": self.train_step, "prefix": "train/"}
+                )
 
                 # 按频率上传
                 if len(self.metrics_buffer) >= self.upload_frequency:
@@ -175,21 +174,25 @@ class WandbCallback(Callback):
             return
 
         # 记录epoch级别的指标
-        epoch_metrics = getattr(core_module, 'last_epoch_avg', {})
+        epoch_metrics = getattr(core_module, "last_epoch_avg", {})
         if epoch_metrics:
             # 添加epoch前缀
-            prefixed_metrics = {f'train_epoch/{k}': v for k, v in epoch_metrics.items()}
+            prefixed_metrics = {f"train_epoch/{k}": v for k, v in epoch_metrics.items()}
 
-            self.metrics_buffer.append({
-                'metrics': prefixed_metrics,
-                'step': self.train_step,
-                'prefix': ''  # 已经有前缀了
-            })
+            self.metrics_buffer.append(
+                {
+                    "metrics": prefixed_metrics,
+                    "step": self.train_step,
+                    "prefix": "",  # 已经有前缀了
+                }
+            )
 
         # 定期上传
         self._maybe_upload()
 
-    def on_validation_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_validation_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """验证批次结束时的WandB记录"""
         if not self.log_validation or not self.run:
             return
@@ -198,15 +201,20 @@ class WandbCallback(Callback):
         self.val_step += 1
 
         # 如果设置为按步骤记录验证日志
-        if self.log_validation_frequency == "step" and self.val_batch_count % self.log_frequency == 0:
+        if (
+            self.log_validation_frequency == "step"
+            and self.val_batch_count % self.log_frequency == 0
+        ):
             metrics = self._extract_metrics(core_module, outputs)
 
             if metrics:
-                self.metrics_buffer.append({
-                    'metrics': metrics,
-                    'step': self.train_step,  # 使用全局训练步数
-                    'prefix': 'val/'
-                })
+                self.metrics_buffer.append(
+                    {
+                        "metrics": metrics,
+                        "step": self.train_step,  # 使用全局训练步数
+                        "prefix": "val/",
+                    }
+                )
 
                 # 按频率上传
                 if len(self.metrics_buffer) >= self.upload_frequency:
@@ -219,16 +227,18 @@ class WandbCallback(Callback):
 
         if self.log_validation_frequency == "epoch":
             # 获取验证epoch平均指标
-            val_metrics = getattr(core_module, 'last_epoch_avg', {})
+            val_metrics = getattr(core_module, "last_epoch_avg", {})
             if val_metrics:
                 # 添加val前缀
-                prefixed_metrics = {f'val/{k}': v for k, v in val_metrics.items()}
+                prefixed_metrics = {f"val/{k}": v for k, v in val_metrics.items()}
 
-                self.metrics_buffer.append({
-                    'metrics': prefixed_metrics,
-                    'step': self.train_step,  # 使用全局训练步数
-                    'prefix': ''  # 已经有前缀了
-                })
+                self.metrics_buffer.append(
+                    {
+                        "metrics": prefixed_metrics,
+                        "step": self.train_step,  # 使用全局训练步数
+                        "prefix": "",  # 已经有前缀了
+                    }
+                )
 
         # 定期上传
         self._maybe_upload()
@@ -238,32 +248,32 @@ class WandbCallback(Callback):
         hparams = {}
 
         # 从trainer收集参数
-        if hasattr(trainer, 'max_epochs'):
-            hparams['max_epochs'] = trainer.max_epochs
-        if hasattr(trainer, 'learning_rate'):
-            hparams['learning_rate'] = trainer.learning_rate
-        if hasattr(trainer, 'batch_size'):
-            hparams['batch_size'] = trainer.batch_size
+        if hasattr(trainer, "max_epochs"):
+            hparams["max_epochs"] = trainer.max_epochs
+        if hasattr(trainer, "learning_rate"):
+            hparams["learning_rate"] = trainer.learning_rate
+        if hasattr(trainer, "batch_size"):
+            hparams["batch_size"] = trainer.batch_size
 
         # 从数据加载器收集参数
-        if hasattr(trainer, '_train_dataloader') and trainer._train_dataloader:
+        if hasattr(trainer, "_train_dataloader") and trainer._train_dataloader:
             train_loader = trainer._train_dataloader
-            if hasattr(train_loader, 'batch_size'):
-                hparams['train_batch_size'] = train_loader.batch_size
-            if hasattr(train_loader, '__len__'):
-                hparams['train_steps_per_epoch'] = len(train_loader)
+            if hasattr(train_loader, "batch_size"):
+                hparams["train_batch_size"] = train_loader.batch_size
+            if hasattr(train_loader, "__len__"):
+                hparams["train_steps_per_epoch"] = len(train_loader)
 
-        if hasattr(trainer, '_val_dataloader') and trainer._val_dataloader:
+        if hasattr(trainer, "_val_dataloader") and trainer._val_dataloader:
             val_loader = trainer._val_dataloader
-            if hasattr(val_loader, 'batch_size'):
-                hparams['val_batch_size'] = val_loader.batch_size
+            if hasattr(val_loader, "batch_size"):
+                hparams["val_batch_size"] = val_loader.batch_size
 
         # 从模型收集参数
-        if hasattr(core_module, 'parameters'):
+        if hasattr(core_module, "parameters"):
             total_params = sum(p.numel() for p in core_module.parameters())
             trainable_params = sum(p.numel() for p in core_module.parameters() if p.requires_grad)
-            hparams['total_parameters'] = total_params
-            hparams['trainable_parameters'] = trainable_params
+            hparams["total_parameters"] = total_params
+            hparams["trainable_parameters"] = trainable_params
 
         return hparams
 
@@ -281,7 +291,7 @@ class WandbCallback(Callback):
         metrics = {}
 
         # 优先从core模块的current_metrics属性获取
-        if hasattr(core_module, 'current_metrics'):
+        if hasattr(core_module, "current_metrics"):
             metrics = core_module.current_metrics
 
         # 如果没有获取到指标, 尝试从outputs获取
@@ -289,7 +299,7 @@ class WandbCallback(Callback):
             for key, value in outputs.items():
                 if isinstance(value, (int, float)):
                     metrics[key] = float(value)
-                elif hasattr(value, 'item'):  # Tensor
+                elif hasattr(value, "item"):  # Tensor
                     metrics[key] = float(value.item())
 
         return metrics
@@ -302,9 +312,9 @@ class WandbCallback(Callback):
         try:
             # 批量上传缓冲区中的指标
             for item in self.metrics_buffer:
-                metrics = item['metrics']
-                step = item['step']
-                prefix = item['prefix']
+                metrics = item["metrics"]
+                step = item["step"]
+                prefix = item["prefix"]
 
                 # 添加前缀(如果需要)
                 if prefix:

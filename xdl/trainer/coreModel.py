@@ -1,17 +1,19 @@
-﻿from typing import Dict, Any,  Optional, Union, List, Tuple
 from dataclasses import dataclass, field
 from pathlib import Path
-import torch
-from torch.optim.lr_scheduler import LRScheduler
-from torch.optim import Optimizer
-from torch.nn import Module
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+import torch
 from accelerate import Accelerator
+from torch.nn import Module
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 from xdl.utils.checkpoint import (
-    generate_checkpoint_dirname,
-    save_checkpoint as save_checkpoint_to_dir,
     detect_and_load_checkpoint,
+    generate_checkpoint_dirname,
+)
+from xdl.utils.checkpoint import (
+    save_checkpoint as save_checkpoint_to_dir,
 )
 from xdl.utils.tools import print_model_parameters
 
@@ -21,6 +23,7 @@ class PipelineInput:
     """
     用于存储流水线输入的通用dataclass
     """
+
     inputs: Any = None
     targets: Any = None
     extra: Dict[str, Any] = field(default_factory=dict)
@@ -31,6 +34,7 @@ class PipelineOutput:
     """
     用于存储流水线输出的通用dataclass
     """
+
     output: Any = None  # 模型输出
     target: Any = None  # 目标值
     input: Any = None  # 输入值
@@ -43,6 +47,7 @@ class ValueDictData:
     用于存储多个数值信息的通用dataclass, 可以处理损失和指标
     增强版本:支持epoch级别管理和自动计算
     """
+
     values: Dict[str, List[float]] = field(default_factory=dict)  # 总历史值列表
     current_values: Dict[str, float] = field(default_factory=dict)  # 当前值
     epoch_values: Dict[str, List[float]] = field(
@@ -90,10 +95,7 @@ class ValueDictData:
 
     def get_all_epoch_avg(self) -> Dict[str, float]:
         """获取所有指标在当前epoch的平均值"""
-        return {
-            name: self.get_epoch_avg(name)
-            for name in self.epoch_values.keys()
-        }
+        return {name: self.get_epoch_avg(name) for name in self.epoch_values}
 
     def clear(self) -> None:
         """清空所有数值列表"""
@@ -301,7 +303,7 @@ class CoreModel(Module):
         try:
             return next(self.parameters()).device
         except StopIteration:
-            return torch.device('cpu')
+            return torch.device("cpu")
 
     def configure_optimizers(self):
         """
@@ -515,18 +517,6 @@ class CoreModel(Module):
         """Epoch结束钩子"""
         pass
 
-    def on_optimization_step(self):
-        """优化步骤钩子"""
-        pass
-
-    def on_before_zero_grad(self):
-        """梯度清零前钩子"""
-        pass
-
-    def on_before_optimizer_step(self):
-        """优化器步骤前钩子"""
-        pass
-
     def on_save_checkpoint(self):
         """保存检查点钩子"""
         pass
@@ -561,7 +551,7 @@ class CoreModel(Module):
             模型输出
         """
         # 查找第一个 nn.Module 属性并调用
-        for name, value in self.__dict__.items():
+        for _name, value in self.__dict__.items():
             if isinstance(value, torch.nn.Module):
                 return value(batch, **kwargs)
         raise NotImplementedError("模型中未找到 nn.Module 属性, 请实现 __call__ 方法")
@@ -594,12 +584,12 @@ class CoreModel(Module):
 
         # 使用 accelerator 的 is_main_process 方法来判断
         # 这是 Accelerate 库的标准方法
-        if hasattr(self._accelerator, 'is_main_process'):
+        if hasattr(self._accelerator, "is_main_process"):
             return self._accelerator.is_main_process
 
         # 如果 accelerator 没有 is_main_process 方法, 检查其他可能的属性
         # 某些版本的 accelerator 可能使用不同的属性名
-        if hasattr(self._accelerator, 'is_local_main_process'):
+        if hasattr(self._accelerator, "is_local_main_process"):
             return self._accelerator.is_local_main_process
 
         # 默认情况下, 认为是主进程
@@ -607,12 +597,7 @@ class CoreModel(Module):
 
     # ========== 日志记录方法 ==========
 
-    def log(
-        self,
-        name: str,
-        value: Union[float, int],
-        prefix: Optional[str] = None
-    ):
+    def log(self, name: str, value: Union[float, int], prefix: Optional[str] = None):
         """
         在 Component 内记录指标
 
@@ -645,11 +630,7 @@ class CoreModel(Module):
         # 使用统一的指标存储系统记录指标
         self._step_metrics.log(name, value)
 
-    def log_metrics(
-        self,
-        metrics: Dict[str, Union[float, int]],
-        prefix: Optional[str] = None
-    ):
+    def log_metrics(self, metrics: Dict[str, Union[float, int]], prefix: Optional[str] = None):
         """
         批量记录指标
 
@@ -685,7 +666,7 @@ class CoreModel(Module):
         optimizer = self._optimizers[0]
 
         if optimizer and optimizer.param_groups:
-            return optimizer.param_groups[0]['lr']
+            return optimizer.param_groups[0]["lr"]
         return 0.0
 
     # ========== 梯度相关方法 ==========
@@ -695,15 +676,17 @@ class CoreModel(Module):
         model: Module,
         gradient_clip_val: Optional[float] = None,
         gradient_clip_algorithm: str = "norm",
-        check_sync_gradients: bool = True
+        check_sync_gradients: bool = True,
     ):
         if gradient_clip_val is None:
             return
 
         # 检查是否需要同步梯度(仅在Accelerate环境下)
-        if (check_sync_gradients and
-            self._accelerator and
-                hasattr(self._accelerator, 'sync_gradients')):
+        if (
+            check_sync_gradients
+            and self._accelerator
+            and hasattr(self._accelerator, "sync_gradients")
+        ):
             if not self._accelerator.sync_gradients:
                 return
 
@@ -753,7 +736,9 @@ class CoreModel(Module):
 
     # ========== Checkpoint 管理方法 ==========
 
-    def _get_checkpoint_values(self, custom_values: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _get_checkpoint_values(
+        self, custom_values: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """获取用于checkpoint命名的值字典"""
         values = {"step": self._total_train_steps,
                   "epoch": self._current_epoch}
@@ -777,7 +762,8 @@ class CoreModel(Module):
             return ""
 
         save_dir = Path(base_dir) / generate_checkpoint_dirname(
-            naming_keys or ["step"], self._get_checkpoint_values(custom_values))
+            naming_keys or ["step"], self._get_checkpoint_values(custom_values)
+        )
         save_dir.mkdir(parents=True, exist_ok=True)
 
         if format == "accelerator" and self._accelerator:
@@ -797,19 +783,36 @@ class CoreModel(Module):
     ) -> Dict[str, Any]:
         """收集所有组件的状态数据"""
         # 搜集所有 nn.Module 属性 (包括未注册的)
-        all_modules = {n: m for n, m in self.named_children()}
-        all_modules.update({n: m for n, m in self.__dict__.items() if isinstance(
-            m, torch.nn.Module) and n not in all_modules})
+        all_modules = dict(self.named_children())
+        all_modules.update(
+            {
+                n: m
+                for n, m in self.__dict__.items()
+                if isinstance(m, torch.nn.Module) and n not in all_modules
+            }
+        )
 
         return {
-            'epoch': self._current_epoch,
-            'step': self._total_train_steps,
-            'state_dict': {n: m.state_dict() for n, m in all_modules.items() if not include_components or n in include_components},
-            'optimizer_states': {f'opt_{i}': o.state_dict() for i, o in enumerate(self._optimizers)} if save_optimizer else None,
-            'scheduler_states': {f'sch_{i}': s.state_dict() for i, s in enumerate(self._schedules) if hasattr(s, "state_dict")} if save_scheduler else None,
+            "epoch": self._current_epoch,
+            "step": self._total_train_steps,
+            "state_dict": {
+                n: m.state_dict()
+                for n, m in all_modules.items()
+                if not include_components or n in include_components
+            },
+            "optimizer_states": {f"opt_{i}": o.state_dict() for i, o in enumerate(self._optimizers)}
+            if save_optimizer
+            else None,
+            "scheduler_states": {
+                f"sch_{i}": s.state_dict()
+                for i, s in enumerate(self._schedules)
+                if hasattr(s, "state_dict")
+            }
+            if save_scheduler
+            else None,
         }
 
-    def load_checkpoint(self, checkpoint_path: str, map_location: str = 'cpu', format: str = "pt"):
+    def load_checkpoint(self, checkpoint_path: str, map_location: str = "cpu", format: str = "pt"):
         """加载检查点"""
         ckpt_path = Path(checkpoint_path)
         if format == "accelerator" and self._accelerator:
@@ -820,27 +823,29 @@ class CoreModel(Module):
 
     def _restore_from_checkpoint(self, ckpt: Dict[str, Any]) -> None:
         """执行状态恢复"""
-        self._current_epoch = ckpt.get('epoch', 0)
-        self._total_train_steps = ckpt.get('step', 0)
+        self._current_epoch = ckpt.get("epoch", 0)
+        self._total_train_steps = ckpt.get("step", 0)
 
         # 恢复模型权重
-        for name, state in ckpt.get('state_dict', {}).items():
+        for name, state in ckpt.get("state_dict", {}).items():
             module = getattr(self, name, None)
             if isinstance(module, torch.nn.Module):
                 module.load_state_dict(state)
 
         # 恢复优化器与调度器
         for i, opt in enumerate(self._optimizers):
-            if f'opt_{i}' in ckpt.get('optimizer_states', {} or {}):
-                opt.load_state_dict(ckpt['optimizer_states'][f'opt_{i}'])
+            if f"opt_{i}" in ckpt.get("optimizer_states", {} or {}):
+                opt.load_state_dict(ckpt["optimizer_states"][f"opt_{i}"])
 
         for i, sch in enumerate(self._schedules):
-            state = ckpt.get('scheduler_states', {} or {}).get(f'sch_{i}')
-            if state and hasattr(sch, 'load_state_dict'):
+            state = ckpt.get("scheduler_states", {} or {}).get(f"sch_{i}")
+            if state and hasattr(sch, "load_state_dict"):
                 sch.load_state_dict(state)
 
     @classmethod
-    def load_from_checkpoint(cls, checkpoint_path: str, map_location: str = 'cpu', format: str = "pt", **kwargs):
+    def load_from_checkpoint(
+        cls, checkpoint_path: str, map_location: str = "cpu", format: str = "pt", **kwargs
+    ):
         """从文件直接实例化模型"""
         model = cls(**kwargs)
         model.load_checkpoint(checkpoint_path, map_location, format)
@@ -878,9 +883,12 @@ class CoreModel(Module):
             else:
                 # 否则视为优化器列表
                 # 过滤掉非优化器对象（以防用户混入调度器但没按格式传）
-                self._optimizers = [opt for opt in optimizers_return if isinstance(opt, Optimizer)]
+                self._optimizers = [
+                    opt for opt in optimizers_return if isinstance(opt, Optimizer)]
                 # 如果列表里还有调度器，则提取出来
-                self._schedules = [sch for sch in optimizers_return if not isinstance(sch, Optimizer)]
+                self._schedules = [
+                    sch for sch in optimizers_return if not isinstance(sch, Optimizer)
+                ]
         else:
             # 单个优化器, 需要包装到列表中
             self._optimizers = [optimizers_return]

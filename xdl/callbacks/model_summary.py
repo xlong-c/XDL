@@ -6,13 +6,15 @@ Model Summary Callback
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, Optional
+
 from .base import Callback
 
 # 尝试导入torch
 try:
     import torch
     import torch.nn as nn
+
     TORCH_AVAILABLE = True
 except ImportError:
     torch = None
@@ -42,12 +44,9 @@ class ModelSummary(Callback):
         self.verbose = verbose
 
         # 状态管理
-        self._state.update({
-            'model_summary': {},
-            'parameter_count': 0,
-            'layer_count': 0,
-            'model_size_mb': 0
-        })
+        self._state.update(
+            {"model_summary": {}, "parameter_count": 0, "layer_count": 0, "model_size_mb": 0}
+        )
 
         self._logger = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ class ModelSummary(Callback):
         try:
             summary = self._analyze_model(core_module)
             self._display_summary(summary)
-            self._state['model_summary'] = summary
+            self._state["model_summary"] = summary
 
         except Exception as e:
             self._logger.error(f"Error generating model summary: {e}")
@@ -68,12 +67,12 @@ class ModelSummary(Callback):
     def _analyze_model(self, core_module) -> Dict[str, Any]:
         """分析模型结构"""
         summary = {
-            'total_params': 0,
-            'trainable_params': 0,
-            'non_trainable_params': 0,
-            'total_layers': 0,
-            'model_size_mb': 0,
-            'layer_info': []
+            "total_params": 0,
+            "trainable_params": 0,
+            "non_trainable_params": 0,
+            "total_layers": 0,
+            "model_size_mb": 0,
+            "layer_info": [],
         }
 
         # 查找模型
@@ -91,14 +90,14 @@ class ModelSummary(Callback):
         summary.update(layer_info)
 
         # 计算模型大小
-        summary['model_size_mb'] = summary['total_params'] * 4 / (1024**2)  # 假设float32
+        summary["model_size_mb"] = summary["total_params"] * 4 / (1024**2)  # 假设float32
 
         return summary
 
     def _find_model(self, core_module) -> Optional[nn.Module]:
         """在core_module中查找PyTorch模型"""
         # 尝试常见的模型属性名
-        model_names = ['model', 'net', 'network', 'module']
+        model_names = ["model", "net", "network", "module"]
 
         for name in model_names:
             if hasattr(core_module, name):
@@ -112,7 +111,7 @@ class ModelSummary(Callback):
 
         # 遍历所有属性寻找nn.Module
         for attr_name in dir(core_module):
-            if not attr_name.startswith('_'):
+            if not attr_name.startswith("_"):
                 attr = getattr(core_module, attr_name)
                 if isinstance(attr, nn.Module):
                     return attr
@@ -130,9 +129,9 @@ class ModelSummary(Callback):
                 trainable_params += param.numel()
 
         return {
-            'total_params': total_params,
-            'trainable_params': trainable_params,
-            'non_trainable_params': total_params - trainable_params
+            "total_params": total_params,
+            "trainable_params": trainable_params,
+            "non_trainable_params": total_params - trainable_params,
         }
 
     def _analyze_layers(self, model: nn.Module) -> Dict[str, Any]:
@@ -140,7 +139,7 @@ class ModelSummary(Callback):
         layer_info = []
         total_layers = 0
 
-        def _analyze_recursive(module: nn.Module, prefix: str = '', depth: int = 0):
+        def _analyze_recursive(module: nn.Module, prefix: str = "", depth: int = 0):
             nonlocal total_layers
 
             if self.max_depth >= 0 and depth > self.max_depth:
@@ -155,9 +154,9 @@ class ModelSummary(Callback):
 
                 # 获取输出形状(如果可能)
                 output_shape = "Unknown"
-                if hasattr(child, 'output_shape'):
+                if hasattr(child, "output_shape"):
                     output_shape = str(child.output_shape)
-                elif hasattr(child, '_modules') and not child._modules:
+                elif hasattr(child, "_modules") and not child._modules:
                     # 这是一个叶子层, 可能能推断形状
                     try:
                         # 这里可以添加形状推断逻辑
@@ -165,32 +164,31 @@ class ModelSummary(Callback):
                     except Exception:
                         pass
 
-                layer_info.append({
-                    'name': layer_name,
-                    'type': layer_type,
-                    'params': layer_params,
-                    'output_shape': output_shape,
-                    'depth': depth
-                })
+                layer_info.append(
+                    {
+                        "name": layer_name,
+                        "type": layer_type,
+                        "params": layer_params,
+                        "output_shape": output_shape,
+                        "depth": depth,
+                    }
+                )
 
                 total_layers += 1
                 _analyze_recursive(child, layer_name, depth + 1)
 
         _analyze_recursive(model)
 
-        return {
-            'total_layers': total_layers,
-            'layer_info': layer_info
-        }
+        return {"total_layers": total_layers, "layer_info": layer_info}
 
     def _display_summary(self, summary: Dict[str, Any]):
         """显示模型摘要"""
         if not self.verbose:
             return
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("MODEL SUMMARY")
-        print("="*80)
+        print("=" * 80)
 
         # 基本信息
         print(f"Total parameters: {summary['total_params']:,}")
@@ -200,41 +198,41 @@ class ModelSummary(Callback):
         print(f"Model size: {summary['model_size_mb']:.2f} MB")
 
         # 参数分布
-        if summary['trainable_params'] > 0:
-            trainable_ratio = (summary['trainable_params'] / summary['total_params']) * 100
+        if summary["trainable_params"] > 0:
+            trainable_ratio = (summary["trainable_params"] / summary["total_params"]) * 100
             print(f"Trainable parameter ratio: {trainable_ratio:.1f}%")
 
         # 层结构(如果深度允许)
         if self.max_depth != 0:
-            print("\n" + "-"*80)
+            print("\n" + "-" * 80)
             print("LAYER STRUCTURE")
-            print("-"*80)
+            print("-" * 80)
             print(f"{'Layer Name':<40} {'Type':<20} {'Params':<15} {'Output Shape':<15}")
-            print("-"*80)
+            print("-" * 80)
 
-            for layer in summary['layer_info']:
-                indent = "  " * layer['depth']
-                name = (indent + layer['name'])[:40]
-                layer_type = layer['type'][:20]
+            for layer in summary["layer_info"]:
+                indent = "  " * layer["depth"]
+                name = (indent + layer["name"])[:40]
+                layer_type = layer["type"][:20]
                 params = f"{layer['params']:,}"[:15]
-                output_shape = layer['output_shape'][:15]
+                output_shape = layer["output_shape"][:15]
 
                 print(f"{name:<40} {layer_type:<20} {params:<15} {output_shape:<15}")
 
-        print("="*80)
+        print("=" * 80)
 
     def get_parameter_count(self) -> Dict[str, int]:
         """获取参数数量统计"""
         return {
-            'total': self._state.get('parameter_count', 0),
-            'trainable': 0,  # 可以从模型摘要中获取
-            'non_trainable': 0
+            "total": self._state.get("parameter_count", 0),
+            "trainable": 0,  # 可以从模型摘要中获取
+            "non_trainable": 0,
         }
 
     def get_model_size_mb(self) -> float:
         """获取模型大小(MB)"""
-        return self._state.get('model_size_mb', 0)
+        return self._state.get("model_size_mb", 0)
 
     def get_layer_count(self) -> int:
         """获取层数"""
-        return self._state.get('layer_count', 0)
+        return self._state.get("layer_count", 0)

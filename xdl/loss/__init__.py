@@ -5,12 +5,12 @@
 from ..utils.registry import register_loss
 
 # Focal Loss损失函数
-from .focal_loss import FocalLoss, BinaryFocalLoss, focal_loss, binary_focal_loss
+from .focal_loss import BinaryFocalLoss, FocalLoss, binary_focal_loss, focal_loss
 
 
 def _register_losses():
     """统一注册所有损失函数到LOSS_REGISTRY"""
-    
+
     # 注册Focal Loss损失函数系列
     register_loss("FocalLoss")(FocalLoss)
     register_loss("BinaryFocalLoss")(BinaryFocalLoss)
@@ -23,5 +23,8 @@ _register_losses()
 
 __all__ = [
     # Focal Loss损失函数
-    'FocalLoss', 'BinaryFocalLoss', 'focal_loss', 'binary_focal_loss'
+    "FocalLoss",
+    "BinaryFocalLoss",
+    "focal_loss",
+    "binary_focal_loss",
 ]

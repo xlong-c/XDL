@@ -5,7 +5,8 @@ Lambda Callback
 参考 PyTorch Lightning 的 LambdaCallback 实现。
 """
 
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict
+
 from .base import Callback
 
 
@@ -55,21 +56,36 @@ class LambdaCallback(Callback):
 
         # 预定义的钩子映射
         predefined_hooks = {
-            'setup', 'teardown',
-            'on_train_start', 'on_train_end',
-            'on_train_epoch_start', 'on_train_epoch_end',
-            'on_train_batch_start', 'on_train_batch_end',
-            'on_validation_start', 'on_validation_end',
-            'on_validation_epoch_start', 'on_validation_epoch_end',
-            'on_validation_batch_start', 'on_validation_batch_end',
-            'on_test_start', 'on_test_end',
-            'on_test_epoch_start', 'on_test_epoch_end',
-            'on_test_batch_start', 'on_test_batch_end',
-            'on_predict_start', 'on_predict_end',
-            'on_predict_epoch_start', 'on_predict_epoch_end',
-            'on_predict_batch_start', 'on_predict_batch_end',
-            'on_exception', 'on_keyboard_interrupt',
-            'on_save_checkpoint', 'on_load_checkpoint'
+            "setup",
+            "teardown",
+            "on_train_start",
+            "on_train_end",
+            "on_train_epoch_start",
+            "on_train_epoch_end",
+            "on_train_batch_start",
+            "on_train_batch_end",
+            "on_validation_start",
+            "on_validation_end",
+            "on_validation_epoch_start",
+            "on_validation_epoch_end",
+            "on_validation_batch_start",
+            "on_validation_batch_end",
+            "on_test_start",
+            "on_test_end",
+            "on_test_epoch_start",
+            "on_test_epoch_end",
+            "on_test_batch_start",
+            "on_test_batch_end",
+            "on_predict_start",
+            "on_predict_end",
+            "on_predict_epoch_start",
+            "on_predict_epoch_end",
+            "on_predict_batch_start",
+            "on_predict_batch_end",
+            "on_exception",
+            "on_keyboard_interrupt",
+            "on_save_checkpoint",
+            "on_load_checkpoint",
         }
 
         # 处理传入的lambda函数
@@ -87,16 +103,24 @@ class LambdaCallback(Callback):
 
     def _create_hook_method(self, hook_name: str, hook_func: Callable):
         """动态创建钩子方法"""
+
         def hook_method(self, trainer, core_module, **kwargs):
             try:
                 # 根据钩子类型传递适当的参数
-                if hook_name in ['on_train_batch_start', 'on_train_batch_end',
-                                'on_validation_batch_start', 'on_validation_batch_end',
-                                'on_test_batch_start', 'on_test_batch_end',
-                                'on_predict_batch_start', 'on_predict_batch_end']:
+                if hook_name in [
+                    "on_train_batch_start",
+                    "on_train_batch_end",
+                    "on_validation_batch_start",
+                    "on_validation_batch_end",
+                    "on_test_batch_start",
+                    "on_test_batch_end",
+                    "on_predict_batch_start",
+                    "on_predict_batch_end",
+                ]:
                     # 批次级别的钩子, 需要提供 batch, batch_idx, dataloader_idx 等
                     # 如果 hook_func 接受关键字参数，直接传递
                     import inspect
+
                     sig = inspect.signature(hook_func)
                     if any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values()):
                         hook_func(trainer, core_module, **kwargs)
@@ -104,16 +128,16 @@ class LambdaCallback(Callback):
                         # 否则只尝试传递它需要的参数 (简单启发式)
                         args = [trainer, core_module]
                         param_names = list(sig.parameters.keys())
-                        for name in param_names[2:]: # 跳过 trainer, core_module
+                        for name in param_names[2:]:  # 跳过 trainer, core_module
                             if name in kwargs:
                                 args.append(kwargs[name])
                         hook_func(*args)
-                elif hook_name == 'on_exception':
-                    hook_func(trainer, core_module, kwargs.get('exception'))
-                elif hook_name == 'on_save_checkpoint':
+                elif hook_name == "on_exception":
+                    hook_func(trainer, core_module, kwargs.get("exception"))
+                elif hook_name == "on_save_checkpoint":
                     hook_func(trainer, core_module)
-                elif hook_name == 'on_load_checkpoint':
-                    hook_func(trainer, core_module, kwargs.get('checkpoint'))
+                elif hook_name == "on_load_checkpoint":
+                    hook_func(trainer, core_module, kwargs.get("checkpoint"))
                 else:
                     hook_func(trainer, core_module)
             except Exception as e:
@@ -158,53 +182,57 @@ class LambdaCallback(Callback):
     # 实现所有预定义钩子的默认方法
     def on_train_start(self, trainer, core_module):
         """训练开始时的钩子"""
-        if 'on_train_start' in self._hooks:
-            self._hooks['on_train_start'](trainer, core_module)
+        if "on_train_start" in self._hooks:
+            self._hooks["on_train_start"](trainer, core_module)
 
     def on_train_end(self, trainer, core_module):
         """训练结束时的钩子"""
-        if 'on_train_end' in self._hooks:
-            self._hooks['on_train_end'](trainer, core_module)
+        if "on_train_end" in self._hooks:
+            self._hooks["on_train_end"](trainer, core_module)
 
     def on_train_epoch_start(self, trainer, core_module):
         """训练epoch开始时的钩子"""
-        if 'on_train_epoch_start' in self._hooks:
-            self._hooks['on_train_epoch_start'](trainer, core_module)
+        if "on_train_epoch_start" in self._hooks:
+            self._hooks["on_train_epoch_start"](trainer, core_module)
 
     def on_train_epoch_end(self, trainer, core_module):
         """训练epoch结束时的钩子"""
-        if 'on_train_epoch_end' in self._hooks:
-            self._hooks['on_train_epoch_end'](trainer, core_module)
+        if "on_train_epoch_end" in self._hooks:
+            self._hooks["on_train_epoch_end"](trainer, core_module)
 
     def on_train_batch_start(self, trainer, core_module, batch, batch_idx, dataloader_idx=0):
         """训练批次开始时的钩子"""
-        if 'on_train_batch_start' in self._hooks:
-            self._hooks['on_train_batch_start'](trainer, core_module, batch, batch_idx, dataloader_idx)
+        if "on_train_batch_start" in self._hooks:
+            self._hooks["on_train_batch_start"](
+                trainer, core_module, batch, batch_idx, dataloader_idx
+            )
 
     def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
         """训练批次结束时的钩子"""
-        if 'on_train_batch_end' in self._hooks:
-            self._hooks['on_train_batch_end'](trainer, core_module, outputs, batch, batch_idx, dataloader_idx)
+        if "on_train_batch_end" in self._hooks:
+            self._hooks["on_train_batch_end"](
+                trainer, core_module, outputs, batch, batch_idx, dataloader_idx
+            )
 
     def on_validation_start(self, trainer, core_module):
         """验证开始时的钩子"""
-        if 'on_validation_start' in self._hooks:
-            self._hooks['on_validation_start'](trainer, core_module)
+        if "on_validation_start" in self._hooks:
+            self._hooks["on_validation_start"](trainer, core_module)
 
     def on_validation_end(self, trainer, core_module):
         """验证结束时的钩子"""
-        if 'on_validation_end' in self._hooks:
-            self._hooks['on_validation_end'](trainer, core_module)
+        if "on_validation_end" in self._hooks:
+            self._hooks["on_validation_end"](trainer, core_module)
 
     def on_exception(self, trainer, core_module, exception):
         """异常处理钩子"""
-        if 'on_exception' in self._hooks:
-            self._hooks['on_exception'](trainer, core_module, exception)
+        if "on_exception" in self._hooks:
+            self._hooks["on_exception"](trainer, core_module, exception)
 
     def on_keyboard_interrupt(self, trainer, core_module):
         """键盘中断钩子"""
-        if 'on_keyboard_interrupt' in self._hooks:
-            self._hooks['on_keyboard_interrupt'](trainer, core_module)
+        if "on_keyboard_interrupt" in self._hooks:
+            self._hooks["on_keyboard_interrupt"](trainer, core_module)
 
 
 # 便利函数, 用于快速创建常见的lambda回调
@@ -232,8 +260,12 @@ def logging_callback(log_func: Callable[[str], None]) -> LambdaCallback:
     return LambdaCallback(
         on_train_start=lambda t, m: log_func("Training started"),
         on_train_end=lambda t, m: log_func("Training completed"),
-        on_train_epoch_start=lambda t, m: log_func(f"Epoch {getattr(m, 'current_epoch', 0)} started"),
-        on_train_epoch_end=lambda t, m: log_func(f"Epoch {getattr(m, 'current_epoch', 0)} completed"),
+        on_train_epoch_start=lambda t, m: log_func(
+            f"Epoch {getattr(m, 'current_epoch', 0)} started"
+        ),
+        on_train_epoch_end=lambda t, m: log_func(
+            f"Epoch {getattr(m, 'current_epoch', 0)} completed"
+        ),
     )
 
 
@@ -261,7 +293,4 @@ def timing_callback(time_func: Callable[[], float]) -> LambdaCallback:
             print(f"Training completed at {end_time}")
             print(f"Total duration: {duration:.2f} seconds")
 
-    return LambdaCallback(
-        on_train_start=on_train_start,
-        on_train_end=on_train_end
-    )
+    return LambdaCallback(on_train_start=on_train_start, on_train_end=on_train_end)

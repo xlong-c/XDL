@@ -3,12 +3,13 @@ EarlyStopping Callback
 早停 Callback
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from .base import Callback
-    from xdl.trainer.trainer import Trainer
     from xdl.trainer.coreModel import CoreModel
+    from xdl.trainer.trainer import Trainer
+
+    from .base import Callback
 else:
     from .base import Callback
 
@@ -46,7 +47,7 @@ class EarlyStopping(Callback):
         if mode not in ["min", "max"]:
             raise ValueError(f"mode must be 'min' or 'max', got {mode}")
 
-    def on_train_epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_train_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """每个 epoch 结束时检查是否需要早停"""
 
         # 获取监控指标的值
@@ -59,9 +60,12 @@ class EarlyStopping(Callback):
             self.stopped_epoch = trainer.current_epoch
             trainer.should_stop = True
 
-    def _get_monitor_value(self, trainer: 'Trainer', core_module: 'CoreModel') -> Optional[float]:
+    def _get_monitor_value(self, trainer: "Trainer", core_module: "CoreModel") -> Optional[float]:
         """获取监控指标的值"""
-        if hasattr(core_module, '_latest_val_metrics') and core_module._latest_val_metrics is not None:
+        if (
+            hasattr(core_module, "_latest_val_metrics")
+            and core_module._latest_val_metrics is not None
+        ):
             metrics = core_module._latest_val_metrics
             return metrics.get(self.monitor)
         return None

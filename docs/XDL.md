@@ -22,7 +22,7 @@
 - **训练阶段** - `on_train_start`, `on_train_end`, `on_train_epoch_start/end`, `on_train_batch_start/end`
 - **验证阶段** - `on_validation_start/end`, `on_validation_epoch_start/end`, `on_validation_batch_start/end`
 - **测试阶段** - `on_test_start/end`, `on_test_epoch_start/end`, `on_test_batch_start/end`
-- **优化阶段** - `on_before_backward`, `on_after_backward`, `on_before_optimizer_step`, `on_before_zero_grad`
+- **预测阶段** - `on_predict_start/end`, `on_predict_epoch_start/end`, `on_predict_batch_start/end`
 - **检查点** - `on_save_checkpoint`, `on_load_checkpoint`
 - **异常处理** - `on_exception`
 
@@ -51,6 +51,7 @@
 ### 监控回调
 - **device_stats_monitor.py** - 设备统计监控,监控 CPU/GPU/内存使用情况
 - **learning_rate_monitor.py** - 学习率监控,记录优化器学习率变化
+- **layer_monitor.py** - 网络层监控,监控特定层的权重和梯度分布
 - **model_summary.py** - 模型结构摘要,显示模型层数和参数统计
 - **timer.py** - 训练计时回调,记录各阶段时间消耗和 ETA
 
@@ -187,7 +188,8 @@ CoreModel 是用户模型的基类,提供完整的训练接口和生命周期管
 - 验证阶段: `on_validation_start/end`, `on_validation_epoch_start/end`
 - 测试阶段: `on_test_start/end`, `on_test_epoch_start/end`
 - 预测阶段: `on_predict_start/end`, `on_predict_epoch_start/end`
-- 优化阶段: `on_before_optimizer_step`, `on_before_zero_grad`
+- 检查点: `on_save_checkpoint`, `on_load_checkpoint`
+- 设备变更: `on_device_change`
 
 #### 7. 推理方法
 - **inference(data)** - 推理/采样方法,专门用于生成式模型

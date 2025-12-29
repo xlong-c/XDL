@@ -3,16 +3,16 @@ ModelCheckpoint Callback
 自动保存模型的 Callback, 适配 CoreModel 的增强功能。
 """
 
-import shutil
 import logging
+import shutil
 from pathlib import Path
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .base import Callback
 
 if TYPE_CHECKING:
-    from xdl.trainer.trainer import Trainer
     from xdl.trainer.coreModel import CoreModel
+    from xdl.trainer.trainer import Trainer
 
 
 class ModelCheckpoint(Callback):
@@ -65,8 +65,7 @@ class ModelCheckpoint(Callback):
         self.save_scheduler = save_scheduler
         self.include_components = include_components
         self.format = format
-        self.naming_keys = naming_keys or (
-            ["step"] if every_n_train_steps else ["epoch"])
+        self.naming_keys = naming_keys or (["step"] if every_n_train_steps else ["epoch"])
         self.verbose = verbose
 
         # 内部状态
@@ -78,12 +77,24 @@ class ModelCheckpoint(Callback):
         if mode not in ["min", "max"]:
             raise ValueError(f"mode must be 'min' or 'max', got {mode}")
 
-    def on_train_batch_end(self, trainer: 'Trainer', core_module: 'CoreModel', outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def on_train_batch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
         """检查按步长保存"""
-        if self.every_n_train_steps and trainer.global_step > 0 and trainer.global_step % self.every_n_train_steps == 0:
+        if (
+            self.every_n_train_steps
+            and trainer.global_step > 0
+            and trainer.global_step % self.every_n_train_steps == 0
+        ):
             self._save_checkpoint(trainer, core_module, "step")
 
-    def on_train_epoch_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_train_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """检查按 epoch 保存"""
         if self.every_n_epochs and (trainer.current_epoch) % self.every_n_epochs == 0:
             # 如果有 monitor 且在验证集中, 通常在 on_validation_end 处理
@@ -91,17 +102,17 @@ class ModelCheckpoint(Callback):
                 return
             self._save_checkpoint(trainer, core_module, "epoch")
 
-    def on_validation_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_validation_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """验证结束时检查是否需要保存"""
         if self.monitor:
             self._save_checkpoint(trainer, core_module, "val")
 
-    def on_train_end(self, trainer: 'Trainer', core_module: 'CoreModel') -> None:
+    def on_train_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练结束时保存最后状态"""
         if self.save_last:
             self._save_checkpoint(trainer, core_module, "last")
 
-    def _get_monitor_value(self, trainer: 'Trainer', core_module: 'CoreModel') -> Optional[float]:
+    def _get_monitor_value(self, trainer: "Trainer", core_module: "CoreModel") -> Optional[float]:
         """从 trainer 或 core_module 获取监控指标"""
         if not self.monitor:
             return None
@@ -125,7 +136,9 @@ class ModelCheckpoint(Callback):
             return float(val)
         return None
 
-    def _save_checkpoint(self, trainer: 'Trainer', core_module: 'CoreModel', save_type: str) -> None:
+    def _save_checkpoint(
+        self, trainer: "Trainer", core_module: "CoreModel", save_type: str
+    ) -> None:
         """核心保存逻辑"""
         monitor_val = self._get_monitor_value(trainer, core_module)
 
@@ -136,7 +149,7 @@ class ModelCheckpoint(Callback):
         # 准备命名键和自定义值
         naming_keys = list(self.naming_keys)
         custom_values = {}
-        
+
         if save_type == "last":
             if "last" not in naming_keys:
                 naming_keys.append("last")
@@ -152,7 +165,7 @@ class ModelCheckpoint(Callback):
             custom_values=custom_values,
             save_optimizer=self.save_optimizer,
             save_scheduler=self.save_scheduler,
-            include_components=self.include_components
+            include_components=self.include_components,
         )
 
         if not actual_path:
@@ -193,14 +206,14 @@ class ModelCheckpoint(Callback):
         self.best_k_models.append({"path": filepath, "score": score})
 
         # 排序
-        reverse = (self.mode == "max")
+        reverse = self.mode == "max"
         self.best_k_models.sort(key=lambda x: x["score"], reverse=reverse)
 
         # 如果超出 K, 删除最差的
         if self.save_top_k != -1 and len(self.best_k_models) > self.save_top_k:
             worst = self.best_k_models.pop(-1)
             worst_path = Path(worst["path"])
-            
+
             # 安全检查: 不要删除正在作为 last_model_path 的文件, 也不要重复删除
             if str(worst_path) != str(self.last_model_path) and worst_path.exists():
                 if worst_path.is_dir():
@@ -208,14 +221,10 @@ class ModelCheckpoint(Callback):
                 else:
                     worst_path.unlink()
                 if self.verbose:
-                    self._logger.info(
-                        f"Removed worst checkpoint: {worst_path}")
+                    self._logger.info(f"Removed worst checkpoint: {worst_path}")
 
     def state_dict(self) -> Dict[str, Any]:
-        return {
-            "best_k_models": self.best_k_models,
-            "last_model_path": self.last_model_path
-        }
+        return {"best_k_models": self.best_k_models, "last_model_path": self.last_model_path}
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
         self.best_k_models = state_dict.get("best_k_models", [])

@@ -1,5 +1,5 @@
-from torch import nn
 import torch
+from torch import nn
 
 
 def count_trainable_parameters(model: nn.Module) -> int:
@@ -52,11 +52,11 @@ def format_number(num: int) -> str:
         str: 格式化后的字符串
     """
     if num >= 1e9:
-        return f"{num/1e9:.2f}B"
+        return f"{num / 1e9:.2f}B"
     elif num >= 1e6:
-        return f"{num/1e6:.2f}M"
+        return f"{num / 1e6:.2f}M"
     elif num >= 1e3:
-        return f"{num/1e3:.2f}K"
+        return f"{num / 1e3:.2f}K"
     else:
         return str(num)
 
@@ -84,12 +84,12 @@ def print_model_parameters(obj: nn.Module):
 
     # 收集要检查的模块
     modules_to_check = []
-    
+
     # 1. 如果对象本身是 nn.Module, 尝试获取它的子模块
     if isinstance(obj, torch.nn.Module):
         # 使用 named_children 获取第一层子模块
         modules_to_check.extend(list(obj.named_children()))
-        
+
     # 2. 检查对象的属性中是否还有其他 nn.Module (比如未注册为子模块的属性)
     if hasattr(obj, "__dict__"):
         for name, module in obj.__dict__.items():
@@ -105,15 +105,15 @@ def print_model_parameters(obj: nn.Module):
     # 遍历并打印每个模块的参数
     for name, module in modules_to_check:
         module_params = sum(p.numel() for p in module.parameters())
-        module_trainable = sum(
-            p.numel() for p in module.parameters() if p.requires_grad)
+        module_trainable = sum(p.numel() for p in module.parameters() if p.requires_grad)
         module_frozen = module_params - module_trainable
 
         if module_params > 0:
-            trainable_ratio = module_trainable / \
-                module_params * 100 if module_params > 0 else 0
+            trainable_ratio = module_trainable / module_params * 100 if module_params > 0 else 0
             # 每一行数据使用固定宽度对齐
-            print(f"{name:<30} {module_params:>15,} {module_trainable:>15,} {module_frozen:>15,} {trainable_ratio:>11.2f}%")
+            print(
+                f"{name:<30} {module_params:>15,} {module_trainable:>15,} {module_frozen:>15,} {trainable_ratio:>11.2f}%"
+            )
 
             total_params += module_params
             trainable_params += module_trainable
@@ -124,17 +124,20 @@ def print_model_parameters(obj: nn.Module):
         total_params = sum(p.numel() for p in obj.parameters())
         trainable_params = sum(p.numel() for p in obj.parameters() if p.requires_grad)
         frozen_params = total_params - trainable_params
-        
+
         if total_params > 0:
             total_trainable_ratio = trainable_params / total_params * 100
-            print(f"{'self':<30} {total_params:>15,} {trainable_params:>15,} {frozen_params:>15,} {total_trainable_ratio:>11.2f}%")
+            print(
+                f"{'self':<30} {total_params:>15,} {trainable_params:>15,} {frozen_params:>15,} {total_trainable_ratio:>11.2f}%"
+            )
 
     # 打印总计
     print("-" * 91)
-    total_trainable_ratio = trainable_params / \
-        total_params * 100 if total_params > 0 else 0
+    total_trainable_ratio = trainable_params / total_params * 100 if total_params > 0 else 0
     # "总计" (2中文字=4宽, 补26空)
-    print(f"{'总计' + ' ' * 26} {total_params:>15,} {trainable_params:>15,} {frozen_params:>15,} {total_trainable_ratio:>11.2f}%")
+    print(
+        f"{'总计' + ' ' * 26} {total_params:>15,} {trainable_params:>15,} {frozen_params:>15,} {total_trainable_ratio:>11.2f}%"
+    )
     print("=" * 91)
 
     # 打印人类可读的参数量
