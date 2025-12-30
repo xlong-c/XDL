@@ -244,9 +244,17 @@ class TqdmCallback(Callback):
         if batch_count % self.log_frequency == 0 or batch_idx == 0:
             # 提取显示的指标
             metrics = {}
+            
+            # 优先从 core_module.current_metrics 获取指标 (xdl 核心推荐方式)
+            if hasattr(core_module, "current_metrics"):
+                for key, value in core_module.current_metrics.items():
+                    if self._should_show_metric(key):
+                        metrics[key] = value
+
+            # 兼容性: 同时也从 outputs 获取 (如果 outputs 是字典且包含了不在 metrics 中的键)
             if self.show_metrics and outputs and isinstance(outputs, dict):
                 for key, value in outputs.items():
-                    if self._should_show_metric(key):
+                    if key not in metrics and self._should_show_metric(key):
                         if isinstance(value, (int, float)):
                             metrics[key] = value
                         elif hasattr(value, "item"):  # Tensor
@@ -350,9 +358,17 @@ class TqdmCallback(Callback):
         # 按频率更新指标
         if batch_count % self.log_frequency == 0:
             metrics = {}
+            
+            # 优先从 core_module.current_metrics 获取指标
+            if hasattr(core_module, "current_metrics"):
+                for key, value in core_module.current_metrics.items():
+                    if self._should_show_metric(key):
+                        metrics[key] = value
+
+            # 兼容性处理
             if outputs and isinstance(outputs, dict):
                 for key, value in outputs.items():
-                    if self._should_show_metric(key):
+                    if key not in metrics and self._should_show_metric(key):
                         if isinstance(value, (int, float)):
                             metrics[key] = value
                         elif hasattr(value, "item"):  # Tensor
@@ -414,9 +430,17 @@ class TqdmCallback(Callback):
         # 按频率更新
         if batch_count % self.log_frequency == 0:
             metrics = {}
+            
+            # 优先从 core_module.current_metrics 获取指标
+            if hasattr(core_module, "current_metrics"):
+                for key, value in core_module.current_metrics.items():
+                    if self._should_show_metric(key):
+                        metrics[key] = value
+
+            # 兼容性处理
             if outputs and isinstance(outputs, dict):
                 for key, value in outputs.items():
-                    if self._should_show_metric(key):
+                    if key not in metrics and self._should_show_metric(key):
                         if isinstance(value, (int, float)):
                             metrics[key] = value
                         elif hasattr(value, "item"):  # Tensor

@@ -122,6 +122,7 @@ class Trainer:
         enable_tqdm: bool = True,
         enable_console: bool = False,
         enable_total_progress: bool = False,
+        tqdm_metric_keys: Optional[List[str]] = None,
         **kwargs,
     ):
         """
@@ -133,6 +134,7 @@ class Trainer:
                 TqdmCallback(
                     log_frequency=log_every_n_steps,
                     show_metrics=True,
+                    metric_keys=tqdm_metric_keys,
                     leave=True,
                     total_progress=enable_total_progress,
                 )
@@ -632,8 +634,21 @@ class Trainer:
                     batch = [x.to(self.device) if torch.is_tensor(
                         x) else x for x in batch]
 
+                model.on_test_step_start()
+                model.on_test_batch_start()
+                self.callback_list.test_batch_start(
+                    trainer=self, core_module=model, batch=batch, batch_idx=step
+                )
+
                 # 执行测试步骤
                 model.test_step(batch, step)
+                
+                # 调用批次结束钩子
+                model.on_test_batch_end()
+                self.callback_list.test_batch_end(
+                    trainer=self, core_module=model, outputs={}, batch=batch, batch_idx=step
+                )
+                
                 results.append(None)
 
         self.callback_list.test_epoch_end(trainer=self, core_module=model)

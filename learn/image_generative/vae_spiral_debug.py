@@ -15,31 +15,31 @@ torch.manual_seed(SEED)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {DEVICE}")
 
+EPOCHS = 30
+LR = 1e-3
 # 数据参数
 BATCH_SIZE = 128
 IMAGE_SIZE = 28  # MNIST图像尺寸
 INPUT_DIM = IMAGE_SIZE * IMAGE_SIZE  # 784维输入
 NUM_SAMPLES_TO_SHOW = 10  # 动画中展示的样本数
 
-# 模型参数（简化配置，与收敛版本一致）
-LATENT_DIM = 20  # VAE/GAN隐空间维度（从64降到20）
-HIDDEN_DIM = 400  # 隐藏层维度（从512降到400）
-LR = 1e-3         # 学习率
-EPOCHS = 100      # 训练轮次（从30增加到100）
+# 模型参数(简化配置，与收敛版本一致)
+LATENT_DIM = 20  # VAE/GAN隐空间维度(从64降到20)
+HIDDEN_DIM = 400  # 隐藏层维度(从512降到400)
 NOISE_DIM = LATENT_DIM  # GAN噪声维度
 
 # 动画参数
-ANIMATION_INTERVAL = 300  # 帧间隔（ms）
+ANIMATION_INTERVAL = 300  # 帧间隔(ms)
 FIG_SIZE = (12, 6)        # 画布大小
 
 # ====================== 2. 加载MNIST数据集 ======================
-# 数据预处理：转为张量 + 归一化到[0,1]（适配sigmoid输出）
+# 数据预处理:转为张量 + 归一化到[0,1](适配sigmoid输出)
 transform = transforms.Compose([
     transforms.ToTensor(),  # [0,255] → [0,1]
     transforms.Lambda(lambda x: x.flatten())  # 展平为784维向量
 ])
 
-# 加载训练集（自动下载）
+# 加载训练集(自动下载)
 train_dataset = torchvision.datasets.MNIST(
     root='./data', train=True, download=True, transform=transform
 )
@@ -49,17 +49,20 @@ train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 real_samples, _ = next(iter(train_loader))
 real_samples = real_samples[:NUM_SAMPLES_TO_SHOW].to(DEVICE)
 
-# ====================== 3. 定义VAE模型（适配MNIST，简化版本） ======================
+# ====================== 3. 定义VAE模型(适配MNIST，简化版本) ======================
+
+
 class VAE(nn.Module):
     """简化版VAE，与收敛版本结构一致"""
+
     def __init__(self, input_dim=784, hidden_dim=400, latent_dim=20):
         super(VAE, self).__init__()
-        # 编码器：784 → 400 → 均值/方差（20维）
+        # 编码器:784 → 400 → 均值/方差(20维)
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.fc_mu = nn.Linear(hidden_dim, latent_dim)
         self.fc_logvar = nn.Linear(hidden_dim, latent_dim)
 
-        # 解码器：20 → 400 → 784（sigmoid输出[0,1]）
+        # 解码器:20 → 400 → 784(sigmoid输出[0,1])
         self.fc3 = nn.Linear(latent_dim, hidden_dim)
         self.fc4 = nn.Linear(hidden_dim, input_dim)
 
@@ -81,15 +84,25 @@ class VAE(nn.Module):
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
+
 def vae_loss(recon_x, x, mu, logvar):
-    """VAE损失：BCE重构损失（适合图像） + KL散度"""
-    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    """
+    修复后的 VAE 损失函数：
+    确保 BCE 和 KLD 都在“单样本总和”的量级上，然后对 Batch 取平均。
+    """
+    batch_size = x.size(0)
+    # 1. 重构损失：每个样本 784 像素的总和，然后对 batch 取 mean
+    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum') / batch_size
+    # 2. KLD 损失：每个样本 20 个维度的总和，然后对 batch 取 mean
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / batch_size
     return BCE + KLD
 
-# ====================== 4. 定义GAN模型（适配MNIST） ======================
+# ====================== 4. 定义GAN模型(适配MNIST) ======================
+
+
 class Generator(nn.Module):
-    """GAN生成器：噪声→784维图像向量（sigmoid输出[0,1]）"""
+    """GAN生成器:噪声→784维图像向量(sigmoid输出[0,1])"""
+
     def __init__(self, noise_dim=64, hidden_dim=512, output_dim=784):
         super(Generator, self).__init__()
         self.net = nn.Sequential(
@@ -106,8 +119,10 @@ class Generator(nn.Module):
     def forward(self, z):
         return self.net(z)
 
+
 class Discriminator(nn.Module):
-    """GAN判别器：784维图像→真假概率（sigmoid输出）"""
+    """GAN判别器:784维图像→真假概率(sigmoid输出)"""
+
     def __init__(self, input_dim=784, hidden_dim=512):
         super(Discriminator, self).__init__()
         self.net = nn.Sequential(
@@ -125,13 +140,16 @@ class Discriminator(nn.Module):
         return self.net(x)
 
 # ====================== 5. 训练模型并记录生成结果 ======================
+
+
 def train_vae_only():
     """先单独训练VAE，确保收敛"""
     # 初始化VAE模型
-    vae = VAE(input_dim=INPUT_DIM, hidden_dim=HIDDEN_DIM, latent_dim=LATENT_DIM).to(DEVICE)
+    vae = VAE(input_dim=INPUT_DIM, hidden_dim=HIDDEN_DIM,
+              latent_dim=LATENT_DIM).to(DEVICE)
     vae_optimizer = optim.Adam(vae.parameters(), lr=LR)
 
-    # 记录每轮生成的样本（用于动画）
+    # 记录每轮生成的样本(用于动画)
     vae_generated_samples = []
 
     # 训练循环
@@ -158,15 +176,17 @@ def train_vae_only():
             vae_generated_samples.append(vae_gen)
 
         # 打印训练进度
-        avg_vae_loss = epoch_vae_loss / len(train_loader.dataset)
+        avg_vae_loss = epoch_vae_loss / len(train_loader)
         print(f"Epoch [{epoch+1}/{EPOCHS}] | VAE Loss: {avg_vae_loss:.4f}")
 
     return vae_generated_samples
 
+
 def train_gan_only():
-    """单独训练GAN（可选，如果需要对比）"""
+    """单独训练GAN(可选，如果需要对比)"""
     # 初始化GAN模型
-    gen = Generator(noise_dim=NOISE_DIM, hidden_dim=HIDDEN_DIM, output_dim=INPUT_DIM).to(DEVICE)
+    gen = Generator(noise_dim=NOISE_DIM, hidden_dim=HIDDEN_DIM,
+                    output_dim=INPUT_DIM).to(DEVICE)
     disc = Discriminator(input_dim=INPUT_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
 
     # 优化器
@@ -227,12 +247,14 @@ def train_gan_only():
         # 打印训练进度
         avg_disc_loss = epoch_disc_loss / len(train_loader)
         avg_gen_loss = epoch_gen_loss / len(train_loader)
-        print(f"Epoch [{epoch+1}/{EPOCHS}] | GAN Disc Loss: {avg_disc_loss:.4f} | GAN Gen Loss: {avg_gen_loss:.4f}")
+        print(
+            f"Epoch [{epoch+1}/{EPOCHS}] | GAN Disc Loss: {avg_disc_loss:.4f} | GAN Gen Loss: {avg_gen_loss:.4f}")
 
     return gan_generated_samples
 
+
 def train_models():
-    """训练VAE（确保收敛）+ GAN（可选对比）"""
+    """训练VAE(确保收敛)+ GAN(可选对比)"""
     print("=" * 60)
     print("开始训练VAE...")
     print("=" * 60)
@@ -246,23 +268,25 @@ def train_models():
     return vae_samples, gan_samples
 
 # ====================== 6. 制作MNIST生成动画 ======================
+
+
 def create_mnist_animation(vae_samples=None, gan_samples=None):
     """
-    自适应动画展示：
-    - 始终显示：真实MNIST样本（第一行）
-    - 可选显示：VAE生成样本（第二行，如果提供）
-    - 可选显示：GAN生成样本（第三行，如果提供）
+    自适应动画展示:
+    - 始终显示:真实MNIST样本(第一行)
+    - 可选显示:VAE生成样本(第二行，如果提供)
+    - 可选显示:GAN生成样本(第三行，如果提供)
     """
     # 检测需要显示的行数
     show_vae = vae_samples is not None
     show_gan = gan_samples is not None
 
     if not show_vae and not show_gan:
-        print("错误：至少需要提供一种生成样本！")
+        print("错误:至少需要提供一种生成样本！")
         return
 
     # 确定行数和标题
-    nrows = 1  # 真实样本（始终显示）
+    nrows = 1  # 真实样本(始终显示)
     rows_config = [("Real", "real_samples")]
 
     if show_vae:
@@ -273,7 +297,8 @@ def create_mnist_animation(vae_samples=None, gan_samples=None):
         rows_config.append(("GAN Generated", "gan"))
 
     # 初始化画布
-    fig, axes = plt.subplots(nrows, NUM_SAMPLES_TO_SHOW, figsize=(FIG_SIZE[0], FIG_SIZE[1] * nrows / 3))
+    fig, axes = plt.subplots(nrows, NUM_SAMPLES_TO_SHOW, figsize=(
+        FIG_SIZE[0], FIG_SIZE[1] * nrows / 3))
 
     # 如果只有一行，axes是一维数组，需要统一处理
     if nrows == 1:
@@ -281,7 +306,8 @@ def create_mnist_animation(vae_samples=None, gan_samples=None):
 
     # 设置初始标题
     model_names = " vs ".join([name for name, _ in rows_config[1:]])
-    fig.suptitle(f"{model_names}: MNIST Generation (Epoch 1/{EPOCHS})", fontsize=14)
+    fig.suptitle(
+        f"{model_names}: MNIST Generation (Epoch 1/{EPOCHS})", fontsize=14)
 
     # 存储需要更新的图像对象
     update_targets = []
@@ -289,19 +315,21 @@ def create_mnist_animation(vae_samples=None, gan_samples=None):
     # 初始化每一行
     for row_idx, (title, row_type) in enumerate(rows_config):
         if row_type == "real_samples":
-            # 第一行：固定显示真实样本
+            # 第一行:固定显示真实样本
             real_imgs = real_samples.cpu().numpy()
             for i in range(NUM_SAMPLES_TO_SHOW):
-                axes[row_idx, i].imshow(real_imgs[i].reshape(IMAGE_SIZE, IMAGE_SIZE), cmap='gray')
+                axes[row_idx, i].imshow(real_imgs[i].reshape(
+                    IMAGE_SIZE, IMAGE_SIZE), cmap='gray', vmin=0, vmax=1)
                 axes[row_idx, i].axis('off')
                 if i == 0:
                     axes[row_idx, i].set_title(title, fontsize=10)
 
         elif row_type == "vae":
-            # VAE生成样本行（动态更新）
+            # VAE生成样本行(动态更新)
             vae_imgs = []
             for i in range(NUM_SAMPLES_TO_SHOW):
-                img_obj = axes[row_idx, i].imshow(np.zeros((IMAGE_SIZE, IMAGE_SIZE)), cmap='gray')
+                img_obj = axes[row_idx, i].imshow(
+                    np.zeros((IMAGE_SIZE, IMAGE_SIZE)), cmap='gray', vmin=0, vmax=1)
                 vae_imgs.append(img_obj)
                 axes[row_idx, i].axis('off')
                 if i == 0:
@@ -309,10 +337,11 @@ def create_mnist_animation(vae_samples=None, gan_samples=None):
             update_targets.append(("vae", vae_imgs))
 
         elif row_type == "gan":
-            # GAN生成样本行（动态更新）
+            # GAN生成样本行(动态更新)
             gan_imgs = []
             for i in range(NUM_SAMPLES_TO_SHOW):
-                img_obj = axes[row_idx, i].imshow(np.zeros((IMAGE_SIZE, IMAGE_SIZE)), cmap='gray')
+                img_obj = axes[row_idx, i].imshow(
+                    np.zeros((IMAGE_SIZE, IMAGE_SIZE)), cmap='gray', vmin=0, vmax=1)
                 gan_imgs.append(img_obj)
                 axes[row_idx, i].axis('off')
                 if i == 0:
@@ -321,8 +350,9 @@ def create_mnist_animation(vae_samples=None, gan_samples=None):
 
     # 动画更新函数
     def update(frame):
-        # 更新标题（显示当前epoch）
-        fig.suptitle(f"{model_names}: MNIST Generation (Epoch {frame+1}/{EPOCHS})", fontsize=14)
+        # 更新标题(显示当前epoch)
+        fig.suptitle(
+            f"{model_names}: MNIST Generation (Epoch {frame+1}/{EPOCHS})", fontsize=14)
 
         updated_imgs = []
         for data_type, imgs in update_targets:
@@ -345,21 +375,23 @@ def create_mnist_animation(vae_samples=None, gan_samples=None):
     anim = animation.FuncAnimation(
         fig=fig,
         func=update,
-        frames=len(vae_samples if vae_samples is not None else gan_samples),
+        frames=len(vae_samples) if show_vae else len(
+            gan_samples) if show_gan else 0,
         interval=ANIMATION_INTERVAL,
         blit=True,
         repeat=True
     )
 
-    # 保存动画为GIF格式（不需要ffmpeg，更通用）
+    # 保存动画为GIF格式(不需要ffmpeg，更通用)
     output_file = f"mnist_{'_vs_'.join([t for _, t in rows_config[1:]])}_animation.gif"
     print(f"Saving animation to {output_file}...")
     anim.save(output_file, writer='pillow', fps=3)
     print(f"Animation saved successfully to {output_file}!")
 
-    # 显示动画（在某些环境中可能无法正常播放）
+    # 显示动画(在某些环境中可能无法正常播放)
     # plt.tight_layout()
     # plt.show()
+
 
 # ====================== 7. 主程序入口 ======================
 if __name__ == "__main__":
@@ -368,28 +400,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='VAE vs GAN on MNIST')
     parser.add_argument('--model', type=str, default='vae',
                         choices=['vae', 'gan', 'both'],
-                        help='选择训练的模型：vae（仅VAE）, gan（仅GAN）, both（两者都训练）')
+                        help='选择训练的模型:vae(仅VAE), gan(仅GAN), both(两者都训练)')
     args = parser.parse_args()
 
     vae_samples = None
     gan_samples = None
 
-    if args.model == 'vae':
-        print("=" * 60)
-        print("仅训练VAE（推荐，确保收敛）")
-        print("=" * 60)
-        vae_samples = train_vae_only()
-    elif args.model == 'gan':
-        print("=" * 60)
-        print("仅训练GAN")
-        print("=" * 60)
-        gan_samples = train_gan_only()
-    else:  # both
-        print("=" * 60)
-        print("训练VAE和GAN进行对比")
-        print("=" * 60)
-        vae_samples, gan_samples = train_models()
+    vae_samples, gan_samples = train_models()
 
-    # 生成动画（自适应传入的数据）
+    # 生成动画(自适应传入的数据)
     print("\nCreating animation...")
     create_mnist_animation(vae_samples=vae_samples, gan_samples=gan_samples)

@@ -90,14 +90,17 @@ class VAEModel(CoreModel):
 
     def loss_function(self, recon_x, x, mu, logvar):
         """
-        VAE损失函数 = 重构损失 + KL散度
+        VAE损失函数 = 重构损失 + KL散度 (均值版本)
         """
-        # 重构损失 (二元交叉熵)
+        # 重构损失 (二元交叉熵) - 使用 mean 得到每个维度的平均损失
         bce = F.binary_cross_entropy(
-            recon_x, x.view(-1, self.input_dim), reduction='sum')
+            recon_x, x.view(-1, self.input_dim), reduction='mean')
 
-        # KL散度损失
+        # KL散度损失 - 原始公式是总和，为了与 mean 版本的 BCE 匹配，
+        # 需要除以 (batch_size * input_dim)
+        batch_size = x.size(0)
         kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        kld_loss /= (batch_size * self.input_dim)
 
         return bce + kld_loss, bce, kld_loss
 
@@ -373,7 +376,8 @@ def main():
         enable_tqdm=True,
         enable_console=False,
         enable_tensorboard=True,
-        enable_total_progress=True
+        enable_total_progress=True,
+        tqdm_metric_keys=['loss', 'recon', 'kld', 'lr']
     )
 
     # 开始训练

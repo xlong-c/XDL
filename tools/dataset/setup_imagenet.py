@@ -26,7 +26,7 @@ def setup_imagenet_val():
             local_dir=DATA_DIR
         )
     except Exception as e:
-        print(f"下载失败: {e}\n请检查 Token 是否正确，以及是否在网页端接受了 ImageNet 的使用协议。 ולא
+        print(f"下载失败: {e}\n请检查 Token 是否正确，以及是否在网页端接受了 ImageNet 的使用协议.")
         return
 
     # 2. 解压
@@ -73,7 +73,7 @@ def organize_val_folder(val_dir):
     
     print("提示: 验证集已下载并解压到 ./data/imagenet/val")
     print("如果你使用的是 PyTorch 的 torchvision.datasets.ImageFolder,")
-    print("请确保在该目录下运行整理脚本。 ולא
+    print("请确保在该目录下运行整理脚本。")
     print("由于 Windows 环境限制，建议参考：https://github.com/rentainhe/pytorch-imagenet-format 提供的工具")
 
 if __name__ == "__main__":
