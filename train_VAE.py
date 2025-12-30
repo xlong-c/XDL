@@ -14,8 +14,8 @@ from xdl.callbacks.logging_callback import LoggingCallback
 from xdl.trainer.coreModel import CoreModel
 from xdl.trainer.trainer import Trainer
 
-# 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
+# 设置中文字体 (Linux系统使用文泉驿字体)
+plt.rcParams['font.sans-serif'] = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
 """
