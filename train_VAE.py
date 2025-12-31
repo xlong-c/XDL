@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
 from xdl.callbacks.logging_callback import LoggingCallback
+from xdl.callbacks.sampling_animation_callback import SamplingAnimationCallback
 
 # 导入项目的trainer框架
 from xdl.trainer.coreModel import CoreModel
@@ -356,12 +357,28 @@ def main():
         enable_console=False
     )
 
+    # 采样动画回调 - 在每个epoch结束后进行采样并生成动画
+    animation_cb = SamplingAnimationCallback(
+        n_samples=16,                      # 每次采样16个样本
+        save_dir='./others/animations',    # 保存目录
+        animation_filename='vae_training.gif',  # 动画文件名
+        animation_format='gif',            # 动画格式
+        fps=2,                             # 每秒2帧
+        sample_method='generate_samples',  # 使用模型的generate_samples方法
+        save_intermediate_images=True,     # 保存每个epoch的中间图像
+        figsize=(10, 10),                  # 图像大小
+        cmap='gray',                       # 灰度图
+        show_epoch_label=True,             # 显示epoch标签
+        enable_preview=False               # 训练结束后不自动预览
+    )
+
     # 创建Trainer
     print("初始化Trainer...")
     trainer = Trainer(
         max_epochs=max_epochs,
-        device='cpu',  # 使用CPU训练避免设备不匹配问题
-        callbacks=[logging_cb]
+        device='cuda',                     # 使用GPU训练
+        precision='bf16',                  # 使用bf16精度
+        callbacks=[logging_cb, animation_cb]  # 添加采样动画回调
     )
 
     # 配置日志和检查点
@@ -406,6 +423,7 @@ def main():
     print("结果保存在 ./others/results/ 目录下")
     print("检查点保存在 ./others/checkpoints/ 目录下")
     print("日志保存在 ./others/logs/ 目录下")
+    print("采样动画保存在 ./others/animations/ 目录下")
 
 
 if __name__ == '__main__':

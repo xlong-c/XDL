@@ -4,6 +4,7 @@ from .early_stopping import EarlyStopping
 from .layer_monitor import LayerMonitor
 from .logging_callback import LoggingCallback, SystemStatsCallback
 from .model_checkpoint import ModelCheckpoint
+from .sampling_animation_callback import SamplingAnimationCallback
 from .tensorboard_callback import TensorBoardCallback
 from .tqdm_callback import TqdmCallback
 from .wandb_callback import WandbCallback
@@ -19,4 +20,5 @@ __all__ = [
     "LoggingCallback",
     "SystemStatsCallback",
     "LayerMonitor",
+    "SamplingAnimationCallback",
 ]

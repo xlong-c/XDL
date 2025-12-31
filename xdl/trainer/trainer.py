@@ -262,13 +262,21 @@ class Trainer:
         self._val_dataloader = val_dataloader
         self._inference_data = inference_data
 
-        # 打印启用的回调
+        # 阶段1-3：设置 - 提前执行 setup 以确定设备
+        if hasattr(model, "setup"):
+            model.setup("fit")
+        self._setup()
+
+        # 打印使用的设备和已启用的回调
         if self.is_main_process():
+            precision_str = self.precision if self.precision else "32 (default)"
+            print(f"\n[Trainer] 使用设备: {self.device}")
+            print(f"[Trainer] 数据精度: {precision_str}")
             callback_names = [type(cb).__name__ for cb in self.callbacks]
             if callback_names:
-                print(f"\n[Trainer] 已启用的回调: {', '.join(callback_names)}")
+                print(f"[Trainer] 已启用的回调: {', '.join(callback_names)}")
             else:
-                print("\n[Trainer] 未启用任何回调")
+                print("[Trainer] 未启用任何回调")
 
         # 计算验证步数间隔
         original_steps_per_epoch = len(train_dataloader)
@@ -293,11 +301,8 @@ class Trainer:
         if self._accelerator:
             model._accelerator = self._accelerator
 
-        # 阶段1-3：设置
+        # 执行回调的 setup
         self.callback_list.setup(trainer=self, core_module=model, stage="fit")
-        if hasattr(model, "setup"):
-            model.setup("fit")
-        self._setup()
 
         # 阶段4：训练开始
         self.callback_list.train_start(trainer=self, core_module=model)
@@ -511,8 +516,8 @@ class Trainer:
         if getattr(self, "_is_setup", False):
             return
 
-        # 初始化 Accelerate
-        if self.accelerate_config:
+        # 如果指定了精度或提供了加速器配置，则使用 Accelerate
+        if self.accelerate_config is not None or self.precision is not None:
             self._setup_accelerator()
         else:
             # 设置默认设备(不使用 Accelerate)
@@ -528,6 +533,18 @@ class Trainer:
         # 创建 Accelerator
         # 确保 accelerate_config 不为 None 并且是字典类型
         config = self.accelerate_config if self.accelerate_config is not None else {}
+        
+        # 如果 Trainer 初始化时指定了 precision, 覆盖 config 中的 mixed_precision
+        if self.precision is not None:
+            precision_map = {
+                "16": "fp16",
+                "fp16": "fp16",
+                "bf16": "bf16",
+                "32": "no",
+                "no": "no"
+            }
+            config["mixed_precision"] = precision_map.get(self.precision.lower(), self.precision)
+            
         self._accelerator = Accelerator(**config)
         self._device = self._accelerator.device
 

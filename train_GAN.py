@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
 from xdl.callbacks.logging_callback import LoggingCallback
+from xdl.callbacks.sampling_animation_callback import SamplingAnimationCallback
 
 # 导入项目的trainer框架
 from xdl.trainer.coreModel import CoreModel
@@ -249,13 +250,28 @@ def main():
         log_filename='gan_training.log',
         enable_console=False
     )
+
+    # 采样动画回调 - 在每个epoch结束后进行采样并生成动画
+    animation_cb = SamplingAnimationCallback(
+        n_samples=16,                      # 每次采样16个样本
+        save_dir='./others/animations',    # 保存目录
+        animation_filename='gan_training.gif',   # 动画文件名
+        animation_format='gif',            # 动画格式
+        fps=2,                             # 每秒2帧
+        sample_method='generate_samples',  # 使用模型的generate_samples方法
+        save_intermediate_images=True,     # 保存每个epoch的中间图像
+        figsize=(10, 10),                  # 图像大小
+        cmap='gray',                       # 灰度图
+        show_epoch_label=True,             # 显示epoch标签
+        enable_preview=False               # 训练结束后不自动预览
+    )
     
     # 初始化 Trainer
     # 注意: 如果有 GPU 请将 device 改为 'cuda' 或 '0'
     trainer = Trainer(
         max_epochs=20,
-        device='cpu', 
-        callbacks=[logging_cb]
+        device='cpu',
+        callbacks=[logging_cb, animation_cb]  # 添加采样动画回调
     )
     
     # 配置 Logger 和检查点
@@ -282,6 +298,7 @@ def main():
     final_path = model.save_checkpoint(base_dir='./others/ckpt', naming_keys=['gan_final'])
     print(f"模型已保存至: {final_path}")
     print("训练任务完成！")
+    print("采样动画保存在 ./others/animations/ 目录下")
 
 if __name__ == '__main__':
     main()
