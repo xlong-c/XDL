@@ -68,6 +68,10 @@ def _register_models():
     register_model("vit_large_patch16_224")(vit_large_patch16_224)
     register_model("vit_huge_patch14_224")(vit_huge_patch14_224)
 
+    # 注册生成模型
+    from .generate import TwinFlow
+    register_model("TwinFlow")(TwinFlow)
+
 
 # 自动执行模型注册
 _register_models()
@@ -102,4 +106,6 @@ __all__ = [
     "vit_base_patch16_224",
     "vit_large_patch16_224",
     "vit_huge_patch14_224",
+    # Generate
+    "TwinFlow",
 ]
