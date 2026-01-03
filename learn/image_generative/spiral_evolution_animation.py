@@ -349,7 +349,7 @@ def main():
     ani = FuncAnimation(fig, update, frames=max_frames, blit=False)
     os.makedirs('others/results', exist_ok=True)
     save_path = 'others/results/spiral_evolution_fixed.gif'
-    print(f"保存动画中...")
+    print("保存动画中...")
     ani.save(save_path, writer='pillow', fps=10)
     print(f"完成！动画已保存至 {save_path}")
 
