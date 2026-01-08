@@ -198,5 +198,4 @@ tmp/
 others/
 
 # cli tools
-.claude/
 .crush/
