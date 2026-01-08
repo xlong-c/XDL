@@ -20,7 +20,8 @@
       "WebSearch",
       "Skill(skill-creator)",
       "Bash(dir:*)",
-      "Skill(gitc)"
+      "Skill(gitc)",
+      "Bash(/usr/local/cuda/bin/tileiras:*)"
     ],
     "deny": [],
     "ask": []
