@@ -20,7 +20,9 @@
       "WebSearch",
       "Skill(skill-creator)",
       "Bash(dir:*)",
-      "Skill(gitc)"
+      "Skill(gitc)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:blog.csdn.net)"
     ],
     "deny": [],
     "ask": []
