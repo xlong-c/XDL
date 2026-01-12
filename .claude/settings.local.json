@@ -22,7 +22,8 @@
       "Bash(dir:*)",
       "Skill(gitc)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:blog.csdn.net)"
+      "WebFetch(domain:blog.csdn.net)",
+      "Bash(/usr/local/cuda/bin/tileiras:*)"
     ],
     "deny": [],
     "ask": []
