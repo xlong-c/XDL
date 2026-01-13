@@ -23,7 +23,16 @@
       "Skill(gitc)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:blog.csdn.net)",
-      "Bash(/usr/local/cuda/bin/tileiras:*)"
+      "Bash(/usr/local/cuda/bin/tileiras:*)",
+      "Bash(/bin/ls:*)",
+      "Bash(test:*)",
+      "Bash(python3:*)",
+      "Bash(pip install:*)",
+      "Bash(/usr/bin/env python3:*)",
+      "Bash(/usr/bin/env python:*)",
+      "Bash(ls:*)",
+      "Bash(apt-get update:*)",
+      "Bash(apt-get install:*)"
     ],
     "deny": [],
     "ask": []
