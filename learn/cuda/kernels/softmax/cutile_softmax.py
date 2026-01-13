@@ -9,7 +9,6 @@ import torch
 import cuda.tile as ct
 # example-end imports
 
-
 # example-begin softmax
 @ct.kernel
 def softmax(input, output, B: ct.Constant[int], N: ct.Constant[int]):
