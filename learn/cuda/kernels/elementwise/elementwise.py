@@ -9,7 +9,8 @@ Tests elementwise add implementations across different frameworks:
 import os
 import time
 from functools import partial
-from typing import Optional
+from types import ModuleType
+from typing import Any, Callable, Optional, Union
 
 import torch
 from torch.utils.cpp_extension import load
@@ -23,7 +24,7 @@ build_dir = os.path.join(curr_dir, "build")
 os.makedirs(build_dir, exist_ok=True)
 
 # Load the CUDA kernel as a python module
-lib = load(
+lib: Any = load(
     name="elementwise_lib",
     sources=[cuda_file],
     extra_cuda_cflags=[
@@ -42,7 +43,7 @@ lib = load(
 
 
 def run_benchmark(
-    perf_func: callable,
+    perf_func: Callable[..., Union[torch.Tensor, None]],
     a: torch.Tensor,
     b: torch.Tensor,
     tag: str,
@@ -50,6 +51,7 @@ def run_benchmark(
     warmup: int = 10,
     iters: int = 1000,
     show_all: bool = False,
+    has_out_param: bool = True,
 ):
     # torch.dot vs custom dot_prod kernel
     if out is not None:
@@ -57,7 +59,10 @@ def run_benchmark(
     # warmup
     if out is not None:
         for i in range(warmup):
-            perf_func(a, b, out)
+            if has_out_param:
+                perf_func(a, b, out)
+            else:
+                perf_func(a, b)  # out is already bound or will be modified
     else:
         for i in range(warmup):
             _ = perf_func(a, b)
@@ -66,7 +71,10 @@ def run_benchmark(
     # iters
     if out is not None:
         for i in range(iters):
-            perf_func(a, b, out)
+            if has_out_param:
+                perf_func(a, b, out)
+            else:
+                perf_func(a, b)  # out is already bound or will be modified
     else:
         for i in range(iters):
             out = perf_func(a, b)
@@ -75,6 +83,7 @@ def run_benchmark(
     total_time = (end - start) * 1000  # ms
     mean_time = total_time / iters
     out_info = f"out_{tag}"
+    assert out is not None, "out should not be None at this point"
     out_val = out.flatten().detach().cpu().numpy().tolist()[:2]
     out_val = [round(v, 8) for v in out_val]
     print(f"{out_info:>18}: {out_val}, time:{mean_time:.8f}ms")
@@ -95,7 +104,7 @@ for S, K in SKs:
     c = torch.zeros_like(a).cuda().float().contiguous()
     run_benchmark(lib.elementwise_add_f32, a, b, "f32", c)
     run_benchmark(lib.elementwise_add_f32x4, a, b, "f32x4", c)
-    run_benchmark(partial(torch.add, out=c), a, b, "f32_th")
+    run_benchmark(lambda a, b: torch.add(a, b, out=c), a, b, "f32_th", c, has_out_param=False)
 
     print("-" * 85)
     a_f16 = a.half().contiguous()
@@ -107,5 +116,5 @@ for S, K in SKs:
     run_benchmark(
         lib.elementwise_add_f16x8_pack, a_f16, b_f16, "f16x8pack", c_f16
     )
-    run_benchmark(partial(torch.add, out=c_f16), a_f16, b_f16, "f16_th")
+    run_benchmark(lambda a, b: torch.add(a, b, out=c_f16), a_f16, b_f16, "f16_th", c_f16, has_out_param=False)
     print("-" * 85)
