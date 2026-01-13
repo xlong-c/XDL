@@ -1,0 +1,31 @@
+CompileFlags:
+  Add: [
+    "-isystem/usr/local/cuda/include",
+    "-isystem/root/miniconda/envs/xdl/include/python3.12",
+    "-isystem/root/miniconda/envs/xdl/lib/python3.12/site-packages/torch/include",
+    "-isystem/root/miniconda/envs/xdl/lib/python3.12/site-packages/torch/include/torch/csrc/api/include",
+    "-isystem/root/miniconda/envs/xdl/lib/python3.12/site-packages/pybind11/include",
+    "-DTORCH_EXTENSION_NAME=elementwise_lib",
+    "-DTORCH_API_INCLUDE_EXTENSION_H",
+    "-D__CUDACC__",
+    "-D__NVCC__",
+    "-DPYTORCH_EXTENSION",
+    "-D__CUDA_NO_HALF_OPERATORS__",
+    "-D__CUDA_NO_HALF_CONVERSIONS__",
+    "-D__CUDA_NO_BFLOAT16_CONVERSIONS__",
+    "-D__CUDA_NO_HALF2_OPERATORS__",
+    "--cuda-path=/usr/local/cuda",
+    "--cuda-gpu-arch=sm_89", 
+    "-Wno-unknown-cuda-version",
+    "--no-cuda-version-check",
+    "-xcuda",
+    "-fPIC",
+    "-O3",
+    "-std=c++17"
+  ]
+Diagnostics:
+  Suppress: [
+    "drv_unknown_argument",
+    "ovl_no_viable_member_function_in_call",
+    "member_function_call_bad_type"
+  ]
