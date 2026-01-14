@@ -1,10 +1,7 @@
-#include <algorithm>
 #include <cuda_runtime.h>
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <tuple>
-#include <vector>
 
 #ifdef PYTORCH_EXTENSION
 #include <torch/extension.h>
@@ -33,6 +30,70 @@ __global__ void histogram_i4_kernel(const int4 *input, int *hist, int n, int nbi
           atomicAdd(hist + input[i].z, 1);
           atomicAdd(hist + input[i].w, 1);
       }
+}
+
+// Shared memory optimized histogram kernel
+// Each thread processes multiple elements to reduce global atomic contention
+// Uses shared memory for per-block local histograms
+__global__ void histogram_shared_kernel(const int *input, int *hist, int n, int nbin) {
+    extern __shared__ int s_hist[];
+
+    // Initialize shared memory histogram to zero
+    // Each thread clears multiple bins to parallelize initialization
+    for (int idx = threadIdx.x; idx < nbin; idx += blockDim.x) {
+        s_hist[idx] = 0;
+    }
+    __syncthreads();
+
+    // Each thread processes multiple input elements
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = gridDim.x * blockDim.x;
+
+    for (int i = tid; i < n; i += stride) {
+        int val = input[i];
+        if (val >= 0 && val < nbin) {
+            atomicAdd(&s_hist[val], 1);
+        }
+    }
+    __syncthreads();
+
+    // Merge block histogram to global memory
+    for (int idx = threadIdx.x; idx < nbin; idx += blockDim.x) {
+        if (s_hist[idx] > 0) {
+            atomicAdd(&hist[idx], s_hist[idx]);
+        }
+    }
+}
+
+// Shared memory optimized histogram with int4 vectorization
+__global__ void histogram_shared_i4_kernel(const int4 *input, int *hist, int n, int nbin) {
+    extern __shared__ int s_hist[];
+
+    // Initialize shared memory histogram to zero
+    for (int idx = threadIdx.x; idx < nbin; idx += blockDim.x) {
+        s_hist[idx] = 0;
+    }
+    __syncthreads();
+
+    // Each thread processes multiple int4 elements
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = gridDim.x * blockDim.x;
+
+    for (int i = tid; i < n; i += stride) {
+        int4 vec = input[i];
+        if (vec.x >= 0 && vec.x < nbin) atomicAdd(&s_hist[vec.x], 1);
+        if (vec.y >= 0 && vec.y < nbin) atomicAdd(&s_hist[vec.y], 1);
+        if (vec.z >= 0 && vec.z < nbin) atomicAdd(&s_hist[vec.z], 1);
+        if (vec.w >= 0 && vec.w < nbin) atomicAdd(&s_hist[vec.w], 1);
+    }
+    __syncthreads();
+
+    // Merge block histogram to global memory
+    for (int idx = threadIdx.x; idx < nbin; idx += blockDim.x) {
+        if (s_hist[idx] > 0) {
+            atomicAdd(&hist[idx], s_hist[idx]);
+        }
+    }
 }
 
 // CUDA error checking
@@ -66,6 +127,8 @@ void benchmark_histogram(int n, int nbin) {
     int* h_hist_cpu = (int*)malloc(hist_size);
     int* h_hist_gpu_i32 = (int*)malloc(hist_size);
     int* h_hist_gpu_i4 = (int*)malloc(hist_size);
+    int* h_hist_gpu_shared = (int*)malloc(hist_size);
+    int* h_hist_gpu_shared_i4 = (int*)malloc(hist_size);
 
     // Initialize random input (0 to nbin-1)
     srand(12345);
@@ -80,9 +143,13 @@ void benchmark_histogram(int n, int nbin) {
     int* d_input;
     int* d_hist_i32;
     int* d_hist_i4;
+    int* d_hist_shared;
+    int* d_hist_shared_i4;
     checkCudaError(cudaMalloc(&d_input, input_size), "cudaMalloc d_input");
     checkCudaError(cudaMalloc(&d_hist_i32, hist_size), "cudaMalloc d_hist_i32");
     checkCudaError(cudaMalloc(&d_hist_i4, hist_size), "cudaMalloc d_hist_i4");
+    checkCudaError(cudaMalloc(&d_hist_shared, hist_size), "cudaMalloc d_hist_shared");
+    checkCudaError(cudaMalloc(&d_hist_shared_i4, hist_size), "cudaMalloc d_hist_shared_i4");
 
     // Copy input to device
     checkCudaError(cudaMemcpy(d_input, h_input, input_size, cudaMemcpyHostToDevice),
@@ -200,14 +267,132 @@ void benchmark_histogram(int n, int nbin) {
         checkCudaError(cudaEventDestroy(stop), "cudaEventDestroy stop");
     }
 
+    // Test shared memory kernel
+    {
+        // Clear histogram
+        checkCudaError(cudaMemset(d_hist_shared, 0, hist_size), "cudaMemset d_hist_shared");
+
+        // Launch kernel with shared memory allocation
+        int block_size = 256;
+        int grid_size = (n + block_size - 1) / block_size;
+        size_t shared_mem_size = nbin * sizeof(int);
+
+        cudaEvent_t start, stop;
+        checkCudaError(cudaEventCreate(&start), "cudaEventCreate start");
+        checkCudaError(cudaEventCreate(&stop), "cudaEventCreate stop");
+
+        // Warmup
+        histogram_shared_kernel<<<grid_size, block_size, shared_mem_size>>>(d_input, d_hist_shared, n, nbin);
+        cudaDeviceSynchronize();
+
+        // Timing
+        checkCudaError(cudaEventRecord(start), "cudaEventRecord start");
+        int iterations = 100;
+        for (int i = 0; i < iterations; i++) {
+            // Clear histogram before each iteration
+            checkCudaError(cudaMemset(d_hist_shared, 0, hist_size), "cudaMemset d_hist_shared");
+            histogram_shared_kernel<<<grid_size, block_size, shared_mem_size>>>(d_input, d_hist_shared, n, nbin);
+        }
+        checkCudaError(cudaEventRecord(stop), "cudaEventRecord stop");
+        checkCudaError(cudaEventSynchronize(stop), "cudaEventSynchronize stop");
+
+        float milliseconds = 0;
+        checkCudaError(cudaEventElapsedTime(&milliseconds, start, stop), "cudaEventElapsedTime");
+        float avg_ms = milliseconds / iterations;
+
+        printf("Shared Kernel: %.3f ms (avg over %d iterations)\n", avg_ms, iterations);
+
+        // Copy result back
+        checkCudaError(cudaMemcpy(h_hist_gpu_shared, d_hist_shared, hist_size, cudaMemcpyDeviceToHost),
+                      "cudaMemcpy h_hist_gpu_shared");
+
+        // Verify
+        bool correct = true;
+        for (int i = 0; i < nbin; i++) {
+            if (h_hist_gpu_shared[i] != h_hist_cpu[i]) {
+                printf("  Verification FAILED at bin %d: GPU=%d, CPU=%d\n",
+                       i, h_hist_gpu_shared[i], h_hist_cpu[i]);
+                correct = false;
+                break;
+            }
+        }
+        if (correct) printf("  Verification: PASS\n");
+
+        checkCudaError(cudaEventDestroy(start), "cudaEventDestroy start");
+        checkCudaError(cudaEventDestroy(stop), "cudaEventDestroy stop");
+    }
+
+    // Test shared memory i4 kernel
+    {
+        // Clear histogram
+        checkCudaError(cudaMemset(d_hist_shared_i4, 0, hist_size), "cudaMemset d_hist_shared_i4");
+
+        // For i4 kernel, we need to reinterpret input as int4*
+        int n_i4 = n / 4;  // Number of int4 elements
+        const int4* d_input_i4 = reinterpret_cast<const int4*>(d_input);
+
+        // Launch kernel with shared memory allocation
+        int block_size = 256;
+        int grid_size = (n_i4 + block_size - 1) / block_size;
+        size_t shared_mem_size = nbin * sizeof(int);
+
+        cudaEvent_t start, stop;
+        checkCudaError(cudaEventCreate(&start), "cudaEventCreate start");
+        checkCudaError(cudaEventCreate(&stop), "cudaEventCreate stop");
+
+        // Warmup
+        histogram_shared_i4_kernel<<<grid_size, block_size, shared_mem_size>>>(d_input_i4, d_hist_shared_i4, n_i4, nbin);
+        cudaDeviceSynchronize();
+
+        // Timing
+        checkCudaError(cudaEventRecord(start), "cudaEventRecord start");
+        int iterations = 100;
+        for (int i = 0; i < iterations; i++) {
+            // Clear histogram before each iteration
+            checkCudaError(cudaMemset(d_hist_shared_i4, 0, hist_size), "cudaMemset d_hist_shared_i4");
+            histogram_shared_i4_kernel<<<grid_size, block_size, shared_mem_size>>>(d_input_i4, d_hist_shared_i4, n_i4, nbin);
+        }
+        checkCudaError(cudaEventRecord(stop), "cudaEventRecord stop");
+        checkCudaError(cudaEventSynchronize(stop), "cudaEventSynchronize stop");
+
+        float milliseconds = 0;
+        checkCudaError(cudaEventElapsedTime(&milliseconds, start, stop), "cudaEventElapsedTime");
+        float avg_ms = milliseconds / iterations;
+
+        printf("Shared i4 Kernel: %.3f ms (avg over %d iterations)\n", avg_ms, iterations);
+
+        // Copy result back
+        checkCudaError(cudaMemcpy(h_hist_gpu_shared_i4, d_hist_shared_i4, hist_size, cudaMemcpyDeviceToHost),
+                      "cudaMemcpy h_hist_gpu_shared_i4");
+
+        // Verify
+        bool correct = true;
+        for (int i = 0; i < nbin; i++) {
+            if (h_hist_gpu_shared_i4[i] != h_hist_cpu[i]) {
+                printf("  Verification FAILED at bin %d: GPU=%d, CPU=%d\n",
+                       i, h_hist_gpu_shared_i4[i], h_hist_cpu[i]);
+                correct = false;
+                break;
+            }
+        }
+        if (correct) printf("  Verification: PASS\n");
+
+        checkCudaError(cudaEventDestroy(start), "cudaEventDestroy start");
+        checkCudaError(cudaEventDestroy(stop), "cudaEventDestroy stop");
+    }
+
     // Cleanup
     cudaFree(d_input);
     cudaFree(d_hist_i32);
     cudaFree(d_hist_i4);
+    cudaFree(d_hist_shared);
+    cudaFree(d_hist_shared_i4);
     free(h_input);
     free(h_hist_cpu);
     free(h_hist_gpu_i32);
     free(h_hist_gpu_i4);
+    free(h_hist_gpu_shared);
+    free(h_hist_gpu_shared_i4);
 
     printf("\n");
 }

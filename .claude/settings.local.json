@@ -38,7 +38,8 @@
       "Bash(./histogram_test:*)",
       "Bash(git config:*)",
       "Bash(command:*)",
-      "Bash(alias:*)"
+      "Bash(alias:*)",
+      "Bash(./histogram_shared_test:*)"
     ],
     "deny": [],
     "ask": []
