@@ -32,7 +32,13 @@
       "Bash(/usr/bin/env python:*)",
       "Bash(ls:*)",
       "Bash(apt-get update:*)",
-      "Bash(apt-get install:*)"
+      "Bash(apt-get install:*)",
+      "Bash(xargs ls:*)",
+      "Bash(nvcc:*)",
+      "Bash(./histogram_test:*)",
+      "Bash(git config:*)",
+      "Bash(command:*)",
+      "Bash(alias:*)"
     ],
     "deny": [],
     "ask": []
