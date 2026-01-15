@@ -24,6 +24,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 from mha import MultiHeadAttention
 from mla import MultiHeadLatentAttention
 
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), 'results')
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
 
 def compare_memory_usage():
     """对比不同序列长度下的内存占用"""
@@ -77,25 +80,25 @@ def compare_memory_usage():
     # 内存占用对比
     ax1.plot(seq_lengths, mha_memory, 'b-o', label='MHA', linewidth=2, markersize=8)
     ax1.plot(seq_lengths, mla_memory, 'r-s', label='MLA', linewidth=2, markersize=8)
-    ax1.set_xlabel('序列长度', fontsize=12)
-    ax1.set_ylabel('KV Cache 内存 (MB)', fontsize=12)
-    ax1.set_title('KV Cache 内存占用对比', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Sequence Length', fontsize=12)
+    ax1.set_ylabel('KV Cache Memory (MB)', fontsize=12)
+    ax1.set_title('KV Cache Memory Comparison', fontsize=14, fontweight='bold')
     ax1.legend(fontsize=12)
     ax1.grid(True, alpha=0.3)
 
     # 内存节省率
     savings = [(1 - mla_mem / mha_mem) * 100 for mha_mem, mla_mem in zip(mha_memory, mla_memory)]
     ax2.bar(range(len(seq_lengths)), savings, color='steelblue', alpha=0.7)
-    ax2.set_xlabel('序列长度', fontsize=12)
-    ax2.set_ylabel('内存节省率 (%)', fontsize=12)
-    ax2.set_title('MLA 内存节省率', fontsize=14, fontweight='bold')
+    ax2.set_xlabel('Sequence Length', fontsize=12)
+    ax2.set_ylabel('Memory Savings (%)', fontsize=12)
+    ax2.set_title('MLA Memory Savings', fontsize=14, fontweight='bold')
     ax2.set_xticks(range(len(seq_lengths)))
     ax2.set_xticklabels([str(l) for l in seq_lengths], rotation=45)
     ax2.grid(True, alpha=0.3, axis='y')
 
     plt.tight_layout()
-    plt.savefig('/root/workspace/xdl/learn/MLA/memory_comparison.png', dpi=300, bbox_inches='tight')
-    print(f"\n✓ 对比图表已保存: memory_comparison.png")
+    plt.savefig(os.path.join(RESULTS_DIR, 'memory_comparison.png'), dpi=300, bbox_inches='tight')
+    print(f"\n✓ Comparison chart saved: results/memory_comparison.png")
     plt.show()
 
 
@@ -140,17 +143,17 @@ def compare_compression_ratios():
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
     ax.plot(compression_ratios, mla_memories, 'g-o', linewidth=2, markersize=8, label='MLA')
-    ax.axhline(y=mha_mem, color='b', linestyle='--', linewidth=2, label='MHA (基线)')
+    ax.axhline(y=mha_mem, color='b', linestyle='--', linewidth=2, label='MHA (Baseline)')
 
-    ax.set_xlabel('压缩率', fontsize=12)
-    ax.set_ylabel('KV Cache 内存 (MB)', fontsize=12)
-    ax.set_title('不同压缩率下的内存占用', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Compression Ratio', fontsize=12)
+    ax.set_ylabel('KV Cache Memory (MB)', fontsize=12)
+    ax.set_title('Memory Usage at Different Compression Ratios', fontsize=14, fontweight='bold')
     ax.legend(fontsize=12)
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('/root/workspace/xdl/learn/MLA/compression_ratio_analysis.png', dpi=300, bbox_inches='tight')
-    print(f"\n✓ 压缩率分析图表已保存: compression_ratio_analysis.png")
+    plt.savefig(os.path.join(RESULTS_DIR, 'compression_ratio_analysis.png'), dpi=300, bbox_inches='tight')
+    print(f"\n✓ Compression ratio chart saved: results/compression_ratio_analysis.png")
     plt.show()
 
 
@@ -273,9 +276,9 @@ def simulate_autoregressive_generation():
     # KV Cache 大小累积
     ax1.plot(range(1, max_tokens + 1), mha_cache_sizes, 'b-o', label='MHA', linewidth=2, markersize=4)
     ax1.plot(range(1, max_tokens + 1), mla_cache_sizes, 'r-s', label='MLA', linewidth=2, markersize=4)
-    ax1.set_xlabel('生成的 Token 数量', fontsize=12)
-    ax1.set_ylabel('KV Cache 大小 (KB)', fontsize=12)
-    ax1.set_title('自回归生成中的 KV Cache 累积', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Number of Generated Tokens', fontsize=12)
+    ax1.set_ylabel('KV Cache Size (KB)', fontsize=12)
+    ax1.set_title('KV Cache Accumulation in Autoregressive Generation', fontsize=14, fontweight='bold')
     ax1.legend(fontsize=12)
     ax1.grid(True, alpha=0.3)
 
@@ -284,8 +287,8 @@ def simulate_autoregressive_generation():
     mla_per_token = np.diff(mla_cache_sizes, prepend=0)
 
     ax2.bar(['MHA', 'MLA'], [mha_per_token[0], mla_per_token[0]], color=['steelblue', 'indianred'], alpha=0.7)
-    ax2.set_ylabel('单个 Token 增加的缓存 (KB)', fontsize=12)
-    ax2.set_title('每个 Token 增加的 KV Cache', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('KV Cache per Token (KB)', fontsize=12)
+    ax2.set_title('KV Cache Added per Token', fontsize=14, fontweight='bold')
     ax2.grid(True, alpha=0.3, axis='y')
 
     # 添加数值标签
@@ -293,8 +296,8 @@ def simulate_autoregressive_generation():
     ax2.text(1, mla_per_token[0], f'{mla_per_token[0]:.2f}', ha='center', va='bottom', fontsize=10)
 
     plt.tight_layout()
-    plt.savefig('/root/workspace/xdl/learn/MLA/autoregressive_cache.png', dpi=300, bbox_inches='tight')
-    print(f"\n✓ 自回归生成分析图表已保存: autoregressive_cache.png")
+    plt.savefig(os.path.join(RESULTS_DIR, 'autoregressive_cache.png'), dpi=300, bbox_inches='tight')
+    print(f"\n✓ Autoregressive generation chart saved: results/autoregressive_cache.png")
     plt.show()
 
 
