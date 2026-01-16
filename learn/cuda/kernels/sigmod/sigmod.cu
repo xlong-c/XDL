@@ -18,10 +18,10 @@ sigmod:
 #define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
 
 // Half precision constants
-#define HALF_ONE __float2half(1.0f)
+#define HALF_ONE CUDART_ONE_FP16
 
 // Bfloat16 constants
-#define BF16_ONE __float2bfloat16(1.0f)
+#define BF16_ONE CUDART_ONE_BF16
 
 // 界限检查
 #define MAX_EXP_F32 88.37626647949f
