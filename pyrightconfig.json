@@ -1,0 +1,19 @@
+{
+  "include": [
+    "**/*.py"
+  ],
+  "exclude": [
+    "**/__pycache__/**",
+    "**/site-packages/**",
+    "**/node_modules/**"
+  ],
+  "typeCheckingMode": "basic",
+  "pythonVersion": "3.10",
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": "none",
+  "reportArgumentType": "none",
+  "reportInvalidTypeForm": "none",
+  "reportOperatorIssue": "none",
+  "reportReturnType": "warning",
+  "reportAttributeAccessIssue": "warning"
+}

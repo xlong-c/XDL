@@ -3,7 +3,6 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <stdio.h>
-
 /*
 sigmod:
     f(x) = 1/(1+e^(-x))
@@ -33,7 +32,7 @@ __device__ __nv_bfloat16 limit_check_bf16(__nv_bfloat16 x) {
   return __hmin(__hmax(x, MIN_EXP_BF16), MAX_EXP_BF16);
 }
 
-__global__ void sigmod_f32(float* input, float* output, int n) {
+__device__ void sigmod_f32(float *input, float *output, int n) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < n) {
     float x = -fminf(fmaxf(input[idx], MIN_EXP_F32), MAX_EXP_F32);

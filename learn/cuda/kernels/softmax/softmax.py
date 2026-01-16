@@ -8,7 +8,7 @@ Tests softmax implementations across different frameworks:
 """
 
 import os
-from typing import Optional, Callable
+from typing import Optional, Callable, cast
 
 import torch
 import torch.nn.functional as F
@@ -39,11 +39,11 @@ softmax_cuda = load(
 # TileLang Softmax Kernel (with pipelining and exp2 optimization)
 # =============================================================================
 
-@tl.jit(out_idx=[1])
+@tl.jit(out_idx=[1])  # type: ignore[return-value]
 def tilelang_softmax_kernel(
     M: int,
     N: int,
-    dtype: T.dtype = T.float16,
+    dtype: T.dtype = T.float16,  # type: ignore[assignment]
 ) -> Callable:
     """Optimized TileLang softmax with pipelined reduction and exp2."""
     BN = min(tl.next_power_of_2(N), 8192)
@@ -53,8 +53,8 @@ def tilelang_softmax_kernel(
 
     @T.prim_func
     def main(
-        X: T.Tensor([M, N], dtype),
-        Y: T.Tensor([M, N], dtype),
+        X: T.Tensor([M, N], dtype),  # type: ignore[valid-type]
+        Y: T.Tensor([M, N], dtype),  # type: ignore[valid-type]
     ):
         with T.Kernel(M, threads=128) as (i_m):
             x = T.alloc_fragment([BN], dtype)
@@ -63,7 +63,7 @@ def tilelang_softmax_kernel(
             max_x = T.alloc_fragment([1], dtype)
             exp_x = T.alloc_fragment([BN], accum_dtype)
             sum_exp_x = T.alloc_fragment([1], accum_dtype)
-            T.fill(lse, -T.infinity(accum_dtype))
+            T.fill(lse, -T.infinity(accum_dtype))  # type: ignore[operator]
 
             # Forward pass: compute log-sum-exp
             for i_n in T.Pipelined(0, NN):
@@ -94,18 +94,29 @@ def tilelang_softmax_kernel(
 
 def benchmark_torch(input_data: torch.Tensor) -> float:
     """Benchmark PyTorch native softmax using CUDA events."""
-    return do_bench(lambda: F.softmax(input_data, dim=-1), warmup=25, rep=100)
+    result = do_bench(lambda: F.softmax(input_data, dim=-1), warmup=25, rep=100)
+    if isinstance(result, list):
+        return result[0] if result else 0.0
+    return float(result) if result is not None else 0.0
 
 
 def benchmark_cuda(input_data: torch.Tensor, output: torch.Tensor) -> float:
     """Benchmark custom CUDA softmax using CUDA events."""
-    return do_bench(lambda: softmax_cuda.forward(input_data, output), warmup=25, rep=100)
+    if softmax_cuda is None:
+        raise RuntimeError("CUDA extension not loaded")
+    result = do_bench(lambda: softmax_cuda.forward(input_data, output), warmup=25, rep=100)  # type: ignore[arg-type]
+    if isinstance(result, list):
+        return result[0] if result else 0.0
+    return float(result) if result is not None else 0.0
 
 
 def benchmark_tilelang(kernel: Callable, input_data: torch.Tensor) -> Optional[float]:
     """Benchmark TileLang softmax using its profiler."""
     try:
-        return do_bench(lambda: kernel(input_data), warmup=25, rep=100)
+        result = do_bench(lambda: kernel(input_data), warmup=25, rep=100)
+        if isinstance(result, list):
+            return result[0] if result else None
+        return float(result) if result is not None else None
     except Exception as e:
         print(f"  TileLang execution failed: {e}")
         return None
@@ -130,14 +141,14 @@ def run_benchmark(rows: int, cols: int, dtype: torch.dtype = torch.float16):
     output_tilelang = None
     try:
         tl_dtype = T.float16 if dtype == torch.float16 else T.float32
-        tilelang_kernel = tilelang_softmax_kernel(rows, cols, dtype=tl_dtype)
+        tilelang_kernel = tilelang_softmax_kernel(rows, cols, dtype=tl_dtype)  # type: ignore[arg-type]
         print("TileLang kernel: compiled successfully")
     except Exception as e:
         print(f"TileLang kernel: compilation failed - {str(e)[:80]}")
 
     # Warmup
     for _ in range(10):
-        if dtype == torch.float32:
+        if dtype == torch.float32 and softmax_cuda is not None:
             softmax_cuda.forward(input_data, output_cuda)
         F.softmax(input_data, dim=-1)
         if tilelang_kernel is not None:
