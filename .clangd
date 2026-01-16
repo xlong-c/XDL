@@ -15,13 +15,14 @@ CompileFlags:
     "-D__CUDA_NO_BFLOAT16_CONVERSIONS__",
     "-D__CUDA_NO_HALF2_OPERATORS__",
     "--cuda-path=/usr/local/cuda",
-    "--cuda-gpu-arch=sm_89", 
+    "--cuda-gpu-arch=sm_89",
     "-Wno-unknown-cuda-version",
     "--no-cuda-version-check",
     "-xcuda",
     "-fPIC",
     "-O3",
-    "-std=c++17"
+    "-std=c++17",
+    "-I/root/miniconda/envs/xdl/include/python3.12"
   ]
 Diagnostics:
   Suppress: [
