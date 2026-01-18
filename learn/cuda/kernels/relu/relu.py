@@ -20,7 +20,7 @@ torch.set_grad_enabled(False)
 
 # Get the current directory and load CUDA extension
 curr_dir = os.path.dirname(os.path.abspath(__file__))
-cuda_file = os.path.join(curr_dir, "relu_extension.cu")
+cuda_file = os.path.join(curr_dir, "relu.cu")
 build_dir = os.path.join(curr_dir, "build")
 os.makedirs(build_dir, exist_ok=True)
 
@@ -147,8 +147,10 @@ for S, K in SKs:
     y_f16 = y.half().contiguous()
 
     out_f16, time_f16 = run_benchmark(lib.relu_f16, x_f16, "f16", y_f16)
-    out_f16x2, time_f16x2 = run_benchmark(lib.relu_f16x2, x_f16, "f16x2", y_f16)
-    out_f16x8, time_f16x8 = run_benchmark(lib.relu_f16x8, x_f16, "f16x8", y_f16)
+    out_f16x2, time_f16x2 = run_benchmark(
+        lib.relu_f16x2, x_f16, "f16x2", y_f16)
+    out_f16x8, time_f16x8 = run_benchmark(
+        lib.relu_f16x8, x_f16, "f16x8", y_f16)
     out_f16x8_pack, time_f16x8_pack = run_benchmark(
         lib.relu_f16x8_pack, x_f16, "f16x8pack", y_f16
     )
@@ -170,7 +172,8 @@ for S, K in SKs:
         x_bf16 = x.to(torch.bfloat16).contiguous()
         y_bf16 = y.to(torch.bfloat16).contiguous()
 
-        out_bf16, time_bf16 = run_benchmark(lib.relu_bf16, x_bf16, "bf16", y_bf16)
+        out_bf16, time_bf16 = run_benchmark(
+            lib.relu_bf16, x_bf16, "bf16", y_bf16)
         out_bf16x2, time_bf16x2 = run_benchmark(
             lib.relu_bf16x2, x_bf16, "bf16x2", y_bf16
         )
