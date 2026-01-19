@@ -28,7 +28,20 @@ __device__ __forceinline__ half elu_half(half x) {
 
 __global__ void elu_f32x4_kernel(float *x, float *y, int mask) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= mask) {
+    return;
+  }
+  float4 x_reg = FLOAT4(x[idx]);
+  float4 y_reg;
+  y_reg.x = elu(x_reg.x);
+  y_reg.y = elu(x_reg.y);
+  y_reg.z = elu(x_reg.z);
+  y_reg.w = elu(x_reg.w);
+  FLOAT4(y[idx]) = y_reg;
+}
+
+__global__ void elu_fp16x2_kernel(half *x, half y, int mask) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < mask) {
-    y [idx]= elu(x[idx]);
   }
 }
