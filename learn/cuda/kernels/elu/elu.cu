@@ -58,3 +58,23 @@ __global__ void elu_fp16x2_kernel(half *x, half *y, int mask) {
     HALF2(y[idx]) = y_reg;
   }
 }
+__global__ void elu_fp16x8_kernel(half *x, half *y, int mask) {
+  int idx = 8 * (blockIdx.x * blockDim.x + threadIdx.x);
+  if (idx >= mask) {
+    return;
+  }
+  float4 x_reg1 = FLOAT4(x[idx]);
+  float4 x_reg2 = FLOAT4(x[idx + 4]);
+  float4 y_reg1;
+  float4 y_reg2;
+  y_reg1.x = __half2float(elu_half(__float2half(x_reg1.x)));
+  y_reg1.y = __half2float(elu_half(__float2half(x_reg1.y)));
+  y_reg1.z = __half2float(elu_half(__float2half(x_reg1.z)));
+  y_reg1.w = __half2float(elu_half(__float2half(x_reg1.w)));
+  y_reg2.x = __half2float(elu_half(__float2half(x_reg2.x)));
+  y_reg2.y = __half2float(elu_half(__float2half(x_reg2.y)));
+  y_reg2.z = __half2float(elu_half(__float2half(x_reg2.z)));
+  y_reg2.w = __half2float(elu_half(__float2half(x_reg2.w)));
+  FLOAT4(y[idx]) = y_reg1;
+  FLOAT4(y[idx + 4]) = y_reg2;
+}
