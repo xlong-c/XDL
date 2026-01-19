@@ -1,5 +1,3 @@
-#include <__clang_cuda_builtin_vars.h>
-#include <__clang_cuda_runtime_wrapper.h>
 #include <cmath>
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
@@ -26,8 +24,17 @@ __device__ __forceinline__ half elu_half(half x) {
              : __hmul(__float2half(ALPHA), __hsub(hexp(x), __float2half(1.f)));
 }
 
-__global__ void elu_f32x4_kernel(float *x, float *y, int mask) {
+// 标量版本ELU内核
+__global__ void elu_f32_scalar_kernel(float *x, float *y, int mask) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < mask) {
+    y[idx] = elu(x[idx]);
+  }
+}
+
+// 向量化版本ELU内核（float4）
+__global__ void elu_f32x4_kernel(float *x, float *y, int mask) {
+  int idx = 4 * (blockIdx.x * blockDim.x + threadIdx.x);
   if (idx >= mask) {
     return;
   }
@@ -40,8 +47,14 @@ __global__ void elu_f32x4_kernel(float *x, float *y, int mask) {
   FLOAT4(y[idx]) = y_reg;
 }
 
-__global__ void elu_fp16x2_kernel(half *x, half y, int mask) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+// 半精度向量化版本ELU内核（half2）
+__global__ void elu_fp16x2_kernel(half *x, half *y, int mask) {
+  int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
   if (idx < mask) {
+    half2 x_reg = HALF2(x[idx]);
+    half2 y_reg;
+    y_reg.x = elu_half(x_reg.x);
+    y_reg.y = elu_half(x_reg.y);
+    HALF2(y[idx]) = y_reg;
   }
 }
