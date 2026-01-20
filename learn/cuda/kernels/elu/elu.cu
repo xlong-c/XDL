@@ -65,10 +65,10 @@ __global__ void elu_fp16x8_kernel(half *x, half *y, int mask) {
   if (idx >= mask) {
     return;
   }
-  
+
   // 使用int4进行128位加载（8个half值）
-  int4 data = *reinterpret_cast<int4*>(&x[idx]);
-  
+  int4 data = *reinterpret_cast<int4 *>(&x[idx]);
+
   // 从int4中提取8个half值
   // 每个int32包含2个half值（低16位和高16位）
   half x0 = __ushort_as_half(data.x & 0xFFFF);
@@ -79,7 +79,7 @@ __global__ void elu_fp16x8_kernel(half *x, half *y, int mask) {
   half x5 = __ushort_as_half((data.z >> 16) & 0xFFFF);
   half x6 = __ushort_as_half(data.w & 0xFFFF);
   half x7 = __ushort_as_half((data.w >> 16) & 0xFFFF);
-  
+
   // 计算ELU
   half y0 = elu_half(x0);
   half y1 = elu_half(x1);
@@ -89,15 +89,19 @@ __global__ void elu_fp16x8_kernel(half *x, half *y, int mask) {
   half y5 = elu_half(x5);
   half y6 = elu_half(x6);
   half y7 = elu_half(x7);
-  
+
   // 将结果打包回int4
-  data.x = (__half_as_ushort(y0) & 0xFFFF) | ((__half_as_ushort(y1) & 0xFFFF) << 16);
-  data.y = (__half_as_ushort(y2) & 0xFFFF) | ((__half_as_ushort(y3) & 0xFFFF) << 16);
-  data.z = (__half_as_ushort(y4) & 0xFFFF) | ((__half_as_ushort(y5) & 0xFFFF) << 16);
-  data.w = (__half_as_ushort(y6) & 0xFFFF) | ((__half_as_ushort(y7) & 0xFFFF) << 16);
-  
+  data.x =
+      (__half_as_ushort(y0) & 0xFFFF) | ((__half_as_ushort(y1) & 0xFFFF) << 16);
+  data.y =
+      (__half_as_ushort(y2) & 0xFFFF) | ((__half_as_ushort(y3) & 0xFFFF) << 16);
+  data.z =
+      (__half_as_ushort(y4) & 0xFFFF) | ((__half_as_ushort(y5) & 0xFFFF) << 16);
+  data.w =
+      (__half_as_ushort(y6) & 0xFFFF) | ((__half_as_ushort(y7) & 0xFFFF) << 16);
+
   // 存储结果
-  *reinterpret_cast<int4*>(&y[idx]) = data;
+  *reinterpret_cast<int4 *>(&y[idx]) = data;
 }
 
 __global__ void elu_fp16x8_kernel_pack(half *x, half *y, int mask) {

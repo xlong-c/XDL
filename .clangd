@@ -24,6 +24,7 @@ CompileFlags:
     "-std=c++17",
     "-I/root/miniconda/envs/xdl/include/python3.12"
   ]
+  CompilationDatabase: build
 Diagnostics:
   Suppress: [
     "drv_unknown_argument",
