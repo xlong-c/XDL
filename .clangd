@@ -1,10 +1,10 @@
 CompileFlags:
   Add: [
     "-isystem/usr/local/cuda/include",
-    "-isystem/root/miniconda/envs/xdl/include/python3.12",
-    "-isystem/root/miniconda/envs/xdl/lib/python3.12/site-packages/torch/include",
-    "-isystem/root/miniconda/envs/xdl/lib/python3.12/site-packages/torch/include/torch/csrc/api/include",
-    "-isystem/root/miniconda/envs/xdl/lib/python3.12/site-packages/pybind11/include",
+    "-isystem/root/miniconda3/envs/xdl/include/python3.12",
+    "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/torch/include",
+    "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/torch/include/torch/csrc/api/include",
+    "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/pybind11/include",
     "-DTORCH_EXTENSION_NAME=elementwise_lib",
     "-DTORCH_API_INCLUDE_EXTENSION_H",
     "-D__CUDACC__",
@@ -22,7 +22,7 @@ CompileFlags:
     "-fPIC",
     "-O3",
     "-std=c++17",
-    "-I/root/miniconda/envs/xdl/include/python3.12"
+    "-I/root/miniconda3/envs/xdl/include/python3.12"
   ]
   CompilationDatabase: build
 Diagnostics:
