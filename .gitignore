@@ -198,4 +198,5 @@ tmp/
 others/
 
 # cli tools
-.crush/
+.crush/third_party/
+third_party/
