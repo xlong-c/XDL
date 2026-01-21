@@ -32,7 +32,16 @@ __global__ void block_all_reduce_sum_f32_kernel(float *x, float *y, int mask) {
   int idx = NUM_THREADS * blockIdx.x + threadIdx.x;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
-  float sum =  (idx<mask){
-    
-  }
+  float sum = (idx < mask) ? x[idx] : 0.0f;
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+  sum = warp_reduce_sum_f32<WARP_SIZE>(sum);
+  if (lane == 0)
+    reduce_smem[warp] = sum;
+  __syncthreads();
+  sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+  if (warp == 0)
+    sum = warp_reduce_sum_f32<NUM_WARPS>(sum);
+  if (tid == 0)
+    atomicAdd(y, sum);
 }
