@@ -1,11 +1,10 @@
-#include <algorithm>
+#include <__clang_cuda_builtin_vars.h>
+#include <__clang_cuda_runtime_wrapper.h>
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
 #include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <torch/extension.h>
 #include <torch/types.h>
 #include <vector>
@@ -20,7 +19,7 @@
 template <const int kWarpSize = WARP_SIZE>
 __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 #pragma unroll
-  for (int mask = kWarpSize >> 1; mask >= 1; mask >> 1) {
+  for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
     val += __shfl_xor_sync(0xffffffff, val, mask);
   }
   return val;
@@ -44,4 +43,88 @@ __global__ void block_all_reduce_sum_f32_kernel(float *x, float *y, int mask) {
     sum = warp_reduce_sum_f32<NUM_WARPS>(sum);
   if (tid == 0)
     atomicAdd(y, sum);
+}
+
+template <const int NUM_THREADS = 256 / 4>
+__global__ void block_all_reduce_sum_f32x4_kernel(float *x, float *y,
+                                                  int mask) {
+  int tid = threadIdx.x;
+  int idx = NUM_THREADS * blockIdx.x + tid;
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ float reduce_smem[NUM_WARPS];
+
+  float4 reg_x = FLOAT4(x[idx]);
+  float sum = (idx < mask) ? (reg_x.x + reg_x.y + reg_x.z + reg_x.w) : 0.0f;
+  sum = warp_reduce_sum_f32<WARP_SIZE>(sum);
+
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+  sum = warp_reduce_sum_f32<WARP_SIZE>(sum);
+  if (lane == 0)
+    reduce_smem[warp] = sum;
+  __syncthreads();
+  sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+  if (warp == 0)
+    sum = warp_reduce_sum_f32<NUM_WARPS>(sum);
+  if (tid == 0)
+    atomicAdd(y, sum);
+}
+
+// FP16
+template <const int kWarpSize = WARP_SIZE>
+__device__ __forceinline__ half warp_reduce_sum_f16_f16(half val) {
+#pragma unroll
+  for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
+    val = __hadd(val, __shfl_xor_sync(0xffffffff, val, mask));
+  }
+  return val;
+}
+
+template <const int kWarpSize = WARP_SIZE>
+__device__ __forceinline__ half warp_reduce_sum_f16_f32(half val) {
+  float val_f32 = __half2float(val);
+#pragma unroll
+  for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
+    val_f32 += __shfl_xor_sync(0xffffffff, val_f32, mask);
+  }
+  return __float2half(val_f32);
+}
+
+template <const int NUM_THREADS = 256>
+__global__ void block_all_reduce_f16_f16_kernel(half *x, half *y, int mask) {
+  int tid = threadIdx.x;
+  int idx = blockIdx.x * NUM_THREADS + tid;
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ half reduce_smem[NUM_WARPS];
+  half sum = (idx < mask) ? x[idx] : __float2half(0.0f);
+
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+
+  sum = warp_reduce_sum_f16_f16<WARP_SIZE>(sum);
+
+  if (lane == 0)
+    reduce_smem[warp] = sum;
+  __syncthreads();
+
+  sum = (lane < NUM_WARPS) ? reduce_smem[lane] : __float2half(0.0f);
+
+  if (warp == 0)
+    sum = warp_reduce_sum_f16_f16<NUM_WARPS>(sum);
+
+  if (tid == 0)
+    atomicAdd(y, sum);
+}
+
+template <const int NUM_THREADS = 256 / 2>
+__global__ void block_all_reduce_sum_f16x2_f32_kernel(half *x, half *y,
+                                                      int mask) {
+  int tid = threadIdx.x;
+  int idx = (blockDim.x * NUM_THREADS + tid) * 2;
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ float smem[NUM_WARPS];
+  half2 reg_x = HALF2(x[idx]);
+  half sum_x = (idx < mask) ? __hadd(reg_x.x, reg_x.y) : CUDART_ONE_FP16;
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
 }
