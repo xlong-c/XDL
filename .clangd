@@ -1,6 +1,6 @@
 CompileFlags:
   Add: [
-    "-isystem/root/miniconda3/envs/xdl/targets/x86_64-linux/include",
+    "-isystem/usr/local/cuda/include",
     "-isystem/root/miniconda3/envs/xdl/include/python3.12",
     "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/torch/include",
     "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/torch/include/torch/csrc/api/include",
@@ -14,8 +14,8 @@ CompileFlags:
     "-D__CUDA_NO_HALF_CONVERSIONS__",
     "-D__CUDA_NO_BFLOAT16_CONVERSIONS__",
     "-D__CUDA_NO_HALF2_OPERATORS__",
-    "--cuda-path=/root/miniconda3/envs/xdl/targets/x86_64-linux",
-    "--cuda-gpu-arch=sm_80",
+    "--cuda-path=/usr/local/cuda",
+    "--cuda-gpu-arch=sm_89",
     "-Wno-unknown-cuda-version",
     "--no-cuda-version-check",
     "-xcuda",
