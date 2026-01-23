@@ -178,6 +178,7 @@ mlruns/
 .idea/
 *.swp
 *.swo
+.clangd
 
 # OS generated files
 .DS_Store
