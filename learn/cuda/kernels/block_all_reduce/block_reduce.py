@@ -58,8 +58,8 @@ def run_benchmark(
     return out, mean_time
 
 
-Ss = [1024, 2048, 4096]
-Ks = [1024, 2048, 4096]
+Ss = [1024 * 8, 2048, 4096]
+Ks = [1024 * 8, 2048, 4096]
 SKs = [(S, K) for S in Ss for K in Ks]
 
 for S, K in SKs:
