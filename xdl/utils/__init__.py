@@ -10,6 +10,7 @@ from .checkpoint import (
     save_checkpoint,
     unflatten_state_dict,
 )
+from .tools import enable_tensor_debug_info
 from .registry import (
     DATASET_REGISTRY,
     LOSS_REGISTRY,
@@ -62,4 +63,6 @@ __all__ = [
     "unflatten_state_dict",
     "save_checkpoint",
     "detect_and_load_checkpoint",
+    # Tools
+    "enable_tensor_debug_info",
 ]

@@ -147,3 +147,19 @@ def print_model_parameters(obj: nn.Module):
     print(f"  冻结参数量: {format_number(frozen_params)}")
     print(f"  可训练比例: {total_trainable_ratio:.2f}%")
     print()
+
+
+def enable_tensor_debug_info():
+    """
+    Enable debug info for torch.Tensor.__repr__
+    """
+    if getattr(torch.Tensor, "_debug_repr_patched", False):
+        return
+
+    _original_repr = torch.Tensor.__repr__
+
+    def _new_repr(self):
+        return f"[Shape:{tuple(self.shape)} Device:{self.device} Grad:{self.requires_grad}]\n{_original_repr(self)}"
+
+    torch.Tensor.__repr__ = _new_repr
+    torch.Tensor._debug_repr_patched = True
