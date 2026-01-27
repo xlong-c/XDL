@@ -96,7 +96,7 @@ class ManifoldHyperConnectionFuse(nn.Module):
         n = N
         H_pre = r_ * H[:, :, :n] * self.alpha[0] + self.beta[:n]
         H_post = r_ * H[:, :, n : 2 * n] * self.alpha[1] + self.beta[n : 2 * n]
-        H_res = r_ * H[:, :, 2 * n :] * self.alpha[2] + self.beta[2 * n :]
+        H_res = r_ * H[:, :, 2 * n :] * self.alpha[2] + self.beta[2 * n :]``
 
         # 5. final constrained mapping
         H_pre = F.sigmoid(H_pre)
