@@ -1,9 +1,7 @@
+#include "dot_product.h"
 #include "cuda_bf16.h"
 #include "cuda_fp16.h"
-#include "cuda_fp8.h"
 #include "cuda_runtime.h"
-#include <__clang_cuda_builtin_vars.h>
-#include <__clang_cuda_runtime_wrapper.h>
 #include <vector_types.h>
 
 #define WARP_SIZE 32
@@ -18,40 +16,39 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
   return val;
 }
 
-template <const int NUM_THREADS = 256>
 __global__ void dot_prod_f32_f32_kernel(float *a, float *b, float *y, int N) {
+  constexpr int NUM_THREADS = 256;
   int tid = threadIdx.x;
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enough for warp operaion.
   float prod = (idx < N) ? a[idx] * b[idx] : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
-  // perform warp sync reduce.
+
   prod = warp_reduce_sum_f32<WARP_SIZE>(prod);
-  // warp leaders store the data to shared memory.
+
   if (lane == 0)
     reduce_smem[warp] = prod;
-  __syncthreads(); // make sure the data is in shared memory.
-  // the first warp compute the final sum.
-  prod = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
-  if (warp == 0)
-    prod = warp_reduce_sum_f32<NUM_WARPS>(prod);
-  if (tid == 0)
-    atomicAdd(y, prod);
+  __syncthreads();
+
+  if (warp == 0) {
+    float block_sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+    block_sum = warp_reduce_sum_f32<WARP_SIZE>(block_sum);
+    if (lane == 0)
+      atomicAdd(y, block_sum);
+  }
 }
 
-template <const int NUM_THREADS = 256, const int ITEMS_PER_THREAD = 16>
 __global__ void dot_prod_f32_f32_kernel_v2(float *a, float *b, float *y,
                                            int N) {
+  constexpr int NUM_THREADS = 256;
+  constexpr int ITEMS_PER_THREAD = 16;
   int tid = threadIdx.x;
   int block_offset = blockIdx.x * NUM_THREADS * ITEMS_PER_THREAD;
 
   float thread_sum = 0.0f;
-// Each thread processes ITEMS_PER_THREAD elements to increase ILP and
-// utilization. Using a stride of NUM_THREADS to maintain memory coalescing.
 #pragma unroll
   for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
     int idx = block_offset + i * NUM_THREADS + tid;
@@ -66,27 +63,24 @@ __global__ void dot_prod_f32_f32_kernel_v2(float *a, float *b, float *y,
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
 
-  // perform warp sync reduce on the accumulated thread_sum.
   thread_sum = warp_reduce_sum_f32<WARP_SIZE>(thread_sum);
 
-  // warp leaders store the data to shared memory.
   if (lane == 0)
     reduce_smem[warp] = thread_sum;
 
-  __syncthreads(); // make sure the data is in shared memory.
+  __syncthreads();
 
-  // the first warp compute the final sum.
-  float block_sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
-  if (warp == 0)
-    block_sum = warp_reduce_sum_f32<NUM_WARPS>(block_sum);
-
-  if (tid == 0)
-    atomicAdd(y, block_sum);
+  if (warp == 0) {
+    float block_sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+    block_sum = warp_reduce_sum_f32<WARP_SIZE>(block_sum);
+    if (lane == 0)
+      atomicAdd(y, block_sum);
+  }
 }
 
-// 一个block处理的程序: NUM_THREADS * ITEMS_PER_THREAD
-template <const int NUM_THREADS = 256, const int ITEMS_PER_THREAD = 16>
 __global__ void dot_prod_f32x4_f32_kernel(float *a, float *b, float *y, int N) {
+  constexpr int NUM_THREADS = 256;
+  constexpr int ITEMS_PER_THREAD = 16;
   int tid = threadIdx.x;
   int block_offset = blockIdx.x * NUM_THREADS * ITEMS_PER_THREAD;
 
@@ -102,50 +96,136 @@ __global__ void dot_prod_f32x4_f32_kernel(float *a, float *b, float *y, int N) {
       thread_sum += reg_a.y * reg_b.y;
       thread_sum += reg_a.z * reg_b.z;
       thread_sum += reg_a.w * reg_b.w;
+    } else {
+      // Handle remaining elements if N is not multiple of 4
+      for (int j = 0; j < 4; ++j) {
+        if (idx + j < N) {
+          thread_sum += a[idx + j] * b[idx + j];
+        }
+      }
+    }
+  }
+
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ float reduce_smem[NUM_WARPS];
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+
+  thread_sum = warp_reduce_sum_f32<WARP_SIZE>(thread_sum);
+
+  if (lane == 0)
+    reduce_smem[warp] = thread_sum;
+
+  __syncthreads();
+
+  if (warp == 0) {
+    float block_sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+    block_sum = warp_reduce_sum_f32<WARP_SIZE>(block_sum);
+    if (lane == 0)
+      atomicAdd(y, block_sum);
+  }
+}
+
+__device__ __forceinline__ float warp_reduce_sum_f16_f32(half val) {
+  float reg_sum = __half2float(val);
+  return warp_reduce_sum_f32<WARP_SIZE>(reg_sum);
+}
+
+__global__ void dot_prod_f16_f32_kernel(half *a, half *b, half *y, int mask) {
+  constexpr int NUM_THREADS = 256;
+  constexpr int ITEMS_PER_THREAD = 16; // Each thread processes 16 * 8 = 128 elements
+  int tid = threadIdx.x;
+  int block_offset = blockIdx.x * NUM_THREADS * ITEMS_PER_THREAD * 8;
+  float thread_sum = 0.0f;
+
+#pragma unroll
+  for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
+    int idx = block_offset + (i * NUM_THREADS + tid) * 8;
+    if (idx + 7 < mask) {
+      half reg_a[8];
+      half reg_b[8];
+      LDST128BITS(reg_a) = LDST128BITS(a[idx]);
+      LDST128BITS(reg_b) = LDST128BITS(b[idx]);
+#pragma unroll
+      for (int j = 0; j < 8; j++) {
+        thread_sum += __half2float(reg_a[j]) * __half2float(reg_b[j]);
+      }
+    } else {
+      for (int j = 0; j < 8; ++j) {
+        if (idx + j < mask) {
+          thread_sum += __half2float(a[idx + j]) * __half2float(b[idx + j]);
+        }
+      }
+    }
+  }
+
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ float reduce_smem[NUM_WARPS];
+
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+
+  thread_sum = warp_reduce_sum_f32<WARP_SIZE>(thread_sum);
+
+  if (lane == 0)
+    reduce_smem[warp] = thread_sum;
+
+  __syncthreads();
+
+  if (warp == 0) {
+    float block_sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+    block_sum = warp_reduce_sum_f32<WARP_SIZE>(block_sum);
+    if (lane == 0) {
+      atomicAdd(y, __float2half(block_sum));
+    }
+  }
+}
+
+__global__ void dot_prod_bf16x8_bf16_kernel(__nv_bfloat16 *a, __nv_bfloat16 *b,
+                                            __nv_bfloat16 *y, int N) {
+  constexpr int NUM_THREADS = 256;
+  constexpr int ITEMS_PER_THREAD = 16;
+  int tid = threadIdx.x;
+  int block_offset = blockIdx.x * NUM_THREADS * ITEMS_PER_THREAD * 8;
+
+  float thread_sum = 0.0f;
+#pragma unroll
+  for (int i = 0; i < ITEMS_PER_THREAD; i++) {
+    int idx = block_offset + (i * NUM_THREADS + tid) * 8;
+    if (idx + 7 < N) {
+      __nv_bfloat16 reg_a[8];
+      __nv_bfloat16 reg_b[8];
+      LDST128BITS(reg_a) = LDST128BITS(a[idx]);
+      LDST128BITS(reg_b) = LDST128BITS(b[idx]);
+#pragma unroll
+      for (int j = 0; j < 8; j++) {
+        thread_sum += __bfloat162float(reg_a[j]) * __bfloat162float(reg_b[j]);
+      }
+    } else {
+      for (int j = 0; j < 8; ++j) {
+        if (idx + j < N) {
+          thread_sum += __bfloat162float(a[idx + j]) * __bfloat162float(b[idx + j]);
+        }
+      }
     }
   }
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
-  thread_sum = warp_reduce_sum_f32(thread_sum);
-  if (lane > 0)
-    return;
-  reduce_smem[warp] = thread_sum;
+
+  thread_sum = warp_reduce_sum_f32<WARP_SIZE>(thread_sum);
+
+  if (lane == 0)
+    reduce_smem[warp] = thread_sum;
 
   __syncthreads();
 
-  float block_sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
-  if (warp > 0)
-    return;
-  block_sum = warp_reduce_sum_f32(block_sum);
-
-  if (tid > 0)
-    return;
-  atomicAdd(y, block_sum);
-}
-
-__device__ __forceinline__ half warp_reduce_sum_f16_f16(half val) {
-#pragma unroll
-  for (int offset = WARP_SIZE >> 1; offset > 1; offset >>= 1) {
-    val = __hadd(val, __shfl_xor_sync(0xffffffff, val, offset));
+  if (warp == 0) {
+    float block_sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+    block_sum = warp_reduce_sum_f32<WARP_SIZE>(block_sum);
+    if (lane == 0) {
+      atomicAdd(y, __float2bfloat16(block_sum));
+    }
   }
-  return val;
-}
-
-__device__ __forceinline__ float warp_reduce_sum_f16_f32(half val) {
-  float reg_sum = __half2float(val);
-#pragma unroll
-  for (int offset = WARP_SIZE >> 1; offset > 1; offset >>= 1) {
-    reg_sum += __half2float(__shfl_xor_sync(0xffffffff, val, offset));
-  }
-  return reg_sum;
-}
-
-template <const int NUM_THREADS = 256, const int ITEMS_PER_THREAD = 16>
-__global__ void dot_prod_f16_f32_kernel(half *a, half *b, half *y, int mask) {
-  int tid = threadIdx.x;
-  int block_offset = NUM_THREADS * blockIdx.x ;
-
-
 }
