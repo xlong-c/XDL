@@ -5,6 +5,7 @@
 #include <__clang_cuda_builtin_vars.h>
 #include <__clang_cuda_runtime_wrapper.h>
 #include <cmath>
+#include <vector_types.h>
 #define WARP_SIZE 32
 #define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
 
@@ -59,4 +60,36 @@ __device__ float block_reduce_sum_f32(float val) {
   if (lane == 0)
     smem[warp] = value;
   __syncthreads();
+  value = (lane < NumWarps) ? smem[lane] : 0.0f;
+  value = warp_reduce_sum_f32<WARP_SIZE>(value);
+  value = __shfl_sync(0xffffffff, value, 0, 32);
+  return value;
+}
+
+template <const int NumThreadsPerBlock>
+__device__ float block_reduce_max_f32(float val) {
+  constexpr int NumWarps = (NumThreadsPerBlock + WARP_SIZE - 1) / WARP_SIZE;
+  int warp = threadIdx.x / WARP_SIZE;
+  int lane = threadIdx.x % WARP_SIZE;
+  static __shared__ float smem[NumWarps];
+  float value = warp_reduce_max_f32<WARP_SIZE>(val);
+  if (lane == 0)
+    smem[warp] = value;
+  __syncthreads();
+  value = (lane < NumWarps) ? smem[lane] : 0.0f;
+  value = warp_reduce_max_f32<WARP_SIZE>(value);
+  value = __shfl_sync(0xffffffff, value, 0, 32);
+  return value;
+}
+
+template <const int NumThreadsPerBlock = 256 / 4>
+__global__ void softmax_f32_per_token_kernel(float *x, float *y, int N) {
+  const int tid = threadIdx.x;
+  const int idx = blockIdx.x * NumThreadsPerBlock + tid;
+
+  float exp_val = (idx < N) ? expf(x[idx]) : 0.0f;
+  float exp_sum = block_reduce_sum_f32<NumThreadsPerBlock>(exp_val);
+
+  if (idx < N)
+    y[idx] = exp_val / exp_sum;
 }
