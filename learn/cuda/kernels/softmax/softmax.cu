@@ -4,6 +4,7 @@
 #include "cuda_runtime.h"
 #include <__clang_cuda_builtin_vars.h>
 #include <__clang_cuda_runtime_wrapper.h>
+#include <cfloat>
 #include <cmath>
 #include <vector_types.h>
 #define WARP_SIZE 32
@@ -82,7 +83,7 @@ __device__ float block_reduce_max_f32(float val) {
   return value;
 }
 
-template <const int NumThreadsPerBlock = 256 / 4>
+template <const int NumThreadsPerBlock = 256>
 __global__ void softmax_f32_per_token_kernel(float *x, float *y, int N) {
   const int tid = threadIdx.x;
   const int idx = blockIdx.x * NumThreadsPerBlock + tid;
@@ -92,4 +93,41 @@ __global__ void softmax_f32_per_token_kernel(float *x, float *y, int N) {
 
   if (idx < N)
     y[idx] = exp_val / exp_sum;
+}
+
+template <const int NumThreadsPerBlock = 256 / 4>
+__global__ void softmax_f32x4_per_token_kernel(float *x, float *y, int N) {
+  const int tid = threadIdx.x;
+  const int idx = (blockIdx.x * NumThreadsPerBlock + tid) * 4;
+  if (idx >= N - 3)
+    return;
+  float4 reg_x = LDST128BITS(x[idx]);
+  float4 reg_exp;
+  reg_exp.x = (idx + 0 < N) ? expf(reg_x.x) : 0.0f;
+  reg_exp.y = (idx + 1 < N) ? expf(reg_x.y) : 0.0f;
+  reg_exp.z = (idx + 2 < N) ? expf(reg_x.z) : 0.0f;
+  reg_exp.w = (idx + 3 < N) ? expf(reg_x.w) : 0.0f;
+
+  float exp_val = reg_exp.x + reg_exp.y + reg_exp.z + reg_exp.w;
+  float exp_sum = block_reduce_sum_f32<NumThreadsPerBlock>(exp_val);
+  if (idx < N - 3) {
+    float4 reg_y;
+    reg_y.x = reg_exp.x / exp_sum;
+    reg_y.y = reg_exp.y / exp_sum;
+    reg_y.z = reg_exp.z / exp_sum;
+    reg_y.w = reg_exp.w / exp_sum;
+
+    LDST128BITS(y[idx]) = reg_y;
+  }
+}
+template <const int NumThreadsPerBlock = 256 / 4>
+__global__ void safe_softmax_f32x4_per_token_kernel(float *x, float *y, int N) {
+  const int tid = threadIdx.x;
+  const int idx = (blockIdx.x * NumThreadsPerBlock + tid) * 4;
+  if (idx >= N - 3)
+    return;
+  float4 reg_x = LDST128BITS(x[idx]);
+  reg_x.x = (idx + 0 < N) ? reg_x.x : -FLT_MAX;
+
+  float4 reg_exp;
 }
