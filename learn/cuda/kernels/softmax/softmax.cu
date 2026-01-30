@@ -10,6 +10,10 @@
 #define WARP_SIZE 32
 #define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
 
+#ifndef FLT_MAX
+#define FLT_MAX __FLT_MAX__
+#endif
+
 struct __align__(8) MD {
   float m;
   float d;
@@ -120,6 +124,12 @@ __global__ void softmax_f32x4_per_token_kernel(float *x, float *y, int N) {
     LDST128BITS(y[idx]) = reg_y;
   }
 }
+
+// softmax
+//  math format : y = exp(x) / sum(exp(x))
+//  safe softmax
+//  math format : y = exp(x - max(x)) / sum(exp(x - max(x)))
+
 template <const int NumThreadsPerBlock = 256 / 4>
 __global__ void safe_softmax_f32x4_per_token_kernel(float *x, float *y, int N) {
   const int tid = threadIdx.x;
@@ -128,6 +138,37 @@ __global__ void safe_softmax_f32x4_per_token_kernel(float *x, float *y, int N) {
     return;
   float4 reg_x = LDST128BITS(x[idx]);
   reg_x.x = (idx + 0 < N) ? reg_x.x : -FLT_MAX;
+  reg_x.y = (idx + 1 < N) ? reg_x.y : -FLT_MAX;
+  reg_x.z = (idx + 2 < N) ? reg_x.z : -FLT_MAX;
+  reg_x.w = (idx + 3 < N) ? reg_x.w : -FLT_MAX;
+
+  float max_val = fmaxf(reg_x.x, reg_x.y);
+  max_val = fmaxf(max_val, reg_x.z);
+  max_val = fmaxf(max_val, reg_x.w);
+  max_val = block_reduce_max_f32<NumThreadsPerBlock>(max_val);
 
   float4 reg_exp;
+  reg_exp.x = (idx + 0 < N) ? expf(reg_x.x - max_val) : 0.0f;
+  reg_exp.y = (idx + 1 < N) ? expf(reg_x.y - max_val) : 0.0f;
+  reg_exp.z = (idx + 2 < N) ? expf(reg_x.z - max_val) : 0.0f;
+  reg_exp.w = (idx + 3 < N) ? expf(reg_x.w - max_val) : 0.0f;
+  float exp_val = reg_exp.x + reg_exp.y + reg_exp.z + reg_exp.w;
+  float exp_sum = block_reduce_sum_f32<NumThreadsPerBlock>(exp_val);
+
+  if (idx < N - 3) {
+    float4 reg_y;
+    reg_y.x = reg_exp.x / exp_sum;
+    reg_y.y = reg_exp.y / exp_sum;
+    reg_y.z = reg_exp.z / exp_sum;
+    reg_y.w = reg_exp.w / exp_sum;
+    LDST128BITS(y[idx]) = reg_y;
+  }
+}
+
+template <const int NumThreadsPerBlock = 256>
+__global__ void safe_softmax_f16_f32_per_token_kernel(half *x, half *y, int N) {
+  const int tid = threadIdx.x;
+  const int idx = blockIdx.x * NumThreadsPerBlock + tid;
+  float x_val =  __half2float(x[idx]);
+  float y_val = (idx < N) ? expf(x_val) : 0.0f;
 }

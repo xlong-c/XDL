@@ -1,82 +1,190 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-JPG后缀大写转小写工具
-将指定路径下的 .JPG 文件批量重命名为 .jpg
+图片格式转换与重命名工具
+将源文件夹中的所有图片格式转换为 JPG 格式，并保存到目标文件夹。
+支持自动解决重命名冲突，支持删除源文件选项。
+如果原文件已经是 JPG 格式，则直接进行复制/移动操作以保持原图质量。
 """
 
 import sys
+import shutil
 from pathlib import Path
+from PIL import Image
+from tqdm import tqdm
+
+# 支持的源图片格式
+SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif"}
+# 视为已经是 JPG 的格式
+JPG_EXTENSIONS = {".jpg", ".jpeg"}
 
 
-def rename_jpg_to_lowercase(
-    root_path: Path, recursive: bool = False, dry_run: bool = False
+def get_unique_path(directory: Path, filename: str, used_names: set, number_mode: bool = False, number: int = 0) -> Path:
+    """
+    在指定目录中获取唯一的文件路径。
+    如果文件名已存在或在本次运行中已被占用，则添加后缀 _1, _2, ...
+    如果启用 number_mode，则使用数字序号命名 (00001.jpg, 00002.jpg, ...)
+    """
+    suffix = ".jpg"  # 强制目标后缀为 .jpg
+
+    if number_mode:
+        # 数字序号模式: 00001.jpg, 00002.jpg, ...
+        candidate_name = f"{number:05d}{suffix}"
+        candidate = directory / candidate_name
+
+        # 检查文件系统是否存在 OR 本次运行是否已占用
+        if not candidate.exists() and candidate_name not in used_names:
+            used_names.add(candidate_name)
+            return candidate
+
+        # 冲突解决（在数字序号模式下理论上不会发生，但保留此逻辑以防万一）
+        counter = 1
+        while True:
+            candidate_name = f"{number:05d}_{counter}{suffix}"
+            candidate = directory / candidate_name
+            if not candidate.exists() and candidate_name not in used_names:
+                used_names.add(candidate_name)
+                return candidate
+            counter += 1
+    else:
+        # 原始文件名模式
+        name_stem = Path(filename).stem
+
+        # 尝试原始名称
+        candidate_name = f"{name_stem}{suffix}"
+        candidate = directory / candidate_name
+
+        # 检查文件系统是否存在 OR 本次运行是否已占用
+        if not candidate.exists() and candidate_name not in used_names:
+            used_names.add(candidate_name)
+            return candidate
+
+        # 冲突解决
+        counter = 1
+        while True:
+            candidate_name = f"{name_stem}_{counter}{suffix}"
+            candidate = directory / candidate_name
+            if not candidate.exists() and candidate_name not in used_names:
+                used_names.add(candidate_name)
+                return candidate
+            counter += 1
+
+
+def convert_and_rename(
+    source_dir: Path,
+    target_dir: Path,
+    delete_source: bool = False,
+    recursive: bool = False,
+    dry_run: bool = False,
+    number_mode: bool = False,
+    quality: int = 99
 ):
-    """
-    将 .JPG 后缀修改为 .jpg
-    """
-    # 根据是否递归选择匹配模式
-    pattern = "**/*.JPG" if recursive else "*.JPG"
-    jpg_files = list(root_path.glob(pattern))
+    source_dir = Path(source_dir)
+    target_dir = Path(target_dir)
 
-    if not jpg_files:
-        print(f"在 {root_path} 中未找到任何 .JPG 文件")
+    if not source_dir.exists():
+        print(f"错误: 源路径不存在 - {source_dir}")
         return
 
-    print(f"找到 {len(jpg_files)} 个 .JPG 文件")
-    if dry_run:
-        print("--- 预览模式 (不执行实际重命名) ---")
+    # 创建目标文件夹
+    if not dry_run:
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+    # 收集图片文件
+    pattern = "**/*" if recursive else "*"
+    all_files = list(source_dir.glob(pattern))
+    image_files = [
+        f for f in all_files if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+    ]
+
+    # 按文件名排序，确保处理顺序确定
+    image_files.sort(key=lambda x: x.name)
+
+    if not image_files:
+        print(f"在 {source_dir} 中未找到支持的图片文件")
+        return
+
+    print(f"正在处理路径: {source_dir.absolute()}")
+    print(f"目标路径: {target_dir.absolute()}")
+    print(f"找到 {len(image_files)} 个图片文件")
+    print(f"递归模式: {'开启' if recursive else '关闭'}")
+    print(f"删除源文件: {'是' if delete_source else '否'}")
+    print(f"数字序号模式: {'开启' if number_mode else '关闭'}")
+    print(f"模式: {'[预览]' if dry_run else '[实际执行]'}")
+    print("-" * 40)
 
     success_count = 0
-    for file_path in jpg_files:
-        # 构建新的路径，仅修改后缀
-        new_path = file_path.with_suffix(".jpg")
+    fail_count = 0
 
-        # 如果新旧路径完全相同（例如在不区分大小写的文件系统上，且匹配到了本身就是小写的情况，
-        # 但 glob "*.JPG" 通常只匹配大写，除非系统本身不区分）
-        if file_path == new_path:
-            continue
+    # 记录本次运行中目标文件夹已使用的文件名，防止冲突
+    used_names = set()
+    if target_dir.exists():
+        for f in target_dir.glob("*.jpg"):
+            used_names.add(f.name)
 
+    # 使用 tqdm 显示进度
+    for idx, src_path in enumerate(tqdm(image_files, desc="Processing", unit="img"), start=1):
         try:
+            # 确定目标路径 (解决冲突)
+            dest_path = get_unique_path(target_dir, src_path.name, used_names, number_mode=number_mode, number=idx)
+
             if dry_run:
-                print(f"[预览] {file_path.relative_to(root_path)} -> {new_path.name}")
+                action = (
+                    "Copy" if src_path.suffix.lower() in JPG_EXTENSIONS else "Convert"
+                )
+                print(f"[预览] {src_path.name} -> {dest_path.name} ({action})")
                 success_count += 1
+                continue
+
+            # 如果已经是 JPG 格式，直接复制
+            if src_path.suffix.lower() in JPG_EXTENSIONS:
+                # 如果源和目标路径相同（原地处理且文件名没变），则跳过复制
+                if src_path.resolve() != dest_path.resolve():
+                    shutil.copy2(src_path, dest_path)
             else:
-                # 执行重命名
-                file_path.rename(new_path)
-                print(f"✓ {file_path.name} -> {new_path.name}")
-                success_count += 1
+                # 否则执行格式转换
+                with Image.open(src_path) as img:
+                    # 转换为 RGB (处理 RGBA png 等)
+                    rgb_img = img.convert("RGB")
+                    # 保存为 JPG
+                    rgb_img.save(dest_path, quality=quality)
+
+            # 删除源文件 (如果启用且不是同一个文件)
+            if delete_source:
+                if src_path.resolve() != dest_path.resolve():
+                    src_path.unlink()
+
+            success_count += 1
+
         except Exception as e:
-            print(f"✗ 重命名失败: {file_path.name} - {str(e)}")
+            print(f"\n✗ 处理失败: {src_path.name} - {str(e)}")
+            fail_count += 1
 
     print(
-        f"\n处理完成: {'预览' if dry_run else '成功'} {success_count}/{len(jpg_files)} 个文件"
+        f"\n处理完成: {'预览' if dry_run else '成功'} {success_count}/{len(image_files)} 个文件, 失败 {fail_count} 个"
     )
 
 
 def main():
     # === 配置区域 ===
-    target_path = r"/root/autodl-tmp/100hairs/img_r"  # 目标文件夹路径
+    source_path = r"/root/autodl-tmp/data/1203_r/"  # 源图片文件夹路径
+    target_path = r"/root/autodl-tmp/data/1203_r2/"  # 目标文件夹路径
+    delete_source = False  # 处理成功后是否删除源文件
     recursive = False  # 是否递归处理子文件夹
-    dry_run = True  # 预览模式 (True: 只显示不修改, False: 实际重命名)
+    dry_run = False  # 预览模式 (True: 只显示不修改, False: 实际执行)
+    number_mode = True  # 数字序号模式 (True: 重命名为 00001.jpg, 00002.jpg 等, False: 保留原文件名)
+    quality = 99
     # ================
 
-    root_path = Path(target_path)
-
-    if not root_path.exists():
-        print(f"错误: 路径不存在 - {root_path}")
-        sys.exit(1)
-
-    if not root_path.is_dir():
-        print(f"错误: {root_path} 不是一个有效的文件夹")
-        sys.exit(1)
-
-    print(f"正在处理路径: {root_path.absolute()}")
-    print(f"递归模式: {'开启' if recursive else '关闭'}")
-    print(f"模式: {'[预览]' if dry_run else '[实际重命名]'}")
-    print("-" * 40)
-
-    rename_jpg_to_lowercase(root_path, recursive, dry_run)
+    convert_and_rename(
+        source_dir=source_path,
+        target_dir=target_path,
+        delete_source=delete_source,
+        recursive=recursive,
+        dry_run=dry_run,
+        number_mode=number_mode,
+        quality = quality
+    )
 
 
 if __name__ == "__main__":
