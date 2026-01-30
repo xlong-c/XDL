@@ -2,12 +2,28 @@
 # -*- coding: utf-8 -*-
 """
 图片格式转换与重命名工具
-将源文件夹中的所有图片格式转换为 JPG 格式，并保存到目标文件夹。
-支持自动解决重命名冲突，支持删除源文件选项。
-如果原文件已经是 JPG 格式，则直接进行复制/移动操作以保持原图质量。
+
+功能:
+    批量将图片转换为 JPG 格式，并支持自定义命名规则
+
+支持的源格式:
+    JPG, JPEG, PNG, WEBP, BMP, TIFF, TIF
+
+命名模式:
+    1. 数字序号模式: 00001.jpg, 00002.jpg, ...
+    2. 保留原文件名模式: 原文件名.jpg
+
+特性:
+    - 自动解决文件名冲突(自动添加 _1, _2 后缀)
+    - JPG 源文件直接复制/移动(保持原质量)
+    - 支持递归处理子目录
+    - 支持预览模式(dry_run)
+    - 可选处理完成后删除源文件
+
+用法:
+    修改 main() 中的配置参数，直接运行脚本
 """
 
-import sys
 import shutil
 from pathlib import Path
 from PIL import Image
@@ -19,7 +35,13 @@ SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif
 JPG_EXTENSIONS = {".jpg", ".jpeg"}
 
 
-def get_unique_path(directory: Path, filename: str, used_names: set, number_mode: bool = False, number: int = 0) -> Path:
+def get_unique_path(
+    directory: Path,
+    filename: str,
+    used_names: set,
+    number_mode: bool = False,
+    number: int = 0,
+) -> Path:
     """
     在指定目录中获取唯一的文件路径。
     如果文件名已存在或在本次运行中已被占用，则添加后缀 _1, _2, ...
@@ -77,7 +99,7 @@ def convert_and_rename(
     recursive: bool = False,
     dry_run: bool = False,
     number_mode: bool = False,
-    quality: int = 99
+    quality: int = 99,
 ):
     source_dir = Path(source_dir)
     target_dir = Path(target_dir)
@@ -123,10 +145,18 @@ def convert_and_rename(
             used_names.add(f.name)
 
     # 使用 tqdm 显示进度
-    for idx, src_path in enumerate(tqdm(image_files, desc="Processing", unit="img"), start=1):
+    for idx, src_path in enumerate(
+        tqdm(image_files, desc="Processing", unit="img"), start=1
+    ):
         try:
             # 确定目标路径 (解决冲突)
-            dest_path = get_unique_path(target_dir, src_path.name, used_names, number_mode=number_mode, number=idx)
+            dest_path = get_unique_path(
+                target_dir,
+                src_path.name,
+                used_names,
+                number_mode=number_mode,
+                number=idx,
+            )
 
             if dry_run:
                 action = (
@@ -183,7 +213,7 @@ def main():
         recursive=recursive,
         dry_run=dry_run,
         number_mode=number_mode,
-        quality = quality
+        quality=quality,
     )
 
 
