@@ -197,8 +197,8 @@ def convert_and_rename(
 
 def main():
     # === 配置区域 ===
-    source_path = r"/root/autodl-tmp/data/1203_r/"  # 源图片文件夹路径
-    target_path = r"/root/autodl-tmp/data/1203_r2/"  # 目标文件夹路径
+    source_path = '/mnt/f/dataset/0128hairs'  # 源图片文件夹路径
+    target_path = '/mnt/f/dataset/0128hairs_jpg'   # 目标文件夹路径
     delete_source = False  # 处理成功后是否删除源文件
     recursive = False  # 是否递归处理子文件夹
     dry_run = False  # 预览模式 (True: 只显示不修改, False: 实际执行)

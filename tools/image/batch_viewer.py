@@ -14,7 +14,7 @@ class BatchImageViewer:
         # Linux/X11 specific: try to maximize
         try:
             self.root.attributes("-zoomed", True)
-        except:
+        except tk.TclError:
             self.root.state("zoomed")
 
         self.image_dir = start_dir
@@ -480,9 +480,6 @@ class BatchImageViewer:
             # Wait, we can find_closest or find_overlapping?
             layout = self.current_batch_layout[i]
             if layout:
-                # Find items at center of cell
-                cx = layout["x"] + layout["w"] / 2
-                cy = layout["y"] + layout["h"] / 2
                 items = self.canvas.find_overlapping(
                     layout["x"],
                     layout["y"],

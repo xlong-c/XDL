@@ -8,9 +8,8 @@
 2. [batch_viewer.py](#batch_viewerpy) - 批量图片查看器
 3. [corpimage.py](#corpimagepy) - 图片裁切工具
 4. [gray_detect.py](#gray_detectpy) - 图片黑白检测工具
-5. [image_select.py](#image_selectpy) - 图片行删除处理器
-6. [nanobanan.py](#nanobananpy) - AI 图像生成工具
-7. [png2jpg.py](#png2jpgpy) - PNG 转 JPG 工具
+5. [nanobanan.py](#nanobananpy) - AI 图像生成工具
+6. [dedup_images.py](#dedup_imagespy) - 图片去重工具
 
 ---
 
@@ -137,28 +136,6 @@ COPY_GRAYSCALE_TO = r"path/to/output"   # 黑白图片复制目标目录
 
 ---
 
-## image_select.py
-
-**功能**: 基于 tkinter 的 GUI 图片行删除处理器
-
-### 核心功能
-- **行删除**: 将图片分为 4 行，可选择性删除任意行
-- **点击删除**: 点击画布上的行区域即可删除该行
-- **按钮删除**: 左侧面板提供按钮删除对应行
-- **缩放控制**: 支持缩放查看细节
-- **进度追踪**: 显示处理进度，自动跳过已处理文件
-
-### 使用场景
-适用于需要将多张图片按行拼接后，删除不需要的行。
-
-### 使用方法
-1. 设置图片文件夹和输出文件夹
-2. 点击"加载图片"
-3. 点击画布或按钮删除不需要的行
-4. 点击"保存并下一张"或按空格键保存
-
----
-
 ## nanobanan.py
 
 **功能**: 调用 AI API 生成图像，支持文生图和图生图
@@ -187,26 +164,33 @@ IMAGE_SIZE = "1k"                       # 图片尺寸
 
 ---
 
-## png2jpg.py
+## dedup_images.py
 
-**功能**: 将 PNG 文件转换为 JPG 格式，支持递归处理
+**功能**: 检测并删除文件夹中的重复图片，支持精确匹配和相似图片检测
 
 ### 核心功能
-- **格式转换**: 将 PNG 转换为 JPG，处理透明通道（白色背景填充）
-- **递归处理**: 支持处理子文件夹中的所有 PNG
-- **文件名过滤**: 支持按文件名关键字过滤
-- **自动删除**: 可选转换成功后删除原 PNG 文件
-- **质量配置**: 可设置输出 JPG 质量
+- **精确匹配**: 使用 MD5/SHA256 哈希检测完全相同的图片
+- **相似图片检测**: 使用感知哈希(pHash)检测相似度高的图片
+- **分阶段处理**: 先按文件大小分组，再计算哈希，提高效率
+- **并行计算**: 使用多线程并行计算哈希值
+- **智能删除**: 支持保留第一个或保留最新修改的文件
+
+### 哈希模式
+| 模式 | 说明 | 适用场景 |
+|------|------|----------|
+| 感知哈希 | 检测视觉相似的图片 | 查找相似但不完全相同的图片 |
+| MD5/SHA256 | 仅检测完全相同的文件 | 查找完全重复的文件 |
 
 ### 使用方法
 修改 `main()` 函数中的配置参数：
 
 ```python
-path = r"/path/to/folder"               # 要处理的文件夹路径
-filter_str = None                       # 文件名过滤字符串
-quality = 99                            # JPG 质量 (1-100)
-delete_original = True                  # 转换成功后删除原文件
-dry_run = False                         # 预览模式
+USE_PERCEPTUAL_HASH = True              # True=感知哈希, False=MD5精确匹配
+folder = "/path/to/images"              # 图片文件夹路径
+delete_duplicates = True                # 是否执行删除操作
+dry_run = False                         # True=仅预览不删除
+keep_latest = False                     # True=保留最新文件, False=保留第一个
+workers = None                          # 并行进程数, None=使用CPU核心数
 ```
 
 ---
@@ -219,9 +203,8 @@ dry_run = False                         # 预览模式
 | batch_viewer.py | 查看工具 | 网格查看 + 选择删除 | ✅ | ✅ |
 | corpimage.py | 编辑工具 | 可视化裁切 | ✅ | ✅ |
 | gray_detect.py | 检测工具 | 黑白图片检测 | ❌ | ✅ |
-| image_select.py | 编辑工具 | 删除图片行 | ✅ | ✅ |
 | nanobanan.py | 生成工具 | AI 图像生成 | ❌ | ❌ |
-| png2jpg.py | 转换工具 | PNG 转 JPG | ❌ | ✅ |
+| dedup_images.py | 检测工具 | 重复图片检测与删除 | ❌ | ✅ |
 
 ## 依赖要求
 
@@ -242,4 +225,4 @@ pip install requests
 
 ---
 
-*文档生成时间: 2025-01-30*
+*文档生成时间: 2026-01-31*

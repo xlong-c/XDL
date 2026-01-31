@@ -1,186 +1,106 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
-文件重命名工具 - 去除下划线连接的文件名中的指定部分
-
-用法示例:
-    # 去掉第1和第4部分，保留第2、3部分（索引从0开始）
-    python rename_files.py /path/to/folder --keep 1 2
-
-    # 预览模式（不实际重命名，只显示会做什么）
-    python rename_files.py /path/to/folder --keep 1 2 --preview
-
-    # 指定文件扩展名
-    python rename_files.py /path/to/folder --keep 1 2 --ext png
+批量重命名文件,按照序号命名,支持前缀
+Usage: python rename_files.py
 """
 
 import os
 import sys
-import argparse
 from pathlib import Path
 
 
-def rename_files(folder_path, keep_indices, extensions=None, preview=False, dry_run=False):
+def get_sorted_files(folder: str) -> list:
+    """获取文件夹中所有文件并按文件名排序"""
+    files = []
+    for item in os.listdir(folder):
+        item_path = os.path.join(folder, item)
+        if os.path.isfile(item_path):
+            files.append(item)
+    return sorted(files)
+
+
+def rename_files(
+    folder: str,
+    prefix: str = "",
+    start: int = 1,
+    digits: int = 5,
+    preview: bool = False,
+):
     """
-    重命名文件夹中的文件
+    将文件夹中的文件按序号重命名
 
     Args:
-        folder_path: 文件夹路径
-        keep_indices: 要保留的部分索引列表（从0开始）
-        extensions: 文件扩展名列表，如 ['png', 'jpg']
-        preview: 是否只预览不执行
-        dry_run: 同preview
+        folder: 目标文件夹路径
+        prefix: 文件名前缀
+        start: 起始序号
+        digits: 序号位数(不足补零)
+        preview: 是否仅预览,不实际重命名
     """
-    folder = Path(folder_path)
+    if not os.path.exists(folder):
+        print(f"错误: 路径不存在: {folder}")
+        sys.exit(1)
 
-    if not folder.exists():
-        print(f"错误: 文件夹 '{folder_path}' 不存在")
-        return
+    if not os.path.isdir(folder):
+        print(f"错误: 不是文件夹: {folder}")
+        sys.exit(1)
 
-    if not folder.is_dir():
-        print(f"错误: '{folder_path}' 不是一个文件夹")
-        return
-
-    # 获取所有文件
-    if extensions:
-        files = []
-        for ext in extensions:
-            files.extend(folder.glob(f"*.{ext}"))
-            files.extend(folder.glob(f"*.{ext.upper()}"))
-    else:
-        files = [f for f in folder.iterdir() if f.is_file()]
+    files = get_sorted_files(folder)
 
     if not files:
-        print(f"在 '{folder_path}' 中没有找到文件")
+        print(f"文件夹为空: {folder}")
         return
 
-    print(f"找到 {len(files)} 个文件")
-    print(f"保留索引: {keep_indices}")
-    print(f"扩展名过滤: {extensions if extensions else '全部'}")
-    print("-" * 80)
+    mode_str = "[预览模式] 将要重命名" if preview else "重命名"
+    print(f"\n{mode_str} {folder} 中的文件:\n")
+
+    rename_plan = []
+    for idx, filename in enumerate(files, start=start):
+        old_path = os.path.join(folder, filename)
+        ext = Path(filename).suffix
+        new_name = (
+            f"{prefix}_{idx:0{digits}d}{ext}" if prefix else f"{idx:0{digits}d}{ext}"
+        )
+        new_path = os.path.join(folder, new_name)
+        rename_plan.append((old_path, new_path, filename, new_name))
+        print(f"  {filename} -> {new_name}")
+
+    print(f"\n共 {len(files)} 个文件")
+
+    if preview:
+        print("[预览完成]")
+        return
+
+    new_names = [new_name for _, _, _, new_name in rename_plan]
+    if len(new_names) != len(set(new_names)):
+        print("错误: 生成的文件名有冲突,请调整参数")
+        sys.exit(1)
+
+    confirm = input(f"\n确认重命名以上 {len(files)} 个文件? (y/n): ")
+    if confirm.lower() != "y":
+        print("已取消")
+        return
 
     success_count = 0
-    skip_count = 0
-    error_count = 0
-
-    for file_path in files:
+    for old_path, new_path, old_name, new_name in rename_plan:
         try:
-            # 分离文件名和扩展名
-            stem = file_path.stem  # 不带扩展名的文件名
-            ext = file_path.suffix  # 扩展名（包含点）
-
-            # 用下划线分割
-            parts = stem.split('_')
-
-            # 检查是否有足够的部分
-            if len(parts) < max(keep_indices) + 1:
-                print(
-                    f"跳过: {file_path.name} (部分数不足: {len(parts)} < {max(keep_indices) + 1})")
-                skip_count += 1
-                continue
-
-            # 保留指定的部分
-            new_parts = [parts[i] for i in keep_indices if i < len(parts)]
-            new_name = '_'.join(new_parts) + ext
-
-            # 检查新文件名是否与旧文件名相同
-            if new_name == file_path.name:
-                print(f"跳过: {file_path.name} (文件名未改变)")
-                skip_count += 1
-                continue
-
-            # 构建新路径
-            new_path = file_path.parent / new_name
-
-            # 检查目标文件是否已存在
-            if new_path.exists() and new_path != file_path:
-                print(f"警告: {new_name} 已存在，跳过 {file_path.name}")
-                skip_count += 1
-                continue
-
-            # 显示重命名信息
-            if preview or dry_run:
-                print(f"重命名: {file_path.name} -> {new_name}")
-            else:
-                # 实际重命名
-                file_path.rename(new_path)
-                print(f"✓ {file_path.name} -> {new_name}")
-
+            os.rename(old_path, new_path)
+            print(f"已重命名: {old_name} -> {new_name}")
             success_count += 1
-
         except Exception as e:
-            print(f"✗ 错误处理 {file_path.name}: {str(e)}")
-            error_count += 1
+            print(f"重命名失败 {old_name}: {e}")
 
-    print("-" * 80)
-    print(f"完成! 成功: {success_count}, 跳过: {skip_count}, 错误: {error_count}")
+    print(f"\n完成! 共重命名 {success_count}/{len(files)} 个文件")
 
-    if preview or dry_run:
-        print("[预览模式] 使用 --no-preview 来实际执行重命名")
 
-#  python tools/dataset/rename_files.py F:\dataset\10hair\bimg --keep 1 2 --preview
 def main():
-    parser = argparse.ArgumentParser(
-        description="重命名文件 - 去除下划线连接的文件名中的指定部分",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-示例:
-  # 去掉第1和第4部分，保留第2、3部分（索引从0开始）
-  %(prog)s /path/to/folder --keep 1 2
-
-  # 预览模式（不实际重命名）
-  %(prog)s /path/to/folder --keep 1 2 --preview
-
-  # 只处理PNG文件
-  %(prog)s /path/to/folder --keep 1 2 --ext png
-
-  # 处理多种文件类型
-  %(prog)s /path/to/folder --keep 1 2 --ext png jpg jpeg
-
-注意: 索引从0开始，所以 --keep 1 2 表示保留第2和第3部分
-        """
-    )
-
-    parser.add_argument(
-        "folder",
-        help="要处理的文件夹路径"
-    )
-
-    parser.add_argument(
-        "--keep",
-        type=int,
-        nargs="+",
-        required=True,
-        help="要保留的部分索引（从0开始），例如: --keep 1 2 表示保留第2和第3部分"
-    )
-
-    parser.add_argument(
-        "--ext",
-        nargs="+",
-        help="文件扩展名过滤，例如: --ext png jpg"
-    )
-
-    parser.add_argument(
-        "--preview",
-        action="store_true",
-        help="预览模式，不实际重命名文件"
-    )
-
-    parser.add_argument(
-        "--no-preview",
-        action="store_true",
-        help="实际执行重命名（取消预览模式）"
-    )
-
-    args = parser.parse_args()
-
-    # 默认使用预览模式，除非指定 --no-preview
-    preview = not args.no_preview
+    folder = "/mnt" + "/f/dataset/data_hq/12yue_02_crop_highquanti"
+    prefix = "1202"
+    start_num = 1
+    digits_num = 6
+    preview_mode = False
 
     rename_files(
-        args.folder,
-        args.keep,
-        extensions=args.ext,
-        preview=preview
+        folder, prefix=prefix, start=start_num, digits=digits_num, preview=preview_mode
     )
 
 
