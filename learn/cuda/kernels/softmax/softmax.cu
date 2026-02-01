@@ -39,7 +39,7 @@ __device__ __forceinline__ MD warp_reduce_md_op(MD value) {
 template <const int kWarpSize = WARP_SIZE>
 __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 #pragma unroll
-  for (int stride = kWarpSize >> 1; stride > 1; stride >>= 1) {
+  for (int stride = kWarpSize >> 1; stride >= 1; stride >>= 1) {
     val += __shfl_xor_sync(0xffffffff, val, stride);
   }
   return val;
@@ -48,7 +48,7 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 template <const int kWarpSize = WARP_SIZE>
 __device__ __forceinline__ float warp_reduce_max_f32(float val) {
 #pragma unroll
-  for (int stride = kWarpSize >> 1; stride > 1; stride >>= 1) {
+  for (int stride = kWarpSize >> 1; stride >= 1; stride >>= 1) {
     float other = __shfl_xor_sync(0xffffffff, val, stride);
     val = fmaxf(val, other);
   }
@@ -169,6 +169,10 @@ template <const int NumThreadsPerBlock = 256>
 __global__ void safe_softmax_f16_f32_per_token_kernel(half *x, half *y, int N) {
   const int tid = threadIdx.x;
   const int idx = blockIdx.x * NumThreadsPerBlock + tid;
-  float x_val =  __half2float(x[idx]);
-  float y_val = (idx < N) ? expf(x_val) : 0.0f;
+  float x_val = __half2float(x[idx]);
+  float max_val = block_reduce_max_f32<NumThreadsPerBlock>(x_val);
+  float exp_val = (idx < N) ? expf(x_val - max_val) : 0.0f;
+  float exp_sum = block_reduce_sum_f32<NumThreadsPerBlock>(exp_val);
+  if (idx < N)
+    y[idx] = __float2half(exp_val / exp_sum);
 }
