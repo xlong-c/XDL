@@ -197,12 +197,12 @@ def convert_and_rename(
 
 def main():
     # === 配置区域 ===
-    source_path = '/mnt/f/dataset/0128hairs'  # 源图片文件夹路径
-    target_path = '/mnt/f/dataset/0128hairs_jpg'   # 目标文件夹路径
+    source_path = "/mnt/f/dataset/data_hq/clein_0128_sp2"  # 源图片文件夹路径
+    target_path = "/mnt/f/dataset/data_hq/clein_0128_sp2_jpg"  # 目标文件夹路径
     delete_source = False  # 处理成功后是否删除源文件
     recursive = False  # 是否递归处理子文件夹
     dry_run = False  # 预览模式 (True: 只显示不修改, False: 实际执行)
-    number_mode = True  # 数字序号模式 (True: 重命名为 00001.jpg, 00002.jpg 等, False: 保留原文件名)
+    number_mode = False  # 数字序号模式 (True: 重命名为 00001.jpg, 00002.jpg 等, False: 保留原文件名)
     quality = 99
     # ================
 

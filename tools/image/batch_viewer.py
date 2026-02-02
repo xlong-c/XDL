@@ -1,4 +1,42 @@
 #!/usr/bin/env python3
+"""
+批量图片查看器 (Batch Image Viewer)
+
+功能说明:
+    基于 tkinter 的 GUI 批量图片查看器,支持网格布局和选择删除。
+    适用于快速浏览大量图片并进行筛选删除的场景。
+
+核心功能:
+    - 网格布局显示: 可配置列数,自动计算行数以填充屏幕
+    - 图片选择: 点击选择/取消选择,红色 X 标记已选图片
+    - 批量删除: 支持删除选中的图片文件
+    - 缩放控制: 通过列数调整实现缩放(列数越少,图片越大)
+    - 翻页浏览: 支持上一页/下一页,可跳转到指定索引
+
+快捷键:
+    ← (左箭头)  - 上一页
+    → (右箭头)  - 下一页
+    ↑ (上箭头)  - 放大(减少列数)
+    ↓ (下箭头)  - 缩小(增加列数)
+    Delete       - 删除选中的图片
+    Escape       - 退出程序
+
+使用方法:
+    修改脚本底部的 start_dir 和 aspect_ratio 参数:
+
+    app = BatchImageViewer(
+        root,
+        start_dir="/path/to/images",  # 图片文件夹路径
+        aspect_ratio=4/1              # 图片显示比例
+    )
+
+依赖:
+    - tkinter (Python 标准库)
+    - Pillow (PIL)
+
+作者: xdl 项目
+"""
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
@@ -26,12 +64,17 @@ class BatchImageViewer:
         self.deleted_in_this_batch_count = 0  # Track deletions to adjust pagination
 
         # Layout settings
-
-        # Layout settings
-        self.cols = 5  # Initial columns
-        self.rows = 4  # Initial rows (calculated or fixed?) - we will calculate rows to fit screen or fixed
+        self.cols = 2  # Initial columns
+        self.rows = 2  # Initial rows (calculated or fixed?) - we will calculate rows to fit screen or fixed
         # Let's define zoom level by number of columns.
         # Rows will be determined to fill screen vertically.
+
+        self.slice_enabled = True
+        self.slice_indices = [2, 3]
+        self.slice_parts = 4
+
+        self.pad_x = 0
+        self.pad_y = 0
 
         self.images_cache = []  # Keep references to PhotoImages to prevent garbage collection
 
@@ -130,6 +173,56 @@ class BatchImageViewer:
         )
         self.btn_zoom_in.pack(side=tk.RIGHT, padx=10, pady=10)
 
+        tk.Label(self.controls_frame, text="Slice:", bg="gray90").pack(
+            side=tk.LEFT, padx=(20, 5)
+        )
+        self.slice_var = tk.StringVar(value="2,3")
+        self.slice_entry = tk.Entry(
+            self.controls_frame, width=8, textvariable=self.slice_var
+        )
+        self.slice_entry.pack(side=tk.LEFT, padx=5)
+        self.slice_entry.bind("<Return>", lambda e: self.on_slice_change())
+
+        tk.Label(self.controls_frame, text="PadX:", bg="gray90").pack(
+            side=tk.LEFT, padx=(20, 5)
+        )
+        self.pad_x_var = tk.StringVar(value=str(self.pad_x))
+        self.pad_x_entry = tk.Entry(
+            self.controls_frame, width=4, textvariable=self.pad_x_var
+        )
+        self.pad_x_entry.pack(side=tk.LEFT, padx=5)
+        self.pad_x_entry.bind("<Return>", lambda e: self.on_pad_change())
+
+        tk.Label(self.controls_frame, text="PadY:", bg="gray90").pack(
+            side=tk.LEFT, padx=(10, 5)
+        )
+        self.pad_y_var = tk.StringVar(value=str(self.pad_y))
+        self.pad_y_entry = tk.Entry(
+            self.controls_frame, width=4, textvariable=self.pad_y_var
+        )
+        self.pad_y_entry.pack(side=tk.LEFT, padx=5)
+        self.pad_y_entry.bind("<Return>", lambda e: self.on_pad_change())
+
+        tk.Label(self.controls_frame, text="Ratio:", bg="gray90").pack(
+            side=tk.LEFT, padx=(20, 5)
+        )
+        self.ratio_var = tk.StringVar(value="4")
+        self.ratio_entry = tk.Entry(
+            self.controls_frame, width=6, textvariable=self.ratio_var
+        )
+        self.ratio_entry.pack(side=tk.LEFT, padx=5)
+        self.ratio_entry.bind("<Return>", lambda e: self.on_ratio_change())
+
+        tk.Label(self.controls_frame, text="BG:", bg="gray90").pack(
+            side=tk.LEFT, padx=(20, 5)
+        )
+        self.bg_color_var = tk.StringVar(value="#000000")
+        self.bg_color_entry = tk.Entry(
+            self.controls_frame, width=8, textvariable=self.bg_color_var
+        )
+        self.bg_color_entry.pack(side=tk.LEFT, padx=5)
+        self.bg_color_entry.bind("<Return>", lambda e: self.on_bg_color_change())
+
         # Handle window resize
         self.canvas.bind("<Configure>", self.on_resize)
 
@@ -183,29 +276,29 @@ class BatchImageViewer:
             return
 
         self.canvas.delete("all")
-        self.images_cache = []  # Clear cache
-        self.current_batch_layout = []  # Reset layout info
+        self.images_cache = []
+        self.current_batch_layout = []
         self.deleted_in_this_batch_count = 0
 
         canvas_w = self.canvas.winfo_width()
         canvas_h = self.canvas.winfo_height()
 
-        # ... (keep existing checks and layout calculation)
-
-        # Wait for layout if too small (init)
         if canvas_w < 100:
             self.root.after(100, self.display_batch)
             return
 
-        # Calculate Grid
-        # Zero padding to maximize space
-        pad = 0
+        num_slices = len(self.slice_indices) if self.slice_enabled else 1
 
-        # Effective width per cell
-        self.cell_w = (canvas_w - (self.cols + 1) * pad) / self.cols
-        self.cell_h = (canvas_h - (self.rows + 1) * pad) / self.rows
+        effective_cols = (
+            self.cols * self.slice_parts // num_slices
+            if self.slice_enabled
+            else self.cols
+        )
 
-        batch_size = self.cols * self.rows
+        self.cell_w = (canvas_w - (effective_cols + 1) * self.pad_x) / effective_cols
+        self.cell_h = (canvas_h - (self.rows + 1) * self.pad_y) / self.rows
+
+        batch_size = effective_cols * self.rows
 
         start_idx = self.current_batch_start
         end_idx = min(start_idx + batch_size, len(self.image_paths))
@@ -213,33 +306,46 @@ class BatchImageViewer:
         self.current_batch_paths = self.image_paths[start_idx:end_idx]
 
         for i, img_path in enumerate(self.current_batch_paths):
-            row = i // self.cols
-            col = i % self.cols
+            row = i // effective_cols
+            col = i % effective_cols
 
-            x = pad + col * (self.cell_w + pad)
-            y = pad + row * (self.cell_h + pad)
+            x = self.pad_x + col * (self.cell_w + self.pad_x)
+            y = self.pad_y + row * (self.cell_h + self.pad_y)
 
-            # Load and Resize Image
             try:
                 pil_img = Image.open(img_path)
 
-                # Smart resize: fit within cell_w x cell_h while maintaining aspect ratio
-                # Use thumbnail for speed and aspect ratio preservation
+                if self.slice_enabled and num_slices > 0:
+                    img_width, img_height = pil_img.size
+                    slice_width = img_width // self.slice_parts
+                    slices = []
+                    for slice_idx in self.slice_indices:
+                        idx = slice_idx - 1
+                        left = idx * slice_width
+                        right = left + slice_width
+                        slices.append(pil_img.crop((left, 0, right, img_height)))
+                    if slices:
+                        total_width = sum(s.width for s in slices)
+                        max_height = max(s.height for s in slices)
+                        pil_img = Image.new("RGB", (total_width, max_height))
+                        x_offset = 0
+                        for s in slices:
+                            pil_img.paste(s, (x_offset, 0))
+                            x_offset += s.width
+
                 pil_img.thumbnail(
                     (int(self.cell_w), int(self.cell_h)), Image.Resampling.LANCZOS
                 )
 
                 tk_img = ImageTk.PhotoImage(pil_img)
-                self.images_cache.append(tk_img)  # Keep ref
+                self.images_cache.append(tk_img)
 
-                # Center in cell
                 img_w = tk_img.width()
                 img_h = tk_img.height()
 
                 off_x = (self.cell_w - img_w) / 2
                 off_y = (self.cell_h - img_h) / 2
 
-                # Store layout for fast updates
                 self.current_batch_layout.append(
                     {
                         "path": img_path,
@@ -250,29 +356,31 @@ class BatchImageViewer:
                     }
                 )
 
-                # Draw image
                 self.canvas.create_image(
                     x + off_x, y + off_y, anchor=tk.NW, image=tk_img
                 )
 
-                # Visual feedback for selection: Red X on top
                 if img_path in self.selected_images:
                     self.draw_selection_overlay(i)
 
-                # Optional: Add filename text below? Might clutter.
-
             except Exception as e:
                 print(f"Error loading {img_path}: {e}")
-                # Placeholder in layout to keep indices aligned
                 self.current_batch_layout.append(None)
 
-        # Update Status
+        actual_displayed = min(batch_size, len(self.image_paths) - start_idx)
         self.lbl_status.config(
-            text=f"{start_idx + 1}-{end_idx} / {len(self.image_paths)}"
+            text=f"{start_idx + 1}-{start_idx + actual_displayed} / {len(self.image_paths)} (cols:{effective_cols})"
+        )
+
+    def get_effective_cols(self):
+        num_slices = len(self.slice_indices) if self.slice_enabled else 1
+        return (
+            self.cols * self.slice_parts // num_slices
+            if self.slice_enabled
+            else self.cols
         )
 
     def next_batch(self):
-        # Check for pending selections
         if self.selected_images:
             if messagebox.askyesno(
                 "Confirm Deletion",
@@ -280,41 +388,28 @@ class BatchImageViewer:
             ):
                 self.delete_selected(confirm=False)
             else:
-                # If no, clear selection? Or keep?
-                # Usually if moving page, selection on previous page might be lost or confusing.
-                # Let's clear it to be safe.
                 self.selected_images.clear()
-                self.display_batch()  # Refresh to remove red Xs
-                return  # display_batch resets things, but we want to move next.
-                # Actually, if user says NO, we should probably just unselect and move on.
+                self.display_batch()
+                return
 
-        # Re-check selection clearing if needed, but for now let's proceed.
-        # If we just called display_batch above, we are still on same page.
-        # So correct flow:
-        # 1. Ask. 2. Delete or Clear. 3. Calculate step. 4. Move.
-
-        if self.selected_images:  # User said No (and delete_selected wasn't called)
+        if self.selected_images:
             self.selected_images.clear()
 
-        batch_size = self.cols * self.rows
+        effective_cols = self.get_effective_cols()
+        batch_size = effective_cols * self.rows
         step = batch_size - self.deleted_in_this_batch_count
 
         if self.current_batch_start + step < len(self.image_paths):
             self.current_batch_start += step
             self.display_batch()
         elif self.deleted_in_this_batch_count > 0 and len(self.image_paths) > 0:
-            # Case where we deleted items, and we are at the end, but maybe we need to refresh to fill?
-            # Or just stay?
-            # If we are at end, but list shrunk, ensure we are valid.
             if self.current_batch_start >= len(self.image_paths):
                 self.current_batch_start = max(0, len(self.image_paths) - batch_size)
             self.display_batch()
-        else:
-            # Optionally loop? Or just stop.
-            pass
 
     def prev_batch(self):
-        batch_size = self.cols * self.rows
+        effective_cols = self.get_effective_cols()
+        batch_size = effective_cols * self.rows
         if self.current_batch_start > 0:
             self.current_batch_start = max(0, self.current_batch_start - batch_size)
             self.display_batch()
@@ -325,23 +420,17 @@ class BatchImageViewer:
             if not val:
                 return
             idx = int(val)
-            # Adjust 1-based index to 0-based
             idx = idx - 1
             if 0 <= idx < len(self.image_paths):
-                # Snap to start of a batch page?
-                # Actually, user probably just wants to see that image.
-                # Let's just set start to that index, or page alignment.
-                # Page alignment is cleaner.
-                batch_size = self.cols * self.rows
+                effective_cols = self.get_effective_cols()
+                batch_size = effective_cols * self.rows
 
-                # Align to nearest page start
                 page_start = (idx // batch_size) * batch_size
 
                 self.current_batch_start = page_start
                 self.display_batch()
 
-                # Maybe clear entry or keep it? Keep it.
-                self.canvas.focus_set()  # Return focus to canvas for keys
+                self.canvas.focus_set()
             else:
                 messagebox.showwarning(
                     "Invalid Index",
@@ -372,7 +461,6 @@ class BatchImageViewer:
             self.display_batch()
 
     def update_grid_dims(self):
-        # Recalculate ideal rows for current cols to fill screen
         canvas_w = self.canvas.winfo_width()
         canvas_h = self.canvas.winfo_height()
         if canvas_w <= 0:
@@ -381,8 +469,53 @@ class BatchImageViewer:
         cell_w = canvas_w / self.cols
         cell_h = cell_w / self.aspect_ratio
 
-        # Calculate how many rows fit
         self.rows = max(1, int(canvas_h / cell_h))
+
+    def on_slice_change(self):
+        try:
+            slice_str = self.slice_var.get()
+            indices = []
+            for part in slice_str.split(","):
+                idx = int(part.strip())
+                if 1 <= idx <= self.slice_parts:
+                    indices.append(idx)
+            if indices:
+                self.slice_indices = sorted(set(indices))
+                self.display_batch()
+        except ValueError:
+            pass
+
+    def on_pad_change(self):
+        try:
+            new_pad_x = int(self.pad_x_var.get())
+            new_pad_y = int(self.pad_y_var.get())
+            self.pad_x = max(0, new_pad_x)
+            self.pad_y = max(0, new_pad_y)
+            self.display_batch()
+        except ValueError:
+            pass
+
+    def on_ratio_change(self):
+        try:
+            ratio_str = self.ratio_var.get()
+            if "/" in ratio_str:
+                parts = ratio_str.split("/")
+                self.aspect_ratio = float(parts[0]) / float(parts[1])
+            else:
+                self.aspect_ratio = float(ratio_str)
+            self.update_grid_dims()
+            self.display_batch()
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    def on_bg_color_change(self):
+        color = self.bg_color_var.get()
+        if len(color) == 7 and color.startswith("#"):
+            try:
+                int(color[1:], 16)
+                self.canvas.config(bg=color)
+            except ValueError:
+                pass
 
     def draw_selection_overlay(self, index):
         if index >= len(self.current_batch_layout):
@@ -411,7 +544,14 @@ class BatchImageViewer:
         col = int(event.x / self.cell_w)
         row = int(event.y / self.cell_h)
 
-        index = row * self.cols + col
+        num_slices = len(self.slice_indices) if self.slice_enabled else 1
+        effective_cols = (
+            self.cols * self.slice_parts // num_slices
+            if self.slice_enabled
+            else self.cols
+        )
+
+        index = row * effective_cols + col
 
         if 0 <= index < len(self.current_batch_paths):
             img_path = self.current_batch_paths[index]
@@ -506,7 +646,5 @@ if __name__ == "__main__":
     root = tk.Tk()
     # Default to current directory if not provided
     # app = BatchImageViewer(root, start_dir="/mnt/f/dataset/1203_clein")
-    app = BatchImageViewer(
-        root, start_dir="/mnt/f/dataset/1203_clein", aspect_ratio=4 / 1
-    )
+    app = BatchImageViewer(root, start_dir="./", aspect_ratio=4 / 1)
     root.mainloop()
