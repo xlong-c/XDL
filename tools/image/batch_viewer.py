@@ -228,6 +228,7 @@ class BatchImageViewer:
 
         # Handle canvas click for selection
         self.canvas.bind("<Button-1>", self.on_canvas_click)
+        self.canvas.bind("<Button-3>", lambda e: self.next_batch())
 
     def load_images_from_dir(self, directory):
         self.image_dir = directory
@@ -382,15 +383,7 @@ class BatchImageViewer:
 
     def next_batch(self):
         if self.selected_images:
-            if messagebox.askyesno(
-                "Confirm Deletion",
-                f"Delete {len(self.selected_images)} selected images?",
-            ):
-                self.delete_selected(confirm=False)
-            else:
-                self.selected_images.clear()
-                self.display_batch()
-                return
+            self.delete_selected(confirm=False)
 
         if self.selected_images:
             self.selected_images.clear()
@@ -575,15 +568,9 @@ class BatchImageViewer:
 
     def delete_selected(self, confirm=True):
         if not self.selected_images:
-            if confirm:
-                messagebox.showinfo("Info", "No images selected.")
             return
 
         count = len(self.selected_images)
-        if confirm:
-            if not messagebox.askyesno("Confirm", f"Delete {count} images?"):
-                return
-
         deleted_count = 0
         indices_to_clear = []
 
