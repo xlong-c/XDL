@@ -1,6 +1,15 @@
 import torch
 from torch import nn
 
+def path_win2wsl(win_path: str) -> str:
+    if not win_path:
+        return win_path
+    win_path = win_path.strip()
+    if len(win_path) >= 2 and win_path[1] == ":":
+        drive = win_path[0].lower()
+        rest = win_path[2:].replace("\\", "/")
+        return f"/mnt/{drive}{rest}"
+    return win_path
 
 def count_trainable_parameters(model: nn.Module) -> int:
     """

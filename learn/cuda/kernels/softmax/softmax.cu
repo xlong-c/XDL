@@ -224,5 +224,6 @@ template <const int NumThreadsPerBlock = 256>
 __global__ void safe_softmax_f16x8_f32_per_token_kernel(half *x, half *y,
                                                         int N) {
   const int tid = threadIdx.x;
-  const int idx = blockIdx.x * NumThreadsPerBlock + threadIdx.x;
+  const int idx = (blockIdx.x * NumThreadsPerBlock + threadIdx.x)*8;
+  
 }
