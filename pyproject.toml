@@ -42,6 +42,7 @@ cv = [
     "opencv-python>=4.5.0",
     "albumentations>=1.0.0",
     "matplotlib>=3.5.0",
+    "scikit-image>=0.19.0",
 ]
 
 # 实验管理和日志
