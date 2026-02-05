@@ -6,6 +6,7 @@
 #include <__clang_cuda_runtime_wrapper.h>
 #include <cfloat>
 #include <cmath>
+#include <mutex>
 #include <vector_types.h>
 #define WARP_SIZE 32
 #define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
@@ -224,6 +225,34 @@ template <const int NumThreadsPerBlock = 256>
 __global__ void safe_softmax_f16x8_f32_per_token_kernel(half *x, half *y,
                                                         int N) {
   const int tid = threadIdx.x;
-  const int idx = (blockIdx.x * NumThreadsPerBlock + threadIdx.x)*8;
-  
+  const int idx = (blockIdx.x * NumThreadsPerBlock + threadIdx.x) * 8;
+  half reg[8];
+  LDST128BITS(reg) = LDST128BITS(x[idx]);
+  float max_val = -FLT_MAX;
+#pragma unroll
+  for (int i = 0; i < 8; i++) {
+    max_val = fmaxf(max_val, __half2float(reg[i]));
+  }
+  max_val = block_reduce_max_f32<NumThreadsPerBlock>(max_val);
+
+  float exp_sum = 0.0f;
+#pragma unroll
+  for (int i = 0; i < 8; i++) {
+    float exp_val = expf(__half2float(reg[i]) - max_val);
+    exp_sum += exp_val;
+    reg[i] = __float2half(exp_val);
+  }
+  exp_sum = block_reduce_sum_f32<NumThreadsPerBlock>(exp_sum);
+
+#pragma unroll
+  for (int i = 0; i < 8; i++) {
+    reg[i] = __float2half(__half2float(reg[i]) / exp_sum);
+  }
+  if ((idx + 7) < N)
+    LDST128BITS(y[idx]) = LDST128BITS(reg);
+}
+
+template <int NumThreadsPerBlock>
+__global__ void online_safe_softmax_f32_per_token_kernel(const float *x, float *y, int N){
+
 }
