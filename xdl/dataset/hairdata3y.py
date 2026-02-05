@@ -1,52 +1,56 @@
-import csv
-import os
-import random
-
-import albumentations as A
+# -*- coding: utf-8 -*-
 import cv2
-import torchvision.transforms as transforms
+import albumentations as A
 from torch.utils.data import Dataset
+import torchvision.transforms as transforms
+import os
+import csv
+import random
+from xdl.utils import path_win2wsl
 
 
 class GridImageDataset(Dataset):
     """
-    一个从CSV索引加载图像的数据集类, 从网格中提取特定部分。
+    一个从目录列表加载图像的数据集类，从网格中提取特定部分。
     固定为1行3列格式。
-    每张小图像大小为1024x1024, 网格宽度固定为3072px。
-    第1列是target image, 第2列是ref image, 第3列是source image。
+    每张小图像大小为512x512，网格宽度固定为1536px。
+    第1列是target image，第2列是ref image，第3列是source image。
     返回source、target、refer三张图像。
 
     Args:
-        csv_file: CSV文件路径, 包含图像文件列表
-        base_dir: 图像基础目录
+        dir_list: 目录列表，如 [dir_a, dir_b]，包含图像文件
     """
 
-    def __init__(self, csv_file, base_dir=""):
-        self.csv_file = csv_file
-        self.base_dir = base_dir
+    def __init__(self, dir_list):
+        self.dir_list = dir_list
 
-        # Load image paths from CSV
+        # 从目录列表中加载所有图像文件
         self.image_paths = []
-        with open(csv_file, encoding="utf-8") as f:
-            reader = csv.reader(f)
-            # 跳过表头行
-            next(reader)
-            for row in reader:
-                if row:  # Skip empty rows
-                    self.image_paths.append(os.path.join(base_dir, row[0]))
+        for dir_path in dir_list:
+            if not os.path.exists(dir_path):
+                print(f"警告: 目录不存在: {dir_path}")
+                continue
 
-        # 网格配置: 3列(固定), 1行
+            for root, _, files in os.walk(dir_path):
+                for file in files:
+                    if file.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
+                        self.image_paths.append(os.path.join(root, file))
+
+        if not self.image_paths:
+            raise ValueError(f"在目录列表 {dir_list} 中未找到任何图像文件")
+
+        # 网格配置: 3列（固定），1行
         self.grid_cols = 3
         self.grid_rows = 1  # 固定为1行
-        self.tile_width = 1024  # 小图像宽度
-        self.tile_height = 1024  # 小图像高度
-        self.image_width = self.tile_width * self.grid_cols  # 3072
+        self.tile_width = 512  # 小图像宽度 (从1024改为512)
+        self.tile_height = 512  # 小图像高度 (从1024改为512)
+        self.image_width = self.tile_width * self.grid_cols  # 1536 (从3072改为1536)
 
         # 定义数据增强变换
         self.norm = transforms.Normalize([0.5], [0.5])
         self.to_tensor = transforms.ToTensor()
         prob = 0.7
-        # Source和target的增强变换(简化版)
+        # Source和target的增强变换（简化版）
         self.pixel_transform = A.Compose(
             [
                 A.SmallestMaxSize(max_size=512),
@@ -68,7 +72,7 @@ class GridImageDataset(Dataset):
             additional_targets={"image0": "image"},
         )
 
-        # Refer图像的增强变换(简化版)
+        # Refer图像的增强变换（简化版）
         self.hair_transform = A.Compose(
             [
                 A.SmallestMaxSize(max_size=512),
@@ -77,24 +81,24 @@ class GridImageDataset(Dataset):
             ]
         )
 
-        print(f"Loaded {len(self.image_paths)} images from {csv_file}")
+        print(f"Loaded {len(self.image_paths)} images from directories: {dir_list}")
 
     def refer_imgaug(self, image):
-        """对refer图像应用变换"""
-        # 裁剪1024x1024部分
-        image = image[:1024, :1024]
+        image = image[:512, :512]
         image = cv2.resize(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), [512, 512])
         results = self.hair_transform(image=image)
         image = self.norm(self.to_tensor(results["image"] / 255.0))
         return image
 
     def imgaug(self, source_image, target_image):
-        """对source和target图像应用变换"""
-        # 裁剪1024x1024部分
-        source_image = source_image[:1024, :1024]
-        target_image = target_image[:1024, :1024]
-        source_image = cv2.resize(cv2.cvtColor(source_image, cv2.COLOR_BGR2RGB), [512, 512])
-        target_image = cv2.resize(cv2.cvtColor(target_image, cv2.COLOR_BGR2RGB), [512, 512])
+        source_image = source_image[:512, :512]
+        target_image = target_image[:512, :512]
+        source_image = cv2.resize(
+            cv2.cvtColor(source_image, cv2.COLOR_BGR2RGB), [512, 512]
+        )
+        target_image = cv2.resize(
+            cv2.cvtColor(target_image, cv2.COLOR_BGR2RGB), [512, 512]
+        )
         results = self.pixel_transform(image=source_image, image0=target_image)
         source_image, target_image = (
             self.norm(self.to_tensor(results["image"] / 255.0)),
@@ -113,21 +117,21 @@ class GridImageDataset(Dataset):
         if img_total is None:
             raise ValueError(f"无法加载图像: {image_path}")
 
-        # 固定1行格式, 设置裁剪区域
+        # 固定1行格式，设置裁剪区域
         top = 0
-        bottom = self.tile_height  # 1024
+        bottom = self.tile_height
 
-        # 提取target图像(第1列, 索引0)
+        # 提取target图像（第1列，索引0）
         left_target = 0 * self.tile_width
         right_target = left_target + self.tile_width
         target_image = img_total[top:bottom, left_target:right_target]
 
-        # 提取refer图像(第2列, 索引1)
+        # 提取refer图像（第2列，索引1）
         left_refer = 1 * self.tile_width
         right_refer = left_refer + self.tile_width
         refer_image = img_total[top:bottom, left_refer:right_refer]
 
-        # 提取source图像(第3列, 索引2)
+        # 提取source图像（第3列，索引2）
         left_source = 2 * self.tile_width
         right_source = left_source + self.tile_width
         source_image = img_total[top:bottom, left_source:right_source]
@@ -144,35 +148,40 @@ class GridImageDataset(Dataset):
         return batch
 
     @staticmethod
-    def get_image_paths_from_csv(csv_file, base_dir="/root/autodl-tmp"):
-        """
-        从CSV文件获取图像路径
-        """
+    def get_image_paths_from_dirs(dir_list):
         image_paths = []
-        with open(csv_file, encoding="utf-8") as f:
-            reader = csv.reader(f)
-            # 跳过表头行
-            next(reader)
-            for row in reader:
-                if row:  # Skip empty rows
-                    image_paths.append(os.path.join(base_dir, row[0]))
+        for dir_path in dir_list:
+            if not os.path.exists(dir_path):
+                print(f"警告: 目录不存在: {dir_path}")
+                continue
+
+            for root, _, files in os.walk(dir_path):
+                for file in files:
+                    if file.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
+                        image_paths.append(os.path.join(root, file))
         return image_paths
 
 
 if __name__ == "__main__":
     # 创建数据集实例
-    dset = GridImageDataset(r"F:\1203b.csv", r"F:")
+
+    dset = GridImageDataset(
+        [
+            path_win2wsl(r"F:\dataset\select_clein_lq_r"),
+            # r'F:\dataset\concat_output2'
+        ]
+    )
 
     # 随机选择一个样本进行展示
     import random
-
     import matplotlib.pyplot as plt
+    import numpy as np
 
     # 随机选择一个索引
     sample_idx = random.randint(0, len(dset) - 1)
-    print(f"\n正在展示第 {sample_idx} 个样本(共 {len(dset)} 个样本)")
-    print("数据格式：1行3列, 每张图像1024x1024像素")
-    print("列顺序：第1列=target, 第2列=ref, 第3列=source")
+    print(f"\n正在展示第 {sample_idx} 个样本（共 {len(dset)} 个样本）")
+    print("数据格式：1行3列，每张图像512x512像素")
+    print("列顺序：第1列=target，第2列=ref，第3列=source")
 
     # 获取样本
     sample = dset[0]
@@ -218,6 +227,11 @@ if __name__ == "__main__":
     axes[2].axis("off")
 
     plt.tight_layout()
-    plt.show()
+    
+    output_path = "dataset_sample_visualization.png"
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"\n样本可视化已保存到: {output_path}")
+    
+    plt.close()
 
     print("\n样本展示完成！")

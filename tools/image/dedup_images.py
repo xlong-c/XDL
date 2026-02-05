@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import sys
 import hashlib
 import re
@@ -7,8 +6,6 @@ from pathlib import Path
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Tuple, Optional
-from multiprocessing import Pool, cpu_count
-from functools import partial
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".webp"}
 
@@ -26,6 +23,7 @@ def path_win2wsl(win_path: str) -> str:
 
 try:
     from PIL import Image
+
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
@@ -35,6 +33,7 @@ except ImportError:
 try:
     from skimage.metrics import structural_similarity as ssim
     import numpy as np
+
     HAS_SSIM = True
 except ImportError as e:
     HAS_SSIM = False
@@ -152,12 +151,15 @@ def size_then_name_key(f: Path):
     return (-size, natural_name_key(f))
 
 
-def compute_hashes_parallel(files: List[Path], hash_method: str, workers: int) -> Dict[Path, str]:
+def compute_hashes_parallel(
+    files: List[Path], hash_method: str, workers: int
+) -> Dict[Path, str]:
     results = {}
 
     if hash_method == "perceptual" and HAS_PIL:
         hash_func = compute_perceptual_hash
     else:
+
         def hash_func(file_path):
             return compute_file_hash(file_path, hash_method)
 
@@ -187,12 +189,16 @@ def group_by_size(images: List[Path]) -> Dict[int, List[Path]]:
     }
 
     duplicate_count = sum(len(files) for files in potential_duplicates.values())
-    print(f"  发现 {len(potential_duplicates)} 个大小组包含 {duplicate_count} 个潜在重复文件")
+    print(
+        f"  发现 {len(potential_duplicates)} 个大小组包含 {duplicate_count} 个潜在重复文件"
+    )
 
     return potential_duplicates
 
 
-def group_by_hash(files: List[Path], hash_method: str, workers: int) -> Dict[str, List[Path]]:
+def group_by_hash(
+    files: List[Path], hash_method: str, workers: int
+) -> Dict[str, List[Path]]:
     file_hashes = compute_hashes_parallel(files, hash_method, workers)
 
     hash_groups = defaultdict(list)
@@ -203,10 +209,7 @@ def group_by_hash(files: List[Path], hash_method: str, workers: int) -> Dict[str
 
 
 def find_similar_images_ssim(
-    files: List[Path],
-    ssim_threshold: float,
-    sort_by: str,
-    workers: int
+    files: List[Path], ssim_threshold: float, sort_by: str, workers: int
 ) -> List[List[Path]]:
     if not HAS_PIL or not HAS_SSIM:
         print("  警告: PIL或scikit-image未安装,无法使用SSIM")
@@ -217,12 +220,12 @@ def find_similar_images_ssim(
 
     if sort_by == "name":
         sorted_files = sorted(files, key=natural_name_key)
-        print(f"  排序方式: 按文件名(自然排序)")
+        print("  排序方式: 按文件名(自然排序)")
     else:
         sorted_files = sorted(files, key=size_then_name_key)
-        print(f"  排序方式: 按文件大小(降序)")
+        print("  排序方式: 按文件大小(降序)")
 
-    print(f"  并行加载 {len(sorted_files)} 张图片...")
+    print("  并行加载 {len(sorted_files)} 张图片...")
     with ThreadPoolExecutor(max_workers=workers) as executor:
         future_to_file = {executor.submit(load_and_resize, f): f for f in sorted_files}
         loaded_images = {}
@@ -279,11 +282,7 @@ def find_similar_images_ssim(
 
 
 def find_similar_images_perceptual(
-    files: List[Path],
-    threshold: int,
-    sort_by: str,
-    batch_size: int,
-    workers: int
+    files: List[Path], threshold: int, sort_by: str, batch_size: int, workers: int
 ) -> List[List[Path]]:
     if not HAS_PIL:
         print("  警告: PIL未安装,无法使用感知哈希")
@@ -308,7 +307,9 @@ def find_similar_images_perceptual(
         end_idx = min(start_idx + batch_size, total_files)
         batch_files = sorted_files[start_idx:end_idx]
 
-        print(f"\n  批次 {batch_idx + 1}/{total_batches}: 处理 {len(batch_files)} 张图片")
+        print(
+            f"\n  批次 {batch_idx + 1}/{total_batches}: 处理 {len(batch_files)} 张图片"
+        )
 
         if len(batch_files) < 2:
             continue
@@ -359,7 +360,7 @@ def find_duplicates(
     recursive: bool,
     sort_by: str,
     batch_size: int,
-    workers: int
+    workers: int,
 ) -> List[List[Path]]:
     print(f"\n{'=' * 60}")
     print(f"扫描文件夹: {folder_path}")
@@ -394,7 +395,10 @@ def find_duplicates(
         print("\n[阶段2/3] 计算文件哈希值(流式处理)...")
         total_groups = len(size_groups)
         for idx, (size, files_in_group) in enumerate(size_groups.items(), 1):
-            print(f"  处理组 {idx}/{total_groups} (大小: {size:,} bytes, 文件数: {len(files_in_group)})", end="\r")
+            print(
+                f"  处理组 {idx}/{total_groups} (大小: {size:,} bytes, 文件数: {len(files_in_group)})",
+                end="\r",
+            )
             hash_groups = group_by_hash(files_in_group, hash_method, workers)
             for hash_value, file_list in hash_groups.items():
                 if len(file_list) > 1:
@@ -421,7 +425,7 @@ def preview_duplicates(
     hash_method: str,
     similarity_threshold: int,
     sort_by: str,
-    preview_limit: int = 10
+    preview_limit: int = 10,
 ) -> bool:
     if not duplicates:
         print("\n未发现重复图片!")
@@ -436,7 +440,9 @@ def preview_duplicates(
         print(f"\n[操作: 重复图片检测和清理]")
         print(f"  源: {folder_path}")
         print(f"  到: {folder_path}")
-        print(f"  参数: hash={hash_method}, threshold={similarity_threshold}, sort={sort_by}")
+        print(
+            f"  参数: hash={hash_method}, threshold={similarity_threshold}, sort={sort_by}"
+        )
         print(f"  文件数: {len(group)} 个, 大小: {format_size(group_size)}")
         for j, file_path in enumerate(group):
             status = "保留" if j == 0 else "删除"
