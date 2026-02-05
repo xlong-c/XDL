@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 from functools import partial
@@ -88,7 +87,7 @@ def _process_single(src: Path, dst: Path, scale: float, quality: int = 100):
 
 def _process_worker(args, scale, quality, keep_structure):
     """多进程工作函数"""
-    idx, (rel, src), output_path = args
+    _idx, (rel, src), output_path = args
     try:
         if keep_structure:
             dst = output_path / rel
@@ -118,12 +117,12 @@ def process_files(input_path: Path, output_path: Path, scale: float,
         print("=" * 80)
         print(f"预览模式 (共 {len(files)} 个文件, 显示前 {preview_limit} 个):")
         print("=" * 80)
-        for idx, (rel, src) in enumerate(files[:preview_limit], start=1):
+        for _idx, (rel, src) in enumerate(files[:preview_limit], start=1):
             if keep_structure:
                 dst = output_path / rel
             else:
                 dst = output_path / rel
-            print(f"\n[操作: 切割(4)->重组(3,2,4)->缩放]")
+            print("\n[操作: 切割(4)->重组(3,2,4)->缩放]")
             print(f"  源: {src}")
             print(f"  到: {dst}")
             print(f"  参数: scale={scale}, quality={quality}")
@@ -164,7 +163,7 @@ def process_files(input_path: Path, output_path: Path, scale: float,
     if failed_files:
         log_path = output_path / "_process_failed.log"
         with open(log_path, "w", encoding="utf-8") as f:
-            f.write(f"# 处理失败记录\n")
+            f.write("# 处理失败记录\n")
             f.write(f"# 总计: {fail} 个文件失败\n\n")
             for name, error in failed_files:
                 f.write(f"{name}: {error}\n")

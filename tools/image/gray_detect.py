@@ -179,7 +179,7 @@ def main():
         # 保存结果
         if OUTPUT_FILE:
             with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-                f.write(f"文件名,是否黑白,平均差异值\n")
+                f.write("文件名,是否黑白,平均差异值\n")
                 status_text = "是" if is_grayscale else "否"
                 f.write(f"{os.path.basename(input_source)},{status_text},{avg_diff:.6f}\n")
             print(f"结果已保存到: {OUTPUT_FILE}")

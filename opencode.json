@@ -1,0 +1,67 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "oh-my-opencode"
+  ],
+  "provider": {
+    "yunwu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "YunWu AI",
+      "options": {
+        "baseURL": "https://yunwu.ai/v1",
+        "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
+      },
+      "models": {
+        "gpt-5.2": {
+          "name": "GPT-5.2",
+          "limit": {
+            "context": 128000,
+            "output": 16384
+          }
+        },
+        "grok-4.1": {
+          "name": "Grok 4.1",
+          "limit": {
+            "context": 128000,
+            "output": 16384
+          }
+        }
+      }
+    },
+    "yunwu-claude": {
+      "npm": "@ai-sdk/anthropic",
+      "name": "YunWu Claude",
+      "options": {
+        "baseURL": "https://yunwu.ai/v1",
+        "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
+      },
+      "models": {
+        "claude-sonnet-4-5-20250929": {
+          "name": "Claude Sonnet 4.5",
+          "limit": {
+            "context": 200000,
+            "output": 65536
+          }
+        }
+      }
+    },
+    "yunwu-gemini": {
+      "npm": "@ai-sdk/google",
+      "name": "YunWu Gemini",
+      "options": {
+        "baseURL": "https://yunwu.ai/v1beta",
+        "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
+      },
+      "models": {
+        "gemini-3-flash-preview": {
+          "name": "Gemini 3 Flash Preview",
+          "limit": {
+            "context": 1000000,
+            "output": 8192
+          }
+        }
+      }
+    }
+  },
+  "model": "yunwu/gpt-5.2"
+}

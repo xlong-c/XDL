@@ -1,8 +1,6 @@
 import os
 import tarfile
-import shutil
 from huggingface_hub import hf_hub_download
-from tqdm import tqdm
 
 # ================= 配置 =================
 # 在这里填入你的 Hugging Face Token (或者在终端运行 huggingface-cli login)
@@ -43,7 +41,7 @@ def setup_imagenet_val():
     print("正在整理目录结构 (ImageFolder 格式)...")
     
     # 下载类别映射文件
-    mapping_url = "https://raw.githubusercontent.com/soumith/imagenetloader.torch/master/valprep.sh"
+    # mapping_url = "https://raw.githubusercontent.com/soumith/imagenetloader.torch/master/valprep.sh"
     # 由于 Windows 不支持 .sh，我们直接内置映射关系或使用处理逻辑
     # 这里我们采用一个简单的方法：从 HF 下载 metadata 并移动文件
     
@@ -65,10 +63,10 @@ def organize_val_folder(val_dir):
     
     # 这里我们使用一个常用的技巧：ImageNet 验证集图片的顺序是固定的
     # 我们可以从网络下载 label 映射
-    import requests
+    # import requests
     
     # 下载经典的 val 映射
-    res = requests.get("https://raw.githubusercontent.com/pytorch/examples/main/imagenet/extract_ILSVRC.sh")
+    # res = requests.get("https://raw.githubusercontent.com/pytorch/examples/main/imagenet/extract_ILSVRC.sh")
     # ... 这种方式在 Windows 下较复杂
     
     print("提示: 验证集已下载并解压到 ./data/imagenet/val")

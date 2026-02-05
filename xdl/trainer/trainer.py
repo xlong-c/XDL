@@ -14,7 +14,7 @@ import torch
 if TYPE_CHECKING:
     from accelerate import Accelerator
 # Accelerate 支持
-from accelerate import Accelerator
+from accelerate import Accelerator, FullyShardedDataParallelPlugin
 from torch.utils.data import DataLoader
 
 from xdl.callbacks import Callback
@@ -45,6 +45,7 @@ class Trainer:
         grad_clip_norm_type: 梯度裁剪范数类型
         callbacks: 回调函数列表
         accelerate_config: Accelerate 配置
+        fsdp: FSDP 版本 (None, 1, 或 2)
     """
 
     def __init__(
@@ -58,6 +59,7 @@ class Trainer:
         callbacks: Optional[List[Callback]] = None,
         # Accelerate 配置
         accelerate_config: Optional[Dict[str, Any]] = None,
+        fsdp: Optional[int] = None,
     ):
         # 训练参数
         self.max_epochs = max_epochs
@@ -71,6 +73,7 @@ class Trainer:
 
         # Accelerate 配置
         self.accelerate_config = accelerate_config
+        self.fsdp = fsdp
 
         # Type hint for accelerator - will be set during setup
         self._accelerator: Optional[Accelerator] = None
@@ -532,8 +535,31 @@ class Trainer:
 
         # 创建 Accelerator
         # 确保 accelerate_config 不为 None 并且是字典类型
-        config = self.accelerate_config if self.accelerate_config is not None else {}
+        config = self.accelerate_config.copy() if self.accelerate_config is not None else {}
         
+        # 处理 FSDP 配置
+        if self.fsdp is not None:
+            if self.fsdp == 1:
+                if "fsdp_plugin" not in config:
+                    config["fsdp_plugin"] = FullyShardedDataParallelPlugin(
+                        sharding_strategy="FULL_SHARD",
+                        auto_wrap_policy=None,
+                        use_orig_params=True,
+                    )
+            elif self.fsdp == 2:
+                if "fsdp_plugin" not in config:
+                    config["fsdp_plugin"] = FullyShardedDataParallelPlugin(
+                        fsdp_version=2,
+                        reshard_after_forward=True,
+                    )
+                elif isinstance(config["fsdp_plugin"], dict):
+                    # 如果是字典配置, 转化为插件对象并强制设置 FSDP2
+                    fsdp_dict = config["fsdp_plugin"]
+                    fsdp_dict["fsdp_version"] = 2
+                    if "reshard_after_forward" not in fsdp_dict:
+                        fsdp_dict["reshard_after_forward"] = True
+                    config["fsdp_plugin"] = FullyShardedDataParallelPlugin(**fsdp_dict)
+
         # 如果 Trainer 初始化时指定了 precision, 覆盖 config 中的 mixed_precision
         if self.precision is not None:
             precision_map = {

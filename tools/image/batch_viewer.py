@@ -570,7 +570,6 @@ class BatchImageViewer:
         if not self.selected_images:
             return
 
-        count = len(self.selected_images)
         deleted_count = 0
         indices_to_clear = []
 

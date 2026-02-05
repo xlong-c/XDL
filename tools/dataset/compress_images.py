@@ -112,7 +112,7 @@ def process_files(
             new_width = int(width * scale)
             new_height = int(height * scale)
             
-            print(f"\n[操作: 图像压缩]")
+            print("\n[操作: 图像压缩]")
             print(f"  源: {src}")
             print(f"  尺寸: {width}x{height}")
             print(f"  到: {dst}")
@@ -167,7 +167,7 @@ def process_files(
     
     if total_size_before > 0:
         compression_ratio = total_size_after / total_size_before
-        print(f"\n压缩统计:")
+        print("\n压缩统计:")
         print(f"  原始总大小: {total_size_before:,} bytes ({total_size_before/1024/1024:.2f} MB)")
         print(f"  压缩后大小: {total_size_after:,} bytes ({total_size_after/1024/1024:.2f} MB)")
         print(f"  压缩比例: {compression_ratio:.1%}")
@@ -176,7 +176,7 @@ def process_files(
     if failed_files:
         log_path = output_path / "_compress_failed.log"
         with open(log_path, "w", encoding="utf-8") as f:
-            f.write(f"# 压缩失败记录\n")
+            f.write("# 压缩失败记录\n")
             f.write(f"# 总计: {fail} 个文件失败\n\n")
             for name, error in failed_files:
                 f.write(f"{name}: {error}\n")

@@ -245,7 +245,7 @@ def find_similar_images_ssim(
     similar_groups = []
     current_group = [sorted_files[0]]
 
-    print(f"  已加载完成,开始比较...")
+    print("  已加载完成,开始比较...")
     for i in range(1, len(sorted_files)):
         current_file = sorted_files[i]
         current_img = loaded_images[current_file]
@@ -293,10 +293,10 @@ def find_similar_images_perceptual(
 
     if sort_by == "name":
         sorted_files = sorted(files, key=natural_name_key)
-        print(f"  排序方式: 按文件名(自然排序)")
+        print("  排序方式: 按文件名(自然排序)")
     else:
         sorted_files = sorted(files, key=size_then_name_key)
-        print(f"  排序方式: 按文件大小(降序)")
+        print("  排序方式: 按文件大小(降序)")
 
     total_files = len(sorted_files)
     total_batches = (total_files + batch_size - 1) // batch_size
@@ -314,7 +314,7 @@ def find_similar_images_perceptual(
         if len(batch_files) < 2:
             continue
 
-        print(f"    计算哈希...")
+        print("    计算哈希...")
         file_hashes = compute_hashes_parallel(batch_files, "perceptual", workers)
 
         if len(file_hashes) < 2:
@@ -437,7 +437,7 @@ def preview_duplicates(
 
     for i, group in enumerate(duplicates[:preview_limit], 1):
         group_size = get_file_size(group[0])
-        print(f"\n[操作: 重复图片检测和清理]")
+        print("\n[操作: 重复图片检测和清理]")
         print(f"  源: {folder_path}")
         print(f"  到: {folder_path}")
         print(
@@ -552,7 +552,7 @@ def remove_duplicates(
     if failed_files and output_path:
         log_path = output_path / "_delete_failed.log"
         with open(log_path, "w", encoding="utf-8") as f:
-            f.write(f"# 删除失败记录\n")
+            f.write("# 删除失败记录\n")
             f.write(f"# 总计: {len(failed_files)} 个文件失败\n\n")
             for name, error in failed_files:
                 f.write(f"{name}: {error}\n")
