@@ -4,6 +4,24 @@
     "oh-my-opencode"
   ],
   "provider": {
+    "myprovider": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "volcengine",
+      "options": {
+        "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3",
+        "apiKey": "28591040-c0ac-448f-a8e8-85402cc747fe"
+      },
+      "models": {
+        "kimi-k2.5": {
+          "name": "kimi-k2.5",
+          "options": {
+            "thinking": {
+              "type": "enabled"
+            }
+          }
+        }
+      }
+    },
     "yunwu": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "YunWu AI",
@@ -62,6 +80,5 @@
         }
       }
     }
-  },
-  "model": "yunwu/gpt-5.2"
+  }
 }
