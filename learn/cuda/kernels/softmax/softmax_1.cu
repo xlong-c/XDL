@@ -2,10 +2,9 @@
 // #include "cuda_bf16.h"
 #include "cuda_fp16.h"
 #include "cuda_runtime.h"
+#include "math.h"
+#include "stdio.h"
 #include <cfloat>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
 #include <string>
 #include <vector_types.h>
 #define WARP_SIZE 32
@@ -500,7 +499,10 @@ int main() {
   };
 
   printf("%-40s %10s  %12s\n", "Kernel", "Time(ms)", "Max Error");
-  printf("%s\n", std::string(65, '-').c_str());
+  char dashes[66];
+  memset(dashes, '-', 65);
+  dashes[65] = '\0';
+  printf("%s\n", dashes);
 
   // Benchmark f32 kernels
   benchmark_f32_kernel("softmax_f32_per_token",
@@ -531,7 +533,9 @@ int main() {
       (void *)online_safe_softmax_f16x8_f32_per_token_kernel<256>,
       num_blocks_f16x8, 256);
 
-  printf("%s\n", std::string(65, '-').c_str());
+  memset(dashes, '-', 65);
+  dashes[65] = '\0';
+  printf("%s\n", dashes);
 
   // Cleanup
   cudaEventDestroy(start);
