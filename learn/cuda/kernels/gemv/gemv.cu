@@ -22,7 +22,7 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 // A: MxK B: Kx1 C: Mx1
 __global__ void sgemv_k32_f32_kernel(float *A, float *B, float *C, int M, int N,
                                      int K) {
-  int tx = threadIdx.x; 
+  int tx = threadIdx.x;
   int ty = threadIdx.y;
   int bx = blockIdx.x;
   int lane = tx % WARP_SIZE;
