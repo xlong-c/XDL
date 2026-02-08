@@ -3,6 +3,7 @@
 #include "cuda_bf16.h"
 #include "cuda_fp16.h"
 #include "cuda_runtime.h"
+#include <__clang_cuda_builtin_vars.h>
 #include <__clang_cuda_runtime_wrapper.h>
 #include <vector_types.h>
 
@@ -40,4 +41,19 @@ __global__ void sgemv_k32_f32_kernel(float *A, float *B, float *C, int M, int N,
   sum = warp_reduce_sum_f32(sum);
   if (lane == 0)
     C[m] = sum;
+}
+
+__global__ void sgmv_k128_f32x4_kernel(float *a, float *x, float *y, int M,
+                                       int K) {
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int bx = blockIdx.x;
+  int lane = tx % WARP_SIZE;
+  int m = bx * blockDim.y + ty;
+
+  if (m < M) {
+    float sum = 0.0f;
+    int NUM_WARPS = (((K + WARP_SIZE - 1) / WARP_SIZE) + 4 - 1) / 4;
+    
+  }
 }
