@@ -4,7 +4,7 @@
     "oh-my-opencode"
   ],
   "provider": {
-    "myprovider": {
+    "volcengine": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "volcengine",
       "options": {
@@ -19,6 +19,19 @@
               "type": "enabled"
             }
           }
+        }
+      }
+    },
+    "loncat": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LongCat",
+      "options": {
+        "baseURL": "https://api.longcat.chat/openai",
+        "apiKey": "ak_1tI4pc35T2Jf7Rp6Fh25O5eJ2fJ5j"
+      },
+      "models": {
+        "LongCat-Flash-Lite": {
+          "name": "LongCat Flash Lite"
         }
       }
     },
@@ -39,6 +52,13 @@
         },
         "grok-4.1": {
           "name": "Grok 4.1",
+          "limit": {
+            "context": 128000,
+            "output": 16384
+          }
+        },
+        "grok-4-1-fast-reasoning": {
+          "name": "grok-4-1-fast-reasoning",
           "limit": {
             "context": 128000,
             "output": 16384
