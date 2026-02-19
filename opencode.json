@@ -74,10 +74,10 @@
         "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
       },
       "models": {
-        "claude-sonnet-4-5-20250929": {
-          "name": "Claude Sonnet 4.5",
+        "claude-sonnet-4-6": {
+          "name": "Claude Sonnet 4.6",
           "limit": {
-            "context": 200000,
+            "context": 1000000,
             "output": 65536
           }
         }
