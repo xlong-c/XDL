@@ -6,13 +6,10 @@
 此文件整合了所有训练器相关的类和功能
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-# Conditional imports for type checking
-if TYPE_CHECKING:
-    from accelerate import Accelerator
 # Accelerate 支持
 from accelerate import Accelerator, FullyShardedDataParallelPlugin
 from torch.utils.data import DataLoader
