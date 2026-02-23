@@ -35,9 +35,12 @@
                     "name": "Qwen3 Coder Next"
                 },
                 "kimi-k2.5": {
-                    "name": "kimi-k2.5",
-                    "thinking": {
-                        "type": "enabled"
+                    "name": "kimi k2.5 bailian",
+                    "options": {
+                        "thinking": {
+                            "type": "enabled",
+                            "budgetTokens": 1024
+                        }
                     }
                 }
             }
