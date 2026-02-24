@@ -36,8 +36,11 @@
                 },
                 "kimi-k2.5": {
                     "name": "kimi-k2.5",
-                    "thinking": {
-                        "type": "enabled"
+                    "options": {
+                        "thinking": {
+                            "type": "enabled",
+                            "budgetTokens": 1024
+                        }
                     }
                 }
             }
