@@ -1,0 +1,60 @@
+# Backbone 方向分析配置
+
+keywords:
+  must_include:
+    - "backbone"
+    - "encoder"
+    - "feature extraction"
+  
+  cnn:
+    - "resnet"
+    - "vgg"
+    - "mobilenet"
+    - "efficientnet"
+    - "convolutional"
+  
+  transformer:
+    - "vit"
+    - "vision transformer"
+    - "swin"
+    - "attention"
+  
+  exclude:
+    - "survey"
+    - "review"
+
+taxonomy:
+  Classic CNN:
+    keywords: 
+      - "resnet"
+      - "vgg"
+      - "densenet"
+    subcategories:
+      Small: ["mobilenet", "shufflenet", "lightweight"]
+      Large: ["resnet-101", "resnet-152", "wide"]
+  
+  Modern Transformer:
+    keywords: 
+      - "vit"
+      - "swin"
+      - "transformer"
+      - "attention"
+    subcategories:
+      Pure Transformer: ["pure transformer", "vision transformer"]
+      Hybrid: ["hybrid", "cnn-transformer", "convolutional attention"]
+  
+  Efficient Backbone:
+    keywords: 
+      - "efficient"
+      - "mobile"
+      - "lightweight"
+    subcategories:
+      NAS: ["nas", "neural architecture search", "automl"]
+      Manual Design: ["manual", "handcrafted", "designed"]
+
+zotero:
+  venue_path: "Journal/TIP/2024/Vol.33"
+  topic_paths:
+    - "Backbone/Classic/CNN"
+    - "Backbone/Modern/Transformer"
+    - "Backbone/Efficient"

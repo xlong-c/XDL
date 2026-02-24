@@ -1,0 +1,90 @@
+# TIP 图像分割专刊分析配置
+
+# 关键词配置
+keywords:
+  must_include:
+    - "segmentation"
+    - "semantic"
+    - "instance"
+    - "panoptic"
+  
+  efficiency:
+    - "efficient"
+    - "mobile"
+    - "edge"
+    - "real-time"
+    - "lightweight"
+  
+  exclude:
+    - "survey"
+    - "review"
+    - "tutorial"
+
+# 细分领域分类
+taxonomy:
+  Semantic Segmentation:
+    keywords: 
+      - "semantic segmentation"
+      - "panoptic segmentation"
+    subcategories:
+      Medical: ["medical", "clinical", "mri", "ct"]
+      Remote Sensing: ["satellite", "aerial", "remote sensing"]
+      Video: ["video", "temporal", "spatiotemporal"]
+      Autonomous Driving: ["autonomous", "driving", "road", "traffic"]
+  
+  Instance Segmentation:
+    keywords: 
+      - "instance segmentation"
+      - "mask r-cnn"
+      - "mask"
+    subcategories: {}
+  
+  Efficient Segmentation:
+    keywords: 
+      - "efficient"
+      - "mobile"
+      - "edge"
+      - "real-time"
+      - "lightweight"
+      - "fast"
+    subcategories:
+      Quantization: ["quantization", "low-bit", "8-bit"]
+      Pruning: ["pruning", "sparse", "sparsity"]
+      Knowledge Distillation: ["distillation", "teacher-student", "kd"]
+  
+  Backbone:
+    keywords: 
+      - "backbone"
+      - "encoder"
+      - "resnet"
+      - "efficientnet"
+      - "feature extraction"
+    subcategories:
+      CNN: ["cnn", "convolutional", "resnet", "mobilenet"]
+      Transformer: ["transformer", "vit", "attention"]
+      Hybrid: ["hybrid", "cnn-transformer"]
+
+# Zotero 目录配置
+zotero:
+  venue_path: "Journal/TIP/2024/Vol.33"
+  topic_paths:
+    - "Segmentation/Semantic"
+    - "Segmentation/Instance"
+    - "Efficient ML"
+    - "Backbone/CNN"
+  
+  auto_tags:
+    - "tip-2024"
+    - "vol-33"
+    - "segmentation"
+
+# 深入分析配置
+analysis:
+  include_comparison_table: true
+  include_timeline: true
+  top_n_recommendations: 10
+  extract_fields:
+    - method
+    - dataset
+    - metrics
+    - code_url
