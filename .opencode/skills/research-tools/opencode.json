@@ -1,0 +1,225 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skill": {
+    "name": "research-tools",
+    "version": "1.0.0",
+    "description": "计算机科学研究工具集 - 零 token 消耗的论文分析、分类、摘要获取和报告生成工具",
+    "author": "XDL Team",
+    "license": "MIT"
+  },
+  "mcp": {
+    "name": "sci-research-mcp",
+    "type": "stdio",
+    "command": "python",
+    "args": ["-m", "skills.mcp_server"],
+    "cwd": "./sci_research",
+    "env": {
+      "PYTHONPATH": "./sci_research"
+    }
+  },
+  "tools": [
+    {
+      "name": "dblp_analyze",
+      "description": "分析 DBLP 期刊/会议页面，按规则自动分类论文到 10+ 计算机科学领域。零 token 消耗，~50 篇/秒。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "DBLP 期刊/会议页面 URL，如 https://dblp.org/db/conf/icml/icml2024.html"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "标题必须包含的关键词列表"
+          },
+          "exclude_keywords": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "标题必须排除的关键词列表"
+          },
+          "min_year": {
+            "type": "integer",
+            "description": "最小年份筛选"
+          },
+          "max_year": {
+            "type": "integer",
+            "description": "最大年份筛选"
+          },
+          "output_format": {
+            "type": "string",
+            "enum": ["markdown", "csv", "json"],
+            "default": "markdown",
+            "description": "输出格式"
+          }
+        },
+        "required": ["url"]
+      }
+    },
+    {
+      "name": "fetch_abstracts",
+      "description": "批量从 Crossref/arXiv API 获取论文摘要，支持缓存和并发请求。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dois": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "DOI 列表"
+          },
+          "arxiv_ids": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "arXiv ID 列表"
+          },
+          "max_workers": {
+            "type": "integer",
+            "default": 5,
+            "description": "并发请求数"
+          },
+          "cache_dir": {
+            "type": "string",
+            "default": "./cache/abstracts",
+            "description": "缓存目录"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "classify_papers",
+      "description": "基于标题和摘要对论文进行精确多标签分类，支持自定义分类体系和子类别。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "papers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "abstract": {"type": "string"},
+                "doi": {"type": "string"}
+              }
+            },
+            "description": "论文列表"
+          },
+          "taxonomy_file": {
+            "type": "string",
+            "description": "分类体系 YAML 文件路径"
+          },
+          "min_score": {
+            "type": "number",
+            "default": 1.0,
+            "description": "最小分数阈值"
+          },
+          "output_dir": {
+            "type": "string",
+            "description": "按类别导出目录"
+          }
+        },
+        "required": ["papers"]
+      }
+    },
+    {
+      "name": "extract_paper_info",
+      "description": "从论文标题和摘要中提取关键信息：方法、数据集、指标、代码链接、贡献点。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "papers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "abstract": {"type": "string"}
+              }
+            },
+            "description": "论文列表"
+          },
+          "group_by": {
+            "type": "string",
+            "enum": ["method", "dataset"],
+            "default": "method",
+            "description": "汇总分组方式"
+          }
+        },
+        "required": ["papers"]
+      }
+    },
+    {
+      "name": "generate_analysis_report",
+      "description": "基于分类和提取结果生成深入分析报告：对比表格、时间线、趋势总结、Top N 推荐。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "papers": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "论文数据列表（含分类和提取信息）"
+          },
+          "top_n": {
+            "type": "integer",
+            "default": 10,
+            "description": "推荐 Top N 数量"
+          },
+          "include_timeline": {
+            "type": "boolean",
+            "default": true,
+            "description": "是否包含时间线分析"
+          },
+          "include_comparison": {
+            "type": "boolean",
+            "default": true,
+            "description": "是否包含对比表格"
+          }
+        },
+        "required": ["papers"]
+      }
+    },
+    {
+      "name": "run_full_workflow",
+      "description": "一键执行完整科研工作流：DBLP 分析 → 摘要获取 → 分类 → 信息提取 → 报告生成 → (可选) Zotero 同步。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dblp_url": {
+            "type": "string",
+            "description": "DBLP 页面 URL"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "筛选关键词"
+          },
+          "exclude_keywords": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "排除关键词"
+          },
+          "output_dir": {
+            "type": "string",
+            "description": "输出目录"
+          },
+          "zotero_sync": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否同步到 Zotero"
+          },
+          "zotero_config": {
+            "type": "object",
+            "properties": {
+              "library_id": {"type": "string"},
+              "api_key": {"type": "string"},
+              "venue_path": {"type": "string"},
+              "topic_paths": {"type": "array", "items": {"type": "string"}}
+            },
+            "description": "Zotero 配置（同步时必需）"
+          }
+        },
+        "required": ["dblp_url"]
+      }
+    }
+  ]
+}

@@ -35,7 +35,7 @@
                     "name": "Qwen3 Coder Next"
                 },
                 "kimi-k2.5": {
-"name": "kimi-k2.5",
+                    "name": "kimi-k2.5",
                     "options": {
                         "thinking": {
                             "type": "enabled",
