@@ -34,6 +34,24 @@
                 "qwen3-coder-next": {
                     "name": "Qwen3 Coder Next"
                 },
+                "glm-5": {
+                    "name": "GLM-5",
+                    "options": {
+                        "thinking": {
+                            "type": "enabled",
+                            "budgetTokens": 1024
+                        }
+                    }
+                },
+                "MiniMax-M2.5": {
+                    "name": "Minimax2.5",
+                    "options": {
+                        "thinking": {
+                            "type": "enabled",
+                            "budgetTokens": 1024
+                        }
+                    }
+                },
                 "kimi-k2.5": {
                     "name": "kimi-k2.5",
                     "options": {
