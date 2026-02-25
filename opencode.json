@@ -1,6 +1,8 @@
 {
     "$schema": "https://opencode.ai/config.json",
-    "plugin": ["oh-my-opencode"],
+    "plugin": [
+        "oh-my-opencode"
+    ],
     "provider": {
         "bailian-coding-plan-test": {
             "npm": "@ai-sdk/anthropic",
@@ -102,24 +104,10 @@
                 "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
             },
             "models": {
-                "gpt-5.2": {
-                    "name": "GPT-5.2",
+                "gpt-5.3-codex-xhigh": {
+                    "name": "GPT-5.3 Codex XHigh",
                     "limit": {
-                        "context": 128000,
-                        "output": 16384
-                    }
-                },
-                "grok-4.1": {
-                    "name": "Grok 4.1",
-                    "limit": {
-                        "context": 128000,
-                        "output": 16384
-                    }
-                },
-                "grok-4-1-fast-reasoning": {
-                    "name": "grok-4-1-fast-reasoning",
-                    "limit": {
-                        "context": 128000,
+                        "context": 1000000,
                         "output": 16384
                     }
                 }
