@@ -4,7 +4,6 @@
 #include "cuda_fp16.h"
 #include "cuda_runtime.h"
 #include <__clang_cuda_builtin_vars.h>
-#include <__clang_cuda_runtime_wrapper.h>
 #include <vector_types.h>
 
 #define WARP_SIZE 32
@@ -45,8 +44,8 @@ __global__ void sgemv_k32_f32_kernel(float *A, float *B, float *C, int M, int N,
 
 __global__ void sgmv_k128_f32x4_kernel(float *a, float *x, float *y, int M,
                                        int K) {
-  int tx = threadIdx.x;
-  int ty = threadIdx.y;
+  int tx = threadIdx.x; // 0~31
+  int ty = threadIdx.y; // 0~3
   int bx = blockIdx.x;
   int lane = tx % WARP_SIZE;
   int m = bx * blockDim.y + ty;
@@ -54,6 +53,16 @@ __global__ void sgmv_k128_f32x4_kernel(float *a, float *x, float *y, int M,
   if (m < M) {
     float sum = 0.0f;
     int NUM_WARPS = (((K + WARP_SIZE - 1) / WARP_SIZE) + 4 - 1) / 4;
-    
+#pragma unroll
+    for (int w = 0; w < NUM_WARPS; w += 4) {
+      int k = m * WARP_SIZE + lane;
+      float4 reg_x = FLOAT4(x[k]);
+      float4 reg_a = FLOAT4(a[m * K + k]);
+      sum += (reg_a.x * reg_x.x + reg_a.y * reg_x.y + reg_a.z * reg_x.z +
+              reg_a.w * reg_x.w);
+    }
+    sum = warp_reduce_sum_f32(sum);
+    if (lane == 0)
+      y[m] = sum;
   }
 }
