@@ -1,0 +1,43 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skill": {
+    "name": "example-skill",
+    "version": "1.0.0",
+    "description": "示例 Skill - 展示如何创建 OpenCode Skill",
+    "author": "XDL Team",
+    "license": "MIT"
+  },
+  "mcp": {
+    "name": "example_skill-mcp",
+    "type": "stdio",
+    "command": "python",
+    "args": [
+      "-m",
+      "example_skill.mcp_server"
+    ],
+    "cwd": "./example_skill",
+    "env": {
+      "PYTHONPATH": "./example_skill"
+    }
+  },
+  "tools": [
+    {
+      "name": "echo",
+      "description": "回显工具 - 返回输入的消息",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "calculate",
+      "description": "计算工具 - 执行简单数学运算",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    }
+  ]
+}
