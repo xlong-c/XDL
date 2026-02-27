@@ -1,10 +1,11 @@
 {
     "$schema": "https://opencode.ai/config.json",
+    "model": "bailian-coding-plan/qwen3.5-p'lu's",
     "plugin": ["oh-my-opencode"],
     "provider": {
-        "bailian-coding-plan-test": {
+        "bailian-coding-plan": {
             "npm": "@ai-sdk/anthropic",
-            "name": "Model Studio Coding Plan",
+            "name": "百炼",
             "options": {
                 "baseURL": "https://coding.dashscope.aliyuncs.com/apps/anthropic/v1",
                 "apiKey": "sk-sp-7f9b0c00b833466bb036ccfdb7462106"
@@ -15,27 +16,34 @@
                     "options": {
                         "thinking": {
                             "type": "enabled",
-                            "budgetTokens": 1024
+                            "budgetTokens": 1000
                         }
                     }
-                },
-                "qwen3-max-2026-01-23": {
-                    "name": "Qwen3 Max 2026-01-23",
-                    "options": {
-                        "thinking": {
-                            "type": "enabled",
-                            "budgetTokens": 1024
-                        }
-                    }
-                },
-                "qwen3-coder-plus": {
-                    "name": "Qwen3 Coder Plus"
-                },
-                "qwen3-coder-next": {
-                    "name": "Qwen3 Coder Next"
                 },
                 "kimi-k2.5": {
                     "name": "kimi-k2.5",
+                    "options": {
+                        "thinking": {
+                            "type": "enabled",
+                            "budgetTokens": 1000
+                        }
+                    }
+                },
+                "MiniMax-M2.5": {
+                    "name": "MiniMax-M2.5",
+                    "options": {
+                        "thinking": {
+                            "type": "enabled",
+                            "budgetTokens": 1000
+                        },
+                        "limit": {
+                            "context": 1000000,
+                            "output": 65536
+                        }
+                    }
+                },
+                "glm-5": {
+                    "name": "GLM5",
                     "options": {
                         "thinking": {
                             "type": "enabled",
@@ -47,7 +55,7 @@
         },
         "volcengine": {
             "npm": "@ai-sdk/openai-compatible",
-            "name": "volcengine",
+            "name": "方舟",
             "options": {
                 "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3",
                 "apiKey": "28591040-c0ac-448f-a8e8-85402cc747fe"
@@ -78,38 +86,30 @@
         },
         "yunwu": {
             "npm": "@ai-sdk/openai-compatible",
-            "name": "YunWu AI",
+            "name": "云雾",
             "options": {
                 "baseURL": "https://yunwu.ai/v1",
                 "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
             },
             "models": {
-                "gpt-5.2": {
-                    "name": "GPT-5.2",
+                "gpt-5.3-codex-xhigh": {
+                    "name": "GPT-5.3 Codex",
                     "limit": {
-                        "context": 128000,
+                        "context": 1000000,
                         "output": 16384
-                    }
-                },
-                "grok-4.1": {
-                    "name": "Grok 4.1",
-                    "limit": {
-                        "context": 128000,
-                        "output": 16384
-                    }
-                },
-                "grok-4-1-fast-reasoning": {
-                    "name": "grok-4-1-fast-reasoning",
-                    "limit": {
-                        "context": 128000,
-                        "output": 16384
+                    },
+                    "options": {
+                        "thinking": {
+                            "type": "enabled",
+                            "budgetTokens": 1000
+                        }
                     }
                 }
             }
         },
         "yunwu-claude": {
             "npm": "@ai-sdk/anthropic",
-            "name": "YunWu Claude",
+            "name": "云雾 Claude",
             "options": {
                 "baseURL": "https://yunwu.ai/v1",
                 "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"

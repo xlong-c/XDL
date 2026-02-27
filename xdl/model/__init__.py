@@ -70,6 +70,7 @@ def _register_models():
 
     # 注册生成模型
     from .generate import TwinFlow
+
     register_model("TwinFlow")(TwinFlow)
 
 
