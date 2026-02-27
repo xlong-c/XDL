@@ -1,6 +1,6 @@
 {
     "$schema": "https://opencode.ai/config.json",
-    "model": "bailian-coding-plan/qwen3.5-p'lu's",
+    "model": "bailian-coding-plan/qwen3.5-plus",
     "plugin": ["oh-my-opencode"],
     "provider": {
         "bailian-coding-plan": {
