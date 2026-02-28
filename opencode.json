@@ -127,14 +127,12 @@
     },
     "mcp": {
         "gitu": {
-            "command": "python",
-            "args": ["-m", "gitu.mcp_server"],
-            "cwd": "./.opencode/skills/gitu",
-            "env": {
-                "PYTHONPATH": "./.opencode/skills/gitu"
+            "type": "local",
+            "command": ["python", "-m", "gitu.mcp_server"],
+            "enabled": true,
+            "environment": {
+                "PYTHONPATH": "/root/workspace/xdl/.opencode/skills/gitu"
             }
-    }
-}
         }
     }
 }

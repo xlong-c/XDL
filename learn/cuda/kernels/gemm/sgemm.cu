@@ -98,3 +98,7 @@ __global__ void sgemm_sliced_k_f32_kernel(float *A, float *B, float *C, int M,
   int store_gmem_c_addr = store_gmem_c_m * N + store_gmem_c_n;
   C[store_gmem_c_addr] = sum;
 }
+
+__global__ void sgemm_kernel(float *A, float *B, float *C, int M, int N, int K, float alpha, float beta) {
+  
+}

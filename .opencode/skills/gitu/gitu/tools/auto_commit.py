@@ -205,10 +205,12 @@ async def auto_commit_tool(args: dict) -> dict:
     1. 检查 Git 仓库状态
     2. 分析代码变更
     3. 生成智能提交描述
-    4. 执行 git add, commit, push
+    4. 执行 git add, commit, push（默认自动推送）
+    
+    默认行为：无需确认，直接执行 add -> commit -> push
     """
     cwd = args.get("cwd", ".")
-    push = args.get("push", True)
+    push = args.get("push", True)  # 默认 True，自动推送到远程
     remote = args.get("remote", "origin")
     branch = args.get("branch", None)  # None 表示当前分支
     

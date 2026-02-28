@@ -22,6 +22,7 @@ class GitUSkillServer:
         self.verbose = verbose
         self.tools = {
             "auto_commit": self.auto_commit,
+            "git_add": self.git_add,
         }
     
     async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -68,7 +69,7 @@ class GitUSkillServer:
         tools = [
             {
                 "name": "auto_commit",
-                "description": "自动分析代码变更，生成智能提交描述，执行 git add、commit 和 push 一键提交推送所有变更",
+                "description": "自动分析代码变更，生成智能提交描述，执行 git add、commit 和 push 一键提交推送所有变更。默认行为：无需确认，直接执行 add -> commit -> push。",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -79,7 +80,7 @@ class GitUSkillServer:
                         },
                         "push": {
                             "type": "boolean",
-                            "description": "是否自动推送到远程仓库",
+                            "description": "是否自动推送到远程仓库（默认 True，自动推送）",
                             "default": True
                         },
                         "remote": {
@@ -90,6 +91,21 @@ class GitUSkillServer:
                         "branch": {
                             "type": "string",
                             "description": "分支名称（默认当前分支）"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "git_add",
+                "description": "执行 git add -A 添加所有变更到暂存区",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "cwd": {
+                            "type": "string",
+                            "description": "工作目录路径（默认当前目录）",
+                            "default": "."
                         }
                     },
                     "required": []
@@ -110,6 +126,30 @@ class GitUSkillServer:
                 "jsonrpc": "2.0",
                 "id": "call",
                 "result": result
+            }
+        except Exception as e:
+            return {
+                "jsonrpc": "2.0",
+                "id": "call",
+                "error": {"message": str(e)}
+            }
+    
+    async def git_add(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """git add 工具入口"""
+        try:
+            from tools.auto_commit import run_git_command
+            cwd = args.get("cwd", ".")
+            stdout, stderr, code = run_git_command(["add", "-A"], cwd)
+            if code != 0:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": "call",
+                    "error": {"message": f"git add 失败：{stderr}"}
+                }
+            return {
+                "jsonrpc": "2.0",
+                "id": "call",
+                "result": {"success": True, "message": "git add 成功"}
             }
         except Exception as e:
             return {
