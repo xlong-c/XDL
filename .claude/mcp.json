@@ -6,6 +6,16 @@
         "-m",
         "gitu.mcp_server"
       ],
+      "cwd": "/root/workspace/xdl/.opencode/skills/gitu/gitu",
+      "env": {
+        "PYTHONPATH": "/root/workspace/xdl/.opencode/skills/gitu"
+      }
+    },
+      "command": "python",
+      "args": [
+        "-m",
+        "gitu.mcp_server"
+      ],
       "cwd": "/root/workspace/xdl/gitu",
       "env": {
         "PYTHONPATH": "/root/workspace/xdl/gitu"
