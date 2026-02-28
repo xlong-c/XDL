@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "gitu": {
+      "command": "python",
+      "args": [
+        "-m",
+        "gitu.mcp_server"
+      ],
+      "cwd": "/root/workspace/xdl/gitu",
+      "env": {
+        "PYTHONPATH": "/root/workspace/xdl/gitu"
+      }
+    },
+    "research-tools": {
+      "command": "python",
+      "args": [
+        "-m",
+        "skills.mcp_server"
+      ],
+      "cwd": "/root/workspace/xdl/sci_research",
+      "env": {
+        "PYTHONPATH": "/root/workspace/xdl/sci_research"
+      }
+    },
+    "example-skill": {
+      "command": "python",
+      "args": [
+        "-m",
+        "example_skill.mcp_server"
+      ],
+      "cwd": "/root/workspace/xdl/example_skill",
+      "env": {
+        "PYTHONPATH": "/root/workspace/xdl/example_skill"
+      }
+    }
+  }
+}
