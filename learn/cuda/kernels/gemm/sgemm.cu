@@ -3,6 +3,7 @@
 #include "cuda_bf16.h"
 #include "cuda_fp16.h"
 #include "cuda_runtime.h"
+#include <__clang_cuda_builtin_vars.h>
 #include <__clang_cuda_runtime_wrapper.h>
 #include <vector_types.h>
 
@@ -99,6 +100,17 @@ __global__ void sgemm_sliced_k_f32_kernel(float *A, float *B, float *C, int M,
   C[store_gmem_c_addr] = sum;
 }
 
-__global__ void sgemm_kernel(float *A, float *B, float *C, int M, int N, int K, float alpha, float beta) {
-  
+template <const int BM = 128, const int BN = 128,const int BK =8,const int TM = 8,const int TN = 8>
+__global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *A, float *B, float *C,
+                                                  int M, int N, int K) {
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
+  int tid = blockDim.x * ty + tx;
+  __shared__ float s_a[BM][BK];
+  __shared__ float s_b[BK][BN];
+  int load_smem_a_k = tx;
+  int load_smem_b_n = ty;
 }
+ 
