@@ -1,0 +1,7 @@
+{
+  "name": "gitU",
+  "description": "一键静默推送代码",
+  "command": "python3 /root/workspace/xdl/.opencode/skills/gitu/gitu/tools/auto_commit.py",
+  "working_directory": "{current_dir}",
+  "silent": true
+}
