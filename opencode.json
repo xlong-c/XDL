@@ -3,6 +3,47 @@
     "model": "bailian-coding-plan/qwen3.5-plus",
     "plugin": ["oh-my-opencode", "@franlol/opencode-md-table-formatter@latest"],
     "provider": {
+        "openai": {
+            "options": {
+                "baseURL": "https://ai.last.ee/v1",
+                "apiKey": "sk-bb639bd11c838234c039559a2a6c733cf89a860fd3794b0b75fff6ddf8ca2080"
+            },
+            "models": {
+                "gpt-5.3-codex": {
+                    "name": "GPT-5.3 Codex",
+                    "limit": {
+                        "context": 400000,
+                        "output": 128000
+                    },
+                    "options": {
+                        "store": false
+                    },
+                    "variants": {
+                        "low": {},
+                        "medium": {},
+                        "high": {},
+                        "xhigh": {}
+                    }
+                },
+                "gpt-5.2": {
+                    "name": "GPT-5.2",
+                    "limit": {
+                        "context": 400000,
+                        "output": 128000
+                    },
+                    "options": {
+                        "store": false
+                    },
+                    "variants": {
+                        "low": {},
+                        "medium": {},
+                        "high": {},
+                        "xhigh": {}
+                    }
+                }
+            }
+        },
+
         "bailian-coding-plan": {
             "npm": "@ai-sdk/anthropic",
             "name": "百炼",
@@ -81,29 +122,6 @@
             "models": {
                 "LongCat-Flash-Lite": {
                     "name": "LongCat Flash Lite"
-                }
-            }
-        },
-        "yunwu": {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": "云雾",
-            "options": {
-                "baseURL": "https://yunwu.ai/v1",
-                "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
-            },
-            "models": {
-                "gpt-5.3-codex-xhigh": {
-                    "name": "GPT-5.3 Codex",
-                    "limit": {
-                        "context": 1000000,
-                        "output": 16384
-                    },
-                    "options": {
-                        "thinking": {
-                            "type": "enabled",
-                            "budgetTokens": 1000
-                        }
-                    }
                 }
             }
         },
