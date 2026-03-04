@@ -21,14 +21,20 @@ bash .codex/skills/gitc/scripts/gitc_push.sh
 
 ## Commit Message Rules
 
-1. 默认标题：`chore: sync workspace updates`
-2. 正文按点分列，使用 `- ` 开头，每点一条改动：
+1. 默认标题：`chore: 同步工作区更新`
+2. 正文优先输出“改了什么”的中文语义摘要（而不是只列文件路径），推荐格式：
 ```text
-- add path/to/file
-- update path/to/file
-- remove path/to/file
+添加 SGEMM CUDA 内核实现
+
+- 添加 CUDA 类型头文件 (cuda_bf16, cuda_fp16)
+- 定义 WARP_SIZE 常量和类型转换宏
+- 实现 naive SGEMM 内核 (fp32)
 ```
-3. 列表过长时，仅展示前若干条，最后补一条 `- update remaining N files`。
+3. 当语义摘要不足时，回退到文件级摘要（新增/更新/删除/重命名/复制）。
+4. 列表过长时，仅展示前若干条，并补充中文汇总信息，必须包含：
+   - 各类型变更统计（新增/更新/删除/重命名/复制）
+   - 主要涉及目录
+   - 省略项提示（不能只写 `remaining N files`）
 
 ## Non-Interactive Behavior
 
@@ -40,5 +46,5 @@ bash .codex/skills/gitc/scripts/gitc_push.sh
 
 使用 [scripts/gitc_push.sh](/root/workspace/xdl/.codex/skills/gitc/scripts/gitc_push.sh) 执行固定流程。可选第一个参数覆盖标题：
 ```bash
-bash .codex/skills/gitc/scripts/gitc_push.sh "feat: improve training pipeline"
+bash .codex/skills/gitc/scripts/gitc_push.sh "feat: 优化训练流程"
 ```
