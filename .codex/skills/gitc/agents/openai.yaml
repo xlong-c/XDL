@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitC"
+  short_description: "Direct add commit push for all repo changes"
+  default_prompt: "Run git add -A, create a concise bullet-point commit message, and push without asking for confirmation."
