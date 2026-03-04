@@ -1,25 +1,25 @@
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <iostream>
-#include <vector>
 #include "cuda.h"
 #include "cuda_bf16.h"
 #include "cuda_fp16.h"
 #include "cuda_runtime.h"
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
 #include <vector_types.h>
 
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4 *>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4 *>(&(value))[0])
-#define CHECK_CUDA(call)                                                      \
-  do {                                                                        \
-    cudaError_t err__ = (call);                                               \
-    if (err__ != cudaSuccess) {                                               \
-      std::cerr << "CUDA error: " << cudaGetErrorString(err__) << " @ "       \
-                << __FILE__ << ":" << __LINE__ << std::endl;                  \
-      std::exit(EXIT_FAILURE);                                                \
-    }                                                                         \
+#define CHECK_CUDA(call)                                                       \
+  do {                                                                         \
+    cudaError_t err__ = (call);                                                \
+    if (err__ != cudaSuccess) {                                                \
+      std::fprintf(stderr, "CUDA error: %s @ %s:%d\n",                         \
+                   cudaGetErrorString(err__), __FILE__, __LINE__);             \
+      std::exit(EXIT_FAILURE);                                                 \
+    }                                                                          \
   } while (0)
 
 __global__ void sgemm_naive_f32_kernel(float *A, float *B, float *C, int M,
@@ -131,7 +131,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *A, float *B, float *C,
   // 后续通过 FLOAT4(...) 一次写入 4 个连续元素.
   int load_smem_a_k = (tid % 2 == 0) ? 0 : 4;
   // B tile 为 [BK, BN] = [8, 128], 每行有 128 个 float.
-  // 每行需要 128/4=32 个线程(每线程 1 个 float4)完成, 因此 tid/32 映射到 B 的行 k(0~7).
+  // 每行需要 128/4=32 个线程(每线程 1 个 float4)完成, 因此 tid/32 映射到 B 的行
+  // k(0~7).
   int load_smem_b_k = tid / 32;
   // warp 内 lane(=tid%32) 决定该线程在 B 行内的列起点.
   // 乘 4 是因为 float4 对齐: n 起点依次为 0,4,8,...,124.
@@ -194,7 +195,7 @@ int main() {
   int device_count = 0;
   CHECK_CUDA(cudaGetDeviceCount(&device_count));
   if (device_count <= 0) {
-    std::cerr << "No CUDA device found." << std::endl;
+    std::fprintf(stderr, "No CUDA device found.\n");
     return EXIT_FAILURE;
   }
 
@@ -247,16 +248,16 @@ int main() {
     max_abs_err = std::max(max_abs_err, std::fabs(h_c[i] - h_ref[i]));
   }
 
-  std::cout << "max_abs_err = " << max_abs_err << std::endl;
+  std::printf("max_abs_err = %.8g\n", max_abs_err);
   if (max_abs_err > 1e-3f) {
-    std::cerr << "Validation failed." << std::endl;
+    std::fprintf(stderr, "Validation failed.\n");
     CHECK_CUDA(cudaFree(d_a));
     CHECK_CUDA(cudaFree(d_b));
     CHECK_CUDA(cudaFree(d_c));
     return EXIT_FAILURE;
   }
 
-  std::cout << "Validation passed." << std::endl;
+  std::printf("Validation passed.\n");
   CHECK_CUDA(cudaFree(d_a));
   CHECK_CUDA(cudaFree(d_b));
   CHECK_CUDA(cudaFree(d_c));

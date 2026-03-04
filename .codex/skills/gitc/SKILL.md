@@ -21,7 +21,10 @@ bash .codex/skills/gitc/scripts/gitc_push.sh
 
 ## Commit Message Rules
 
-1. 默认标题：`chore: 同步工作区更新`
+1. 默认标题：`<scope> <动作>`，例如 `gitc skill 更新`、`gitc skill 修复`。
+   - `scope` 自动根据改动范围识别（例如单一 skill 目录会生成 `gitc skill`）。
+   - `动作` 自动根据变更类型识别（常见为 `新增` / `更新` / `修复` / `重构` / `清理`）。
+   - 传入脚本参数时优先使用手动标题。
 2. 正文优先输出“改了什么”的中文语义摘要（而不是只列文件路径），推荐格式：
 ```text
 添加 SGEMM CUDA 内核实现

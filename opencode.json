@@ -1,7 +1,9 @@
 {
     "$schema": "https://opencode.ai/config.json",
     "model": "bailian-coding-plan/qwen3.5-plus",
-    "plugin": ["oh-my-opencode", "@franlol/opencode-md-table-formatter@latest"],
+    "plugin": [
+        "oh-my-opencode"
+    ],
     "provider": {
         "openai": {
             "options": {
@@ -43,7 +45,6 @@
                 }
             }
         },
-
         "bailian-coding-plan": {
             "npm": "@ai-sdk/anthropic",
             "name": "百炼",
@@ -146,7 +147,11 @@
     "mcp": {
         "gitu": {
             "type": "local",
-            "command": ["python", "-m", "gitu.mcp_server"],
+            "command": [
+                "python",
+                "-m",
+                "gitu.mcp_server"
+            ],
             "enabled": true,
             "environment": {
                 "PYTHONPATH": "/root/workspace/xdl/.opencode/skills/gitu"

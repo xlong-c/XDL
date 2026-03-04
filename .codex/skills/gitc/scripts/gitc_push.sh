@@ -10,7 +10,8 @@ repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
 branch="$(git rev-parse --abbrev-ref HEAD)"
-subject="${1:-chore: 同步工作区更新}"
+custom_subject="${1:-}"
+subject=""
 max_items="${GITC_MAX_ITEMS:-120}"
 
 echo "[gitc] Running: git add -A"
@@ -103,6 +104,91 @@ join_preview() {
     text="${text} 等 ${total} 项"
   fi
   echo "$text"
+}
+
+detect_subject_scope() {
+  local path
+  local skill_name=""
+  local current_skill=""
+
+  if (( ${#changed_paths[@]} == 0 )); then
+    echo "gitc skill"
+    return
+  fi
+
+  for path in "${changed_paths[@]}"; do
+    if [[ "$path" =~ ^\.codex/skills/([^/]+)/ ]]; then
+      current_skill="${BASH_REMATCH[1]}"
+      if [[ -z "$skill_name" ]]; then
+        skill_name="$current_skill"
+      elif [[ "$skill_name" != "$current_skill" ]]; then
+        echo "仓库"
+        return
+      fi
+    else
+      echo "仓库"
+      return
+    fi
+  done
+
+  if [[ -n "$skill_name" ]]; then
+    echo "${skill_name} skill"
+  else
+    echo "gitc skill"
+  fi
+}
+
+detect_subject_action() {
+  local non_add_count
+  local all_doc_like=1
+  local path
+  local diff_text
+
+  non_add_count=$((count_update + count_remove + count_rename + count_copy + count_other))
+  diff_text="$(git diff --cached --no-color -U0)"
+
+  if printf '%s\n' "$diff_text" | grep -Eiq '(fix|bug|修复|错误|异常|兼容|回归|crash|panic)'; then
+    echo "修复"
+    return
+  fi
+
+  if ((count_add > 0 && non_add_count == 0)); then
+    echo "新增"
+    return
+  fi
+
+  if ((count_remove > 0 && count_add == 0 && count_update == 0 && count_other == 0 && count_rename == 0 && count_copy == 0)); then
+    echo "清理"
+    return
+  fi
+
+  if ((count_rename > 0 && count_add == 0 && count_remove == 0 && count_copy == 0)); then
+    echo "重构"
+    return
+  fi
+
+  for path in "${changed_paths[@]}"; do
+    case "$path" in
+      *.md|*.rst|*.txt|LICENSE|LICENSE.txt|NOTICE|NOTICE.txt)
+        ;;
+      *)
+        all_doc_like=0
+        break
+        ;;
+    esac
+  done
+
+  if ((all_doc_like == 1)); then
+    echo "更新"
+    return
+  fi
+
+  if ((count_remove > 0 && (count_update + count_other) > 0)); then
+    echo "修复"
+    return
+  fi
+
+  echo "更新"
 }
 
 summarize_file_patch() {
@@ -330,6 +416,12 @@ done
 for ((i = 0; i < ${#changed_paths[@]}; i++)); do
   summarize_file_patch "${changed_codes[i]}" "${changed_paths[i]}"
 done
+
+if [[ -n "$custom_subject" ]]; then
+  subject="$custom_subject"
+else
+  subject="$(detect_subject_scope) $(detect_subject_action)"
+fi
 
 while IFS= read -r diff_line; do
   if [[ "$diff_line" == "+++ b/"* ]]; then
