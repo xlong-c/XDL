@@ -2,6 +2,7 @@
 #include "cuda_bf16.h"
 #include "cuda_fp16.h"
 #include "cuda_runtime.h"
+#include <__clang_cuda_runtime_wrapper.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -181,6 +182,10 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *A, float *B, float *C,
       FLOAT4(C[storegmem_c_addr]) = FLOAT4(r_c[m][n]);
     }
   }
+}
+
+__global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, int M, int N, int K) {
+
 }
 
 int main() {
