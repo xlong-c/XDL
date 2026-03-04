@@ -24,6 +24,7 @@ fi
 mapfile -t status_lines < <(git diff --cached --name-status)
 file_body_lines=()
 semantic_lines=()
+fallback_semantic_lines=()
 total_items="${#status_lines[@]}"
 semantic_limit="${GITC_SEMANTIC_MAX_ITEMS:-12}"
 
@@ -36,8 +37,11 @@ count_other=0
 declare -A dir_seen=()
 dir_order=()
 declare -A semantic_seen=()
+declare -A fallback_seen=()
 primary_path=""
 has_cuda_kernel=0
+changed_paths=()
+changed_codes=()
 
 track_dir() {
   local path="$1"
@@ -60,6 +64,162 @@ add_semantic_line() {
   if [[ -z "${semantic_seen[$text]+x}" ]]; then
     semantic_seen["$text"]=1
     semantic_lines+=("- ${text}")
+  fi
+}
+
+add_fallback_line() {
+  local text="$1"
+  [[ -z "$text" ]] && return
+  if [[ -z "${fallback_seen[$text]+x}" ]]; then
+    fallback_seen["$text"]=1
+    fallback_semantic_lines+=("- ${text}")
+  fi
+}
+
+join_preview() {
+  local max_count="$1"
+  shift || true
+  local items=("$@")
+  local total="${#items[@]}"
+  if ((total == 0)); then
+    echo ""
+    return
+  fi
+
+  local show_count="$total"
+  if ((show_count > max_count)); then
+    show_count="$max_count"
+  fi
+
+  local picked=()
+  local i
+  for ((i = 0; i < show_count; i++)); do
+    picked+=("${items[i]}")
+  done
+
+  local text
+  text="$(IFS='、'; echo "${picked[*]}")"
+  if ((total > max_count)); then
+    text="${text} 等 ${total} 项"
+  fi
+  echo "$text"
+}
+
+summarize_file_patch() {
+  local code="$1"
+  local path="$2"
+  local summary_path="$path"
+  local patch
+  local added
+  local removed
+  local -a points=()
+
+  patch="$(git diff --cached --no-color -U0 -- "$path" || true)"
+  [[ -z "$patch" ]] && return
+
+  added="$(printf '%s\n' "$patch" | sed -nE '/^\+[^+]/p')"
+  removed="$(printf '%s\n' "$patch" | sed -nE '/^\-[^-]/p')"
+
+  if [[ "$code" == A ]]; then
+    points+=("新增文件")
+  elif [[ "$code" == D ]]; then
+    points+=("删除文件")
+  fi
+
+  if [[ "$path" == *.sh ]]; then
+    mapfile -t fn_names < <(printf '%s\n' "$added" | sed -nE 's/^\+[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)\(\)[[:space:]]*\{.*/\1/p' | sort -u)
+    if (( ${#fn_names[@]} > 0 )); then
+      points+=("新增函数 $(join_preview 4 "${fn_names[@]}")")
+    fi
+
+    mapfile -t add_vars < <(printf '%s\n' "$added" | sed -nE 's/^\+[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=.*/\1/p' | sort -u)
+    mapfile -t del_vars < <(printf '%s\n' "$removed" | sed -nE 's/^\-[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=.*/\1/p' | sort -u)
+
+    if (( ${#add_vars[@]} > 0 || ${#del_vars[@]} > 0 )); then
+      declare -A added_var_set=()
+      declare -A removed_var_set=()
+      declare -a tuned_vars=()
+      declare -a new_vars=()
+
+      for var_name in "${add_vars[@]}"; do
+        added_var_set["$var_name"]=1
+      done
+      for var_name in "${del_vars[@]}"; do
+        removed_var_set["$var_name"]=1
+      done
+
+      for var_name in "${add_vars[@]}"; do
+        if [[ -n "${removed_var_set[$var_name]+x}" ]]; then
+          tuned_vars+=("$var_name")
+        else
+          new_vars+=("$var_name")
+        fi
+      done
+
+      if (( ${#tuned_vars[@]} > 0 )); then
+        points+=("调整参数 $(join_preview 5 "${tuned_vars[@]}")")
+      fi
+      if (( ${#new_vars[@]} > 0 )); then
+        points+=("新增参数 $(join_preview 5 "${new_vars[@]}")")
+      fi
+    fi
+
+    if printf '%s\n' "$added" | grep -q 'semantic_lines\|add_semantic_line\|build_heading'; then
+      points+=("增强提交信息语义摘要逻辑")
+    fi
+    if printf '%s\n' "$added" | grep -q 'stat_line\|涉及目录\|文件统计'; then
+      points+=("补充文件统计与目录摘要")
+    fi
+    if printf '%s\n' "$added" | grep -q '#include\|#define\|__global__'; then
+      points+=("新增代码模式识别（头文件/宏/CUDA 内核）")
+    fi
+    if printf '%s\n' "$added" | grep -q '同步工作区更新' && printf '%s\n' "$removed" | grep -q 'sync workspace updates'; then
+      points+=("默认提交标题改为中文")
+    fi
+  fi
+
+  if [[ "$path" == *.md ]]; then
+    if printf '%s\n' "$added" | grep -q '语义摘要'; then
+      points+=("文档规则改为语义摘要优先")
+    fi
+    if printf '%s\n' "$added" | grep -q '省略项提示' && printf '%s\n' "$removed" | grep -q 'remaining'; then
+      points+=("文档补充省略项说明要求")
+    fi
+    if printf '%s\n' "$added" | grep -q '同步工作区更新' && printf '%s\n' "$removed" | grep -q 'sync workspace updates'; then
+      points+=("文档默认标题示例改为中文")
+    fi
+
+    mapfile -t md_lines < <(printf '%s\n' "$added" | sed -nE '
+      s/^\+//;
+      s/^[[:space:]]+//;
+      /^[[:space:]]*$/d;
+      /^#/d;
+      /^```/d;
+      s/`//g;
+      p
+    ' | head -n 2)
+    if (( ${#md_lines[@]} > 0 )); then
+      md_preview="$(join_preview 2 "${md_lines[@]}")"
+      points+=("文档新增要点 ${md_preview}")
+    fi
+  fi
+
+  if [[ "$path" != *.md && "$path" != *.sh ]]; then
+    mapfile -t func_names < <(printf '%s\n' "$added" | sed -nE '
+      s/^\+[[:space:]]*def[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)\(.*/\1/p;
+      s/^\+[[:space:]]*class[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/p;
+      s/^\+[[:space:]]*__global__[[:space:]]+void[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)\(.*/\1/p;
+      s/^\+[[:space:]]*[A-Za-z_][A-Za-z0-9_<>[:space:]\*]*[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*\(.*/\1/p
+    ' | sort -u | head -n 5)
+    if (( ${#func_names[@]} > 0 )); then
+      points+=("涉及函数/类 $(join_preview 5 "${func_names[@]}")")
+    fi
+  fi
+
+  if (( ${#points[@]} > 0 )); then
+    local point_text
+    point_text="$(join_preview 3 "${points[@]}")"
+    add_fallback_line "更新 ${summary_path}：${point_text}"
   fi
 }
 
@@ -107,6 +267,8 @@ for ((i = 0; i < total_items; i++)); do
   case "$code" in
     A)
       [[ -z "$primary_path" ]] && primary_path="$rest"
+      changed_paths+=("$rest")
+      changed_codes+=("A")
       ((count_add += 1))
       track_dir "$rest"
       if ((i < max_items)); then
@@ -115,6 +277,8 @@ for ((i = 0; i < total_items; i++)); do
       ;;
     M)
       [[ -z "$primary_path" ]] && primary_path="$rest"
+      changed_paths+=("$rest")
+      changed_codes+=("M")
       ((count_update += 1))
       track_dir "$rest"
       if ((i < max_items)); then
@@ -123,6 +287,8 @@ for ((i = 0; i < total_items; i++)); do
       ;;
     D)
       [[ -z "$primary_path" ]] && primary_path="$rest"
+      changed_paths+=("$rest")
+      changed_codes+=("D")
       ((count_remove += 1))
       track_dir "$rest"
       if ((i < max_items)); then
@@ -133,6 +299,8 @@ for ((i = 0; i < total_items; i++)); do
       src="${rest%%$'\t'*}"
       dst="${rest#*$'\t'}"
       [[ -z "$primary_path" ]] && primary_path="$dst"
+      changed_paths+=("$dst")
+      changed_codes+=("$code")
       if [[ "$code" == R* ]]; then
         ((count_rename += 1))
         if ((i < max_items)); then
@@ -148,6 +316,8 @@ for ((i = 0; i < total_items; i++)); do
       ;;
     *)
       [[ -z "$primary_path" ]] && primary_path="$rest"
+      changed_paths+=("$rest")
+      changed_codes+=("$code")
       ((count_other += 1))
       track_dir "$rest"
       if ((i < max_items)); then
@@ -155,6 +325,10 @@ for ((i = 0; i < total_items; i++)); do
       fi
       ;;
   esac
+done
+
+for ((i = 0; i < ${#changed_paths[@]}; i++)); do
+  summarize_file_patch "${changed_codes[i]}" "${changed_paths[i]}"
 done
 
 while IFS= read -r diff_line; do
@@ -255,6 +429,24 @@ commit_msg_file="$(mktemp)"
     done
     if ((semantic_total > semantic_limit)); then
       echo "- 其余 $((semantic_total - semantic_limit)) 条语义摘要已省略"
+    fi
+    echo "$stat_line"
+    if [[ -n "$dir_line" ]]; then
+      echo "$dir_line"
+    fi
+  elif (( ${#fallback_semantic_lines[@]} > 0 )); then
+    echo "变更内容摘要"
+    echo
+    fallback_total="${#fallback_semantic_lines[@]}"
+    fallback_show_count="$fallback_total"
+    if ((fallback_show_count > semantic_limit)); then
+      fallback_show_count="$semantic_limit"
+    fi
+    for ((i = 0; i < fallback_show_count; i++)); do
+      echo "${fallback_semantic_lines[i]}"
+    done
+    if ((fallback_total > semantic_limit)); then
+      echo "- 其余 $((fallback_total - semantic_limit)) 条摘要已省略"
     fi
     echo "$stat_line"
     if [[ -n "$dir_line" ]]; then
