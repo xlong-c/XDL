@@ -1,8 +1,4 @@
-#include "cuda.h"
-#include "cuda_bf16.h"
-#include "cuda_fp16.h"
 #include "cuda_runtime.h"
-#include <__clang_cuda_runtime_wrapper.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -166,6 +162,14 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *A, float *B, float *C,
         for (int n = 0; n < TN; n++) {
           int comp_smem_a_m = ty * TM + m;
           int comp_smem_b_n = tx * TN + n;
+          // 该版本可能出现 shared memory bank conflict:
+          // - s_a 布局是 [BM][BK]=[128][8]，行跨度 stride=BK=8(float)
+          // - warp 内通常有两组 ty(例如 ty=0/1)，会同时访问两行:
+          //   row0=0*TM+m, row1=1*TM+m=row0+8
+          // - bank 号可近似看作 bank=(row*stride+k)%32
+          //   两行差值: (row1-row0)*stride = 8*8 = 64, 64%32=0
+          //   => 两个不同地址落到同一 bank，形成 2-way conflict
+          // 这会降低 shared memory 吞吐，尤其在 k 循环高频读取时更明显。
           r_c[m][n] += s_a[comp_smem_a_m][k] * s_b[k][comp_smem_b_n];
         }
       }
@@ -184,8 +188,36 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *A, float *B, float *C,
   }
 }
 
-__global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, int M, int N, int K) {
+// 矩阵乘法（bank-conflict 优化示例）
+template <const int BM = 128, const int BN = 128, const int BK = 8,
+          const int TM = 8, const int TN = 8>
+__global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B,
+                                                      float *C, int M, int N,
+                                                      int K) {
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
+  int tid = blockDim.x * ty + tx;
+  // 解决思路 1（最常用）: 给 shared memory 行做 padding，打破 32-bank 对齐周期。
+  // 将 s_a 从 [BM][BK] 改为 [BM][BK+1]，此时 stride=9，不再与 32 形成“坏倍数”。
+  // 例如两行相差 8 时，bank 偏移变为 8*9=72，72%32=8，不会固定撞到同一 bank。
+  __shared__ float s_a[BM][BK + 1];
 
+  // 可选思路 2: 改 shared memory 布局（如转置存储 A tile）。
+  // 可选思路 3: 调整线程映射，让一个 warp 尽量只覆盖单一 ty，减少跨行同周期访问。
+  (void)A;
+  (void)B;
+  (void)C;
+  (void)M;
+  (void)N;
+  (void)K;
+  (void)bx;
+  (void)by;
+  (void)tx;
+  (void)ty;
+  (void)tid;
+  (void)s_a;
 }
 
 int main() {

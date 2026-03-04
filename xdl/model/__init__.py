@@ -31,6 +31,7 @@ from .vit import (
     vit_small_patch16_224,
     vit_tiny_patch16_224,
 )
+from .generate import TwinFlow
 
 
 def _register_models():
@@ -69,8 +70,6 @@ def _register_models():
     register_model("vit_huge_patch14_224")(vit_huge_patch14_224)
 
     # 注册生成模型
-    from .generate import TwinFlow
-
     register_model("TwinFlow")(TwinFlow)
 
 
