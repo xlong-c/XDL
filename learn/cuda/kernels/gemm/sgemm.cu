@@ -1,4 +1,5 @@
 #include "cuda_runtime.h"
+#include <__clang_cuda_runtime_wrapper.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -188,38 +189,101 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *A, float *B, float *C,
   }
 }
 
-// 矩阵乘法（bank-conflict 优化示例）
 template <const int BM = 128, const int BN = 128, const int BK = 8,
-          const int TM = 8, const int TN = 8>
-__global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B,
-                                                      float *C, int M, int N,
-                                                      int K) {
-  int tx = threadIdx.x;
-  int ty = threadIdx.y;
-  int bx = blockIdx.x;
-  int by = blockIdx.y;
-  int tid = blockDim.x * ty + tx;
-  // 解决思路 1（最常用）: 给 shared memory 行做 padding，打破 32-bank 对齐周期。
-  // 将 s_a 从 [BM][BK] 改为 [BM][BK+1]，此时 stride=9，不再与 32 形成“坏倍数”。
-  // 例如两行相差 8 时，bank 偏移变为 8*9=72，72%32=8，不会固定撞到同一 bank。
-  __shared__ float s_a[BM][BK + 1];
+          const int TM = 8, const int TN = 8, const int OFFSET = 0>
+__global__ void
+sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
+                                      const int N, const int K) {
+  // 每个 block 负责 C 的一个 BM x BN tile；每个线程计算 TM x TN 的寄存器子块。
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  // block 内线性线程号：[0, blockDim.x * blockDim.y)
+  const int tid = ty * blockDim.x + tx;
 
-  // 可选思路 2: 改 shared memory 布局（如转置存储 A tile）。
-  // 可选思路 3: 调整线程映射，让一个 warp 尽量只覆盖单一 ty，减少跨行同周期访问。
-  (void)A;
-  (void)B;
-  (void)C;
-  (void)M;
-  (void)N;
-  (void)K;
-  (void)bx;
-  (void)by;
-  (void)tx;
-  (void)ty;
-  (void)tid;
-  (void)s_a;
+  __shared__ float s_a[BK][BM + OFFSET];
+  __shared__ float s_b[BK][BN + OFFSET];
+
+  // 向量化加载缓冲：一次搬运 4 个 float。
+  float r_load_a[TM / 2];
+  float r_load_b[TN / 2];
+  float r_comp_a[TM];
+  float r_comp_b[TN];
+  float r_c[TM][TN] = {0.0};
+
+  // 线程到共享内存坐标的映射（按 float4 对齐）。
+  // A tile 布局: s_a[BK][BM]，这里每个线程负责 A 的 4 个连续 k 元素。
+  int load_a_smem_m = tid / 2;      // A 的行索引 m（两线程协作同一行）
+  int load_a_smem_k = (tid & 1) << 2; // A 的列起点 k，取值 0 或 4（对应 float4）
+  // B tile 布局: s_b[BK][BN]，每个线程负责 B 的 1 个 float4。
+  int load_b_smem_k = tid / 32;     // B 的行索引 k（一个 warp 覆盖一行的 32 个 float4）
+  int load_b_smem_n = (tid & 31) << 2; // B 的列起点 n，0,4,8,...,124
+
+  // 当前 block 在全局矩阵中的基址偏移。
+  int load_a_gmem_m = by * BM + load_a_smem_m; // A 的全局行号
+  int load_b_gmem_n = bx * BN + load_b_smem_n; // B 的全局列起点
+
+  if (load_a_gmem_m >= M || load_b_gmem_n >= N)
+    return;
+
+  // 沿 K 维分块：加载 A/B 子块 -> 线程内 FMA 累加到 r_c。
+  for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
+    // bk: 当前 K 维切片编号，对应区间 [bk*BK, bk*BK+BK)。
+    int load_a_gmem_k = bk * BK + load_a_smem_k; // A 在当前切片内的列起点
+    int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k; // A[m, k:k+4]
+    int load_b_gmem_k = bk * BK + load_b_smem_k; // B 在当前切片内的行号
+    int load_b_gmem_addr = load_b_gmem_k * N + load_b_gmem_n; // B[k, n:n+4]
+    FLOAT4(r_load_a[0]) = FLOAT4(A[load_a_gmem_addr]);
+    FLOAT4(r_load_b[0]) = FLOAT4(B[load_b_gmem_addr]);
+
+    s_a[load_a_smem_k][load_a_smem_m] = r_load_a[0];     
+    s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1]; 
+    s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2]; 
+    s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3]; 
+    FLOAT4(s_b[load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b[0]);
+
+    __syncthreads();
+
+#pragma unroll
+    for (int tk = 0; tk < BK; tk++) {
+      // tk: 切片内的 K 偏移。每次取 A/B 一条 k 维向量做外积累加。
+      FLOAT4(r_comp_a[0]) = FLOAT4(s_a[tk][ty * TM / 2]);
+      FLOAT4(r_comp_a[4]) = FLOAT4(s_a[tk][ty * TM / 2 + BM / 2]);
+      FLOAT4(r_comp_b[0]) = FLOAT4(s_b[tk][tx * TN / 2]);
+      FLOAT4(r_comp_b[4]) = FLOAT4(s_b[tk][tx * TN / 2 + BN / 2]);
+
+#pragma unroll
+      for (int tm = 0; tm < TM; tm++) {
+#pragma unroll
+        for (int tn = 0; tn < TN; tn++) {
+          // tm/tn: 线程内寄存器子块 r_c[TM][TN] 的局部行列索引。
+          r_c[tm][tn] = __fmaf_rn(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
+        }
+      }
+    }
+    __syncthreads();
+  }
+
+#pragma unroll
+  for (int i = 0; i < TM / 2; i++) {
+    // 回写 r_c 的上半部分行块。
+    int store_c_gmem_m = by * BM + ty * TM / 2 + i; // C 的全局行号（上半区）
+    int store_c_gmem_n = bx * BN + tx * TN / 2;     // C 的全局列起点
+    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n; // C[m, n]
+    FLOAT4(C[store_c_gmem_addr]) = FLOAT4(r_c[i][0]);
+    FLOAT4(C[store_c_gmem_addr + BN / 2]) = FLOAT4(r_c[i][4]);
+  }
+#pragma unroll
+  for (int i = 0; i < TM / 2; i++) {
+    // 回写 r_c 的下半部分行块（偏移 BM / 2）。
+    int store_c_gmem_m = by * BM + BM / 2 + ty * TM / 2 + i; // C 的全局行号（下半区）
+    int store_c_gmem_n = bx * BN + tx * TN / 2;              // C 的全局列起点
+    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n; // C[m, n]
+    FLOAT4(C[store_c_gmem_addr]) = FLOAT4(r_c[i + TM / 2][0]);
+    FLOAT4(C[store_c_gmem_addr + BN / 2]) = FLOAT4(r_c[i + TM / 2][4]);
+  }
 }
-
 int main() {
   constexpr int M = 64;
   constexpr int N = 64;
