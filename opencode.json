@@ -8,7 +8,7 @@
         "openai": {
             "options": {
                 "baseURL": "https://ai.last.ee/v1",
-                "apiKey": "sk-bb639bd11c838234c039559a2a6c733cf89a860fd3794b0b75fff6ddf8ca2080"
+                "apiKey": "sk-01086c79a75024494e1a0745416ed01ef008db1c681de1e7ea26f101d453d1bd"
             },
             "models": {
                 "gpt-5.3-codex": {

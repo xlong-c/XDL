@@ -1,5 +1,7 @@
 #include "cuda_runtime.h"
+#if defined(__clang__)
 #include <__clang_cuda_runtime_wrapper.h>
+#endif
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -7,8 +9,6 @@
 #include <vector>
 #include <vector_types.h>
 
-#define WARP_SIZE 32
-#define INT4(value) (reinterpret_cast<int4 *>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4 *>(&(value))[0])
 #define CHECK_CUDA(call)                                                       \
   do {                                                                         \
@@ -183,8 +183,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *A, float *B, float *C,
 #pragma unroll
     for (int n = 0; n < TN; n += 4) {
       int store_gmem_c_n = bx * BN + tx * TN + n;
-      int storegmem_c_addr = store_gmem_c_m * N + store_gmem_c_n;
-      FLOAT4(C[storegmem_c_addr]) = FLOAT4(r_c[m][n]);
+      int store_gmem_c_addr = store_gmem_c_m * N + store_gmem_c_n;
+      FLOAT4(C[store_gmem_c_addr]) = FLOAT4(r_c[m][n]);
     }
   }
 }
@@ -194,6 +194,10 @@ template <const int BM = 128, const int BN = 128, const int BK = 8,
 __global__ void
 sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
                                       const int N, const int K) {
+  constexpr int kHalfTM = TM / 2;
+  constexpr int kHalfTN = TN / 2;
+  const int kNumKTiles = (K + BK - 1) / BK;
+
   // 每个 block 负责 C 的一个 BM x BN tile；每个线程计算 TM x TN 的寄存器子块。
   const int bx = blockIdx.x;
   const int by = blockIdx.y;
@@ -206,18 +210,20 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
   __shared__ float s_b[BK][BN + OFFSET];
 
   // 向量化加载缓冲：一次搬运 4 个 float。
-  float r_load_a[TM / 2];
-  float r_load_b[TN / 2];
+  float r_load_a[4];
+  float r_load_b[4];
   float r_comp_a[TM];
   float r_comp_b[TN];
   float r_c[TM][TN] = {0.0};
 
   // 线程到共享内存坐标的映射（按 float4 对齐）。
   // A tile 布局: s_a[BK][BM]，这里每个线程负责 A 的 4 个连续 k 元素。
-  int load_a_smem_m = tid / 2;      // A 的行索引 m（两线程协作同一行）
-  int load_a_smem_k = (tid & 1) << 2; // A 的列起点 k，取值 0 或 4（对应 float4）
+  int load_a_smem_m = tid / 2; // A 的行索引 m（两线程协作同一行）
+  int load_a_smem_k = (tid & 1)
+                      << 2; // A 的列起点 k，取值 0 或 4（对应 float4）
   // B tile 布局: s_b[BK][BN]，每个线程负责 B 的 1 个 float4。
-  int load_b_smem_k = tid / 32;     // B 的行索引 k（一个 warp 覆盖一行的 32 个 float4）
+  int load_b_smem_k =
+      tid / 32; // B 的行索引 k（一个 warp 覆盖一行的 32 个 float4）
   int load_b_smem_n = (tid & 31) << 2; // B 的列起点 n，0,4,8,...,124
 
   // 当前 block 在全局矩阵中的基址偏移。
@@ -228,7 +234,7 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
     return;
 
   // 沿 K 维分块：加载 A/B 子块 -> 线程内 FMA 累加到 r_c。
-  for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
+  for (int bk = 0; bk < kNumKTiles; ++bk) {
     // bk: 当前 K 维切片编号，对应区间 [bk*BK, bk*BK+BK)。
     int load_a_gmem_k = bk * BK + load_a_smem_k; // A 在当前切片内的列起点
     int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k; // A[m, k:k+4]
@@ -237,26 +243,28 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
     FLOAT4(r_load_a[0]) = FLOAT4(A[load_a_gmem_addr]);
     FLOAT4(r_load_b[0]) = FLOAT4(B[load_b_gmem_addr]);
 
-    s_a[load_a_smem_k][load_a_smem_m] = r_load_a[0];     
-    s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1]; 
-    s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2]; 
-    s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3]; 
+#pragma unroll
+    for (int i = 0; i < 4; ++i) {
+      s_a[load_a_smem_k + i][load_a_smem_m] = r_load_a[i];
+    }
     FLOAT4(s_b[load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b[0]);
 
     __syncthreads();
 
 #pragma unroll
-    for (int tk = 0; tk < BK; tk++) {
+    for (int tk = 0; tk < BK; ++tk) {
       // tk: 切片内的 K 偏移。每次取 A/B 一条 k 维向量做外积累加。
-      FLOAT4(r_comp_a[0]) = FLOAT4(s_a[tk][ty * TM / 2]);
-      FLOAT4(r_comp_a[4]) = FLOAT4(s_a[tk][ty * TM / 2 + BM / 2]);
-      FLOAT4(r_comp_b[0]) = FLOAT4(s_b[tk][tx * TN / 2]);
-      FLOAT4(r_comp_b[4]) = FLOAT4(s_b[tk][tx * TN / 2 + BN / 2]);
+      const int comp_a_base = ty * kHalfTM;
+      const int comp_b_base = tx * kHalfTN;
+      FLOAT4(r_comp_a[0]) = FLOAT4(s_a[tk][comp_a_base]);
+      FLOAT4(r_comp_a[kHalfTM]) = FLOAT4(s_a[tk][comp_a_base + BM / 2]);
+      FLOAT4(r_comp_b[0]) = FLOAT4(s_b[tk][comp_b_base]);
+      FLOAT4(r_comp_b[kHalfTN]) = FLOAT4(s_b[tk][comp_b_base + BN / 2]);
 
 #pragma unroll
-      for (int tm = 0; tm < TM; tm++) {
+      for (int tm = 0; tm < TM; ++tm) {
 #pragma unroll
-        for (int tn = 0; tn < TN; tn++) {
+        for (int tn = 0; tn < TN; ++tn) {
           // tm/tn: 线程内寄存器子块 r_c[TM][TN] 的局部行列索引。
           r_c[tm][tn] = __fmaf_rn(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
         }
@@ -266,24 +274,68 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
   }
 
 #pragma unroll
-  for (int i = 0; i < TM / 2; i++) {
-    // 回写 r_c 的上半部分行块。
-    int store_c_gmem_m = by * BM + ty * TM / 2 + i; // C 的全局行号（上半区）
-    int store_c_gmem_n = bx * BN + tx * TN / 2;     // C 的全局列起点
-    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n; // C[m, n]
-    FLOAT4(C[store_c_gmem_addr]) = FLOAT4(r_c[i][0]);
-    FLOAT4(C[store_c_gmem_addr + BN / 2]) = FLOAT4(r_c[i][4]);
-  }
+  for (int row_block = 0; row_block < 2; ++row_block) {
 #pragma unroll
-  for (int i = 0; i < TM / 2; i++) {
-    // 回写 r_c 的下半部分行块（偏移 BM / 2）。
-    int store_c_gmem_m = by * BM + BM / 2 + ty * TM / 2 + i; // C 的全局行号（下半区）
-    int store_c_gmem_n = bx * BN + tx * TN / 2;              // C 的全局列起点
-    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n; // C[m, n]
-    FLOAT4(C[store_c_gmem_addr]) = FLOAT4(r_c[i + TM / 2][0]);
-    FLOAT4(C[store_c_gmem_addr + BN / 2]) = FLOAT4(r_c[i + TM / 2][4]);
+    for (int i = 0; i < kHalfTM; ++i) {
+      const int store_c_gmem_m =
+          by * BM + row_block * (BM / 2) + ty * kHalfTM + i;
+      const int store_c_gmem_n = bx * BN + tx * kHalfTN;
+      const int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n;
+      const int r_row = row_block * kHalfTM + i;
+      FLOAT4(C[store_c_gmem_addr]) = FLOAT4(r_c[r_row][0]);
+      FLOAT4(C[store_c_gmem_addr + BN / 2]) = FLOAT4(r_c[r_row][kHalfTN]);
+    }
   }
 }
+
+template <const int BM = 128, const int BN = 128, const int BK = 8,
+          const int TM = 8, const int TN = 8, const int OFFSET = 0>
+__global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
+    float *A, float *B, float *C, const int M, const int N, const int K) {
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int tid = ty * blockDim.x + tx;
+  __shared__ float s_a[2][BK][BM + OFFSET]; // 双缓存
+  __shared__ float s_b[2][BK][BN + OFFSET];
+
+  float r_load_a[4];  // 寄存器
+  float r_load_b[4];  // 寄存器, 放B在线程的当前列索引对应数据
+  float r_comp_a[TM]; // 寄存器, 放A的行数据
+  float r_comp_b[TN]; // 寄存器, 放B的列数据
+  float r_c[TM][TN] = {0.0}; // 寄存器, 放结果C, M 行 N 列
+
+  int load_a_smem_m =
+      tid / 2; // A 在 shared memory 的行索引 m（每 2 个线程对应 1 行）
+  int load_a_smem_k =
+      (tid & 1) << 2; // A 在 shared memory 的列索引 k（每 2 个线程对应 1 列）
+  int load_b_smem_n = (tid & 31) << 2;
+  int load_b_smem_k = tid / 32;
+
+  int load_a_gmem_m = by * BM + load_a_smem_m;
+  int load_a_gmem_n = bx * BN + load_b_smem_n;
+
+  int load_a_gmem_k = load_a_smem_k;
+  int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;
+  FLOAT4(r_load_a[0]) = FLOAT4(A[load_a_gmem_addr]);
+  int load_b_gmem_k = load_b_smem_k;
+  int load_b_gmem_addr = load_b_gmem_k * N + load_a_gmem_n;
+  FLOAT4(r_load_b[0]) = FLOAT4(B[load_b_gmem_addr]);
+
+  s_a[0][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];
+  s_a[0][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
+  s_a[0][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
+  s_a[0][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];
+
+  FLOAT4(s_b[0][load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b);
+
+  __syncthreads();
+
+  
+
+}
+
 int main() {
   constexpr int M = 64;
   constexpr int N = 64;
