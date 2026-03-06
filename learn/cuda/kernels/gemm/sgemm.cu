@@ -294,7 +294,7 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
 }
 
 template <const int BM = 128, const int BN = 128, const int BK = 8,
-          const int TM = 8, const int TN = 8, const int OFFSET = 0>
+          const int TM = 8, const int TN = 8, const int OFFSET = 1>
 __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
     float *A, float *B, float *C, const int M, const int N, const int K) {
   const int bx = blockIdx.x;

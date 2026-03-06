@@ -48,6 +48,36 @@ find_cuda_related_dir() {
         "/mnt/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4/include"
 }
 
+find_cuda_related_lib_dir() {
+    target_pattern=$1
+    NVCC_BIN=$(command -v nvcc 2>/dev/null || true)
+    NVCC_ROOT=
+    if [ -n "$NVCC_BIN" ]; then
+        NVCC_ROOT=$(cd "$(dirname "$NVCC_BIN")/.." && pwd)
+    fi
+
+    for candidate in \
+        "${CUDA_HOME:-}" \
+        "${CONDA_PREFIX:-}" \
+        "$NVCC_ROOT" \
+        /usr/local/cuda \
+        /usr/local/cuda-13.0 \
+        /usr/local/cuda-12.9 \
+        /usr/local/cuda-12.8 \
+        /usr/local/cuda-12.6 \
+        /usr/local/cuda-12.4
+    do
+        [ -n "$candidate" ] || continue
+        match=$(find "$candidate" -maxdepth 8 -name "$target_pattern" 2>/dev/null | head -n 1 || true)
+        if [ -n "$match" ]; then
+            dirname "$match"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 usage() {
     cat <<'USAGE'
 用法:
@@ -122,12 +152,73 @@ TARGET_PATH="$TARGET_DIR/$TARGET_NAME"
 SOURCE_DIR=$(dirname "$SOURCE_PATH")
 CUDA_INCLUDE_DIR=$(find_cuda_related_dir cuda_runtime.h || true)
 CUBLAS_INCLUDE_DIR=$(find_cuda_related_dir cublas_v2.h || true)
+CUBLAS_LIB_DIR=$(find_cuda_related_lib_dir 'libcublas.so*' || true)
+CUBLAS_LT_LIB_DIR=$(find_cuda_related_lib_dir 'libcublasLt.so*' || true)
+CUBLAS_LIB_FILE=""
+CUBLAS_LT_LIB_FILE=""
+EXTRA_LINK_DIR_FLAGS=""
+EXTRA_LINK_FLAGS=""
+RUNTIME_LIB_DIRS=""
+NEED_CUBLAS=0
+NEED_CUBLAS_LT=0
+
+if [ -n "$CUBLAS_LIB_DIR" ]; then
+    CUBLAS_LIB_FILE=$(find "$CUBLAS_LIB_DIR" -maxdepth 1 -name 'libcublas.so*' 2>/dev/null | head -n 1 || true)
+fi
+if [ -n "$CUBLAS_LT_LIB_DIR" ]; then
+    CUBLAS_LT_LIB_FILE=$(find "$CUBLAS_LT_LIB_DIR" -maxdepth 1 -name 'libcublasLt.so*' 2>/dev/null | head -n 1 || true)
+fi
+
+if grep -Eq 'cublas_v2\.h|cublas[A-Za-z0-9_]+' "$SOURCE_PATH"; then
+    NEED_CUBLAS=1
+fi
+if grep -Eq 'cublasLt\.h|cublasLt[A-Za-z0-9_]+' "$SOURCE_PATH"; then
+    NEED_CUBLAS=1
+    NEED_CUBLAS_LT=1
+fi
+
+if [ "$NEED_CUBLAS" -eq 1 ]; then
+    if [ -n "$CUBLAS_LIB_DIR" ]; then
+        EXTRA_LINK_DIR_FLAGS="$EXTRA_LINK_DIR_FLAGS -L$CUBLAS_LIB_DIR"
+        RUNTIME_LIB_DIRS="$RUNTIME_LIB_DIRS:$CUBLAS_LIB_DIR"
+    fi
+    if [ -n "$CUBLAS_LIB_FILE" ]; then
+        EXTRA_LINK_FLAGS="$EXTRA_LINK_FLAGS -l:$(basename "$CUBLAS_LIB_FILE")"
+    else
+        EXTRA_LINK_FLAGS="$EXTRA_LINK_FLAGS -lcublas"
+    fi
+fi
+
+if [ "$NEED_CUBLAS_LT" -eq 1 ]; then
+    if [ -n "$CUBLAS_LT_LIB_DIR" ] && [ "$CUBLAS_LT_LIB_DIR" != "$CUBLAS_LIB_DIR" ]; then
+        EXTRA_LINK_DIR_FLAGS="$EXTRA_LINK_DIR_FLAGS -L$CUBLAS_LT_LIB_DIR"
+        RUNTIME_LIB_DIRS="$RUNTIME_LIB_DIRS:$CUBLAS_LT_LIB_DIR"
+    elif [ -n "$CUBLAS_LT_LIB_DIR" ] && [ -z "$CUBLAS_LIB_DIR" ]; then
+        EXTRA_LINK_DIR_FLAGS="$EXTRA_LINK_DIR_FLAGS -L$CUBLAS_LT_LIB_DIR"
+        RUNTIME_LIB_DIRS="$RUNTIME_LIB_DIRS:$CUBLAS_LT_LIB_DIR"
+    fi
+    if [ -n "$CUBLAS_LT_LIB_FILE" ]; then
+        EXTRA_LINK_FLAGS="$EXTRA_LINK_FLAGS -l:$(basename "$CUBLAS_LT_LIB_FILE")"
+    else
+        EXTRA_LINK_FLAGS="$EXTRA_LINK_FLAGS -lcublasLt"
+    fi
+fi
+
+EXTRA_LINK_DIR_FLAGS=$(printf '%s' "$EXTRA_LINK_DIR_FLAGS" | sed 's/^ *//')
+EXTRA_LINK_FLAGS=$(printf '%s' "$EXTRA_LINK_FLAGS" | sed 's/^ *//')
+RUNTIME_LIB_DIRS=$(printf '%s' "$RUNTIME_LIB_DIRS" | sed 's/^://')
 
 mkdir -p "$TARGET_DIR"
 
 echo "[build] $SOURCE_REL -> $TARGET_PATH"
 [ -n "$CUDA_INCLUDE_DIR" ] && echo "[cuda] runtime include: $CUDA_INCLUDE_DIR"
 [ -n "$CUBLAS_INCLUDE_DIR" ] && echo "[cuda] cublas include: $CUBLAS_INCLUDE_DIR"
+[ -n "$CUBLAS_LIB_DIR" ] && echo "[cuda] cublas lib: $CUBLAS_LIB_DIR"
+[ -n "$CUBLAS_LIB_FILE" ] && echo "[cuda] cublas file: $CUBLAS_LIB_FILE"
+[ -n "$CUBLAS_LT_LIB_DIR" ] && echo "[cuda] cublasLt lib: $CUBLAS_LT_LIB_DIR"
+[ -n "$CUBLAS_LT_LIB_FILE" ] && echo "[cuda] cublasLt file: $CUBLAS_LT_LIB_FILE"
+[ -n "$EXTRA_LINK_DIR_FLAGS" ] && echo "[link] extra dir flags: $EXTRA_LINK_DIR_FLAGS"
+[ -n "$EXTRA_LINK_FLAGS" ] && echo "[link] extra flags: $EXTRA_LINK_FLAGS"
 
 # NVCC_FLAGS 允许用户以环境变量形式追加额外参数。
 # shellcheck disable=SC2086
@@ -140,6 +231,8 @@ if [ -n "$CUDA_INCLUDE_DIR" ] && [ -n "$CUBLAS_INCLUDE_DIR" ] && [ "$CUDA_INCLUD
         -I"$CUDA_INCLUDE_DIR" \
         -I"$CUBLAS_INCLUDE_DIR" \
         ${NVCC_FLAGS:-} \
+        ${EXTRA_LINK_DIR_FLAGS:-} \
+        ${EXTRA_LINK_FLAGS:-} \
         -o "$TARGET_PATH"
 elif [ -n "$CUDA_INCLUDE_DIR" ]; then
     nvcc "$SOURCE_PATH" \
@@ -149,6 +242,8 @@ elif [ -n "$CUDA_INCLUDE_DIR" ]; then
         -I"$SOURCE_DIR" \
         -I"$CUDA_INCLUDE_DIR" \
         ${NVCC_FLAGS:-} \
+        ${EXTRA_LINK_DIR_FLAGS:-} \
+        ${EXTRA_LINK_FLAGS:-} \
         -o "$TARGET_PATH"
 elif [ -n "$CUBLAS_INCLUDE_DIR" ]; then
     nvcc "$SOURCE_PATH" \
@@ -158,6 +253,8 @@ elif [ -n "$CUBLAS_INCLUDE_DIR" ]; then
         -I"$SOURCE_DIR" \
         -I"$CUBLAS_INCLUDE_DIR" \
         ${NVCC_FLAGS:-} \
+        ${EXTRA_LINK_DIR_FLAGS:-} \
+        ${EXTRA_LINK_FLAGS:-} \
         -o "$TARGET_PATH"
 else
     echo "[warn] 未找到额外 CUDA include 路径, 将仅使用 nvcc 默认搜索路径" >&2
@@ -167,8 +264,14 @@ else
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
         ${NVCC_FLAGS:-} \
+        ${EXTRA_LINK_DIR_FLAGS:-} \
+        ${EXTRA_LINK_FLAGS:-} \
         -o "$TARGET_PATH"
 fi
 
 echo "[run] $TARGET_PATH${*:+ }$*"
-"$TARGET_PATH" "$@"
+if [ -n "$RUNTIME_LIB_DIRS" ]; then
+    LD_LIBRARY_PATH="$RUNTIME_LIB_DIRS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$TARGET_PATH" "$@"
+else
+    "$TARGET_PATH" "$@"
+fi
