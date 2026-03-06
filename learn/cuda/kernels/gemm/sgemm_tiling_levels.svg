@@ -1,0 +1,207 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 600 20px Arial, sans-serif; fill: #1e293b; }
+      .label { font: 600 16px Arial, sans-serif; fill: #1f2937; }
+      .small { font: 500 14px Arial, sans-serif; fill: #334155; }
+      .tiny { font: 500 12px Arial, sans-serif; fill: #475569; }
+      .code { font: 600 14px 'Courier New', monospace; fill: #7c2d12; }
+      .em { font: 700 15px Arial, sans-serif; fill: #0f766e; }
+      .box { rx: 14; ry: 14; stroke-width: 2; }
+      .grid { stroke: #cbd5e1; stroke-width: 1; }
+      .arrow { stroke: #475569; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 8 6; }
+      .axis { font: 700 13px Arial, sans-serif; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1180" fill="#f8fafc"/>
+  <text x="40" y="48" class="title">SGEMM 三层切分图：完整矩阵 → block 级 tile → thread 级 tile，以及 bk / tk 循环</text>
+
+  <rect x="30" y="70" width="1540" height="300" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="50" y="105" class="subtitle">1) 完整矩阵视角：grid 只切 M/N，block 负责 C 的一个 BM x BN tile；K 由 block 内部循环处理</text>
+
+  <text x="70" y="135" class="axis">A: M x K</text>
+  <rect x="70" y="155" width="250" height="180" fill="#eff6ff" stroke="#60a5fa" stroke-width="2"/>
+  <g>
+    <line x1="120" y1="155" x2="120" y2="335" class="grid"/>
+    <line x1="170" y1="155" x2="170" y2="335" class="grid"/>
+    <line x1="220" y1="155" x2="220" y2="335" class="grid"/>
+    <line x1="270" y1="155" x2="270" y2="335" class="grid"/>
+    <line x1="70" y1="200" x2="320" y2="200" class="grid"/>
+    <line x1="70" y1="245" x2="320" y2="245" class="grid"/>
+    <line x1="70" y1="290" x2="320" y2="290" class="grid"/>
+  </g>
+  <rect x="70" y="200" width="250" height="45" fill="#bfdbfe" stroke="#2563eb" stroke-width="2"/>
+  <rect x="170" y="155" width="50" height="180" fill="#93c5fd" opacity="0.55"/>
+  <text x="95" y="227" class="label">某个 block 用到的 A 行带</text>
+  <text x="178" y="175" class="tiny">当前 bk</text>
+  <text x="178" y="190" class="tiny">对应的 BK 列</text>
+  <text x="145" y="355" class="small">高 = BM，宽 = BK</text>
+
+  <text x="400" y="135" class="axis">B: K x N</text>
+  <rect x="400" y="155" width="250" height="180" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="2"/>
+  <g>
+    <line x1="450" y1="155" x2="450" y2="335" class="grid"/>
+    <line x1="500" y1="155" x2="500" y2="335" class="grid"/>
+    <line x1="550" y1="155" x2="550" y2="335" class="grid"/>
+    <line x1="600" y1="155" x2="600" y2="335" class="grid"/>
+    <line x1="400" y1="200" x2="650" y2="200" class="grid"/>
+    <line x1="400" y1="245" x2="650" y2="245" class="grid"/>
+    <line x1="400" y1="290" x2="650" y2="290" class="grid"/>
+  </g>
+  <rect x="400" y="155" width="250" height="45" fill="#ddd6fe" stroke="#7c3aed" stroke-width="2"/>
+  <rect x="500" y="155" width="100" height="180" fill="#c4b5fd" opacity="0.4"/>
+  <text x="425" y="182" class="label">当前 block 用到的 B 行带</text>
+  <text x="510" y="175" class="tiny">当前 block</text>
+  <text x="510" y="190" class="tiny">负责的 BN 列</text>
+  <text x="485" y="355" class="small">高 = BK，宽 = BN</text>
+
+  <text x="735" y="135" class="axis">C: M x N</text>
+  <rect x="735" y="155" width="280" height="180" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+  <g>
+    <line x1="791" y1="155" x2="791" y2="335" class="grid"/>
+    <line x1="847" y1="155" x2="847" y2="335" class="grid"/>
+    <line x1="903" y1="155" x2="903" y2="335" class="grid"/>
+    <line x1="959" y1="155" x2="959" y2="335" class="grid"/>
+    <line x1="735" y1="200" x2="1015" y2="200" class="grid"/>
+    <line x1="735" y1="245" x2="1015" y2="245" class="grid"/>
+    <line x1="735" y1="290" x2="1015" y2="290" class="grid"/>
+  </g>
+  <rect x="791" y="200" width="112" height="45" fill="#86efac" stroke="#16a34a" stroke-width="3"/>
+  <text x="806" y="228" class="label">一个 block 的 C_sub</text>
+  <text x="780" y="355" class="small">大小 = BM x BN</text>
+  <text x="780" y="376" class="small">grid(x,y) 只在这里切分输出块</text>
+
+  <path d="M 320 222 L 400 222" class="arrow"/>
+  <path d="M 650 222 L 735 222" class="arrow"/>
+  <text x="338" y="208" class="small">A_sub[BM x BK]</text>
+  <text x="665" y="208" class="small">B_sub[BK x BN]</text>
+
+  <rect x="1090" y="145" width="445" height="200" class="box" fill="#fff7ed" stroke="#fb923c"/>
+  <text x="1110" y="178" class="label">这一层要点</text>
+  <text x="1110" y="210" class="small">- 全局问题规模是 A[M,K] · B[K,N] = C[M,N]</text>
+  <text x="1110" y="240" class="small">- 某个 block 固定住 (blockIdx.y, blockIdx.x)，只负责一个 C_sub[BM x BN]</text>
+  <text x="1110" y="270" class="small">- 这个 block 为了得到完整 C_sub，需要沿 K 做多次 bk 循环</text>
+  <text x="1110" y="300" class="em">- 所以 K 不分给多个 block；没有块间 reduction</text>
+
+  <rect x="30" y="395" width="1540" height="320" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="50" y="430" class="subtitle">2) block 级视角：每次 bk 迭代装入一块 A_sub[BM x BK] 和 B_sub[BK x BN]，然后对同一个 C_sub 做累加</text>
+
+  <text x="75" y="465" class="axis">block 固定后，沿 K 的切片</text>
+  <rect x="75" y="500" width="500" height="52" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/>
+  <rect x="75" y="500" width="62.5" height="52" fill="#38bdf8" stroke="#0284c7" stroke-width="2"/>
+  <rect x="137.5" y="500" width="62.5" height="52" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+  <rect x="200" y="500" width="62.5" height="52" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+  <rect x="262.5" y="500" width="62.5" height="52" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+  <rect x="325" y="500" width="62.5" height="52" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+  <rect x="387.5" y="500" width="62.5" height="52" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+  <rect x="450" y="500" width="62.5" height="52" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+  <rect x="512.5" y="500" width="62.5" height="52" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+  <text x="92" y="532" class="label">bk0</text>
+  <text x="154" y="532" class="label">bk1</text>
+  <text x="217" y="532" class="label">bk2</text>
+  <text x="280" y="532" class="label">bk3</text>
+  <text x="342" y="532" class="label">bk4</text>
+  <text x="405" y="532" class="label">bk5</text>
+  <text x="467" y="532" class="label">bk6</text>
+  <text x="530" y="532" class="label">bk7</text>
+  <text x="80" y="575" class="small">示例：K=64, BK=8，所以需要 8 次 bk 迭代</text>
+
+  <rect x="80" y="610" width="170" height="80" class="box" fill="#dbeafe" stroke="#60a5fa"/>
+  <text x="98" y="642" class="label">A_sub at bk=i</text>
+  <text x="98" y="668" class="small">尺寸 BM x BK</text>
+  <text x="98" y="688" class="small">例：128 x 8</text>
+
+  <path d="M 250 650 L 320 650" class="arrow"/>
+  <rect x="320" y="610" width="170" height="80" class="box" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="338" y="642" class="label">B_sub at bk=i</text>
+  <text x="338" y="668" class="small">尺寸 BK x BN</text>
+  <text x="338" y="688" class="small">例：8 x 128</text>
+
+  <path d="M 490 650 L 575 650" class="arrow"/>
+  <rect x="575" y="610" width="210" height="80" class="box" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="593" y="642" class="label">更新同一个 C_sub</text>
+  <text x="593" y="668" class="small">C_sub += A_sub × B_sub</text>
+  <text x="593" y="688" class="small">尺寸 BM x BN</text>
+
+  <rect x="845" y="470" width="670" height="220" class="box" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="865" y="503" class="label">伪代码对应关系</text>
+  <text x="865" y="540" class="code">for (int bk = 0; bk &lt; ceil(K / BK); ++bk) {</text>
+  <text x="895" y="570" class="code">load A_sub[BM x BK] to shared memory;</text>
+  <text x="895" y="600" class="code">load B_sub[BK x BN] to shared memory;</text>
+  <text x="895" y="630" class="code">for (int tk = 0; tk &lt; BK; ++tk) {</text>
+  <text x="925" y="660" class="code">r_c[TM][TN] += outer_product(...);</text>
+  <text x="895" y="690" class="code">}</text>
+  <text x="865" y="720" class="code">}</text>
+
+  <rect x="30" y="740" width="1540" height="390" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="50" y="775" class="subtitle">3) thread 级视角：一个 thread 不算整行，而是 C_sub 内的一个 TM x TN 寄存器块；A/B 的共享数据被反复复用</text>
+
+  <text x="75" y="810" class="axis">C_sub[BM x BN] 被线程块切成 many TM x TN 小块</text>
+  <rect x="75" y="840" width="512" height="256" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+  <g>
+    <line x1="107" y1="840" x2="107" y2="1096" class="grid"/>
+    <line x1="139" y1="840" x2="139" y2="1096" class="grid"/>
+    <line x1="171" y1="840" x2="171" y2="1096" class="grid"/>
+    <line x1="203" y1="840" x2="203" y2="1096" class="grid"/>
+    <line x1="235" y1="840" x2="235" y2="1096" class="grid"/>
+    <line x1="267" y1="840" x2="267" y2="1096" class="grid"/>
+    <line x1="299" y1="840" x2="299" y2="1096" class="grid"/>
+    <line x1="331" y1="840" x2="331" y2="1096" class="grid"/>
+    <line x1="363" y1="840" x2="363" y2="1096" class="grid"/>
+    <line x1="395" y1="840" x2="395" y2="1096" class="grid"/>
+    <line x1="427" y1="840" x2="427" y2="1096" class="grid"/>
+    <line x1="459" y1="840" x2="459" y2="1096" class="grid"/>
+    <line x1="491" y1="840" x2="491" y2="1096" class="grid"/>
+    <line x1="523" y1="840" x2="523" y2="1096" class="grid"/>
+    <line x1="555" y1="840" x2="555" y2="1096" class="grid"/>
+    <line x1="75" y1="856" x2="587" y2="856" class="grid"/>
+    <line x1="75" y1="872" x2="587" y2="872" class="grid"/>
+    <line x1="75" y1="888" x2="587" y2="888" class="grid"/>
+    <line x1="75" y1="904" x2="587" y2="904" class="grid"/>
+    <line x1="75" y1="920" x2="587" y2="920" class="grid"/>
+    <line x1="75" y1="936" x2="587" y2="936" class="grid"/>
+    <line x1="75" y1="952" x2="587" y2="952" class="grid"/>
+    <line x1="75" y1="968" x2="587" y2="968" class="grid"/>
+    <line x1="75" y1="984" x2="587" y2="984" class="grid"/>
+    <line x1="75" y1="1000" x2="587" y2="1000" class="grid"/>
+    <line x1="75" y1="1016" x2="587" y2="1016" class="grid"/>
+    <line x1="75" y1="1032" x2="587" y2="1032" class="grid"/>
+    <line x1="75" y1="1048" x2="587" y2="1048" class="grid"/>
+    <line x1="75" y1="1064" x2="587" y2="1064" class="grid"/>
+    <line x1="75" y1="1080" x2="587" y2="1080" class="grid"/>
+  </g>
+  <rect x="203" y="904" width="32" height="16" fill="#fca5a5" stroke="#dc2626" stroke-width="2"/>
+  <text x="75" y="1118" class="small">16 x 16 个 thread tile；每个小格表示一个 thread 的 TM x TN = 8 x 8 输出块</text>
+  <text x="75" y="1140" class="small">所以线程数 = (BM/TM) x (BN/TN) = 16 x 16 = 256</text>
+
+  <path d="M 587 912 L 660 912" class="arrow"/>
+  <rect x="660" y="865" width="250" height="95" class="box" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="680" y="897" class="label">一个线程负责的输出</text>
+  <text x="680" y="923" class="small">r_c[TM][TN]</text>
+  <text x="680" y="947" class="small">这里是 8 x 8 = 64 个寄存器累加器</text>
+
+  <text x="970" y="810" class="axis">同一个线程在一个 bk 内的计算流程</text>
+  <rect x="970" y="840" width="540" height="255" class="box" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="992" y="874" class="code">for each bk tile:</text>
+  <text x="1018" y="907" class="code">shared A_sub[BM x BK], B_sub[BK x BN] ready</text>
+  <text x="992" y="942" class="code">for (tk = 0; tk &lt; BK; ++tk) {</text>
+  <text x="1020" y="975" class="code">r_comp_a[TM] &lt;= A_sub(:, tk) 上自己那 TM 行</text>
+  <text x="1020" y="1008" class="code">r_comp_b[TN] &lt;= B_sub(tk, :) 上自己那 TN 列</text>
+  <text x="1020" y="1041" class="code">r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn]</text>
+  <text x="992" y="1074" class="code">}</text>
+
+  <rect x="970" y="1105" width="540" height="15" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="972" y="1145" class="small">每个 tk 是一次 TM x TN 外积更新；这里 TM=TN=8，所以每个 tk 做 64 次 FMA</text>
+
+  <rect x="1130" y="840" width="340" height="125" class="box" fill="#ecfeff" stroke="#06b6d4"/>
+  <text x="1150" y="872" class="label">A/B 在 thread 级的意义</text>
+  <text x="1150" y="898" class="small">A: thread 从 shared 取自己覆盖的 TM 个行值</text>
+  <text x="1150" y="924" class="small">B: thread 从 shared 取自己覆盖的 TN 个列值</text>
+  <text x="1150" y="950" class="small">共享 tile 被多个线程重复使用，形成高复用</text>
+</svg>

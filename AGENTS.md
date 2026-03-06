@@ -4,7 +4,9 @@
 **Commit:** d3b4406
 **Branch:** master
 
+- **系统** Ubuntu 24.04
 
+- **C++ 版本** C++23
 ## 项目概述
 
 XDL 是一个基于 PyTorch 的模块化深度学习框架，旨在提供可扩展、灵活的机器学习开发环境。框架支持模型、数据集、优化器、调度器等组件的灵活管理，采用组件注册系统实现模块化设计。
@@ -201,23 +203,23 @@ wandb sync others/wandb
 
 ### 关键目录
 
-| 目录 | 用途 | 说明 |
-|------|------|------|
-| `xdl/` | 核心框架 | callbacks, model, trainer, utils 等 |
-| `config/` | 配置文件 | YAML 配置，DeepSpeed 配置 |
-| `tools/` | 数据工具 | 图像处理、数据集下载 |
-| `scripts/` | 安装脚本 | install.sh |
-| `learn/` | 实验代码 | CUDA 内核、模型研究 |
-| `sci_research/` | 研究工具 | DBLP 分析、论文工具 |
-| `examples/` | 示例代码 | - |
-| `tests/` | 单元测试 | **缺失**，需创建 |
+| 目录            | 用途     | 说明                                |
+| --------------- | -------- | ----------------------------------- |
+| `xdl/`          | 核心框架 | callbacks, model, trainer, utils 等 |
+| `config/`       | 配置文件 | YAML 配置，DeepSpeed 配置           |
+| `tools/`        | 数据工具 | 图像处理、数据集下载                |
+| `scripts/`      | 安装脚本 | install.sh                          |
+| `learn/`        | 实验代码 | CUDA 内核、模型研究                 |
+| `sci_research/` | 研究工具 | DBLP 分析、论文工具                 |
+| `examples/`     | 示例代码 | -                                   |
+| `tests/`        | 单元测试 | **缺失**，需创建                    |
 
 ### 入口脚本
 
-| 脚本 | 用途 |
-|------|------|
-| `train_VAE.py` | VAE 训练 (MNIST) |
-| `train_GAN.py` | GAN 训练 (MNIST) |
+| 脚本                | 用途              |
+| ------------------- | ----------------- |
+| `train_VAE.py`      | VAE 训练 (MNIST)  |
+| `train_GAN.py`      | GAN 训练 (MNIST)  |
 | `train_TwinFlow.py` | TwinFlow 生成模型 |
 ## 注意事项
 

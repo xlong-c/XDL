@@ -50,7 +50,7 @@
             "name": "百炼",
             "options": {
                 "baseURL": "https://coding.dashscope.aliyuncs.com/apps/anthropic/v1",
-                "apiKey": "sk-sp-7f9b0c00b833466bb036ccfdb7462106"
+                "apiKey": "sk-01086c79a75024494e1a0745416ed01ef008db1c681de1e7ea26f101d453d1bd"
             },
             "models": {
                 "qwen3.5-plus": {
@@ -126,6 +126,7 @@
                 }
             }
         },
+        
         "yunwu-claude": {
             "npm": "@ai-sdk/anthropic",
             "name": "云雾 Claude",

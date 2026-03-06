@@ -1,23 +1,31 @@
 #include "cuda_runtime.h"
-#if defined(__clang__)
-#include <__clang_cuda_runtime_wrapper.h>
-#endif
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cublas_v2.h>
 #include <vector>
 #include <vector_types.h>
 
 #define FLOAT4(value) (reinterpret_cast<float4 *>(&(value))[0])
-#define CHECK_CUDA(call)                                                       \
-  do {                                                                         \
-    cudaError_t err__ = (call);                                                \
-    if (err__ != cudaSuccess) {                                                \
-      std::fprintf(stderr, "CUDA error: %s @ %s:%d\n",                         \
-                   cudaGetErrorString(err__), __FILE__, __LINE__);             \
-      std::exit(EXIT_FAILURE);                                                 \
-    }                                                                          \
+#define CHECK_CUDA(call)                                           \
+  do {                                                             \
+    cudaError_t err__ = (call);                                    \
+    if (err__ != cudaSuccess) {                                    \
+      std::fprintf(stderr, "CUDA error: %s @ %s:%d\n",             \
+                   cudaGetErrorString(err__), __FILE__, __LINE__); \
+      std::exit(EXIT_FAILURE);                                     \
+    }                                                              \
+  } while (0)
+
+#define CHECK_CUBLAS(call)                                          \
+  do {                                                              \
+    cublasStatus_t status__ = (call);                               \
+    if (status__ != CUBLAS_STATUS_SUCCESS) {                        \
+      std::fprintf(stderr, "cuBLAS error: %d @ %s:%d\n",            \
+                   static_cast<int>(status__), __FILE__, __LINE__); \
+      std::exit(EXIT_FAILURE);                                      \
+    }                                                               \
   } while (0)
 
 __global__ void sgemm_naive_f32_kernel(float *A, float *B, float *C, int M,
@@ -218,12 +226,10 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
 
   // 线程到共享内存坐标的映射（按 float4 对齐）。
   // A tile 布局: s_a[BK][BM]，这里每个线程负责 A 的 4 个连续 k 元素。
-  int load_a_smem_m = tid / 2; // A 的行索引 m（两线程协作同一行）
-  int load_a_smem_k = (tid & 1)
-                      << 2; // A 的列起点 k，取值 0 或 4（对应 float4）
+  int load_a_smem_m = tid / 2;        // A 的行索引 m（两线程协作同一行）
+  int load_a_smem_k = (tid & 1) << 2; // A 的列起点 k，取值 0 或 4（对应 float4）
   // B tile 布局: s_b[BK][BN]，每个线程负责 B 的 1 个 float4。
-  int load_b_smem_k =
-      tid / 32; // B 的行索引 k（一个 warp 覆盖一行的 32 个 float4）
+  int load_b_smem_k = tid / 32;        // B 的行索引 k（一个 warp 覆盖一行的 32 个 float4）
   int load_b_smem_n = (tid & 31) << 2; // B 的列起点 n，0,4,8,...,124
 
   // 当前 block 在全局矩阵中的基址偏移。
@@ -236,9 +242,9 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
   // 沿 K 维分块：加载 A/B 子块 -> 线程内 FMA 累加到 r_c。
   for (int bk = 0; bk < kNumKTiles; ++bk) {
     // bk: 当前 K 维切片编号，对应区间 [bk*BK, bk*BK+BK)。
-    int load_a_gmem_k = bk * BK + load_a_smem_k; // A 在当前切片内的列起点
+    int load_a_gmem_k = bk * BK + load_a_smem_k;              // A 在当前切片内的列起点
     int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k; // A[m, k:k+4]
-    int load_b_gmem_k = bk * BK + load_b_smem_k; // B 在当前切片内的行号
+    int load_b_gmem_k = bk * BK + load_b_smem_k;              // B 在当前切片内的行号
     int load_b_gmem_addr = load_b_gmem_k * N + load_b_gmem_n; // B[k, n:n+4]
     FLOAT4(r_load_a[0]) = FLOAT4(A[load_a_gmem_addr]);
     FLOAT4(r_load_b[0]) = FLOAT4(B[load_b_gmem_addr]);
@@ -277,8 +283,7 @@ sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *A, float *B, float *C, const int M,
   for (int row_block = 0; row_block < 2; ++row_block) {
 #pragma unroll
     for (int i = 0; i < kHalfTM; ++i) {
-      const int store_c_gmem_m =
-          by * BM + row_block * (BM / 2) + ty * kHalfTM + i;
+      const int store_c_gmem_m = by * BM + row_block * (BM / 2) + ty * kHalfTM + i;
       const int store_c_gmem_n = bx * BN + tx * kHalfTN;
       const int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n;
       const int r_row = row_block * kHalfTM + i;
@@ -300,50 +305,189 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
   __shared__ float s_a[2][BK][BM + OFFSET]; // 双缓存
   __shared__ float s_b[2][BK][BN + OFFSET];
 
-  float r_load_a[4];  // 寄存器
-  float r_load_b[4];  // 寄存器, 放B在线程的当前列索引对应数据
-  float r_comp_a[TM]; // 寄存器, 放A的行数据
-  float r_comp_b[TN]; // 寄存器, 放B的列数据
+  float r_load_a[4];         // 寄存器
+  float r_load_b[4];         // 寄存器, 放B在线程的当前列索引对应数据
+  float r_comp_a[TM];        // 寄存器, 放A的行数据
+  float r_comp_b[TN];        // 寄存器, 放B的列数据
   float r_c[TM][TN] = {0.0}; // 寄存器, 放结果C, M 行 N 列
 
-  int load_a_smem_m =
-      tid / 2; // A 在 shared memory 的行索引 m（每 2 个线程对应 1 行）
-  int load_a_smem_k =
-      (tid & 1) << 2; // A 在 shared memory 的列索引 k（每 2 个线程对应 1 列）
-  int load_b_smem_n = (tid & 31) << 2;
-  int load_b_smem_k = tid / 32;
+  int load_a_smem_m = tid / 2;         // A 在 shared memory 的行索引 m（每 2 个线程对应 1 行）
+  int load_a_smem_k = (tid & 1) << 2;  // A 在 shared memory 的列索引 k（每 2 个线程对应 1 列）
+  int load_b_smem_n = (tid & 31) << 2; // B 在 shared memory 的列索引 n（按 warp
+                                       // 内 lane 映射，向量宽度为 4）
+  int load_b_smem_k = tid / 32;        // B 在 shared memory 的行索引 k（每个 warp 负责一行 BK 切片）
 
-  int load_a_gmem_m = by * BM + load_a_smem_m;
-  int load_a_gmem_n = bx * BN + load_b_smem_n;
+  int load_a_gmem_m = by * BM + load_a_smem_m; // A 在 global memory 的行坐标 m（块内行 + block 偏移）
+  int load_a_gmem_n = bx * BN + load_b_smem_n; // 当前线程负责的 global 列坐标基址（用于 B 的 n 方向）
+  {
+    int load_a_gmem_k = load_a_smem_k;                        // A 的 k 起点，与 shared memory 的 k 布局保持一致
+    int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k; // A 的线性地址 = m * K + k
+    FLOAT4(r_load_a[0]) = FLOAT4(A[load_a_gmem_addr]);        // 向量化读取 A 的连续 4 个 float 到寄存器
+    int load_b_gmem_k = load_b_smem_k;                        // B 的 k 坐标由 warp 号决定
+    int load_b_gmem_addr = load_b_gmem_k * N + load_a_gmem_n; // B 的线性地址 = k * N + n
+    FLOAT4(r_load_b[0]) = FLOAT4(B[load_b_gmem_addr]);        // 向量化读取 B 的连续 4 个 float 到寄存器
 
-  int load_a_gmem_k = load_a_smem_k;
-  int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;
-  FLOAT4(r_load_a[0]) = FLOAT4(A[load_a_gmem_addr]);
-  int load_b_gmem_k = load_b_smem_k;
-  int load_b_gmem_addr = load_b_gmem_k * N + load_a_gmem_n;
-  FLOAT4(r_load_b[0]) = FLOAT4(B[load_b_gmem_addr]);
+    s_a[0][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0]; // 将 A 的第 0 个元素写入双缓冲 0
+    s_a[0][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1]; // 将 A 的第 1 个元素写入双缓冲 0
+    s_a[0][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2]; // 将 A 的第 2 个元素写入双缓冲 0
+    s_a[0][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3]; // 将 A 的第 3 个元素写入双缓冲 0
 
-  s_a[0][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];
-  s_a[0][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
-  s_a[0][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
-  s_a[0][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];
+    FLOAT4(s_b[0][load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b); // 将 B 的 4 元向量写入双缓冲 0
+  }
+  __syncthreads(); // 等待所有线程完成首块 BK 数据装载
+  for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
+    int smem_sel = (bk - 1) & 1;                              // 当前用于计算的 shared memory 缓冲区编号（ping-pong）
+    int smem_sel_next = bk & 1;                               // 当前迭代要预取写入的下一缓冲区编号
+    int load_a_gmem_k = bk * BK + load_a_smem_k;              // 计算下一块 A 的 global k 起点
+    int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k; // 下一块 A 的线性读取地址
+    FLOAT4(r_load_a[0]) = FLOAT4(A[load_a_gmem_addr]);        // 预取下一块 A 到寄存器
+    FLOAT4(r_load_b[0]) = FLOAT4(B[load_a_gmem_addr]);        // 预取下一块 B 到寄存器（当前实现复用同一地址变量）
 
-  FLOAT4(s_b[0][load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b);
+#pragma unroll
+    for (int tk = 0; tk < BK; tk++) {
+      FLOAT4(r_comp_a[0]) = FLOAT4(s_a[smem_sel][tk][ty * TM / 2]);          // 读取 A 子块上半行向量到计算寄存器
+      FLOAT4(r_comp_a[4]) = FLOAT4(s_a[smem_sel][tk][ty * TM / 2 + TM / 2]); // 读取 A 子块下半行向量到计算寄存器
+      FLOAT4(r_comp_b[0]) = FLOAT4(s_b[smem_sel][tk][ty * TN / 2]);          // 读取 B 子块左半列向量到计算寄存器
+      FLOAT4(r_comp_b[4]) = FLOAT4(s_b[smem_sel][tk][ty * TN / 2 + TN / 2]); // 读取 B 子块右半列向量到计算寄存器
+#pragma unroll
+      for (int tm = 0; tm < TM; tm++) {
+#pragma unroll
+        for (int tn = 0; tn < TN; tn++) {
+          r_c[tm][tn] = __fmaf_rn(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]); // 执行 FMA 累加：C += A*B
+        }
+      }
+    }
+    s_a[smem_sel_next][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];             // 将预取 A 写入下一缓冲区（元素 0）
+    s_a[smem_sel_next][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];             // 将预取 A 写入下一缓冲区（元素 1）
+    s_a[smem_sel_next][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];             // 将预取 A 写入下一缓冲区（元素 2）
+    s_a[smem_sel_next][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];             // 将预取 A 写入下一缓冲区（元素 3）
+    FLOAT4(s_b[smem_sel_next][load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b[0]); // 将预取 B 写入下一缓冲区
+    __syncthreads();                                                                // 同步后再进入下一轮 bk，确保双缓冲数据可见
+  }
+// 计算剩下最后一块BK
+#pragma unroll
+  for (int tk = 0; tk < BK; tk++) {
+    FLOAT4(r_comp_a[0]) = FLOAT4(s_a[1][tk][ty * TM / 2]);
+    FLOAT4(r_comp_a[4]) = FLOAT4(s_a[1][tk][ty * TM / 2 + BM / 2]);
+    FLOAT4(r_comp_b[0]) = FLOAT4(s_b[1][tk][tx * TN / 2]);
+    FLOAT4(r_comp_b[4]) = FLOAT4(s_b[1][tk][tx * TN / 2 + BN / 2]);
 
-  __syncthreads();
+#pragma unroll
+    for (int tm = 0; tm < TM; tm++) {
+#pragma unroll
+      for (int tn = 0; tn < TN; tn++) {
+        // r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
+        r_c[tm][tn] = __fmaf_rn(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
+      }
+    }
+  }
 
-  
+#pragma unroll
+  for (int i = 0; i < TM / 2; i++) {
+    int store_c_gmem_m = by * BM + ty * TM / 2 + i;
+    int store_c_gmem_n = bx * BN + tx * TN / 2;
+    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n;
+    FLOAT4(C[store_c_gmem_addr]) = FLOAT4(r_c[i][0]);
+    FLOAT4(C[store_c_gmem_addr + BN / 2]) = FLOAT4(r_c[i][4]);
+  }
+#pragma unroll
+  for (int i = 0; i < TM / 2; i++) {
+    int store_c_gmem_m = by * BM + BM / 2 + ty * TM / 2 + i;
+    int store_c_gmem_n = bx * BN + tx * TN / 2;
+    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n;
+    FLOAT4(C[store_c_gmem_addr]) = FLOAT4(r_c[i + TM / 2][0]);
+    FLOAT4(C[store_c_gmem_addr + BN / 2]) = FLOAT4(r_c[i + TM / 2][4]);
+  }
+}
 
+struct KernelBenchmarkResult {
+  const char *name;
+  float max_abs_err;
+  float avg_time_ms;
+  double tflops;
+  bool passed;
+  cudaError_t cuda_status;
+};
+
+template <typename LaunchFunc>
+KernelBenchmarkResult
+benchmark_kernel(const char *name, LaunchFunc launch, float *d_c,
+                 std::vector<float> &h_c, const std::vector<float> &h_ref,
+                 const size_t bytes_c, const double total_flops,
+                 const int warmup_iters, const int repeat_iters,
+                 const float tolerance) {
+  KernelBenchmarkResult result{name, 0.0f, 0.0f, 0.0, false, cudaSuccess};
+  cudaEvent_t start = nullptr;
+  cudaEvent_t stop = nullptr;
+  CHECK_CUDA(cudaEventCreate(&start));
+  CHECK_CUDA(cudaEventCreate(&stop));
+
+  for (int iter = 0; iter < warmup_iters; ++iter) {
+    CHECK_CUDA(cudaMemset(d_c, 0, bytes_c));
+    launch();
+    result.cuda_status = cudaGetLastError();
+    if (result.cuda_status != cudaSuccess) {
+      goto cleanup;
+    }
+    result.cuda_status = cudaDeviceSynchronize();
+    if (result.cuda_status != cudaSuccess) {
+      goto cleanup;
+    }
+  }
+
+  for (int iter = 0; iter < repeat_iters; ++iter) {
+    CHECK_CUDA(cudaMemset(d_c, 0, bytes_c));
+    CHECK_CUDA(cudaEventRecord(start));
+    launch();
+    result.cuda_status = cudaGetLastError();
+    if (result.cuda_status != cudaSuccess) {
+      goto cleanup;
+    }
+    CHECK_CUDA(cudaEventRecord(stop));
+    result.cuda_status = cudaEventSynchronize(stop);
+    if (result.cuda_status != cudaSuccess) {
+      goto cleanup;
+    }
+
+    float iter_ms = 0.0f;
+    CHECK_CUDA(cudaEventElapsedTime(&iter_ms, start, stop));
+    result.avg_time_ms += iter_ms;
+  }
+
+  result.avg_time_ms /= static_cast<float>(repeat_iters);
+  result.tflops = total_flops / (static_cast<double>(result.avg_time_ms) * 1.0e9);
+
+  CHECK_CUDA(cudaMemcpy(h_c.data(), d_c, bytes_c, cudaMemcpyDeviceToHost));
+  for (size_t i = 0; i < h_c.size(); ++i) {
+    result.max_abs_err = std::max(result.max_abs_err, std::fabs(h_c[i] - h_ref[i]));
+  }
+  result.passed = result.max_abs_err <= tolerance;
+
+cleanup:
+  if (result.cuda_status != cudaSuccess) {
+    cudaGetLastError();
+  }
+  CHECK_CUDA(cudaEventDestroy(start));
+  CHECK_CUDA(cudaEventDestroy(stop));
+  return result;
 }
 
 int main() {
-  constexpr int M = 64;
-  constexpr int N = 64;
-  constexpr int K = 64;
+  constexpr int M = 1024;
+  constexpr int N = 1024;
+  constexpr int K = 512;
+  constexpr float kTolerance = 1e-3f;
+  constexpr int kWarmupIters = 3;
+  constexpr int kRepeatIters = 10;
 
   const size_t size_a = static_cast<size_t>(M) * K;
   const size_t size_b = static_cast<size_t>(K) * N;
   const size_t size_c = static_cast<size_t>(M) * N;
+  const size_t bytes_a = size_a * sizeof(float);
+  const size_t bytes_b = size_b * sizeof(float);
+  const size_t bytes_c = size_c * sizeof(float);
+  const double total_flops = 2.0 * static_cast<double>(M) *
+                             static_cast<double>(N) * static_cast<double>(K);
 
   int device_count = 0;
   CHECK_CUDA(cudaGetDeviceCount(&device_count));
@@ -364,28 +508,6 @@ int main() {
     h_b[i] = static_cast<float>((i % 17) - 8) * 0.1f;
   }
 
-  float *d_a = nullptr;
-  float *d_b = nullptr;
-  float *d_c = nullptr;
-  CHECK_CUDA(cudaMalloc(&d_a, size_a * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&d_b, size_b * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&d_c, size_c * sizeof(float)));
-
-  CHECK_CUDA(cudaMemcpy(d_a, h_a.data(), size_a * sizeof(float),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(d_b, h_b.data(), size_b * sizeof(float),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemset(d_c, 0, size_c * sizeof(float)));
-
-  dim3 block(32, 32);
-  dim3 grid((N + 32 - 1) / 32, (M + 32 - 1) / 32);
-  sgemm_sliced_k_f32_kernel<<<grid, block>>>(d_a, d_b, d_c, M, N, K);
-  CHECK_CUDA(cudaGetLastError());
-  CHECK_CUDA(cudaDeviceSynchronize());
-
-  CHECK_CUDA(cudaMemcpy(h_c.data(), d_c, size_c * sizeof(float),
-                        cudaMemcpyDeviceToHost));
-
   for (int m = 0; m < M; ++m) {
     for (int n = 0; n < N; ++n) {
       float sum = 0.0f;
@@ -396,23 +518,89 @@ int main() {
     }
   }
 
-  float max_abs_err = 0.0f;
-  for (size_t i = 0; i < size_c; ++i) {
-    max_abs_err = std::max(max_abs_err, std::fabs(h_c[i] - h_ref[i]));
+  float *d_a = nullptr;
+  float *d_b = nullptr;
+  float *d_c = nullptr;
+  CHECK_CUDA(cudaMalloc(&d_a, bytes_a));
+  CHECK_CUDA(cudaMalloc(&d_b, bytes_b));
+  CHECK_CUDA(cudaMalloc(&d_c, bytes_c));
+
+  CHECK_CUDA(cudaMemcpy(d_a, h_a.data(), bytes_a, cudaMemcpyHostToDevice));
+  CHECK_CUDA(cudaMemcpy(d_b, h_b.data(), bytes_b, cudaMemcpyHostToDevice));
+
+  const dim3 block_naive(32, 32);
+  const dim3 grid_naive((N + 32 - 1) / 32, (M + 32 - 1) / 32);
+  const dim3 block_tiled(16, 16);
+  const dim3 grid_tiled((N + 128 - 1) / 128, (M + 128 - 1) / 128);
+
+  std::vector<KernelBenchmarkResult> results;
+  results.push_back(benchmark_kernel(
+      "sgemm_naive_f32",
+      [&]() {
+        sgemm_naive_f32_kernel<<<grid_naive, block_naive>>>(d_a, d_b, d_c, M, N,
+                                                            K);
+      },
+      d_c, h_c, h_ref, bytes_c, total_flops, kWarmupIters, kRepeatIters,
+      kTolerance));
+  results.push_back(benchmark_kernel(
+      "sgemm_sliced_k_f32",
+      [&]() {
+        sgemm_sliced_k_f32_kernel<<<grid_naive, block_naive>>>(d_a, d_b, d_c, M,
+                                                               N, K);
+      },
+      d_c, h_c, h_ref, bytes_c, total_flops, kWarmupIters, kRepeatIters,
+      kTolerance));
+  results.push_back(benchmark_kernel(
+      "sgemm_t_8x8_f32x4",
+      [&]() {
+        sgemm_t_8x8_sliced_k_f32x4_kernel<<<grid_tiled, block_tiled>>>(
+            d_a, d_b, d_c, M, N, K);
+      },
+      d_c, h_c, h_ref, bytes_c, total_flops, kWarmupIters, kRepeatIters,
+      kTolerance));
+  results.push_back(benchmark_kernel(
+      "sgemm_t_8x8_f32x4_bcf<O=4>",
+      [&]() {
+        sgemm_t_8x8_sliced_k_f32x4_bcf_kernel<128, 128, 8, 8, 8, 4>
+            <<<grid_tiled, block_tiled>>>(d_a, d_b, d_c, M, N, K);
+      },
+      d_c, h_c, h_ref, bytes_c, total_flops, kWarmupIters, kRepeatIters,
+      kTolerance));
+  results.push_back(benchmark_kernel(
+      "sgemm_t_8x8_f32x4_dbuf<O=4>",
+      [&]() {
+        sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel<128, 128, 8, 8, 8, 4>
+            <<<grid_tiled, block_tiled>>>(d_a, d_b, d_c, M, N, K);
+      },
+      d_c, h_c, h_ref, bytes_c, total_flops, kWarmupIters, kRepeatIters,
+      kTolerance));
+
+  std::printf("SGEMM benchmark (M=%d, N=%d, K=%d, FLOPs=%.0f)\n", M, N, K,
+              total_flops);
+  std::printf("%-30s | %12s | %12s | %12s | %12s\n", "Kernel", "MaxAbsErr",
+              "Time(ms)", "TFLOPS", "Status");
+  std::printf("-------------------------------+--------------+--------------+--"
+              "------------+--------------\n");
+
+  bool all_passed = true;
+  for (const auto &result : results) {
+    if (result.cuda_status == cudaSuccess) {
+      std::printf("%-30s | %12.6g | %12.4f | %12.4f | %12s\n", result.name,
+                  result.max_abs_err, result.avg_time_ms, result.tflops,
+                  result.passed ? "PASS" : "FAIL");
+      all_passed = all_passed && result.passed;
+      continue;
+    }
+
+    std::printf("%-30s | %12s | %12s | %12s | %12s\n", result.name, "N/A",
+                "N/A", "N/A", "CUDA_ERR");
+    std::printf("  -> CUDA error: %s\n",
+                cudaGetErrorString(result.cuda_status));
+    all_passed = false;
   }
 
-  std::printf("max_abs_err = %.8g\n", max_abs_err);
-  if (max_abs_err > 1e-3f) {
-    std::fprintf(stderr, "Validation failed.\n");
-    CHECK_CUDA(cudaFree(d_a));
-    CHECK_CUDA(cudaFree(d_b));
-    CHECK_CUDA(cudaFree(d_c));
-    return EXIT_FAILURE;
-  }
-
-  std::printf("Validation passed.\n");
   CHECK_CUDA(cudaFree(d_a));
   CHECK_CUDA(cudaFree(d_b));
   CHECK_CUDA(cudaFree(d_c));
-  return EXIT_SUCCESS;
+  return all_passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
