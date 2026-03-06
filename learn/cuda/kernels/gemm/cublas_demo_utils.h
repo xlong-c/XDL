@@ -144,6 +144,10 @@ inline size_t packed_element_count(const size_t num_scalars) {
 
 template <typename T> inline T cast_from_float(const float value);
 
+template <> inline float cast_from_float<float>(const float value) {
+  return value;
+}
+
 template <> inline __half cast_from_float<__half>(const float value) {
   return __half(value);
 }
