@@ -1,118 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="980" viewBox="0 0 1400 980">
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,6 L0,12 z" fill="#475569"/>
     </marker>
     <style>
-      .title { font: 700 28px 'Arial', sans-serif; fill: #0f172a; }
-      .subtitle { font: 600 18px 'Arial', sans-serif; fill: #334155; }
-      .label { font: 600 16px 'Arial', sans-serif; fill: #1e293b; }
-      .small { font: 500 14px 'Arial', sans-serif; fill: #334155; }
-      .tiny { font: 500 12px 'Arial', sans-serif; fill: #475569; }
-      .code { font: 600 14px 'Courier New', monospace; fill: #7c2d12; }
-      .note { font: 600 15px 'Arial', sans-serif; fill: #0f766e; }
-      .box { rx: 16; ry: 16; stroke-width: 2; }
+      .title { font: 700 32px 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 18px 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #475569; }
+      .section-title { font: 700 22px 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #0f172a; }
+      .label { font: 700 18px 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #1e293b; }
+      .body { font: 500 16px 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #334155; }
+      .small { font: 500 14px 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #475569; }
+      .mono { font: 600 15px 'Courier New', monospace; fill: #7c2d12; }
+      .box { rx: 20; ry: 20; stroke-width: 2; }
+      .inner { rx: 14; ry: 14; stroke-width: 2; }
+      .arrow { stroke: #475569; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #94a3b8; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
       .grid { stroke: #cbd5e1; stroke-width: 1; }
-      .arrow { stroke: #475569; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
-      .dashed { stroke-dasharray: 8 6; }
     </style>
   </defs>
 
-  <rect width="1400" height="900" fill="#f8fafc" />
-  <text x="40" y="50" class="title">SGEMM tiling 演示：BK 分块、A 的两线程装载、以及为什么不需要块间加法</text>
+  <rect width="1400" height="980" fill="#f8fafc"/>
+  <text x="44" y="56" class="title">SGEMM 一次 tile 迭代到底发生了什么</text>
+  <text x="44" y="88" class="subtitle">核心目标：先看“同一个 block 为什么反复更新同一个 C_sub”，再看“一个 thread 如何把 A/B 片段变成寄存器里的输出块”。</text>
 
-  <rect x="40" y="80" width="1320" height="230" class="box" fill="#ffffff" stroke="#cbd5e1" />
-  <text x="60" y="115" class="subtitle">1) 全局矩阵乘法：一个 block 只负责 C 的一个 BM x BN 输出 tile，K 方向在 block 内自己循环完</text>
+  <!-- Panel 1 -->
+  <rect x="40" y="122" width="1320" height="220" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="66" y="162" class="section-title">1) block 视角：K 方向分块，但输出始终是同一个 C_sub</text>
+  <text x="66" y="194" class="body">一个 block 只负责一个输出 tile。它会在不同的 <tspan class="mono">bk</tspan> 上反复加载 A_sub / B_sub，并把结果累加到同一个 C_sub。</text>
 
-  <rect x="80" y="150" width="240" height="120" class="box" fill="#dbeafe" stroke="#60a5fa" />
-  <text x="100" y="185" class="label">A [M x K]</text>
-  <text x="100" y="215" class="small">block 当前取 A_sub = [BM x BK]</text>
-  <text x="100" y="245" class="small">例：128 x 8</text>
+  <rect x="86" y="234" width="220" height="72" class="inner" fill="#dbeafe" stroke="#60a5fa"/>
+  <text x="108" y="264" class="label">A_sub at bk=i</text>
+  <text x="108" y="290" class="body">尺寸 = BM × BK</text>
 
-  <rect x="420" y="150" width="240" height="120" class="box" fill="#ede9fe" stroke="#8b5cf6" />
-  <text x="440" y="185" class="label">B [K x N]</text>
-  <text x="440" y="215" class="small">block 当前取 B_sub = [BK x BN]</text>
-  <text x="440" y="245" class="small">例：8 x 128</text>
+  <rect x="396" y="234" width="220" height="72" class="inner" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="418" y="264" class="label">B_sub at bk=i</text>
+  <text x="418" y="290" class="body">尺寸 = BK × BN</text>
 
-  <rect x="760" y="150" width="280" height="120" class="box" fill="#dcfce7" stroke="#22c55e" />
-  <text x="780" y="185" class="label">C [M x N]</text>
-  <text x="780" y="215" class="small">当前 block 累加到 C_sub = [BM x BN]</text>
-  <text x="780" y="245" class="small">例：128 x 128</text>
+  <rect x="706" y="222" width="270" height="88" class="inner" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="730" y="256" class="label">C_sub（同一块输出）</text>
+  <text x="730" y="284" class="mono">C_sub += A_sub × B_sub</text>
 
-  <path d="M 320 210 L 420 210" class="arrow" />
-  <path d="M 660 210 L 760 210" class="arrow" />
-  <text x="343" y="195" class="small">公共维 K</text>
-  <text x="683" y="195" class="small">乘加累积</text>
+  <path d="M306 270 L396 270" class="arrow"/>
+  <path d="M616 270 L706 270" class="arrow"/>
 
-  <rect x="1080" y="145" width="240" height="135" class="box" fill="#fff7ed" stroke="#fb923c" />
-  <text x="1100" y="180" class="label">关键点</text>
-  <text x="1100" y="210" class="small">grid 只在 M / N 上切块</text>
-  <text x="1100" y="235" class="small">K 不分给多个 block</text>
-  <text x="1100" y="260" class="note">所以不需要块间 reduction</text>
+  <rect x="1048" y="226" width="280" height="80" class="inner" fill="#fff7ed" stroke="#fb923c"/>
+  <text x="1070" y="258" class="label">为什么不需要块间加法</text>
+  <text x="1070" y="284" class="small">因为同一个 block 会自己走完整个 K 循环，C_sub 的所有部分和都在 block 内完成。</text>
 
-  <rect x="40" y="340" width="1320" height="250" class="box" fill="#ffffff" stroke="#cbd5e1" />
-  <text x="60" y="375" class="subtitle">2) A_sub 的装载：BK = 8，每线程搬一个 float4，所以同一逻辑行需要两个线程合作</text>
+  <!-- Panel 2 -->
+  <rect x="40" y="372" width="1320" height="250" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="66" y="412" class="section-title">2) 单次 bk 迭代：先把 tile 搬进 shared memory，再做 BK 次内层计算</text>
+  <text x="66" y="444" class="body">这一层要建立的直觉是：global memory 里的大矩阵不会直接参与每次 FMA，真正被反复访问的是 shared memory 里的 tile。</text>
 
-  <text x="80" y="415" class="label">A_sub 的一行（逻辑上）</text>
-  <rect x="80" y="440" width="70" height="50" fill="#bfdbfe" stroke="#60a5fa" />
-  <rect x="150" y="440" width="70" height="50" fill="#bfdbfe" stroke="#60a5fa" />
-  <rect x="220" y="440" width="70" height="50" fill="#bfdbfe" stroke="#60a5fa" />
-  <rect x="290" y="440" width="70" height="50" fill="#bfdbfe" stroke="#60a5fa" />
-  <rect x="360" y="440" width="70" height="50" fill="#93c5fd" stroke="#2563eb" />
-  <rect x="430" y="440" width="70" height="50" fill="#93c5fd" stroke="#2563eb" />
-  <rect x="500" y="440" width="70" height="50" fill="#93c5fd" stroke="#2563eb" />
-  <rect x="570" y="440" width="70" height="50" fill="#93c5fd" stroke="#2563eb" />
-  <text x="103" y="470" class="label">k0</text>
-  <text x="173" y="470" class="label">k1</text>
-  <text x="243" y="470" class="label">k2</text>
-  <text x="313" y="470" class="label">k3</text>
-  <text x="383" y="470" class="label">k4</text>
-  <text x="453" y="470" class="label">k5</text>
-  <text x="523" y="470" class="label">k6</text>
-  <text x="593" y="470" class="label">k7</text>
+  <rect x="86" y="492" width="220" height="92" class="inner" fill="#dbeafe" stroke="#60a5fa"/>
+  <text x="108" y="528" class="label">global A_sub</text>
+  <text x="108" y="554" class="small">连续加载、协作搬运</text>
+  <text x="108" y="576" class="small">目标：提高带宽利用率</text>
 
-  <text x="90" y="525" class="code">tid = 2m  -&gt; load_a_smem_k = (tid &amp; 1) &lt;&lt; 2 = 0  -&gt; 搬 k0..k3</text>
-  <text x="90" y="555" class="code">tid = 2m+1-&gt; load_a_smem_k = (tid &amp; 1) &lt;&lt; 2 = 4  -&gt; 搬 k4..k7</text>
+  <rect x="356" y="492" width="220" height="92" class="inner" fill="#bfdbfe" stroke="#2563eb"/>
+  <text x="378" y="528" class="label">shared A tile</text>
+  <text x="378" y="554" class="small">后续会被 thread 反复读取</text>
+  <text x="378" y="576" class="small">常见优化：转置 / padding</text>
 
-  <rect x="760" y="410" width="560" height="145" class="box" fill="#f8fafc" stroke="#94a3b8" />
-  <text x="780" y="445" class="label">线程索引映射</text>
-  <text x="780" y="478" class="code">load_a_smem_m = tid / 2</text>
-  <text x="780" y="510" class="code">load_a_smem_k = (tid &amp; 1) &lt;&lt; 2  ∈ {0, 4}</text>
-  <text x="780" y="542" class="small">意思是：每两个线程对应同一个逻辑行 m，一个搬前半行，一个搬后半行</text>
+  <path d="M306 538 L356 538" class="arrow"/>
 
-  <path d="M 640 465 L 760 465" class="arrow" />
+  <rect x="646" y="492" width="220" height="92" class="inner" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="668" y="528" class="label">global B_sub</text>
+  <text x="668" y="554" class="small">同样协作搬运</text>
+  <text x="668" y="576" class="small">经常更适合向量化加载</text>
 
-  <rect x="40" y="620" width="1320" height="220" class="box" fill="#ffffff" stroke="#cbd5e1" />
-  <text x="60" y="655" class="subtitle">3) C_sub 的计算：一个线程不是算“一整行”，而是算一个 TM x TN = 8 x 8 小块</text>
+  <rect x="916" y="492" width="220" height="92" class="inner" fill="#ddd6fe" stroke="#7c3aed"/>
+  <text x="938" y="528" class="label">shared B tile</text>
+  <text x="938" y="554" class="small">内层 tk 循环的直接输入</text>
+  <text x="938" y="576" class="small">一个 bk 内会被重复使用 BK 次</text>
 
-  <rect x="90" y="690" width="288" height="128" fill="#eef2ff" stroke="#6366f1" stroke-width="2" />
-  <g>
-    <line x1="126" y1="690" x2="126" y2="818" class="grid" />
-    <line x1="162" y1="690" x2="162" y2="818" class="grid" />
-    <line x1="198" y1="690" x2="198" y2="818" class="grid" />
-    <line x1="234" y1="690" x2="234" y2="818" class="grid" />
-    <line x1="270" y1="690" x2="270" y2="818" class="grid" />
-    <line x1="306" y1="690" x2="306" y2="818" class="grid" />
-    <line x1="342" y1="690" x2="342" y2="818" class="grid" />
-    <line x1="90" y1="706" x2="378" y2="706" class="grid" />
-    <line x1="90" y1="722" x2="378" y2="722" class="grid" />
-    <line x1="90" y1="738" x2="378" y2="738" class="grid" />
-    <line x1="90" y1="754" x2="378" y2="754" class="grid" />
-    <line x1="90" y1="770" x2="378" y2="770" class="grid" />
-    <line x1="90" y1="786" x2="378" y2="786" class="grid" />
-    <line x1="90" y1="802" x2="378" y2="802" class="grid" />
-  </g>
-  <text x="105" y="680" class="label">单线程寄存器块 r_c[8][8]</text>
-  <text x="410" y="725" class="small">每个 tk，线程从 shared memory 取：</text>
-  <text x="410" y="755" class="code">r_comp_a[8]  和  r_comp_b[8]</text>
-  <text x="410" y="785" class="small">做一次 8 x 8 外积更新：</text>
-  <text x="410" y="815" class="code">r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn]</text>
+  <path d="M866 538 L916 538" class="arrow"/>
 
-  <rect x="870" y="690" width="430" height="120" class="box" fill="#ecfeff" stroke="#06b6d4" />
-  <text x="890" y="725" class="label">结论</text>
-  <text x="890" y="755" class="small">- 两线程一行：只发生在 A_sub 装载阶段</text>
-  <text x="890" y="780" class="small">- 一个线程最终负责：C 的 8 x 8 小块</text>
-  <text x="890" y="805" class="small">- K 分块在 block 内循环完成：没有块间加法</text>
+  <rect x="1186" y="492" width="140" height="92" class="inner" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="1206" y="528" class="label">寄存器</text>
+  <text x="1206" y="554" class="small">acc / fragA / fragB</text>
+  <text x="1206" y="576" class="small">真正做 FMA 的地方</text>
 
-  <path d="M 378 754 L 870 754" class="arrow dashed" />
+  <path d="M1136 538 L1186 538" class="arrow"/>
+
+  <!-- Panel 3 -->
+  <rect x="40" y="652" width="1320" height="280" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="66" y="692" class="section-title">3) thread 视角：一个 tk = 一次外积更新，BK 次 tk 叠出整个 TM × TN 输出块</text>
+  <text x="66" y="724" class="body">这一步最重要的认知升级是：一个线程通常不是只算一个标量，而是维护一个 <tspan class="mono">r_c[TM][TN]</tspan> 寄存器块。</text>
+
+  <rect x="86" y="772" width="150" height="86" class="inner" fill="#dbeafe" stroke="#60a5fa"/>
+  <text x="110" y="808" class="label">r_comp_a[TM]</text>
+  <text x="110" y="834" class="small">从 shared A 取出</text>
+
+  <rect x="316" y="772" width="150" height="86" class="inner" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="340" y="808" class="label">r_comp_b[TN]</text>
+  <text x="340" y="834" class="small">从 shared B 取出</text>
+
+  <path d="M236 815 L316 815" class="arrow"/>
+  <path d="M466 815 L556 815" class="arrow"/>
+
+  <rect x="556" y="744" width="320" height="118" class="inner" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="580" y="784" class="label">r_c[TM][TN] in registers</text>
+  <text x="580" y="814" class="mono">r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn]</text>
+  <text x="580" y="840" class="small">当 TM=TN=8 时，一个 tk 会更新 64 个输出元素</text>
+
+  <rect x="936" y="748" width="370" height="110" class="inner" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="960" y="786" class="label">一个 bk 内部最值得记住的循环</text>
+  <text x="960" y="816" class="mono">for (tk = 0; tk &lt; BK; ++tk) {</text>
+  <text x="990" y="842" class="mono">load fragA / fragB;  acc += outer_product;</text>
+  <text x="960" y="868" class="mono">}</text>
+
+  <rect x="86" y="884" width="1220" height="24" fill="#dcfce7" stroke="#22c55e" rx="12" ry="12"/>
+  <text x="108" y="901" class="small">一句话记忆：block 负责一个 C_sub；thread 负责一个 TM × TN；tk 循环负责把一个 bk 内的数据逐次变成寄存器里的输出累加。</text>
 </svg>
