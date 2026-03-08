@@ -78,6 +78,38 @@ find_cuda_related_lib_dir() {
     return 1
 }
 
+find_cute_include_dir() {
+    direct_match=$(find_first_existing_file_dir \
+        'cute/tensor.hpp' \
+        "${CUTE_INCLUDE_DIR:-}" \
+        "${CUTLASS_HOME:-}/include" \
+        "${CUTLASS_ROOT:-}/include" || true)
+    if [ -n "$direct_match" ]; then
+        printf '%s\n' "$direct_match"
+        return 0
+    fi
+
+    for search_root in \
+        "${CONDA_PREFIX:-}" \
+        "$HOME/miniconda" \
+        "$HOME/miniconda3" \
+        "$HOME/.local"
+    do
+        [ -n "$search_root" ] || continue
+        [ -d "$search_root" ] || continue
+
+        match=$(find "$search_root" \
+            -path '*/site-packages/tilelang/3rdparty/cutlass/include/cute/tensor.hpp' \
+            2>/dev/null | head -n 1 || true)
+        if [ -n "$match" ]; then
+            dirname "$(dirname "$match")"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 usage() {
     cat <<'USAGE'
 用法:
@@ -152,15 +184,18 @@ TARGET_PATH="$TARGET_DIR/$TARGET_NAME"
 SOURCE_DIR=$(dirname "$SOURCE_PATH")
 CUDA_INCLUDE_DIR=$(find_cuda_related_dir cuda_runtime.h || true)
 CUBLAS_INCLUDE_DIR=$(find_cuda_related_dir cublas_v2.h || true)
+CUTE_INCLUDE_DIR=$(find_cute_include_dir || true)
 CUBLAS_LIB_DIR=$(find_cuda_related_lib_dir 'libcublas.so*' || true)
 CUBLAS_LT_LIB_DIR=$(find_cuda_related_lib_dir 'libcublasLt.so*' || true)
 CUBLAS_LIB_FILE=""
 CUBLAS_LT_LIB_FILE=""
+EXTRA_INCLUDE_FLAGS=""
 EXTRA_LINK_DIR_FLAGS=""
 EXTRA_LINK_FLAGS=""
 RUNTIME_LIB_DIRS=""
 NEED_CUBLAS=0
 NEED_CUBLAS_LT=0
+NEED_CUTE=0
 
 if [ -n "$CUBLAS_LIB_DIR" ]; then
     CUBLAS_LIB_FILE=$(find "$CUBLAS_LIB_DIR" -maxdepth 1 -name 'libcublas.so*' 2>/dev/null | head -n 1 || true)
@@ -175,6 +210,17 @@ fi
 if grep -Eq 'cublasLt\.h|cublasLt[A-Za-z0-9_]+' "$SOURCE_PATH"; then
     NEED_CUBLAS=1
     NEED_CUBLAS_LT=1
+fi
+if grep -Eq '#include[[:space:]]*<cute/|#include[[:space:]]*"cute/' "$SOURCE_PATH"; then
+    NEED_CUTE=1
+fi
+
+if [ "$NEED_CUTE" -eq 1 ]; then
+    if [ -z "$CUTE_INCLUDE_DIR" ]; then
+        echo "错误: 检测到 CuTe 头文件引用, 但未找到 CUTLASS/CuTe include 路径。可通过 CUTE_INCLUDE_DIR 或 CUTLASS_HOME 指定。" >&2
+        exit 1
+    fi
+    EXTRA_INCLUDE_FLAGS="$EXTRA_INCLUDE_FLAGS -I$CUTE_INCLUDE_DIR"
 fi
 
 if [ "$NEED_CUBLAS" -eq 1 ]; then
@@ -206,6 +252,7 @@ fi
 
 EXTRA_LINK_DIR_FLAGS=$(printf '%s' "$EXTRA_LINK_DIR_FLAGS" | sed 's/^ *//')
 EXTRA_LINK_FLAGS=$(printf '%s' "$EXTRA_LINK_FLAGS" | sed 's/^ *//')
+EXTRA_INCLUDE_FLAGS=$(printf '%s' "$EXTRA_INCLUDE_FLAGS" | sed 's/^ *//')
 RUNTIME_LIB_DIRS=$(printf '%s' "$RUNTIME_LIB_DIRS" | sed 's/^://')
 
 mkdir -p "$TARGET_DIR"
@@ -213,6 +260,8 @@ mkdir -p "$TARGET_DIR"
 echo "[build] $SOURCE_REL -> $TARGET_PATH"
 [ -n "$CUDA_INCLUDE_DIR" ] && echo "[cuda] runtime include: $CUDA_INCLUDE_DIR"
 [ -n "$CUBLAS_INCLUDE_DIR" ] && echo "[cuda] cublas include: $CUBLAS_INCLUDE_DIR"
+[ -n "$CUTE_INCLUDE_DIR" ] && echo "[cute] include: $CUTE_INCLUDE_DIR"
+[ -n "$EXTRA_INCLUDE_FLAGS" ] && echo "[build] extra include flags: $EXTRA_INCLUDE_FLAGS"
 [ -n "$CUBLAS_LIB_DIR" ] && echo "[cuda] cublas lib: $CUBLAS_LIB_DIR"
 [ -n "$CUBLAS_LIB_FILE" ] && echo "[cuda] cublas file: $CUBLAS_LIB_FILE"
 [ -n "$CUBLAS_LT_LIB_DIR" ] && echo "[cuda] cublasLt lib: $CUBLAS_LT_LIB_DIR"
@@ -230,6 +279,7 @@ if [ -n "$CUDA_INCLUDE_DIR" ] && [ -n "$CUBLAS_INCLUDE_DIR" ] && [ "$CUDA_INCLUD
         -I"$SOURCE_DIR" \
         -I"$CUDA_INCLUDE_DIR" \
         -I"$CUBLAS_INCLUDE_DIR" \
+        ${EXTRA_INCLUDE_FLAGS:-} \
         ${NVCC_FLAGS:-} \
         ${EXTRA_LINK_DIR_FLAGS:-} \
         ${EXTRA_LINK_FLAGS:-} \
@@ -241,6 +291,7 @@ elif [ -n "$CUDA_INCLUDE_DIR" ]; then
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
         -I"$CUDA_INCLUDE_DIR" \
+        ${EXTRA_INCLUDE_FLAGS:-} \
         ${NVCC_FLAGS:-} \
         ${EXTRA_LINK_DIR_FLAGS:-} \
         ${EXTRA_LINK_FLAGS:-} \
@@ -252,6 +303,7 @@ elif [ -n "$CUBLAS_INCLUDE_DIR" ]; then
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
         -I"$CUBLAS_INCLUDE_DIR" \
+        ${EXTRA_INCLUDE_FLAGS:-} \
         ${NVCC_FLAGS:-} \
         ${EXTRA_LINK_DIR_FLAGS:-} \
         ${EXTRA_LINK_FLAGS:-} \
@@ -263,6 +315,7 @@ else
         -std=c++17 \
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
+        ${EXTRA_INCLUDE_FLAGS:-} \
         ${NVCC_FLAGS:-} \
         ${EXTRA_LINK_DIR_FLAGS:-} \
         ${EXTRA_LINK_FLAGS:-} \

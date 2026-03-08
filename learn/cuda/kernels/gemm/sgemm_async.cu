@@ -45,6 +45,7 @@ __global__ void sgemm_t_8x4_sliced_k16_f32x4_bcf_dbuf_kernel(
   float r_comp_a[TM];
   float r_comp_b[TN];
   float r_c[TM][TN] = {0.0}; // 8x4
+  
 
   // 128 threads, tx: 0~15, ty: 0~7
   int load_a_smem_m = tid / 2;                // (0,1,2,...,63)

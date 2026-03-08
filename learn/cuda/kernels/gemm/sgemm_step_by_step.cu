@@ -7,14 +7,14 @@
 #include <cstring>
 #include <vector>
 
-#define CHECK_CUDA(call)                                                      \
-  do {                                                                        \
-    cudaError_t error_code__ = (call);                                        \
-    if (error_code__ != cudaSuccess) {                                        \
-      std::fprintf(stderr, "CUDA error: %s @ %s:%d\n",                      \
-                   cudaGetErrorString(error_code__), __FILE__, __LINE__);     \
-      std::exit(EXIT_FAILURE);                                                \
-    }                                                                         \
+#define CHECK_CUDA(call)                                                  \
+  do {                                                                    \
+    cudaError_t error_code__ = (call);                                    \
+    if (error_code__ != cudaSuccess) {                                    \
+      std::fprintf(stderr, "CUDA error: %s @ %s:%d\n",                    \
+                   cudaGetErrorString(error_code__), __FILE__, __LINE__); \
+      std::exit(EXIT_FAILURE);                                            \
+    }                                                                     \
   } while (0)
 
 struct BenchmarkResult {
@@ -223,7 +223,7 @@ __global__ void sgemm_step2_thread_tile_1d_kernel(const float *matrix_a,
 
     for (int k_index = 0; k_index < BlockDepthK; ++k_index) {
       const float b_value = shared_b[k_index][thread_col];
-      #pragma unroll
+#pragma unroll
       for (int row_offset = 0; row_offset < ThreadRowsM; ++row_offset) {
         const int shared_row = thread_row_group * ThreadRowsM + row_offset;
         accumulators[row_offset] += shared_a[shared_row][k_index] * b_value;
@@ -233,7 +233,7 @@ __global__ void sgemm_step2_thread_tile_1d_kernel(const float *matrix_a,
     __syncthreads();
   }
 
-  #pragma unroll
+#pragma unroll
   for (int row_offset = 0; row_offset < ThreadRowsM; ++row_offset) {
     const int global_row = block_row_start + thread_row_group * ThreadRowsM + row_offset;
     if (global_row < rows_m && global_col < cols_n) {
@@ -304,21 +304,21 @@ __global__ void sgemm_step3_thread_tile_2d_kernel(const float *matrix_a,
       float fragment_a[ThreadRowsM];
       float fragment_b[ThreadColsN];
 
-      #pragma unroll
+#pragma unroll
       for (int row_offset = 0; row_offset < ThreadRowsM; ++row_offset) {
         const int shared_row = thread_tile_row * ThreadRowsM + row_offset;
         fragment_a[row_offset] = shared_a[shared_row][k_index];
       }
 
-      #pragma unroll
+#pragma unroll
       for (int col_offset = 0; col_offset < ThreadColsN; ++col_offset) {
         const int shared_col = thread_tile_col * ThreadColsN + col_offset;
         fragment_b[col_offset] = shared_b[k_index][shared_col];
       }
 
-      #pragma unroll
+#pragma unroll
       for (int row_offset = 0; row_offset < ThreadRowsM; ++row_offset) {
-        #pragma unroll
+#pragma unroll
         for (int col_offset = 0; col_offset < ThreadColsN; ++col_offset) {
           accumulators[row_offset][col_offset] +=
               fragment_a[row_offset] * fragment_b[col_offset];
@@ -329,10 +329,10 @@ __global__ void sgemm_step3_thread_tile_2d_kernel(const float *matrix_a,
     __syncthreads();
   }
 
-  #pragma unroll
+#pragma unroll
   for (int row_offset = 0; row_offset < ThreadRowsM; ++row_offset) {
     const int global_row = block_row_start + thread_tile_row * ThreadRowsM + row_offset;
-    #pragma unroll
+#pragma unroll
     for (int col_offset = 0; col_offset < ThreadColsN; ++col_offset) {
       const int global_col = block_col_start + thread_tile_col * ThreadColsN + col_offset;
       if (global_row < rows_m && global_col < cols_n) {
