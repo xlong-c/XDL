@@ -8,8 +8,9 @@
 2. [batch_viewer.py](#batch_viewerpy) - 批量图片查看器
 3. [corpimage.py](#corpimagepy) - 图片裁切工具
 4. [gray_detect.py](#gray_detectpy) - 图片黑白检测工具
-5. [nanobanan.py](#nanobananpy) - AI 图像生成工具
+5. [detect_person_yolo.py](#detect_person_yolopy) - YOLO 人物检测工具
 6. [dedup_images.py](#dedup_imagespy) - 图片去重工具
+7. [resize_jpg_resolution.py](#resize_jpg_resolutionpy) - JPG 分辨率批量调整工具
 
 ---
 
@@ -44,6 +45,52 @@ dry_run = False                         # 预览模式
 number_mode = True                      # 数字序号模式
 quality = 99                            # JPG 质量
 ```
+
+---
+
+## resize_jpg_resolution.py
+
+**功能**: 批量将 `.jpg/.jpeg` 图片缩放到指定分辨率，并尽量保留原始 JPEG 编码参数
+
+### 核心特性
+- **仅处理 JPG/JPEG**: 递归扫描输入目录中的 `.jpg` 与 `.jpeg` 文件
+- **指定目标分辨率**: 直接配置 `TARGET_SIZE = (宽, 高)`
+- **多种缩放模式**: 支持 `exact`、`fit_pad`、`fit_crop`
+- **尽量保持原质量**: 优先继承原图的量化表、subsampling、EXIF、ICC profile
+- **安全批处理**: 支持预览确认、多进程处理、失败日志 `_resize_failed.log`
+- **WSL/Windows 兼容**: 支持 `F:\\...` 路径自动转换为 WSL 路径
+
+### 缩放模式
+| 模式 | 说明 | 适用场景 |
+|------|------|----------|
+| `exact` | 直接拉伸/压缩到指定宽高 | 必须输出固定尺寸时 |
+| `fit_pad` | 保持比例缩放，空白区域补背景色 | 不想变形时 |
+| `fit_crop` | 保持比例缩放后居中裁切 | 需要铺满目标画布时 |
+
+### 使用方法
+修改 `main()` 函数中的配置参数：
+
+```python
+INPUT = path_win2wsl(r"F:\\dataset\\select_clein_reblad_data")
+OUTPUT = path_win2wsl(r"F:\\dataset\\select_clein_reblad_data_resized")
+TARGET_SIZE = (1024, 1024)              # 目标分辨率
+QUALITY = 99                            # 原图无量化表时的回退质量
+RESIZE_MODE = "exact"                 # exact / fit_pad / fit_crop
+BACKGROUND_COLOR = (255, 255, 255)      # fit_pad 模式背景色
+KEEP_STRUCTURE = True                   # 是否保持原目录结构
+PREVIEW = True                          # 执行前预览确认
+PREVIEW_LIMIT = 5                       # 预览显示数量
+WORKERS = None                          # 进程数，None 表示自动
+```
+
+### 运行方式
+```bash
+python tools/image/resize_jpg_resolution.py
+```
+
+### 说明
+- JPEG 在缩放后无法做到真正“原质量无损”，脚本采用的是 **best effort** 策略。
+- 如果你希望图片不变形，优先使用 `fit_pad` 或 `fit_crop`，不要用 `exact`。
 
 ---
 
@@ -136,31 +183,49 @@ COPY_GRAYSCALE_TO = r"path/to/output"   # 黑白图片复制目标目录
 
 ---
 
-## nanobanan.py
+## detect_person_yolo.py
 
-**功能**: 调用 AI API 生成图像，支持文生图和图生图
+**功能**: 使用 YOLO 批量检测图片中的人物，并导出 CSV 结果
 
-### 核心功能
-- **文本生成图像**: 根据提示词生成图片
-- **图像编辑**: 基于现有图片进行编辑
-- **多格式支持**: 支持 URL 下载和 Base64 解码保存
+### 核心特性
+- **仅检测 person 类别**: 调用 YOLO 并固定 `classes=[0]`
+- **批量处理图片**: 递归扫描常见图片格式并并行检测
+- **CSV 导出**: 输出 `detection_results.csv`，包含文件路径、人数、box 坐标和置信度
+- **调试图片输出**: 可指定 `DEBUG_IMAGE_IDX` 保存带框可视化结果
+- **WSL/Windows 兼容**: 支持 `F:\\...` 路径自动转换为 WSL 路径
+- **预览与容错**: 支持预览确认、失败不中断、失败日志输出
 
-### 配置参数
-```python
-API_KEY = "your-api-key"                # API 密钥
-API_URL = "https://yunwu.ai/v1/chat/completions"  # API 地址
-SOURCE_IMAGE_PATH = None                # 源图片路径（图生图模式）
-PROMPT = "生成图片的描述..."             # 提示词
-MODEL = "gemini-3-pro-image-preview"    # 模型名称
-ASPECT_RATIO = "1:1"                    # 图片比例
-IMAGE_SIZE = "1k"                       # 图片尺寸
-```
+### 输出结果
+| 文件 | 说明 |
+|------|------|
+| `detection_results.csv` | 每张图片的人物检测结果明细 |
+| `_process_failed.log` | 处理失败文件日志 |
+| `debug_XXXX_xxx.jpg` | 指定调试序号生成的带框可视化图片 |
 
 ### 使用方法
-1. 配置 API 密钥和参数
-2. 设置提示词 PROMPT
-3. 如需图生图，设置 SOURCE_IMAGE_PATH
-4. 运行脚本，生成的图片将保存到当前目录
+修改 `main()` 函数中的配置参数：
+
+```python
+INPUT = path_win2wsl(r"F:\\raw_pics\\cloths\\773")
+OUTPUT = path_win2wsl(r"F:\\raw_pics\\cloths")
+MODEL_PATH = "downloads/yolo26m.pt"     # YOLO 模型路径
+CONF_THRESHOLD = 0.75                    # 置信度阈值
+END2END = True                           # 是否启用 End2End 模式
+PREVIEW = True                           # 执行前预览确认
+PREVIEW_LIMIT = 5                        # 预览显示数量
+WORKERS = None                           # 进程数，None 表示自动
+DEBUG_IMAGE_IDX = 0                      # 调试图片序号，0 表示关闭
+```
+
+### 运行方式
+```bash
+python tools/image/detect_person_yolo.py
+```
+
+### 依赖
+```bash
+pip install ultralytics Pillow
+```
 
 ---
 
@@ -203,8 +268,9 @@ workers = None                          # 并行进程数, None=使用CPU核心�
 | batch_viewer.py | 查看工具 | 网格查看 + 选择删除 | ✅ | ✅ |
 | corpimage.py | 编辑工具 | 可视化裁切 | ✅ | ✅ |
 | gray_detect.py | 检测工具 | 黑白图片检测 | ❌ | ✅ |
-| nanobanan.py | 生成工具 | AI 图像生成 | ❌ | ❌ |
+| detect_person_yolo.py | 检测工具 | YOLO 人物检测 + CSV 导出 | ❌ | ✅ |
 | dedup_images.py | 检测工具 | 重复图片检测与删除 | ❌ | ✅ |
+| resize_jpg_resolution.py | 调整工具 | JPG 固定分辨率缩放 | ❌ | ✅ |
 
 ## 依赖要求
 
@@ -213,16 +279,17 @@ workers = None                          # 并行进程数, None=使用CPU核心�
 pip install Pillow tqdm
 ```
 
+### 检测工具依赖
+```bash
+pip install ultralytics
+```
+
 ### GUI 工具依赖
 ```bash
 pip install opencv-python numpy
 ```
 
-### AI 生成工具依赖
-```bash
-pip install requests
-```
 
 ---
 
-*文档生成时间: 2026-01-31*
+*文档更新时间: 2026-03-09*
