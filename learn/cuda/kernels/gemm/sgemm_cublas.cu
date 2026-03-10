@@ -9,8 +9,11 @@
 #include "stdlib.h"
 #include "cublas_v2.h"
 #include <cstddef>
+#include <cublas_api.h>
 
 void cublas_sgemm(float *A, float *B, float *C, size_t M, size_t N, size_t K) {
 
   cublasHandle_t handle = nullptr;
+  cublasCreate(&handle);
+  cublasSetMathMode(handle, CUBLAS_DEFAULT_MATH);
 }
