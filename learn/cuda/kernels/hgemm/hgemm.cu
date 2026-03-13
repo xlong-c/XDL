@@ -2,6 +2,8 @@
 #include "cuda_fp16.h"
 #include "cuda_bf16.h"
 #include "cuda_runtime.h"
+#include <__clang_cuda_runtime_wrapper.h>
+#include <curand_mtgp32_kernel.h>
 
 #define FLOAT4(value) (reinterpret_cast<float4 *>(value))
 #define HALF2(value) (reinterpret_cast<half2 *>(value))
@@ -82,4 +84,24 @@ __global__ void hgemm_sharemem(const half *A, const half *B, half *C, int M, int
   if (ty < TILE_M && tx < TILE_N && row < M && col < N) {
     C[row * N + col] = sum;
   }
+}
+
+template <const int BM = 128, const int BN = 128, const int BK = 8, const int TM = 8, const int TN = 8>
+__global__ void hgemm_shared_f16x4(
+    const half *A,
+    const half *B,
+    half *C,
+    const int M,
+    const int N,
+    const int K) {
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int tid = ty * blockDim.x + tx;
+
+  __shared__ half s_a[BM][BK];
+  __shared__ half s_b[BK][BN];
+
+  int load_smem_a_m = tid / 2;
 }
