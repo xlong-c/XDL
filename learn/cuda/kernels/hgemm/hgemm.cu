@@ -6,7 +6,9 @@
 #include <curand_mtgp32_kernel.h>
 
 #define FLOAT4(value) (reinterpret_cast<float4 *>(value))
+#define FLOAT4C(value) (reinterpret_cast<const float4 *>(value))
 #define HALF2(value) (reinterpret_cast<half2 *>(value))
+#define HALF2C(value) (reinterpret_cast<const half2 *>(value))
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162 *>(value))
 #define WARP_SIZE 32
 
@@ -94,14 +96,168 @@ __global__ void hgemm_shared_f16x4(
     const int M,
     const int N,
     const int K) {
-  int bx = blockIdx.x;
-  int by = blockIdx.y;
+  // 静态断言确保参数合法
+  static_assert(BM % TM == 0, "BM must be divisible by TM");
+  static_assert(BN % TN == 0, "BN must be divisible by TN");
+  static_assert(BK % 4 == 0, "BK must be divisible by 4 for float4 loading");
+
+  // 线程块大小: 256 个线程, 配置为 16x16
+  // 每个 block 处理 BM x BN = 128 x 128 的 C 子块
+  // 每个线程计算 TM x TN = 8 x 8 个输出元素
   int tx = threadIdx.x;
   int ty = threadIdx.y;
-  int tid = ty * blockDim.x + tx;
+  int tid = ty * blockDim.x + tx; // tid in [0, 255]
 
-  __shared__ half s_a[BM][BK];
-  __shared__ half s_b[BK][BN];
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
 
-  int load_smem_a_m = tid / 2;
+  // Shared memory for A and B tiles
+  __shared__ half s_a[BM][BK]; // 128 x 8 = 1024 half
+  __shared__ half s_b[BK][BN]; // 8 x 128 = 1024 half
+
+  // ========== 全局内存索引计算 ==========
+  // A 矩阵: 加载 BM x BK = 128 x 8 = 1024 half
+  // 使用 float4 向量化加载, 需要 1024 / 8 = 128 次加载
+  // 每个线程加载 128 / 256 = 0.5 次, 即 2 个线程协作加载 1 个 float4
+  int load_a_start_m = by * BM;
+  int load_a_k = 0;
+
+  // B 矩阵: 加载 BK x BN = 8 x 128 = 1024 half
+  // 使用 float4 向量化加载, 需要 1024 / 8 = 128 次加载
+  // 每个线程加载 128 / 256 = 0.5 次, 即 2 个线程协作加载 1 个 float4
+  int load_b_start_n = bx * BN;
+  int load_b_k = 0;
+
+  // 计算当前线程负责的 C 矩阵输出位置
+  int thread_m = by * BM + ty * TM; // 线程输出的起始行
+  int thread_n = bx * BN + tx * TN; // 线程输出的起始列
+
+  // 寄存器存储累加结果 (TM x TN = 8 x 8)
+  half frag_a[TM];    // A 矩阵片段
+  half frag_b[TN];    // B 矩阵片段
+  half accum[TM][TN]; // 累加器
+
+  // 初始化累加器
+#pragma unroll
+  for (int i = 0; i < TM; ++i) {
+#pragma unroll
+    for (int j = 0; j < TN; ++j) {
+      accum[i][j] = CUDART_ZERO_FP16;
+    }
+  }
+
+  // ========== 主循环: 沿 K 维分块处理 ==========
+  for (int k_tile = 0; k_tile < K; k_tile += BK) {
+    // ========== 协作加载 A 矩阵到 shared memory ==========
+    // 256 个线程协作加载 128 x 8 = 1024 half
+    // 使用 float4 (8 half) 向量化加载, 共需 128 次加载
+    // 每 2 个线程负责 1 个 float4
+#pragma unroll
+    for (int i = 0; i < BM * BK / (256 * 8); ++i) {
+      int load_idx = i * 256 + tid;           // 加载索引
+      int smem_m = load_idx / (BK / 8);       // shared memory 行
+      int smem_k = (load_idx % (BK / 8)) * 8; // shared memory 列 (8 half 对齐)
+
+      int gmem_m = load_a_start_m + smem_m;
+      int gmem_k = k_tile + smem_k;
+
+      // 使用 float4 向量化加载 8 个 half
+      if (gmem_m < M && gmem_k + 7 < K) {
+        *FLOAT4(&s_a[smem_m][smem_k]) = *FLOAT4C(&A[gmem_m * K + gmem_k]);
+      } else {
+        // 边界处理: 逐个元素加载
+#pragma unroll
+        for (int j = 0; j < 8; ++j) {
+          s_a[smem_m][smem_k + j] =
+              (gmem_m < M && gmem_k + j < K) ? A[gmem_m * K + gmem_k + j] : CUDART_ZERO_FP16;
+        }
+      }
+    }
+
+    // ========== 协作加载 B 矩阵到 shared memory ==========
+    // 256 个线程协作加载 8 x 128 = 1024 half
+    // 使用 float4 (8 half) 向量化加载, 共需 128 次加载
+#pragma unroll
+    for (int i = 0; i < BK * BN / (256 * 8); ++i) {
+      int load_idx = i * 256 + tid;
+      int smem_k = load_idx / (BN / 8);       // shared memory 行
+      int smem_n = (load_idx % (BN / 8)) * 8; // shared memory 列 (8 half 对齐)
+
+      int gmem_k = k_tile + smem_k;
+      int gmem_n = load_b_start_n + smem_n;
+
+      // 使用 float4 向量化加载 8 个 half
+      if (gmem_k < K && gmem_n + 7 < N) {
+        *FLOAT4(&s_b[smem_k][smem_n]) = *FLOAT4C(&B[gmem_k * N + gmem_n]);
+      } else {
+        // 边界处理
+#pragma unroll
+        for (int j = 0; j < 8; ++j) {
+          s_b[smem_k][smem_n + j] =
+              (gmem_k < K && gmem_n + j < N) ? B[gmem_k * N + gmem_n + j] : CUDART_ZERO_FP16;
+        }
+      }
+    }
+
+    __syncthreads();
+
+    // ========== 计算: 从 shared memory 加载数据并计算 ==========
+#pragma unroll
+    for (int k = 0; k < BK; ++k) {
+      // 加载 A 矩阵片段到寄存器 (TM = 8 个 half)
+#pragma unroll
+      for (int i = 0; i < TM; ++i) {
+        frag_a[i] = s_a[ty * TM + i][k];
+      }
+
+      // 加载 B 矩阵片段到寄存器 (TN = 8 个 half)
+#pragma unroll
+      for (int j = 0; j < TN; ++j) {
+        frag_b[j] = s_b[k][tx * TN + j];
+      }
+
+      // 使用 half2 向量化计算 (每条指令处理 2 个 half)
+#pragma unroll
+      for (int i = 0; i < TM; ++i) {
+#pragma unroll
+        for (int j = 0; j < TN; j += 2) {
+          // 将 frag_a[i] 复制到 half2 的两个分量
+          half2 a2 = __half2half2(frag_a[i]);
+          // 将 frag_b[j], frag_b[j+1] 组合成 half2
+          half2 b2 = *HALF2(&frag_b[j]);
+          // 将 accum[i][j], accum[i][j+1] 组合成 half2
+          half2 c2 = *HALF2(&accum[i][j]);
+          // FMA: c2 = a2 * b2 + c2
+          *HALF2(&accum[i][j]) = __hfma2(a2, b2, c2);
+        }
+      }
+    }
+
+    __syncthreads();
+  }
+
+  // ========== 写回结果到全局内存 ==========
+  // 使用 float4 向量化存储
+#pragma unroll
+  for (int i = 0; i < TM; ++i) {
+    int row = thread_m + i;
+    if (row < M) {
+#pragma unroll
+      for (int j = 0; j < TN; j += 8) {
+        int col = thread_n + j;
+        if (col + 7 < N) {
+          // 向量化存储 8 个 half
+          *FLOAT4(&C[row * N + col]) = *FLOAT4(&accum[i][j]);
+        } else {
+          // 边界处理: 逐个元素存储
+#pragma unroll
+          for (int jj = 0; jj < 8; ++jj) {
+            if (col + jj < N) {
+              C[row * N + col + jj] = accum[i][j + jj];
+            }
+          }
+        }
+      }
+    }
+  }
 }
