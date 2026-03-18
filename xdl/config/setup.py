@@ -225,6 +225,14 @@ def _normalize_legacy_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
     if normalized_config["optimization"]["optimizer"] is None and normalized_config["optimization"]["scheduler"] is None:
         normalized_config["optimization"] = None
+    else:
+        optimizer_cfg = normalized_config["optimization"]["optimizer"]
+        if isinstance(optimizer_cfg, dict) and "model" in optimizer_cfg:
+            optimizer_cfg["target_modules"] = optimizer_cfg.pop("model")
+
+        scheduler_cfg = normalized_config["optimization"]["scheduler"]
+        if isinstance(scheduler_cfg, dict):
+            scheduler_cfg.pop("optimizer", None)
 
     return normalized_config
 

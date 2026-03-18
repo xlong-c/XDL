@@ -44,6 +44,9 @@ class ComponentConfig:
     type: str = ""
     source: str = DEFAULT_COMPONENT_SOURCE
     params: Dict[str, Any] = field(default_factory=dict)
+    target_modules: Optional[List[str]] = None
+    param_groups: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    weight: Optional[float] = None
 
 
 @dataclass

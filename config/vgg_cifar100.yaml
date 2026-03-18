@@ -1,129 +1,89 @@
-# VGGNet在CIFAR100上的训练配置文件
+# VGGNet 在 CIFAR100 上的训练配置（schema v1）
 
-# 训练配置
-training:
-  device: "cuda"  # 或 "cpu"
-  num_epochs: 100
+config_version: 1
+
+runtime:
+  device: "cuda"
+  experiment_name: "vgg16_cifar100"
+  output_dir: "./others"
+
+trainer:
+  max_epochs: 100
   batch_size: 128
-  num_workers: 4
-  grad_steps: 1
-  enable_train_metrics: true
-  enable_valid_loss: true
-  validate_every: 1
-  validate_epoch: 1
-  ddp: false
+  gradient_accumulation_steps: 1
   grad_clip_max_norm: 5.0
-  grad_clip_norm_type: 2.0
-  main_metric: "Accuracy"
 
-# 核心组件配置
-core_config:
-  # 模型配置 - 使用VGG16
-  model:
-    backbone:
-      name: "vgg16_bn"
-      from_library: "local"
-      params:
-        num_classes: 100
-        dropout: 0.5
+model:
+  type: "vgg16_bn"
+  source: "registry"
+  params:
+    num_classes: 100
+    dropout: 0.5
 
-  # 优化器配置
-  optimizer:
-    main_optimizer:
-      model: ["backbone"]
-      name: "SGD"
-      from_library: "torch"
-      params:
-        lr: 0.01
-        momentum: 0.9
-        weight_decay: 0.0005
-
-  # 学习率调度器配置
-  scheduler:
-    main_scheduler:
-      optimizer: "main_optimizer"
-      name: "MultiStepLR"
-      from_library: "torch"
-      params:
-        milestones: [30, 60, 80]
-        gamma: 0.1
-
-  # 损失函数配置
-  loss:
-    - name: "CrossEntropyLoss"
-      from_library: "torch"
-      weight: 1.0
-      params: {}
-
-  # 评估指标配置
-  metrics:
-    - name: "Accuracy"
-      from_library: "local"
-      params:
-        num_classes: 100
-
-# 数据配置
-data_config:
-  # 数据变换配置
-  transform:
-    train_transform:
-      transforms:
-        - name: "Resize"
+data:
+  transforms:
+    train:
+      type: "compose"
+      items:
+        - type: "Resize"
+          source: "torchvision.transforms"
           params:
             size: [224, 224]
-        - name: "RandomHorizontalFlip"
+        - type: "RandomHorizontalFlip"
+          source: "torchvision.transforms"
           params:
             p: 0.5
-        - name: "RandomRotation"
+        - type: "RandomRotation"
+          source: "torchvision.transforms"
           params:
             degrees: 10
-        - name: "ToTensor"
+        - type: "ToTensor"
+          source: "torchvision.transforms"
           params: {}
-        - name: "Normalize"
+        - type: "Normalize"
+          source: "torchvision.transforms"
           params:
             mean: [0.5071, 0.4867, 0.4408]
             std: [0.2675, 0.2565, 0.2761]
-      from_library: "torchvision"
-      combination_strategy: "compose"
 
-    val_transform:
-      transforms:
-        - name: "Resize"
+    val:
+      type: "compose"
+      items:
+        - type: "Resize"
+          source: "torchvision.transforms"
           params:
             size: [224, 224]
-        - name: "ToTensor"
+        - type: "ToTensor"
+          source: "torchvision.transforms"
           params: {}
-        - name: "Normalize"
+        - type: "Normalize"
+          source: "torchvision.transforms"
           params:
             mean: [0.5071, 0.4867, 0.4408]
             std: [0.2675, 0.2565, 0.2761]
-      from_library: "torchvision"
-      combination_strategy: "compose"
 
-  # 数据集配置
-  dataset:
-    train_dataset:
-      name: "CIFAR100"
-      from_library: "torchvision"
-      transform: "train_transform"
+  datasets:
+    train:
+      type: "CIFAR100"
+      source: "torchvision.datasets"
       params:
         root: "./data"
         train: true
         download: true
+      transform: ${data.transforms.train}
 
-    val_dataset:
-      name: "CIFAR100"
-      from_library: "torchvision"
-      transform: "val_transform"
+    val:
+      type: "CIFAR100"
+      source: "torchvision.datasets"
       params:
         root: "./data"
         train: false
         download: true
+      transform: ${data.transforms.val}
 
-  # 数据加载器配置
-  dataloader:
-    train_loader:
-      dataset: "train_dataset"
+  dataloaders:
+    train:
+      dataset: ${data.datasets.train}
       params:
         batch_size: 128
         shuffle: true
@@ -131,8 +91,8 @@ data_config:
         pin_memory: false
         drop_last: true
 
-    val_loader:
-      dataset: "val_dataset"
+    val:
+      dataset: ${data.datasets.val}
       params:
         batch_size: 128
         shuffle: false
@@ -140,43 +100,44 @@ data_config:
         pin_memory: false
         drop_last: false
 
-# 保存配置
-save_config:
-  base_dir: "./others"
-  exp_name: "vgg16_cifar100"
-  onlymodel: false
-  save_every_n_steps: 1000
-  save_every_n_epochs: 5
-  max_latest_checkpoints: 10  # 最大保留的最新检查点数量(时间序列)
-  max_best_checkpoints: 5     # 最大保留的最佳检查点数量(基于指标值)
-  save_best: true
-  save_best_only: false
-  best_metric: "Accuracy"
-  maximize_best_metric: true
+optimization:
+  optimizer:
+    type: "SGD"
+    source: "torch.optim"
+    params:
+      lr: 0.01
+      momentum: 0.9
+      weight_decay: 0.0005
 
-  # 保存内容配置
-  save_models_state: true
-  save_optimizers_state: true
-  save_schedulers_state: true
-  save_training_state: true
-  save_stats: true
+  scheduler:
+    type: "MultiStepLR"
+    source: "torch.optim.lr_scheduler"
+    params:
+      milestones: [30, 60, 80]
+      gamma: 0.1
 
-  # 加载配置
-  load_models_state: true
-  load_optimizers_state: true
-  load_schedulers_state: true
-  load_training_state: true
-  load_stats: true
+loss:
+  - type: "CrossEntropyLoss"
+    source: "torch.nn"
+    weight: 1.0
+    params: {}
 
-# 日志配置
-logger_config:
-  experiment_name: "vgg16_cifar100_experiment"
+metrics:
+  - type: "Accuracy"
+    source: "registry"
+    params:
+      num_classes: 100
+
+logging:
   log_dir: "./others/logs"
-  log_step_to_file: true
-  log_step_to_tensorboard: true
   enable_console: true
-  enable_file: true
   enable_tensorboard: true
-  console_level: "INFO"
-  console_log_with_timestamp: true
-  log_file_with_timestamp: false
+  enable_wandb: false
+
+checkpoint:
+  dirpath: "./others"
+  save_last: true
+  save_top_k: 5
+  monitor: "Accuracy"
+  mode: "max"
+  every_n_epochs: 5

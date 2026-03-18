@@ -1,6 +1,7 @@
 from textwrap import dedent
 
-from xdl.config import setup_from_yaml
+from xdl.config import load_config_with_schema, setup_from_yaml
+from xdl.config.builder import build_model
 
 
 def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
@@ -157,3 +158,30 @@ def test_setup_from_yaml_supports_legacy_schema(tmp_path) -> None:
     assert setup.num_epochs == 4
     assert setup.batch_size == 2
     assert setup.train_loader is not None
+
+
+def test_official_unified_logger_example_builds() -> None:
+    setup = setup_from_yaml("config/unified_logger_example.yaml", device="cpu")
+
+    assert type(setup.model).__name__ == "SimpleMLP"
+    assert type(setup.optimizer).__name__ == "Adam"
+    assert type(setup.scheduler).__name__ == "StepLR"
+    assert type(setup.loss_fn).__name__ == "CrossEntropyLoss"
+    assert setup.train_loader is not None
+
+
+def test_official_vgg_config_matches_schema_and_model_definition() -> None:
+    cfg = load_config_with_schema("config/vgg_cifar100.yaml", resolve=True)
+
+    assert cfg.model.type == "vgg16_bn"
+    assert cfg.trainer.max_epochs == 100
+    assert cfg.data.datasets.train.type == "CIFAR100"
+
+    model = build_model(
+        {
+            "type": cfg.model.type,
+            "source": cfg.model.source,
+            "params": dict(cfg.model.params),
+        }
+    )
+    assert type(model).__name__ == "VGG"

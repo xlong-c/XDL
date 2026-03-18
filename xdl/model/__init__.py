@@ -18,6 +18,7 @@ from .resnet import (
 
 # VGG网络
 from .vgg import VGG, vgg11, vgg11_bn, vgg13, vgg13_bn, vgg16, vgg16_bn, vgg19, vgg19_bn
+from .simple_mlp import SimpleMLP, simple_mlp
 
 # Vision Transformer网络
 from .vit import (
@@ -72,6 +73,10 @@ def _register_models():
     # 注册生成模型
     register_model("TwinFlow")(TwinFlow)
 
+    # 注册简单 MLP
+    register_model("SimpleMLP")(SimpleMLP)
+    register_model("simple_mlp")(simple_mlp)
+
 
 # 自动执行模型注册
 _register_models()
@@ -87,6 +92,8 @@ __all__ = [
     "vgg16_bn",
     "vgg19",
     "vgg19_bn",
+    "SimpleMLP",
+    "simple_mlp",
     # ResNet
     "ResNet",
     "BasicBlock",

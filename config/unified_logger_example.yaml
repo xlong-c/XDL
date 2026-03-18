@@ -1,132 +1,101 @@
-# 统一日志系统配置示例
+# 统一日志系统配置示例（schema v1）
 
-# 训练配置
-training:
+config_version: 1
+
+runtime:
+  device: "cpu"
+  experiment_name: "unified_logger_example"
+  output_dir: "./others"
+
+trainer:
   max_epochs: 10
   batch_size: 32
   gradient_accumulation_steps: 1
 
-  # 日志配置
-  enable_logger: true
-  log_every_n_steps: 50
-  enable_progress_bar: true
+model:
+  type: "simple_mlp"
+  source: "registry"
+  params:
+    input_size: 784
+    hidden_size: 128
+    num_classes: 10
+    dropout_rate: 0.2
 
-  # 检查点配置
-  enable_checkpointing: true
+data:
+  datasets:
+    train:
+      type: "SyntheticClassificationDataset"
+      source: "registry"
+      params:
+        num_samples: 500
+        input_shape: [784]
+        num_classes: 10
+        seed: 42
+
+    val:
+      type: "SyntheticClassificationDataset"
+      source: "registry"
+      params:
+        num_samples: 100
+        input_shape: [784]
+        num_classes: 10
+        seed: 43
+
+  dataloaders:
+    train:
+      dataset: ${data.datasets.train}
+      params:
+        batch_size: 32
+        shuffle: true
+        num_workers: 0
+        pin_memory: false
+        drop_last: true
+
+    val:
+      dataset: ${data.datasets.val}
+      params:
+        batch_size: 32
+        shuffle: false
+        num_workers: 0
+        pin_memory: false
+        drop_last: false
+
+optimization:
+  optimizer:
+    type: "Adam"
+    source: "torch.optim"
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+
+  scheduler:
+    type: "StepLR"
+    source: "torch.optim.lr_scheduler"
+    params:
+      step_size: 30
+      gamma: 0.1
+
+loss:
+  - type: "CrossEntropyLoss"
+    source: "torch.nn"
+    params: {}
+
+metrics:
+  - type: "Accuracy"
+    source: "registry"
+    params:
+      num_classes: 10
+
+logging:
+  log_dir: "./others/logs"
+  enable_console: true
+  enable_tensorboard: true
+  enable_wandb: false
+
+checkpoint:
+  dirpath: "./others"
+  save_last: true
   save_top_k: 3
   monitor: "val_accuracy"
   mode: "max"
   every_n_epochs: 1
-  save_last: true
-
-# 统一日志系统配置
-unified_logger:
-  # 基础配置
-  experiment_name: "unified_logger_example"
-  log_dir: "./others/logs"
-
-  # 日志后端配置
-  enable_tensorboard: true    # 启用TensorBoard(推荐)
-  enable_console: true        # 启用控制台日志(推荐)
-  enable_wandb: false         # 启用WandB(可选, 需要wandb_project)
-
-  # WandB配置(当enable_wandb=true时需要)
-  wandb_project: null         # 必须配置：WandB项目名称
-  wandb_entity: null          # 可选：WandB实体名称
-  wandb_tags: ["example", "classification"]  # 可选：标签列表
-  wandb_notes: "统一日志系统示例"  # 可选：运行说明
-
-# 核心组件配置
-core_config:
-  model:
-    backbone:
-      name: "simple_mlp"
-      from_library: "local"
-      params:
-        input_size: 784
-        hidden_size: 128
-        num_classes: 10
-        dropout_rate: 0.2
-
-  optimizer:
-    main_optimizer:
-      model: ["backbone"]
-      name: "Adam"
-      from_library: "torch"
-      params:
-        lr: 0.001
-        weight_decay: 1e-4
-
-  scheduler:
-    main_scheduler:
-      optimizer: "main_optimizer"
-      name: "StepLR"
-      from_library: "torch"
-      params:
-        step_size: 30
-        gamma: 0.1
-
-  loss:
-    - name: "CrossEntropyLoss"
-      from_library: "torch"
-      weight: 1.0
-      params: {}
-
-  metrics:
-    - name: "Accuracy"
-      from_library: "local"
-      params:
-        num_classes: 10
-
-# 数据配置
-data_config:
-  dataset:
-    train_dataset:
-      name: "CustomDataset"
-      from_library: "local"
-      params:
-        num_samples: 5000
-        input_size: 784
-        num_classes: 10
-
-    val_dataset:
-      name: "CustomDataset"
-      from_library: "local"
-      params:
-        num_samples: 1000
-        input_size: 784
-        num_classes: 10
-
-  dataloader:
-    train_loader:
-      dataset: "train_dataset"
-      params:
-        batch_size: 32
-        shuffle: true
-        num_workers: 4
-        pin_memory: true
-        drop_last: true
-
-    val_loader:
-      dataset: "val_dataset"
-      params:
-        batch_size: 32
-        shuffle: false
-        num_workers: 4
-        pin_memory: true
-        drop_last: false
-
-# 保存配置
-save_config:
-  base_dir: "./others"
-  exp_name: "unified_logger_example"
-  onlymodel: false
-  save_every_n_epochs: 2
-  save_best: true
-  best_metric: "val_accuracy"
-  maximize_best_metric: true
-
-  save_models_state: true
-  save_optimizers_state: true
-  save_schedulers_state: true
-  save_training_state: true

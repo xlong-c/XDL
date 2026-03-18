@@ -320,7 +320,7 @@ def build_optimizer(
     params = optimizer_cfg["params"].copy()
 
     param_group_configs = optimizer_cfg.get("param_groups")
-    if param_group_configs is not None:
+    if param_group_configs:
         groups = _build_param_groups(model, param_group_configs)
         return optimizer_cls(groups, **params)
 
