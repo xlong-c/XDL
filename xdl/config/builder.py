@@ -3,7 +3,6 @@
 
 职责：
 - 官方主格式：`target + params`
-- 兼容旧格式：`type + source + params`、`name + from_library + params`
 - transform 支持紧凑语法：列表即 `Compose`，并支持 inline 参数
 - 通过 registry 或 import path 定位组件
 - 实例化模型、数据集、优化器、scheduler、loss、metrics 等对象
@@ -18,40 +17,6 @@ from torch.utils.data import DataLoader
 
 from .errors import ComponentResolutionError, ConfigValidationError
 
-DEFAULT_KIND_SOURCES = {
-    "model": "registry",
-    "dataset": "torchvision.datasets",
-    "optimizer": "torch.optim",
-    "scheduler": "torch.optim.lr_scheduler",
-    "loss": "torch.nn",
-    "metric": "registry",
-    "transform": "torchvision.transforms",
-}
-
-LEGACY_SOURCE_ALIASES = {
-    ("model", "local"): "registry",
-    ("model", "registry"): "registry",
-    ("model", "torch"): "torch.nn",
-    ("model", "torchvision"): "torchvision.models",
-    ("dataset", "local"): "registry",
-    ("dataset", "registry"): "registry",
-    ("dataset", "torchvision"): "torchvision.datasets",
-    ("optimizer", "local"): "registry",
-    ("optimizer", "registry"): "registry",
-    ("optimizer", "torch"): "torch.optim",
-    ("scheduler", "local"): "registry",
-    ("scheduler", "registry"): "registry",
-    ("scheduler", "torch"): "torch.optim.lr_scheduler",
-    ("loss", "local"): "registry",
-    ("loss", "registry"): "registry",
-    ("loss", "torch"): "torch.nn",
-    ("metric", "local"): "registry",
-    ("metric", "registry"): "registry",
-    ("transform", "local"): "registry",
-    ("transform", "registry"): "registry",
-    ("transform", "torchvision"): "torchvision.transforms",
-}
-
 REGISTRY_IMPORTS = {
     "model": "xdl.model",
     "dataset": "xdl.dataset",
@@ -63,24 +28,18 @@ REGISTRY_IMPORTS = {
 
 TRANSFORM_CONFIG_META_KEYS = {
     "target",
-    "type",
-    "name",
-    "source",
-    "from_library",
     "params",
 }
-
-
-def _default_source(kind: str) -> str:
-    try:
-        return DEFAULT_KIND_SOURCES[kind]
-    except KeyError as exc:
-        raise ConfigValidationError(f"Unsupported component kind: {kind}") from exc
-
-
-def _normalize_source(kind: str, source: Optional[str], default_source: str) -> str:
-    raw_source = source or default_source
-    return LEGACY_SOURCE_ALIASES.get((kind, raw_source), raw_source)
+COMPONENT_ALLOWED_EXTRA_KEYS = {
+    "model": set(),
+    "dataset": set(),
+    "optimizer": {"target_modules", "param_groups"},
+    "scheduler": set(),
+    "loss": {"weight"},
+    "metric": set(),
+    "transform": set(),
+}
+DISALLOWED_TRANSFORM_INLINE_KEYS = {"combination_strategy", "items"}
 
 
 def _ensure_registry_populated(kind: str) -> None:
@@ -134,7 +93,7 @@ def _resolve_component(kind: str, component_type: str, source: str) -> Any:
         raise ComponentResolutionError(kind, component_type, source=source) from exc
 
 
-def _split_target(kind: str, target: str, default_source: str) -> tuple[str, str]:
+def _split_target(kind: str, target: str) -> tuple[str, str]:
     if not isinstance(target, str) or not target.strip():
         raise ConfigValidationError(f"{kind} target must be a non-empty string")
     if ":" not in target:
@@ -148,51 +107,45 @@ def _split_target(kind: str, target: str, default_source: str) -> tuple[str, str
             f"{kind} target must use 'source:name' format, got '{target}'"
         )
 
-    return _normalize_source(kind, raw_source, default_source), component_type
+    return raw_source, component_type
 
 
 def _looks_like_component_config(value: Any) -> bool:
     if not isinstance(value, Mapping):
         return False
-    return any(key in value for key in ("target", "type", "name", "source", "from_library"))
+    return "target" in value
 
 
 def _extract_component_config(
     config: Dict[str, Any],
     *,
     kind: str,
-    wrapper_keys: Sequence[str] = (),
-    default_source: Optional[str] = None,
 ) -> Dict[str, Any]:
     if not isinstance(config, Mapping) or not config:
         raise ConfigValidationError(f"{kind} config cannot be empty")
 
-    component_cfg: Mapping[str, Any] = config
-    for key in wrapper_keys:
-        wrapped = component_cfg.get(key)
-        if isinstance(wrapped, Mapping):
-            component_cfg = wrapped
-            break
+    component_cfg = dict(config)
 
-    normalized_default_source = _default_source(kind) if default_source is None else default_source
     raw_target = component_cfg.get("target")
-    if raw_target:
-        source, component_type = _split_target(kind, str(raw_target), normalized_default_source)
-    else:
-        component_type = component_cfg.get("type") or component_cfg.get("name")
-        if not component_type:
-            raise ConfigValidationError(
-                f"{kind} config requires 'target' or legacy fields 'type'/'name'"
-            )
-        source = _normalize_source(
-            kind,
-            component_cfg.get("source") or component_cfg.get("from_library"),
-            normalized_default_source,
-        )
+    if not raw_target:
+        raise ConfigValidationError(f"{kind} config requires 'target'")
 
+    source, component_type = _split_target(kind, str(raw_target))
     params = dict(component_cfg.get("params") or {})
-    ignored_keys = {"target", "type", "name", "source", "from_library", "params"}
-    extras = {key: value for key, value in component_cfg.items() if key not in ignored_keys}
+    extras = {
+        key: value
+        for key, value in component_cfg.items()
+        if key not in {"target", "params"} and value not in (None, {}, [])
+    }
+    allowed_keys = COMPONENT_ALLOWED_EXTRA_KEYS.get(kind)
+    if allowed_keys is None:
+        raise ConfigValidationError(f"Unsupported component kind: {kind}")
+    invalid_keys = sorted(key for key in extras if key not in allowed_keys)
+    if invalid_keys:
+        raise ConfigValidationError(
+            f"{kind} config contains unsupported fields {invalid_keys}; "
+            "use 'target' + 'params'"
+        )
 
     return {
         "target": f"{source}:{component_type}",
@@ -220,14 +173,10 @@ def _build_component(
     config: Dict[str, Any],
     *,
     kind: str,
-    wrapper_keys: Sequence[str] = (),
-    default_source: Optional[str] = None,
 ) -> Any:
     component_cfg = _extract_component_config(
         config,
         kind=kind,
-        wrapper_keys=wrapper_keys,
-        default_source=default_source,
     )
     component_cls = _resolve_component(kind, component_cfg["type"], component_cfg["source"])
     params = dict(component_cfg["params"])
@@ -236,32 +185,6 @@ def _build_component(
         params = _build_nested_component_value(params, nested_kind="transform")
 
     return component_cls(**params)
-
-
-def _is_legacy_transform_pipeline(config: Dict[str, Any]) -> bool:
-    pipeline_type = config.get("type") or config.get("combination_strategy")
-    if "items" in config or "transforms" in config or "combination_strategy" in config:
-        return True
-    return (
-        config.get("target") in {None, ""}
-        and pipeline_type in {"compose", "list", "raw"}
-        and "params" not in config
-    )
-
-
-def _build_legacy_transform_pipeline(config: Dict[str, Any]) -> Any:
-    import torchvision.transforms as transforms
-
-    pipeline_type = str(config.get("type") or config.get("combination_strategy") or "compose").lower()
-    raw_items = config.get("items") or config.get("transforms") or []
-    transforms_list = [build_transform(item) for item in raw_items]
-
-    if pipeline_type == "compose":
-        return transforms.Compose(transforms_list)
-    if pipeline_type in {"list", "raw"}:
-        return transforms_list
-
-    raise ConfigValidationError(f"Unsupported transform pipeline type: {pipeline_type}")
 
 
 def _normalize_transform_shorthand(config: Any) -> Any:
@@ -283,8 +206,19 @@ def _normalize_transform_shorthand(config: Any) -> Any:
         raise ConfigValidationError("transform config must be a mapping, list, or target string")
 
     config_dict = dict(config)
-    if _is_legacy_transform_pipeline(config_dict):
-        return config_dict
+    if "target" not in config_dict:
+        raise ConfigValidationError("transform config requires 'target' when using mapping syntax")
+
+    invalid_inline_keys = sorted(
+        key
+        for key in DISALLOWED_TRANSFORM_INLINE_KEYS.intersection(config_dict)
+        if config_dict.get(key) not in (None, "")
+    )
+    if invalid_inline_keys:
+        raise ConfigValidationError(
+            f"transform config contains unsupported fields {invalid_inline_keys}; "
+            "use 'target' + 'params'"
+        )
 
     params = dict(config_dict.get("params") or {})
     inline_params = {
@@ -323,12 +257,7 @@ def _resolve_optional_transform(raw_transform: Any) -> Any:
 def build_model(config: Dict[str, Any]) -> torch.nn.Module:
     """从配置构建模型。"""
 
-    return _build_component(
-        config,
-        kind="model",
-        wrapper_keys=("backbone",),
-        default_source="registry",
-    )
+    return _build_component(config, kind="model")
 
 
 def build_transform(config: Any) -> Any:
@@ -345,14 +274,7 @@ def build_transform(config: Any) -> Any:
     else:
         raise ConfigValidationError("transform config must be a mapping, list, or target string")
 
-    if _is_legacy_transform_pipeline(config_dict):
-        return _build_legacy_transform_pipeline(config_dict)
-
-    return _build_component(
-        _normalize_transform_shorthand(config_dict),
-        kind="transform",
-        default_source="torchvision.transforms",
-    )
+    return _build_component(_normalize_transform_shorthand(config_dict), kind="transform")
 
 
 def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> Any:
@@ -361,15 +283,12 @@ def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> An
     dataset_cfg = _extract_component_config(
         config,
         kind="dataset",
-        default_source="torchvision.datasets",
     )
     params = dict(dataset_cfg["params"])
 
     transform_value = transform
     if transform_value is None and params.get("transform") is not None:
         transform_value = _resolve_optional_transform(params.get("transform"))
-    if transform_value is None and config.get("transform") is not None:
-        transform_value = _resolve_optional_transform(config.get("transform"))
 
     if transform_value is not None:
         params["transform"] = transform_value
@@ -411,7 +330,7 @@ def _select_model_parameters(
     else:
         raise ConfigValidationError("optimizer target modules must be a string or list of strings")
 
-    aliases = {"model", "all", "backbone"}
+    aliases = {"model", "all"}
     collected: List[torch.nn.Parameter] = []
     seen_ids = set()
 
@@ -466,8 +385,6 @@ def build_optimizer(
     optimizer_cfg = _extract_component_config(
         config,
         kind="optimizer",
-        wrapper_keys=("main_optimizer",),
-        default_source="torch.optim",
     )
     optimizer_cls = _resolve_component(
         "optimizer",
@@ -482,8 +399,6 @@ def build_optimizer(
         return optimizer_cls(groups, **params)
 
     target_modules = optimizer_cfg.get("target_modules")
-    if target_modules is None:
-        target_modules = optimizer_cfg.get("model")
 
     return optimizer_cls(_select_model_parameters(model, target_modules), **params)
 
@@ -500,8 +415,6 @@ def build_scheduler(
     scheduler_cfg = _extract_component_config(
         config,
         kind="scheduler",
-        wrapper_keys=("main_scheduler",),
-        default_source="torch.optim.lr_scheduler",
     )
     scheduler_cls = _resolve_component(
         "scheduler",
@@ -525,7 +438,6 @@ def build_loss(config: Any) -> torch.nn.Module:
         loss_cfg = _extract_component_config(
             dict(loss_items[0]),
             kind="loss",
-            default_source="torch.nn",
         )
         loss_cls = _resolve_component("loss", loss_cfg["type"], loss_cfg["source"])
         return loss_cls(**loss_cfg["params"])
@@ -538,7 +450,6 @@ def build_loss(config: Any) -> torch.nn.Module:
         loss_cfg = _extract_component_config(
             dict(loss_item),
             kind="loss",
-            default_source="torch.nn",
         )
         loss_cls = _resolve_component("loss", loss_cfg["type"], loss_cfg["source"])
         losses.append(loss_cls(**loss_cfg["params"]))
@@ -555,7 +466,6 @@ def build_metrics(config: List[Dict[str, Any]]) -> List[Any]:
         metric_cfg = _extract_component_config(
             metric_item,
             kind="metric",
-            default_source="registry",
         )
         metric_cls = _resolve_component("metric", metric_cfg["type"], metric_cfg["source"])
         metrics.append(metric_cls(**metric_cfg["params"]))

@@ -61,27 +61,41 @@ def test_builder_resolves_torch_import_paths() -> None:
     assert callable(transform)
 
 
-def test_builder_keeps_legacy_torch_aliases_working() -> None:
+def test_builder_rejects_unsupported_component_fields() -> None:
+    try:
+        build_model(
+            {
+                "target": "torch.nn:Linear",
+                "unexpected": True,
+                "params": {"in_features": 4, "out_features": 2},
+            }
+        )
+        assert False, "Expected ConfigValidationError"
+    except ConfigValidationError as exc:
+        assert "unsupported fields" in str(exc)
+
+
+def test_builder_rejects_missing_target_wrapper_shape() -> None:
     model = build_model(
         {
-            "name": "Linear",
-            "from_library": "torch",
+            "target": "torch.nn:Linear",
             "params": {"in_features": 4, "out_features": 2},
         }
     )
-    optimizer = build_optimizer(
-        model,
-        {
-            "main_optimizer": {
-                "name": "SGD",
-                "from_library": "torch",
-                "params": {"lr": 0.01},
-            }
-        },
-    )
 
-    assert isinstance(model, torch.nn.Linear)
-    assert isinstance(optimizer, torch.optim.SGD)
+    try:
+        build_optimizer(
+            model,
+            {
+                "optimizer": {
+                    "target": "torch.optim:SGD",
+                    "params": {"lr": 0.01},
+                }
+            },
+        )
+        assert False, "Expected ConfigValidationError"
+    except ConfigValidationError as exc:
+        assert "requires 'target'" in str(exc)
 
 
 def test_builder_can_build_local_dataset_from_registry() -> None:
@@ -102,12 +116,12 @@ def test_builder_can_build_local_dataset_from_registry() -> None:
     assert int(target) in {0, 1, 2}
 
 
-def test_unknown_transform_pipeline_type_fails() -> None:
+def test_builder_rejects_transform_mapping_without_target() -> None:
     try:
-        build_transform({"type": "sequential", "items": []})
+        build_transform({"unexpected": []})
         assert False, "Expected ConfigValidationError"
-    except ConfigValidationError:
-        pass
+    except ConfigValidationError as exc:
+        assert "requires 'target'" in str(exc)
 
 
 def test_builder_supports_dataset_param_transform_target() -> None:

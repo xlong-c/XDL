@@ -2,6 +2,7 @@ from textwrap import dedent
 
 from xdl.config import load_config_with_schema, setup_from_yaml
 from xdl.config.builder import build_model
+from xdl.config.errors import ConfigValidationError
 
 
 def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
@@ -87,81 +88,27 @@ def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
     assert setup.val_loader.batch_size == 4
 
 
-def test_setup_from_yaml_supports_legacy_schema(tmp_path) -> None:
-    config_path = tmp_path / "legacy_schema.yaml"
+def test_setup_from_yaml_rejects_unsupported_top_level_layout(tmp_path) -> None:
+    config_path = tmp_path / "invalid_layout.yaml"
     config_path.write_text(
         dedent(
             """
-            training:
+            runtime:
               device: cpu
-              num_epochs: 4
-              batch_size: 2
-            core_config:
-              model:
-                backbone:
-                  name: Linear
-                  from_library: torch
-                  params:
-                    in_features: 4
-                    out_features: 2
-              optimizer:
-                main_optimizer:
-                  name: SGD
-                  from_library: torch
-                  params:
-                    lr: 0.01
-              scheduler:
-                main_scheduler:
-                  name: StepLR
-                  from_library: torch
-                  params:
-                    step_size: 1
-                    gamma: 0.5
-              loss:
-                - name: CrossEntropyLoss
-                  from_library: torch
-                  params: {}
-              metrics:
-                - name: Accuracy
-                  from_library: local
-                  params:
-                    num_classes: 2
-            data_config:
-              transform:
-                train_transform:
-                  transforms:
-                    - name: ToTensor
-                      from_library: torchvision
-                      params: {}
-              dataset:
-                train_dataset:
-                  name: FakeData
-                  from_library: torchvision
-                  transform: train_transform
-                  params:
-                    size: 4
-                    image_size: [1, 2, 2]
-                    num_classes: 2
-              dataloader:
-                train_loader:
-                  dataset: train_dataset
-                  params:
-                    batch_size: 2
-                    shuffle: false
+            trainer:
+              max_epochs: 4
+            data:
+              transforms: {}
             """
         ),
         encoding="utf-8",
     )
 
-    setup = setup_from_yaml(config_path, device="cpu")
-
-    assert type(setup.model).__name__ == "Linear"
-    assert type(setup.optimizer).__name__ == "SGD"
-    assert type(setup.scheduler).__name__ == "StepLR"
-    assert type(setup.loss_fn).__name__ == "CrossEntropyLoss"
-    assert setup.num_epochs == 4
-    assert setup.batch_size == 2
-    assert setup.train_loader is not None
+    try:
+        setup_from_yaml(config_path, device="cpu")
+        assert False, "Expected ConfigValidationError"
+    except ConfigValidationError:
+        pass
 
 
 def test_official_unified_logger_example_builds() -> None:

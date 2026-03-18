@@ -1,8 +1,7 @@
 """
 配置 schema 定义。
 
-固定上层结构，底层组件参数保持在 `params` 中。
-官方主格式为 `target + params`，同时兼容旧字段。
+固定顶层结构，组件统一使用 `target + params`。
 """
 
 from dataclasses import dataclass, field
@@ -14,7 +13,6 @@ from .accelerate_config import AccelerateConfig
 from .errors import ConfigError
 
 CONFIG_SCHEMA_VERSION = 1
-DEFAULT_COMPONENT_SOURCE = "registry"
 
 
 @dataclass
@@ -44,8 +42,6 @@ class ComponentConfig:
     """通用组件配置。"""
 
     target: str = ""
-    type: str = ""
-    source: str = ""
     params: Dict[str, Any] = field(default_factory=dict)
     target_modules: Optional[List[str]] = None
     param_groups: Dict[str, Dict[str, Any]] = field(default_factory=dict)
@@ -63,8 +59,7 @@ class TransformPipelineConfig(ComponentConfig):
 class DatasetConfig(ComponentConfig):
     """数据集配置。"""
 
-    # 兼容旧格式：允许 transform 仍挂在组件外层。
-    transform: Any = None
+    pass
 
 
 @dataclass
@@ -82,22 +77,6 @@ class DataloaderDefaultsConfig:
     batch_size: Optional[int] = None
     num_workers: int = 0
     pin_memory: bool = False
-
-
-@dataclass
-class DataConfig:
-    """数据相关配置。"""
-
-    # 紧凑别名：减少 transforms 的缩进层级。
-    train_transforms: Any = None
-    val_transforms: Any = None
-    test_transforms: Any = None
-
-    # transform 本身允许使用紧凑语法，底层保持灵活。
-    transforms: Dict[str, Any] = field(default_factory=dict)
-    datasets: Dict[str, DatasetConfig] = field(default_factory=dict)
-    dataloader_defaults: DataloaderDefaultsConfig = field(default_factory=DataloaderDefaultsConfig)
-    dataloaders: Dict[str, DataloaderConfig] = field(default_factory=dict)
 
 
 @dataclass
@@ -141,7 +120,6 @@ class ConfigSchemaV1:
     trainer: TrainerConfig = field(default_factory=TrainerConfig)
     model: Optional[ComponentConfig] = None
 
-    # 顶层紧凑别名：减少 data 相关配置的缩进层级。
     train_transforms: Any = None
     val_transforms: Any = None
     test_transforms: Any = None
@@ -153,7 +131,6 @@ class ConfigSchemaV1:
     val_dataloader: Optional[DataloaderConfig] = None
     test_dataloader: Optional[DataloaderConfig] = None
 
-    data: DataConfig = field(default_factory=DataConfig)
     optimization: Optional[OptimizationConfig] = None
     loss: List[ComponentConfig] = field(default_factory=list)
     metrics: List[ComponentConfig] = field(default_factory=list)
@@ -180,7 +157,6 @@ def create_structured_config(schema: Optional[ConfigSchemaV1] = None) -> DictCon
 
 __all__ = [
     "CONFIG_SCHEMA_VERSION",
-    "DEFAULT_COMPONENT_SOURCE",
     "RuntimeConfig",
     "TrainerConfig",
     "ComponentConfig",
@@ -188,7 +164,6 @@ __all__ = [
     "DatasetConfig",
     "DataloaderConfig",
     "DataloaderDefaultsConfig",
-    "DataConfig",
     "OptimizationConfig",
     "LoggingConfig",
     "CheckpointConfig",

@@ -63,22 +63,19 @@ def test_can_merge_and_resolve_references() -> None:
         },
         "optimization": {
             "optimizer": {
-                "type": "SGD",
-                "source": "torch.optim",
+                "target": "torch.optim:SGD",
                 "params": {"lr": 0.01},
             }
         },
         "loss": [
             {
-                "type": "CrossEntropyLoss",
-                "source": "torch.nn",
+                "target": "torch.nn:CrossEntropyLoss",
                 "params": {},
             }
         ],
         "metrics": [
             {
-                "type": "Accuracy",
-                "source": "registry",
+                "target": "registry:Accuracy",
                 "params": {"num_classes": 100},
             }
         ],
@@ -100,6 +97,25 @@ def test_unknown_top_level_field_fails_validation() -> None:
     raw_config = {
         "runtime": {"device": "cpu"},
         "unknown_block": {"enabled": True},
+    }
+
+    try:
+        load_config_with_schema(raw_config)
+        assert False, "Expected ConfigValidationError"
+    except ConfigValidationError:
+        pass
+
+
+def test_unsupported_component_fields_fail_validation() -> None:
+    raw_config = {
+        "model": {
+            "target": "torch.nn:Linear",
+            "unexpected": True,
+            "params": {
+                "in_features": 4,
+                "out_features": 2,
+            },
+        }
     }
 
     try:

@@ -10,7 +10,7 @@
 - `${...}` 插值和 `OmegaConf` 的作用
 - 数据链路、优化链路和 loss / metrics 的配置方式
 - 如何在 Python 中消费配置
-- 当前兼容策略和边界
+- 当前边界
 
 ## 1. Config 系统是什么
 
@@ -157,7 +157,7 @@ accelerate:
 - 组件统一使用 `target + params`
 - 数据链路优先使用顶层紧凑别名，减少一层 `data` 缩进
 - transform 推荐显式写 `Compose + params`
-- 旧格式只保留兼容，不再作为官方推荐写法
+- 配置结构统一收敛到一种写法
 
 ## 5. Dataclass 固定了什么
 
@@ -172,7 +172,6 @@ accelerate:
 - `train_dataset / val_dataset / test_dataset`
 - `dataloader_defaults`
 - `train_dataloader / val_dataloader / test_dataloader`
-- `data`
 - `optimization`
 - `loss`
 - `metrics`
@@ -270,27 +269,17 @@ loss:
 - `torchvision.datasets:CIFAR100`
 - `torchvision.transforms:Compose`
 
-### 仍然兼容但不推荐的旧格式
+### 组件格式只接受主格式
 
-当前 builder 仍兼容这些旧写法：
+当前 config 主链路只接受：
 
-- `type + source + params`
-- `name + from_library + params`
+- `target + params`
 
-保留兼容只是为了迁移历史配置，不代表它们仍然是官方主格式。
+这意味着 schema、builder 和示例 YAML 都围绕同一套格式工作。
 
 ## 7. 顶层紧凑别名与数据链路
 
-XDL 当前对数据链路的推荐不是：
-
-```yaml
-data:
-  transforms:
-  datasets:
-  dataloaders:
-```
-
-而是使用更紧凑的顶层别名：
+当前官方写法使用更紧凑的顶层别名：
 
 - `train_transforms / val_transforms / test_transforms`
 - `train_dataset / val_dataset / test_dataset`
@@ -301,7 +290,7 @@ data:
 
 - 减少 YAML 缩进层级
 - 让 train / val / test 三条链路一眼可读
-- 避免 `data.transforms.train` 这类层级嵌套变深
+- 让数据链路和训练链路保持平铺式结构
 
 ### 推荐写法
 
@@ -421,7 +410,7 @@ train_transforms:
 - 单个字符串 target
 - 仅由 transform 组成的列表
 
-但这些更适合作为兼容或临时简写，不建议作为官方样板继续传播。
+但这些更适合作为局部简写，不建议作为官方样板继续传播。
 
 ## 9. `${...}` 插值和 `OmegaConf`
 
@@ -601,27 +590,7 @@ print(len(setup.train_loader.dataset))
 PY
 ```
 
-## 12. 兼容策略
-
-当前配置系统不是“只认新格式、不认旧格式”，而是采用双轨过渡策略：
-
-- 官方主格式使用 schema v1
-- 历史旧格式会先被归一化，再进入统一 schema / builder 链路
-
-当前仍兼容的内容包括：
-
-- `data.*` 层级写法
-- `type + source + params`
-- `name + from_library + params`
-- 旧版 `training / core_config / data_config / save_config / logger_config` 风格
-
-但兼容不等于推荐。对新文档、新示例、新配置文件，应该统一使用：
-
-- 顶层紧凑别名
-- `target + params`
-- 显式 `Compose + params`
-
-## 13. 当前边界
+## 12. 当前边界
 
 当前 config 系统已经稳定的部分是：
 
@@ -643,7 +612,7 @@ PY
 - 一个已经稳定的配置解析与组件构建系统
 - 一个尚未完全闭环的实验编排系统
 
-## 14. 扩展这套配置系统时的原则
+## 13. 扩展这套配置系统时的原则
 
 如果后续继续扩展 config，建议遵循下面几条原则：
 
@@ -661,11 +630,7 @@ PY
 
 只有当组件实例化规则真的发生变化时，才修改 builder。不要让 registry、schema、builder 混着承担同一件事。
 
-### 什么时候保留兼容层
-
-兼容层只服务于迁移，不服务于继续扩散旧风格。新示例和新文档应始终使用主格式。
-
-## 15. 推荐阅读顺序
+## 14. 推荐阅读顺序
 
 如果你要继续深入读代码，建议按下面顺序：
 
