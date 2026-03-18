@@ -1,341 +1,405 @@
 """
-组件构建器
-从配置字典构建各个训练组件
+组件构建器。
+
+职责：
+- 解析统一组件配置格式：`type + source + params`
+- 兼容旧格式：`name + from_library + params`
+- 通过 registry 或 import path 定位组件
+- 实例化模型、数据集、优化器、scheduler、loss、metrics 等对象
 """
 
 import importlib
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 import torch
 from torch.utils.data import DataLoader
 
+from .errors import ComponentResolutionError, ConfigValidationError
 
-def _get_class_from_library(name: str, from_library: str) -> Any:
-    """
-    从指定库获取类或函数
-    
-    Args:
-        name: 类或函数的名称
-        from_library: 库标识符 ("torch", "torchvision", "local")
-    
-    Returns:
-        类或函数对象
-    """
-    if from_library == "torch":
-        return getattr(torch, name)
-    elif from_library == "torchvision":
-        return getattr(torchvision, name)
-    elif from_library == "local":
-        # 本地注册的组件，通过 xdl.utils.registry 获取
-        from xdl.utils.registry import MODEL_REGISTRY, DATASET_REGISTRY, LOSS_REGISTRY, METRIC_REGISTRY, OPTIMIZER_REGISTRY, SCHEDULER_REGISTRY
-        
-        registries = {
-            "model": MODEL_REGISTRY,
-            "dataset": DATASET_REGISTRY,
-            "loss": LOSS_REGISTRY,
-            "metric": METRIC_REGISTRY,
-            "optimizer": OPTIMIZER_REGISTRY,
-            "scheduler": SCHEDULER_REGISTRY,
-        }
-        
-        # 尝试从各个注册表获取
-        for reg_name, registry in registries.items():
-            try:
-                return registry.get(name)
-            except KeyError:
-                continue
-        
-        raise ValueError(f"Cannot find '{name}' in any local registry")
-    else:
-        raise ValueError(f"Unknown library: {from_library}")
+LEGACY_SOURCE_ALIASES = {
+    ("model", "local"): "registry",
+    ("model", "registry"): "registry",
+    ("model", "torch"): "torch.nn",
+    ("model", "torchvision"): "torchvision.models",
+    ("dataset", "local"): "registry",
+    ("dataset", "registry"): "registry",
+    ("dataset", "torchvision"): "torchvision.datasets",
+    ("optimizer", "local"): "registry",
+    ("optimizer", "registry"): "registry",
+    ("optimizer", "torch"): "torch.optim",
+    ("scheduler", "local"): "registry",
+    ("scheduler", "registry"): "registry",
+    ("scheduler", "torch"): "torch.optim.lr_scheduler",
+    ("loss", "local"): "registry",
+    ("loss", "registry"): "registry",
+    ("loss", "torch"): "torch.nn",
+    ("metric", "local"): "registry",
+    ("metric", "registry"): "registry",
+    ("transform", "local"): "registry",
+    ("transform", "registry"): "registry",
+    ("transform", "torchvision"): "torchvision.transforms",
+}
+
+REGISTRY_IMPORTS = {
+    "model": "xdl.model",
+    "dataset": "xdl.dataset",
+    "loss": "xdl.loss",
+    "metric": "xdl.metric",
+    "optimizer": "xdl.optimizer",
+    "scheduler": "xdl.scheduler",
+}
+
+
+def _normalize_source(kind: str, source: Optional[str], default_source: str) -> str:
+    raw_source = source or default_source
+    return LEGACY_SOURCE_ALIASES.get((kind, raw_source), raw_source)
+
+
+def _ensure_registry_populated(kind: str) -> None:
+    module_path = REGISTRY_IMPORTS.get(kind)
+    if module_path is not None:
+        importlib.import_module(module_path)
+
+
+def _get_registry(kind: str) -> Any:
+    _ensure_registry_populated(kind)
+    from xdl.utils.registry import (
+        DATASET_REGISTRY,
+        LOSS_REGISTRY,
+        METRIC_REGISTRY,
+        MODEL_REGISTRY,
+        OPTIMIZER_REGISTRY,
+        SCHEDULER_REGISTRY,
+        TRANSFORM_REGISTRY,
+    )
+
+    registries = {
+        "model": MODEL_REGISTRY,
+        "dataset": DATASET_REGISTRY,
+        "loss": LOSS_REGISTRY,
+        "metric": METRIC_REGISTRY,
+        "optimizer": OPTIMIZER_REGISTRY,
+        "scheduler": SCHEDULER_REGISTRY,
+        "transform": TRANSFORM_REGISTRY,
+    }
+    if kind not in registries:
+        raise ConfigValidationError(f"Unsupported registry kind: {kind}")
+    return registries[kind]
+
+
+def _resolve_component(kind: str, component_type: str, source: str) -> Any:
+    if source == "registry":
+        registry = _get_registry(kind)
+        try:
+            return registry.get(component_type)
+        except KeyError as exc:
+            raise ComponentResolutionError(kind, component_type, source=source) from exc
+
+    try:
+        module = importlib.import_module(source)
+    except ImportError as exc:
+        raise ComponentResolutionError(kind, component_type, source=source) from exc
+
+    try:
+        return getattr(module, component_type)
+    except AttributeError as exc:
+        raise ComponentResolutionError(kind, component_type, source=source) from exc
+
+
+def _extract_component_config(
+    config: Dict[str, Any],
+    *,
+    kind: str,
+    wrapper_keys: Sequence[str] = (),
+    default_source: str = "registry",
+) -> Dict[str, Any]:
+    if not isinstance(config, dict) or not config:
+        raise ConfigValidationError(f"{kind} config cannot be empty")
+
+    component_cfg = config
+    for key in wrapper_keys:
+        wrapped = component_cfg.get(key)
+        if isinstance(wrapped, dict):
+            component_cfg = wrapped
+            break
+
+    component_type = component_cfg.get("type") or component_cfg.get("name")
+    if not component_type:
+        raise ConfigValidationError(f"{kind} config requires 'type' or 'name'")
+
+    source = _normalize_source(
+        kind,
+        component_cfg.get("source") or component_cfg.get("from_library"),
+        default_source,
+    )
+    params = dict(component_cfg.get("params") or {})
+    ignored_keys = {"type", "name", "source", "from_library", "params"}
+    extras = {key: value for key, value in component_cfg.items() if key not in ignored_keys}
+
+    return {
+        "type": component_type,
+        "source": source,
+        "params": params,
+        **extras,
+    }
+
+
+def _build_single_transform(config: Dict[str, Any]) -> Any:
+    transform_cfg = _extract_component_config(
+        config,
+        kind="transform",
+        default_source="torchvision.transforms",
+    )
+    transform_cls = _resolve_component(
+        "transform",
+        transform_cfg["type"],
+        transform_cfg["source"],
+    )
+    return transform_cls(**transform_cfg["params"])
 
 
 def build_model(config: Dict[str, Any]) -> torch.nn.Module:
-    """
-    从配置构建模型
-    
-    Args:
-        config: 模型配置字典，格式如下：
-            {
-                "backbone": {
-                    "name": "VGG16",
-                    "from_library": "local",
-                    "params": {"num_classes": 100, "dropout": 0.5}
-                }
-            }
-    
-    Returns:
-        构建的模型实例
-    """
-    if "backbone" in config:
-        backbone_config = config["backbone"]
-    else:
-        backbone_config = config
-    
-    name = backbone_config.get("name")
-    from_library = backbone_config.get("from_library", "local")
-    params = backbone_config.get("params", {})
-    
-    # 处理特殊参数
-    if "num_classes" in params and "num_classes" not in params.get("kwargs", {}):
-        if "kwargs" not in params:
-            params["kwargs"] = {}
-        params["kwargs"]["num_classes"] = params.pop("num_classes")
-    
-    cls = _get_class_from_library(name, from_library)
-    return cls(**params)
+    """从配置构建模型。"""
+
+    model_cfg = _extract_component_config(
+        config,
+        kind="model",
+        wrapper_keys=("backbone",),
+        default_source="registry",
+    )
+    model_cls = _resolve_component("model", model_cfg["type"], model_cfg["source"])
+    return model_cls(**model_cfg["params"])
 
 
 def build_transform(config: Dict[str, Any]) -> Any:
-    """
-    从配置构建数据变换
-    
-    Args:
-        config: 变换配置字典
-    """
-    import torchvision
-    from torchvision import transforms
-    
-    transforms_list = []
-    combination_strategy = config.get("combination_strategy", "compose")
-    
-    for transform_config in config.get("transforms", []):
-        name = transform_config.get("name")
-        params = transform_config.get("params", {})
-        
-        # 获取变换类
-        if hasattr(transforms, name):
-            transform_cls = getattr(transforms, name)
-            transforms_list.append(transform_cls(**params))
-    
-    # 组合变换
-    if combination_strategy == "compose":
+    """从配置构建 transform 或 transform pipeline。"""
+
+    if not config:
+        return None
+    if not isinstance(config, dict):
+        raise ConfigValidationError("transform config must be a mapping")
+
+    if "items" not in config and "transforms" not in config and config.get("type") not in {
+        "compose",
+        "list",
+        "raw",
+    } and "combination_strategy" not in config:
+        return _build_single_transform(config)
+
+    import torchvision.transforms as transforms
+
+    pipeline_type = (config.get("type") or config.get("combination_strategy") or "compose").lower()
+    raw_items = config.get("items") or config.get("transforms") or []
+    transforms_list = [_build_single_transform(item) for item in raw_items]
+
+    if pipeline_type == "compose":
         return transforms.Compose(transforms_list)
-    elif combination_strategy == "sequential":
-        return transforms.Sequential(transforms_list)
-    else:
+    if pipeline_type in {"list", "raw"}:
         return transforms_list
+
+    raise ConfigValidationError(f"Unsupported transform pipeline type: {pipeline_type}")
 
 
 def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> Any:
-    """
-    从配置构建数据集
-    
-    Args:
-        config: 数据集配置字典
-        transform: 数据变换（可选）
-    
-    Returns:
-        构建的数据集实例
-    """
-    name = config.get("name")
-    from_library = config.get("from_library", "torchvision")
-    params = config.get("params", {}).copy()
-    
-    # 添加 transform 参数
-    if transform is not None:
-        params["transform"] = transform
-    
-    # 获取数据集类
-    if from_library == "torchvision":
-        import torchvision
-        dataset_cls = getattr(torchvision.datasets, name)
-    elif from_library == "local":
-        from xdl.utils.registry import DATASET_REGISTRY
-        dataset_cls = DATASET_REGISTRY.get(name)
-    else:
-        raise ValueError(f"Unknown library for dataset: {from_library}")
-    
+    """从配置构建数据集。"""
+
+    dataset_cfg = _extract_component_config(
+        config,
+        kind="dataset",
+        default_source="torchvision.datasets",
+    )
+    params = dataset_cfg["params"].copy()
+
+    transform_value = transform
+    if transform_value is None and config.get("transform") is not None:
+        raw_transform = config.get("transform")
+        if isinstance(raw_transform, dict):
+            transform_value = build_transform(raw_transform)
+        elif not isinstance(raw_transform, str):
+            transform_value = raw_transform
+
+    if transform_value is not None:
+        params["transform"] = transform_value
+
+    dataset_cls = _resolve_component("dataset", dataset_cfg["type"], dataset_cfg["source"])
     return dataset_cls(**params)
 
 
-def build_dataloader(
-    dataset: Any,
-    config: Dict[str, Any]
-) -> DataLoader:
-    """
-    从配置构建数据加载器
-    
-    Args:
-        dataset: 数据集实例
-        config: 数据加载器配置字典
-    
-    Returns:
-        DataLoader 实例
-    """
-    params = config.get("params", {})
+def build_dataloader(dataset: Any, config: Dict[str, Any]) -> DataLoader:
+    """从配置构建 DataLoader。"""
+
+    if not isinstance(config, dict):
+        raise ConfigValidationError("dataloader config must be a mapping")
+    params = dict(config.get("params") or {})
     return DataLoader(dataset, **params)
+
+
+def _module_parameters(module: Any) -> List[torch.nn.Parameter]:
+    if not hasattr(module, "parameters"):
+        raise ConfigValidationError(f"Target '{type(module).__name__}' does not expose parameters()")
+    return list(module.parameters())
+
+
+def _select_model_parameters(
+    model: torch.nn.Module,
+    target_modules: Optional[Any],
+) -> Iterable[torch.nn.Parameter]:
+    if target_modules is None:
+        return model.parameters()
+
+    if isinstance(target_modules, str):
+        target_names: List[str] = [target_modules]
+    elif isinstance(target_modules, Sequence):
+        target_names = [str(name) for name in target_modules]
+    else:
+        raise ConfigValidationError("optimizer target modules must be a string or list of strings")
+
+    aliases = {"model", "all", "backbone"}
+    collected: List[torch.nn.Parameter] = []
+    seen_ids = set()
+
+    for name in target_names:
+        if name in aliases:
+            modules = [model]
+        else:
+            if not hasattr(model, name):
+                raise ConfigValidationError(f"Model has no submodule or attribute named '{name}'")
+            modules = [getattr(model, name)]
+
+        for module in modules:
+            for parameter in _module_parameters(module):
+                if id(parameter) not in seen_ids:
+                    seen_ids.add(id(parameter))
+                    collected.append(parameter)
+
+    if not collected:
+        raise ConfigValidationError("No parameters selected for optimizer")
+    return collected
+
+
+def _build_param_groups(
+    model: torch.nn.Module,
+    param_group_configs: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    if not isinstance(param_group_configs, dict):
+        raise ConfigValidationError("param_groups must be a mapping")
+
+    groups: List[Dict[str, Any]] = []
+    for group_name, group_params in param_group_configs.items():
+        if not isinstance(group_params, dict):
+            raise ConfigValidationError(f"param group '{group_name}' must be a mapping")
+        groups.append(
+            {
+                "params": list(_select_model_parameters(model, group_name)),
+                **group_params,
+            }
+        )
+
+    if not groups:
+        raise ConfigValidationError("param_groups cannot be empty")
+    return groups
 
 
 def build_optimizer(
     model: torch.nn.Module,
-    config: Dict[str, Any]
+    config: Dict[str, Any],
 ) -> torch.optim.Optimizer:
-    """
-    从配置构建优化器
-    
-    Args:
-        model: 模型实例
-        config: 优化器配置字典，格式如下：
-            {
-                "main_optimizer": {
-                    "model": ["backbone"],  # 要优化的参数组
-                    "name": "SGD",
-                    "from_library": "torch",
-                    "params": {"lr": 0.01, "momentum": 0.9}
-                }
-            }
-    
-    Returns:
-        优化器实例
-    """
-    # 获取优化器配置
-    if "main_optimizer" in config:
-        opt_config = config["main_optimizer"]
-    else:
-        opt_config = config
-    
-    name = opt_config.get("name")
-    from_library = opt_config.get("from_library", "torch")
-    params = opt_config.get("params", {})
-    
-    # 获取要优化的参数
-    param_groups = opt_config.get("model", ["model"])
-    if isinstance(param_groups, list):
-        # 简单处理：优化所有参数
-        optimizer_cls = _get_class_from_library(name, from_library)
-        return optimizer_cls(model.parameters(), **params)
-    else:
-        # 参数组处理
-        optimizer_cls = _get_class_from_library(name, from_library)
-        
-        # 如果指定了参数组名称
-        param_group_configs = opt_config.get("param_groups", {})
-        groups = []
-        
-        for group_name, group_params in param_group_configs.items():
-            if group_name == "backbone" or group_name == "all":
-                groups.append({"params": model.parameters(), **group_params})
-            elif hasattr(model, group_name):
-                groups.append({"params": getattr(model, group_name).parameters(), **group_params})
-        
-        if not groups:
-            groups = [{"params": model.parameters()}]
-        
+    """从配置构建优化器。"""
+
+    optimizer_cfg = _extract_component_config(
+        config,
+        kind="optimizer",
+        wrapper_keys=("main_optimizer",),
+        default_source="torch.optim",
+    )
+    optimizer_cls = _resolve_component(
+        "optimizer",
+        optimizer_cfg["type"],
+        optimizer_cfg["source"],
+    )
+    params = optimizer_cfg["params"].copy()
+
+    param_group_configs = optimizer_cfg.get("param_groups")
+    if param_group_configs is not None:
+        groups = _build_param_groups(model, param_group_configs)
         return optimizer_cls(groups, **params)
+
+    target_modules = optimizer_cfg.get("target_modules")
+    if target_modules is None:
+        target_modules = optimizer_cfg.get("model")
+
+    return optimizer_cls(_select_model_parameters(model, target_modules), **params)
 
 
 def build_scheduler(
     optimizer: torch.optim.Optimizer,
-    config: Dict[str, Any]
+    config: Dict[str, Any],
 ) -> Optional[Any]:
-    """
-    从配置构建学习率调度器
-    
-    Args:
-        optimizer: 优化器实例
-        config: 调度器配置字典
-    
-    Returns:
-        调度器实例，如果配置为空则返回 None
-    """
+    """从配置构建学习率调度器。"""
+
     if not config:
         return None
-    
-    # 获取调度器配置
-    if "main_scheduler" in config:
-        sched_config = config["main_scheduler"]
-    else:
-        sched_config = config
-    
-    name = sched_config.get("name")
-    from_library = sched_config.get("from_library", "torch")
-    params = sched_config.get("params", {})
-    
-    if name is None:
-        return None
-    
-    scheduler_cls = _get_class_from_library(name, from_library)
-    return scheduler_cls(optimizer, **params)
+
+    scheduler_cfg = _extract_component_config(
+        config,
+        kind="scheduler",
+        wrapper_keys=("main_scheduler",),
+        default_source="torch.optim.lr_scheduler",
+    )
+    scheduler_cls = _resolve_component(
+        "scheduler",
+        scheduler_cfg["type"],
+        scheduler_cfg["source"],
+    )
+    return scheduler_cls(optimizer, **scheduler_cfg["params"])
 
 
-def build_loss(config: List[Dict[str, Any]]) -> torch.nn.Module:
-    """
-    从配置构建损失函数
-    
-    Args:
-        config: 损失函数配置列表，格式如下：
-            [
-                {
-                    "name": "CrossEntropyLoss",
-                    "from_library": "torch",
-                    "weight": 1.0,
-                    "params": {}
-                }
-            ]
-    
-    Returns:
-        损失函数实例（如果是多个，返回加权组合）
-    """
+def build_loss(config: Any) -> torch.nn.Module:
+    """从配置构建损失函数。"""
+
     if not config:
-        raise ValueError("Loss configuration cannot be empty")
-    
-    if len(config) == 1:
-        # 单个损失函数
-        loss_config = config[0]
-        name = loss_config.get("name")
-        from_library = loss_config.get("from_library", "torch")
-        params = loss_config.get("params", {})
-        
-        loss_cls = _get_class_from_library(name, from_library)
-        return loss_cls(**params)
-    else:
-        # 多个损失函数 - 返回加权组合
-        from .loss_weighted import WeightedLoss
-        
-        losses = []
-        weights = []
-        
-        for loss_config in config:
-            name = loss_config.get("name")
-            from_library = loss_config.get("from_library", "torch")
-            params = loss_config.get("params", {})
-            weight = loss_config.get("weight", 1.0)
-            
-            loss_cls = _get_class_from_library(name, from_library)
-            losses.append(loss_cls(**params))
-            weights.append(weight)
-        
-        return WeightedLoss(losses, weights)
+        raise ConfigValidationError("loss config cannot be empty")
+
+    loss_items = [config] if isinstance(config, dict) else list(config)
+    if not loss_items:
+        raise ConfigValidationError("loss config cannot be empty")
+
+    if len(loss_items) == 1:
+        loss_cfg = _extract_component_config(
+            loss_items[0],
+            kind="loss",
+            default_source="torch.nn",
+        )
+        loss_cls = _resolve_component("loss", loss_cfg["type"], loss_cfg["source"])
+        return loss_cls(**loss_cfg["params"])
+
+    from .loss_weighted import WeightedLoss
+
+    losses = []
+    weights = []
+    for loss_item in loss_items:
+        loss_cfg = _extract_component_config(
+            loss_item,
+            kind="loss",
+            default_source="torch.nn",
+        )
+        loss_cls = _resolve_component("loss", loss_cfg["type"], loss_cfg["source"])
+        losses.append(loss_cls(**loss_cfg["params"]))
+        weights.append(float(loss_cfg.get("weight", 1.0)))
+
+    return WeightedLoss(losses, weights)
 
 
 def build_metrics(config: List[Dict[str, Any]]) -> List[Any]:
-    """
-    从配置构建评估指标
-    
-    Args:
-        config: 指标配置列表
-    
-    Returns:
-        指标实例列表
-    """
+    """从配置构建指标列表。"""
+
     metrics = []
-    
-    for metric_config in config:
-        name = metric_config.get("name")
-        from_library = metric_config.get("from_library", "local")
-        params = metric_config.get("params", {})
-        
-        metric_cls = _get_class_from_library(name, from_library)
-        
-        # 指标可能有不同的初始化方式
-        try:
-            metrics.append(metric_cls(**params))
-        except TypeError:
-            # 如果初始化失败，尝试不传参数
-            try:
-                metrics.append(metric_cls())
-            except Exception as e:
-                print(f"Warning: Failed to build metric '{name}': {e}")
-    
+    for metric_item in config or []:
+        metric_cfg = _extract_component_config(
+            metric_item,
+            kind="metric",
+            default_source="registry",
+        )
+        metric_cls = _resolve_component("metric", metric_cfg["type"], metric_cfg["source"])
+        metrics.append(metric_cls(**metric_cfg["params"]))
     return metrics

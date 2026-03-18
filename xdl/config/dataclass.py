@@ -37,15 +37,15 @@ class TrainSetup:
     # 核心组件
     model: torch.nn.Module
     train_loader: DataLoader
+    optimizer: torch.optim.Optimizer
+    loss_fn: torch.nn.Module
+
+    # 可选组件
     val_loader: Optional[DataLoader] = None
     test_loader: Optional[DataLoader] = None
-    
-    # 优化和调度
-    optimizer: torch.optim.Optimizer
     scheduler: Optional[Any] = None
-    
-    # 损失和指标
-    loss_fn: torch.nn.Module
+
+    # 指标
     metrics: List[Any] = field(default_factory=list)
     
     # 完整配置（用于调试或自定义逻辑）
