@@ -1,389 +1,403 @@
-# XDL 项目文件大纲
+# XDL 项目分析与使用指南
 
-本文档整理了 xdl 项目下所有文件的功能说明,帮助快速理解项目结构。
+本文档不是文件清单，而是对 XDL 项目的结构性说明。重点回答四个问题：
 
----
+1. XDL 到底是什么类型的项目。
+2. 项目为什么要拆成现在这样的结构。
+3. 这套结构带来什么收益。
+4. 开发者应该怎样使用这些结构，而不是绕开这些结构写成脚本堆叠。
 
-## 核心模块 (xdl/)
+## 1. 项目定位
 
-### 主模块
-- **__init__.py** - xdl 框架初始化模块,导出各个子模块
-- **README.md** - 项目说明文档
+XDL 是一个基于 PyTorch 的模块化深度学习框架。它的目标不是替代 PyTorch，而是在 PyTorch 之上补一层“项目结构”和“实验组织”能力。
 
----
+换句话说，XDL 解决的不是“怎么写一个网络层”，而是下面这些更接近真实项目的问题：
 
-## 回调模块 (xdl/callbacks/)
+- 一个项目里有很多模型、很多损失、很多数据集，怎样统一组织。
+- 训练代码怎样避免越来越像一次性脚本。
+- 日志、检查点、进度条、监控这些横切逻辑，怎样避免塞满训练循环。
+- 当项目开始走向配置化实验时，怎样把 YAML 和 Python 的边界划清。
 
-回调系统提供了完整的训练生命周期钩子管理,支持在训练的各个阶段插入自定义逻辑。
+因此，XDL 更适合：
 
-### 核心功能
+- 需要频繁替换组件的研究型项目。
+- 希望逐步把实验脚本收敛成稳定结构的工程型项目。
 
-#### 1. 生命周期钩子
-- **训练阶段** - `on_train_start`, `on_train_end`, `on_train_epoch_start/end`, `on_train_batch_start/end`
-- **验证阶段** - `on_validation_start/end`, `on_validation_epoch_start/end`, `on_validation_batch_start/end`
-- **测试阶段** - `on_test_start/end`, `on_test_epoch_start/end`, `on_test_batch_start/end`
-- **预测阶段** - `on_predict_start/end`, `on_predict_epoch_start/end`, `on_predict_batch_start/end`
-- **检查点** - `on_save_checkpoint`, `on_load_checkpoint`
-- **异常处理** - `on_exception`
+## 2. 整体结构
 
-#### 2. 回调管理特性
-- **优先级控制** - 支持按优先级排序回调执行顺序
-- **错误隔离** - 单个回调失败不影响其他回调执行
-- **状态管理** - 支持回调状态保存和恢复
-- **执行统计** - 记录每个回调的执行时间和错误信息
+XDL 的核心可以看成五层：
 
-#### 3. 内置回调
-- **日志记录** - Console, Loguru, TensorBoard, WandB
-- **监控** - 设备统计,学习率监控,模型摘要,训练计时
-- **训练控制** - 模型检查点,早停机制
-- **进度显示** - Tqdm 进度条,支持总进度和分阶段进度
+```text
+组件实现层
+  model / dataset / loss / metric / optimizer / scheduler
 
-### 核心基类
-- **base.py** - Callback 基类,所有自定义回调的父类,定义完整的生命周期钩子
-- **callback_list.py** - 回调管理器,统一管理所有训练回调,支持错误隔离和执行统计
+组件发现层
+  utils.registry
 
-### 日志回调
-- **console_callback.py** - 控制台日志回调,将训练和验证指标输出到控制台
-- **logging_callback.py** - loguru 日志回调,记录训练指标到日志文件,支持滚动和压缩
-- **tensorboard_callback.py** - TensorBoard 日志回调,记录指标到 TensorBoard 可视化
-- **wandb_callback.py** - WandB 日志回调,记录指标到 Weights & Biases
+配置装配层
+  config.schema / resolver / builder / setup
 
-### 监控回调
-- **device_stats_monitor.py** - 设备统计监控,监控 CPU/GPU/内存使用情况
-- **learning_rate_monitor.py** - 学习率监控,记录优化器学习率变化
-- **layer_monitor.py** - 网络层监控,监控特定层的权重和梯度分布
-- **model_summary.py** - 模型结构摘要,显示模型层数和参数统计
-- **timer.py** - 训练计时回调,记录各阶段时间消耗和 ETA
+训练编排层
+  trainer.CoreModel / trainer.Trainer / callbacks
 
-### 训练控制回调
-- **model_checkpoint.py** - 模型检查点,自动保存最佳模型和最后状态
-- **early_stopping.py** - 早停机制,监控指标并在满足条件时停止训练
-
-### 其他回调
-- **tqdm_callback.py** - Tqdm 进度条,显示训练进度,支持多阶段管理
-- **lambda_callback.py** - Lambda 回调,提供轻量级的自定义回调功能
-
-### 模块文件
-- **__init__.py** - 回调模块导出文件
-- **README.md** - 回调模块使用说明
-
----
-
-## 损失函数模块 (xdl/loss/)
-
-提供各种深度学习损失函数实现。
-
-### 核心文件
-- **__init__.py** - 损失函数模块初始化和统一注册
-
-### 损失函数实现
-- **bce.py** - 二元交叉熵损失 (BCELoss, BCEWithLogitsLoss)
-- **cross_entropy.py** - 交叉熵损失
-- **focal_loss.py** - Focal Loss,用于处理类别不平衡
-- **mae.py** - 平均绝对误差损失 (L1Loss, MAELoss)
-- **mse.py** - 均方误差损失 (MSELoss)
-- **smooth_l1.py** - Smooth L1 损失 (HuberLoss)
-
----
-
-## 评估指标模块 (xdl/metric/)
-
-- **__init__.py** - 评估指标模块初始化
-- **metrics.py** - 评估指标实现
-
----
-
-## 模型模块 (xdl/model/)
-
-### 卷积模型
-- **resnet.py** - ResNet 系列网络 (ResNet-18/34/50/101/152)
-- **vgg.py** - VGG 系列网络
-- **vit.py** - Vision Transformer 系列 (ViT-Tiny/Small/Base/Large/Huge)
-
-### 分割模型
-- **segment/fatt.py** - FATT 分割模型
-
-### 模块文件
-- **__init__.py** - 模型模块初始化
-
----
-
-## 优化器模块 (xdl/optimizer/)
-
-- **__init__.py** - 优化器模块初始化
-- **adam.py** - Adam 优化器
-- **adamw.py** - AdamW 优化器
-- **muon.py** - Muon 优化器
-- **rmsprop.py** - RMSprop 优化器
-- **sgd.py** - SGD 随机梯度下降
-
----
-
-## 学习率调度器模块 (xdl/scheduler/)
-
-- **__init__.py** - 调度器模块初始化
-- **cosine_annealing_lr.py** - 余弦退火学习率调度
-- **cosine_annealing_warm_restarts.py** - 余弦退火重启调度
-- **exponential_lr.py** - 指数衰减学习率调度
-- **multi_step_lr.py** - 多步学习率调度
-- **step_lr.py** - 阶梯学习率调度
-
----
-
-## 训练器模块 (xdl/trainer/)
-
-### 核心训练组件
-- **coreModel.py** - 核心模型基类,用户继承并实现训练和验证逻辑
-- **trainer.py** - 训练器主类,管理训练循环、设备和优化器
-- **trainer_state.py** - 训练状态管理,统一管理训练过程中的状态信息
-
----
-
-### CoreModel 核心功能
-
-CoreModel 是用户模型的基类,提供完整的训练接口和生命周期管理。
-
-#### 1. 必须实现的方法
-- **training_step(batch, batch_idx)** - 单步训练逻辑
-  - 手动管理前向传播、反向传播和优化步骤
-  - 通过 `self.log()` 记录训练指标
-  - 支持 `self.manual_backward()` 和 `self.clip_gradients()`
-
-- **validation_step(batch, batch_idx)** - 单步验证逻辑
-  - 计算验证指标
-  - 通过 `self.log()` 记录验证指标
-
-- **configure_optimizers()** - 配置优化器和调度器
-  - 支持单个优化器、多个优化器
-  - 支持优化器+调度器组合
-  - 返回格式灵活: `optimizer`, `[opt1, opt2]`, `[optimizers], [schedulers]`
-
-#### 2. 指标管理
-- **self.log(name, value)** - 记录单个指标
-- **self.log_metrics(dict)** - 批量记录指标
-- **current_metrics** - 获取当前指标
-- **epoch_avg** - 获取当前 epoch 平均指标
-- **last_epoch_avg** - 获取上一个 epoch 平均指标
-
-#### 3. 训练状态
-- **current_epoch** - 当前 epoch 数
-- **total_train_steps** - 总训练步数
-- **train_steps_epoch** - 当前 epoch 的训练步数
-- **is_main_process()** - 判断是否为主进程(分布式训练)
-
-#### 4. 设备和梯度
-- **device** - 自动获取模型所在设备
-- **manual_backward(loss)** - 兼容 Accelerate 的反向传播
-- **clip_gradients()** - 梯度裁剪,支持 norm 和 value 两种算法
-
-#### 5. 检查点管理
-- **save_checkpoint()** - 保存模型状态
-- **load_checkpoint()** - 加载模型状态
-- **load_from_checkpoint()** - 类方法,直接从文件实例化模型
-- 支持多种格式: pt, pth, st, safetensors, accelerator
-
-#### 6. 生命周期钩子
-用户可重写的钩子方法:
-- 训练阶段: `on_train_start/end`, `on_train_epoch_start/end`, `on_train_step_start/end`
-- 验证阶段: `on_validation_start/end`, `on_validation_epoch_start/end`
-- 测试阶段: `on_test_start/end`, `on_test_epoch_start/end`
-- 预测阶段: `on_predict_start/end`, `on_predict_epoch_start/end`
-- 检查点: `on_save_checkpoint`, `on_load_checkpoint`
-- 设备变更: `on_device_change`
-
-#### 7. 推理方法
-- **inference(data)** - 推理/采样方法,专门用于生成式模型
-- **predict_step(batch)** - 单步预测逻辑
-
----
-
-### Trainer 核心功能
-
-Trainer 是训练引擎,管理完整的训练流程和资源。
-
-#### 1. 初始化参数
-- **max_epochs** - 最大训练轮数
-- **device** - 设备选择 ('cpu', 'cuda', 'cuda:0' 等)
-- **precision** - 混合精度 ('16', 'bf16', '32')
-- **gradient_accumulation_steps** - 梯度累积步数
-- **grad_clip_max_norm** - 梯度裁剪最大范数
-- **callbacks** - 回调函数列表
-- **accelerate_config** - Accelerate 分布式训练配置
-
-#### 2. 核心方法
-- **fit(model, train_dataloader, val_dataloader)** - 执行完整训练
-  - 支持 Accelerate 分布式训练
-  - 自动处理设备分配
-  - 支持虚拟 epoch 模式(灵活的验证间隔)
-  - 支持 inference 推理采样
-
-- **test(model, test_dataloader)** - 执行测试
-- **setup_logger()** - 快速配置常用回调
-  - TensorBoard 日志
-  - 模型检查点
-  - Tqdm 进度条
-  - 控制台日志
-
-#### 3. 训练流程管理
-- **训练循环** - 自动管理 epoch 和 step 循环
-- **验证调度** - 支持按 epoch 或按 step 验证
-- **梯度累积** - 自动处理梯度累积逻辑
-- **混合精度** - 支持 fp16/bf16 训练
-- **分布式训练** - 集成 Accelerate,支持多 GPU/多节点
-
-#### 4. 状态访问
-- **global_step** - 全局训练步数
-- **current_epoch** - 当前 epoch
-- **should_stop** - 是否应该停止训练(早停标志)
-- **steps_per_epoch** - 每个 epoch 的步数(支持虚拟 epoch)
-- **device** - 当前使用的设备
-- **accelerator** - Accelerate 实例
-- **callback_metrics** - 回调指标字典
-
-#### 5. 回调系统集成
-- **callback_list** - 回调列表管理器
-- **callbacks** - 回调列表(向后兼容)
-- 自动在训练各阶段调用相应的回调钩子
-- 支持回调优先级排序
-
-#### 6. 设备管理
-- **is_main_process()** - 判断是否为主进程
-- 自动检测和使用可用的 GPU
-- 支持 Accelerate 分布式设备配置
-- 自动将数据和模型移动到正确设备
-
----
-
-### TrainerState 核心功能
-
-训练状态管理类,统一管理训练过程中的所有状态信息。
-
-#### 1. 基础状态
-- **global_step** - 全局训练步数
-- **current_epoch** - 当前 epoch
-- **max_epochs** - 最大 epoch 数
-- **should_stop** - 停止训练标志
-
-#### 2. 指标存储
-- **callback_metrics** - 回调指标
-- **logged_metrics** - 已记录指标
-- **progress_bar_metrics** - 进度条指标
-
-#### 3. 训练历史
-- **training_history** - 每个 epoch 的训练结果
-- **validation_history** - 验证历史记录
-
-#### 4. 状态操作
-- **epoch_start(epoch)** - epoch 开始,重置指标
-- **epoch_end(epoch, metrics)** - epoch 结束,保存历史
-- **add_metric(name, value, where)** - 添加指标到指定位置
-- **get_metric(name, where)** - 获取指标值
-- **reset()** - 重置所有状态
-- **to_dict()** / **from_dict()** - 状态序列化
-
-### 文档文件
-- **README.md** - 训练器模块使用说明
-- **hu_accelerate.md** - Accelerate 使用指南
-
----
-
-## 工具模块 (xdl/utils/)
-
-- **__init__.py** - 工具模块初始化
-- **checkpoint.py** - 检查点工具,提供格式无关的保存和加载
-- **registry.py** - 注册表系统,实现名称到对象的映射管理
-- **tools.py** - 通用工具函数集合
-- **weight.py** - 权重处理工具
-
----
-
-## 项目整体架构
-
-### 核心设计理念
-1. **模块化设计** - 各功能模块独立,通过注册表系统连接
-2. **回调驱动** - 训练过程通过回调系统扩展
-3. **配置灵活** - 支持多种配置方式和后端
-4. **易于扩展** - 基于继承和装饰器的扩展机制
-
-### 训练流程
-```
-用户模型 (CoreModel)
-    ↓
-配置优化器和调度器
-    ↓
-创建训练器 (Trainer)
-    ↓
-添加回调 (Callbacks)
-    ↓
-执行训练 (fit)
+基础工具层
+  utils.checkpoint / utils.tools / utils.weight
 ```
 
-### 关键特性
-- 支持 Accelerate 分布式训练
-- 完整的检查点管理
-- 丰富的日志和监控功能
-- 灵活的模型注册系统
-- 全面的钩子机制
+这种分层是刻意设计出来的，不是代码自然长出来的结果。
 
----
+### 对应目录
 
-## 快速开始指南
+源码主目录是 [`xdl/`](../xdl/)：
 
-### 1. 定义模型
-继承 `CoreModel` 并实现必要方法:
-- `training_step()` - 单步训练逻辑
-- `validation_step()` - 单步验证逻辑
-- `configure_optimizers()` - 配置优化器
+- [`xdl/model/`](../xdl/model/)：模型定义和模型注册。
+- [`xdl/dataset/`](../xdl/dataset/)：数据集定义和数据集注册。
+- [`xdl/loss/`](../xdl/loss/)：损失函数定义和注册。
+- [`xdl/metric/`](../xdl/metric/)：评估指标实现和注册。
+- [`xdl/optimizer/`](../xdl/optimizer/)：优化器封装和注册。
+- [`xdl/scheduler/`](../xdl/scheduler/)：学习率调度器封装和注册。
+- [`xdl/trainer/`](../xdl/trainer/)：训练器、核心模型基类、训练状态。
+- [`xdl/callbacks/`](../xdl/callbacks/)：训练生命周期扩展点。
+- [`xdl/config/`](../xdl/config/)：配置 schema、插值解析、对象构建。
+- [`xdl/utils/`](../xdl/utils/)：注册表、checkpoint 和其他基础工具。
 
-### 2. 创建训练器
+项目根目录的配套结构：
+
+- [`config/`](../config/)：官方配置文件示例。
+- [`examples/`](../examples/)：示例脚本。
+- [`tests/`](../tests/)：测试。
+- [`scripts/`](../scripts/)：安装和辅助脚本。
+- [`docs/`](./) ：项目文档。
+
+## 3. 为什么要这样拆
+
+### 3.1 组件定义层单独存在
+
+模型、数据集、损失、指标、优化器、调度器本质上都属于“可替换组件”。如果它们和训练循环写死在一起，会出现几个典型问题：
+
+- 替换一个模型时，需要去改训练脚本内部逻辑。
+- 多个实验会复制粘贴大量相似代码。
+- 配置化实验几乎不可能做干净。
+
+把这些对象先收敛成独立组件，有两个直接好处：
+
+- Python 代码的复用边界更明确。
+- 配置系统只需要“找到并构建组件”，不用理解整个训练过程。
+
+### 3.2 注册表只做名字到对象的映射
+
+注册表定义在 [`xdl/utils/registry.py`](../xdl/utils/registry.py)。它刻意保持极简：
+
+- 注册。
+- 查找。
+- 列出可用组件。
+
+它不做下面这些事：
+
+- 不解析 YAML。
+- 不自动猜测参数。
+- 不处理权重。
+- 不负责实例化整个实验图。
+
+为什么要这么做：
+
+- 职责单一，出错时容易定位。
+- 注册表不被配置细节污染。
+- builder 可以演化，registry 仍然稳定。
+
+这也是为什么 XDL 的 registry 是“框架基础设施”，不是“万能工厂”。
+
+### 3.3 配置层和运行层分开
+
+当前配置系统在 [`xdl/config/`](../xdl/config/) 下，主要有四类对象：
+
+- `schema.py`：定义上层结构。
+- `resolver.py`：负责 merge、默认值和 `${...}` 插值。
+- `builder.py`：负责把配置构建成组件。
+- `setup.py`：负责把整条链路串起来，返回 `TrainSetup`。
+
+这层设计的核心思想是：
+
+- 配置对象不等于运行对象。
+- YAML 负责描述结构。
+- builder 负责把描述变成实例。
+
+这样做的好处是：
+
+- 结构化配置可校验。
+- 组件实例化逻辑可以集中维护。
+- Python 和 YAML 的边界清晰。
+
+### 3.4 `CoreModel`、`Trainer`、`Callback` 三者分工明确
+
+XDL 的训练编排不是只有一个 `Trainer`。它实际上分成三类角色：
+
+#### `CoreModel`
+
+定义在 [`xdl/trainer/coreModel.py`](../xdl/trainer/coreModel.py)。
+
+它承担的是“任务逻辑”：
+
+- `training_step`
+- `validation_step`
+- `configure_optimizers`
+- 指标记录
+- checkpoint 相关能力
+
+为什么需要它：
+
+- 训练器不应该知道每个任务的具体前向与损失细节。
+- 不同任务类型可以继承同一个抽象基类。
+- 任务逻辑和训练循环本身可以解耦。
+
+#### `Trainer`
+
+定义在 [`xdl/trainer/trainer.py`](../xdl/trainer/trainer.py)。
+
+它承担的是“训练循环编排”：
+
+- epoch / step 循环
+- 设备处理
+- 梯度累积
+- mixed precision
+- 验证调度
+- callback 调度
+
+为什么需要它：
+
+- 训练循环是基础设施，不应该在每个项目里重复手写。
+- 统一的训练入口更利于监控、回调和后续扩展。
+
+#### `Callback`
+
+定义在 [`xdl/callbacks/`](../xdl/callbacks/)。
+
+它承担的是“横切逻辑”：
+
+- 日志
+- 检查点
+- 早停
+- 进度条
+- 设备统计
+- 学习率监控
+
+为什么要单独做 callback：
+
+- 这些逻辑本质上不是模型本身的一部分。
+- 如果放进 `Trainer`，训练器会迅速膨胀。
+- 如果放进 `CoreModel`，任务逻辑会被大量副作用代码污染。
+
+## 4. 这套结构的收益
+
+### 4.1 可替换
+
+模型和损失、数据集和调度器可以按组件替换，不需要改训练循环主逻辑。
+
+### 4.2 可配置
+
+配置系统可以围绕稳定结构工作，而不是围绕某个单一实验脚本硬编码。
+
+### 4.3 可扩展
+
+扩展新模型、新数据集、新 callback 时，只需要接入对应层，不必改整个框架。
+
+### 4.4 可测试
+
+builder、schema、setup、registry 都能单独测试，而不是只能通过完整训练脚本间接验证。
+
+### 4.5 更适合项目演进
+
+脚本式项目常见的问题是：
+
+- 一开始很快。
+- 三个月后所有逻辑互相缠绕。
+
+XDL 的结构化拆分就是为了延缓这种退化，让项目能从“一个实验脚本”平滑过渡到“一个可维护代码库”。
+
+## 5. 当前推荐使用方式
+
+XDL 不要求所有人都从配置开始。当前推荐两条工作流并存。
+
+### 5.1 纯代码方式
+
+适合快速研究、验证想法、手工控制优化逻辑。
+
 ```python
+from xdl.trainer import Trainer
+
+model = ...
+train_loader = ...
+val_loader = ...
+
 trainer = Trainer(
     max_epochs=10,
-    device='cuda',
-    callbacks=[...]
+    device="cuda",
+    gradient_accumulation_steps=1,
 )
+trainer.fit(model, train_loader, val_loader)
 ```
 
-### 3. 执行训练
+什么时候优先选这条路：
+
+- 你还在快速改任务逻辑。
+- 模型本身还没稳定。
+- 训练步骤高度定制化。
+
+### 5.2 配置驱动方式
+
+适合标准实验、统一风格、多人协作和批量调参。
+
 ```python
-trainer.fit(model, train_dataloader, val_dataloader)
+from xdl.config import setup_from_yaml
+
+setup = setup_from_yaml("config/unified_logger_example.yaml", device="cpu")
+
+model = setup.model
+optimizer = setup.optimizer
+train_loader = setup.train_loader
 ```
 
----
+什么时候优先选这条路：
 
-## 使用技巧
+- 组件已经相对稳定。
+- 想统一实验结构和配置风格。
+- 需要把训练脚本和实验参数解耦。
 
-### 1. 查看注册的组件
+## 6. 当前配置结构应该怎么理解
+
+当前配置系统的主格式是：
+
+- 顶层固定结构由 dataclass 约束。
+- 可构建组件统一使用 `target + params`。
+- 数据链路推荐使用顶层紧凑别名。
+
+一个简化示意：
+
+```yaml
+runtime:
+  device: cuda
+  data_dir: ./data
+
+trainer:
+  max_epochs: 100
+  batch_size: 128
+
+model:
+  target: registry:vgg16_bn
+  params:
+    num_classes: 100
+
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 4
+  pin_memory: true
+
+train_transforms:
+  target: torchvision.transforms:Compose
+  params:
+    transforms:
+      - target: torchvision.transforms:ToTensor
+        params: {}
+
+train_dataset:
+  target: torchvision.datasets:CIFAR100
+  params:
+    root: ${runtime.data_dir}
+    train: true
+    transform: ${train_transforms}
+
+train_dataloader:
+  dataset: ${train_dataset}
+  params:
+    shuffle: true
+```
+
+推荐阅读 [`CONFIG.md`](CONFIG.md) 了解完整细节。
+
+## 7. 怎样正确扩展 XDL
+
+### 新增模型
+
+1. 在 [`xdl/model/`](../xdl/model/) 添加模型实现。
+2. 在 [`xdl/model/__init__.py`](../xdl/model/__init__.py) 中注册。
+3. 在代码或 YAML 中使用注册名。
+
+示例：
+
 ```python
-from xdl.utils import inspect_model, inspect_optimizer
-inspect_model('resnet18')
-inspect_optimizer('Adam')
+from xdl.utils.registry import register_model
+
+@register_model("MyModel")
+class MyModel(...):
+    ...
 ```
 
-### 2. 使用 Registry 创建组件
-```python
-from xdl.utils import build_model
-model = build_model('resnet18')(num_classes=10)
-```
+### 新增数据集
 
-### 3. 配置日志回调
-```python
-trainer.setup_logger(
-    enable_tensorboard=True,
-    enable_checkpoint=True,
-    enable_tqdm=True
-)
-```
+1. 在 [`xdl/dataset/`](../xdl/dataset/) 添加数据集实现。
+2. 在 [`xdl/dataset/__init__.py`](../xdl/dataset/__init__.py) 注册。
+3. 如果依赖可选三方库，导入失败时要保证框架整体仍可用。
 
----
+### 新增 callback
 
-## 注意事项
+如果逻辑属于：
 
-- 所有代码使用 UTF-8 编码
-- 注释使用中文,专业术语保持英文
-- 遵循现有代码风格
-- 非代码文件(日志、权重等)存放于 `others/` 目录
+- 日志
+- 监控
+- 保存
+- 训练控制
 
----
+优先写 callback，而不是改 `Trainer` 主循环。
 
-最后更新: 2025-12-28
+### 新增配置能力
+
+如果某个字段会成为多个实验共享的稳定结构，应该先进入 schema，而不是先在 YAML 里自由生长。
+
+这是因为：
+
+- schema 决定了结构边界。
+- builder 决定了构建行为。
+- 示例 YAML 不应该比 schema 更“先进”。
+
+## 8. 项目当前边界
+
+为了让文档对项目状态保持诚实，这里明确当前边界：
+
+1. XDL 已经具备稳定的模块化组件组织方式。
+2. 配置系统已经能稳定完成 schema merge、`${...}` 插值、组件构建和 `TrainSetup` 返回。
+3. callback、trainer、registry 的基础结构已经成形。
+4. `logging`、`checkpoint`、`accelerate` 的“配置到训练编排”的全链路仍在继续收敛。
+5. 因此，XDL 当前最稳的是“模块化框架 + 组件构建系统”，而不是“一切都已全自动闭环”的实验平台。
+
+## 9. 推荐阅读路径
+
+如果你是第一次进入 XDL，建议按下面顺序看代码：
+
+1. [`xdl/utils/registry.py`](../xdl/utils/registry.py)
+   - 先理解组件是怎么被发现的。
+2. [`xdl/model/__init__.py`](../xdl/model/__init__.py)
+   - 看模型是怎样接入 registry 的。
+3. [`xdl/trainer/coreModel.py`](../xdl/trainer/coreModel.py)
+   - 理解任务逻辑应该写在哪里。
+4. [`xdl/trainer/trainer.py`](../xdl/trainer/trainer.py)
+   - 理解训练循环是怎样组织的。
+5. [`xdl/callbacks/README.md`](../xdl/callbacks/README.md)
+   - 理解横切逻辑为什么走 callback。
+6. [`xdl/config/setup.py`](../xdl/config/setup.py)
+   - 理解配置怎样最终变成组件对象。
+7. [`config/unified_logger_example.yaml`](../config/unified_logger_example.yaml)
+   - 看一个最小配置示例。
+8. [`config/vgg_cifar100.yaml`](../config/vgg_cifar100.yaml)
+   - 看一个更完整的视觉分类配置示例。
+
+## 10. 结论
+
+XDL 的关键价值不在于“提供了多少模型”，而在于它给了一个比较清晰的项目骨架：
+
+- 组件如何定义
+- 组件如何发现
+- 配置如何装配
+- 训练如何编排
+- 副作用如何扩展
+
+只要这个骨架保持稳定，项目就能从脚本式实验逐步演进到结构化代码库，而不需要每次重构都推倒重来。

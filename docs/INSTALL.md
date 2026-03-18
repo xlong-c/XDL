@@ -1,222 +1,186 @@
-# XDL 安装指南
+# XDL 安装与验证
 
-XDL 是一个基于 PyTorch 的模块化深度学习框架，专为计算机视觉任务设计。
+本文档只说明当前仓库里真实可用的安装方式、验证方式和已知边界，不再保留已经失效的 `requirements.txt`、`train.py` 或 `xdl.__version__` 之类旧入口说明。
 
-## 快速开始
+## 1. 环境要求
 
-### 1. 基础安装
+- Python `>=3.8`
+- PyTorch `>=1.12`
+- Linux / macOS / Windows 均可，当前仓库主要在 Linux 环境下维护
+- GPU 不是必需，但如果要跑 CUDA 训练，建议先按本机 CUDA 版本安装对应 PyTorch wheel
 
-使用 pip 安装核心依赖：
+如果你的机器还没有合适的 PyTorch，先参考 PyTorch 官方安装页安装，再继续下面的步骤。
+
+## 2. 推荐安装方式
+
+### 基础安装
+
+适合阅读代码、运行核心配置构建链路、做最小实验。
 
 ```bash
-# 克隆仓库
 git clone https://gitee.com/xlong_t/xdl.git
 cd xdl
 
-# 基础安装 (仅核心功能)
-pip install -r requirements.txt
-
-# 或者使用 pyproject.toml
-pip install .
+pip install -e .
 ```
 
-### 2. 完整安装
+### 完整安装
 
-安装所有可选功能（推荐）：
+适合需要视觉增强、日志、加速和其他可选能力的环境。
 
 ```bash
-# 完整功能安装
-pip install -r requirements-full.txt
-
-# 开发模式安装 (可编辑)
-pip install -e .[all,dev]
+pip install -e ".[all]"
 ```
 
-### 3. 按需安装
+### 开发环境安装
 
-根据你的需求选择安装：
+适合要跑测试、格式化和静态检查的开发环境。
 
-#### 仅用于模型训练
 ```bash
-pip install torch torchvision numpy pyyaml tqdm
+pip install -e ".[all,dev]"
 ```
 
-#### 计算机视觉任务
+### 使用安装脚本
+
+仓库内提供了安装脚本：
+
 ```bash
-pip install torch torchvision numpy pyyaml tqdm \
-            opencv-python albumentations matplotlib
+bash scripts/install.sh base
+bash scripts/install.sh full
+bash scripts/install.sh dev
 ```
 
-#### 实验管理和跟踪
-```bash
-pip install torch torchvision numpy pyyaml tqdm \
-            tensorboard wandb
-```
+其中：
 
-#### 模型优化和加速
-```bash
-pip install torch torchvision numpy pyyaml tqdm \
-            accelerate safetensors
-```
+- `base` 对应基础安装
+- `full` / `all` 对应完整安装
+- `dev` 对应开发环境安装
 
-## 依赖说明
+## 3. CUDA / CPU 安装建议
 
-### 核心依赖 (必须)
-- **torch>=1.12.0** - PyTorch 深度学习框架
-- **torchvision>=0.13.0** - PyTorch 视觉库
-- **numpy>=1.21.0** - 数值计算
-- **pyyaml>=5.4.0** - 配置文件解析
-- **tqdm>=4.62.0** - 进度条显示
-- **typing-extensions>=4.0.0** - 类型提示支持
-
-### 可选依赖
-
-#### 计算机视觉
-- **opencv-python>=4.5.0** - 图像处理和变换
-- **albumentations>=1.0.0** - 强大的数据增强库
-- **matplotlib>=3.5.0** - 数据可视化和绘图
-
-#### 实验管理
-- **tensorboard>=2.10.0** - Google TensorBoard
-- **wandb>=0.13.0** - Weights & Biases 实验跟踪
-
-#### 模型优化
-- **accelerate>=0.12.0** - HuggingFace 训练加速
-- **safetensors>=0.3.0** - 安全快速的模型权重格式
-
-#### 高级优化 (需要GPU)
-- **torchao>=0.1.0** - PyTorch 量化优化
-- **triton>=2.0.0** - GPU 内核优化
-- **tilelang>=0.1.0** - Tile 语言优化
-
-### 开发依赖
-- **pytest>=7.0.0** - 单元测试框架
-- **black>=22.0.0** - 代码格式化
-- **flake8>=5.0.0** - 代码检查
-- **mypy>=0.991** - 类型检查
-
-## 环境配置
-
-### Conda 环境 (推荐)
+如果需要显式安装 CUDA 或 CPU 版 PyTorch，可以先安装对应 wheel，再安装 XDL：
 
 ```bash
-# 创建环境
-conda create -n xdl python=3.10
-conda activate xdl
-
-# 安装 PyTorch (根据你的CUDA版本)
-# CUDA 11.8
+# 示例：CUDA 11.8
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-
-# 或 CPU 版本
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# 安装 XDL
-pip install -r requirements-full.txt
+pip install -e ".[all]"
 ```
-
-### 虚拟环境
 
 ```bash
-python -m venv xdl_env
-source xdl_env/bin/activate  # Linux/Mac
-# 或 xdl_env\Scripts\activate  # Windows
-
-pip install -r requirements-full.txt
+# 示例：CPU
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install -e .
 ```
 
-## 验证安装
+这一步要以你的实际驱动和 CUDA 环境为准，不建议直接照搬固定版本。
+
+## 4. 安装后如何验证
+
+### 验证包已正确安装
+
+```bash
+python - <<'PY'
+import importlib.metadata
+import xdl
+
+print(importlib.metadata.version("xdl"))
+print("import xdl ok")
+PY
+```
+
+当前包版本可以通过 `importlib.metadata.version("xdl")` 获取，不应再使用不存在的 `xdl.__version__`。
+
+### 验证配置系统主链路
+
+这是当前最稳妥的仓库级 smoke test：
+
+```bash
+python - <<'PY'
+from xdl.config import setup_from_yaml
+
+setup = setup_from_yaml("config/unified_logger_example.yaml", device="cpu")
+print(type(setup.model).__name__)
+print(type(setup.optimizer).__name__)
+print(type(setup.loss_fn).__name__)
+print(len(setup.train_loader.dataset))
+PY
+```
+
+如果输出类似：
+
+- `SimpleMLP`
+- `Adam`
+- `CrossEntropyLoss`
+- `500`
+
+说明 schema 解析、`${...}` 引用解析、builder 构建和 dataloader 装配都已经打通。
+
+### 运行配置测试
+
+```bash
+pytest tests/config -q
+```
+
+当前仓库里已经存在的测试主要集中在配置系统：
+
+- `tests/config/test_builder.py`
+- `tests/config/test_schema.py`
+- `tests/config/test_setup.py`
+
+## 5. 当前可直接运行的入口
+
+仓库当前可见的训练脚本入口是：
+
+```bash
+python train_VAE.py
+python train_GAN.py
+python train_TwinFlow.py
+```
+
+这些脚本代表“纯代码方式”的使用路径，不是统一的 CLI 框架入口。也就是说，当前项目并不存在统一的 `train.py --config ...` 官方入口，不应在文档中继续这样描述。
+
+如果你要使用 YAML 配置方式，当前推荐直接在 Python 中调用：
 
 ```python
-import torch
-import xdl
-from xdl.trainer import Trainer
-from xdl.callbacks import ModelCheckpoint
+from xdl.config import setup_from_yaml
 
-print(f"PyTorch 版本: {torch.__version__}")
-print(f"XDL 版本: {xdl.__version__}")
-print("✅ 安装成功！")
+setup = setup_from_yaml("config/unified_logger_example.yaml", device="cpu")
 ```
 
-## 常见问题
+## 6. 可选依赖与已知边界
 
-### 1. PyTorch 安装问题
+XDL 的模块化结构已经比较清晰，但安装层仍有一些现实边界，文档需要明确写出来：
 
-如果遇到 PyTorch 安装问题，请访问 [PyTorch 官网](https://pytorch.org/get-started/locally/) 获取适合你系统的安装命令。
-
-### 2. CUDA 版本不匹配
+- `tensorboard`、`wandb`、`accelerate` 等功能依赖可选包
+- 一些数据集或增强链路依赖 `opencv-python`、`albumentations` 等三方库
+- 日志回调相关代码会使用 `loguru`，如果你的环境里没有它，需要手动安装：
 
 ```bash
-# 检查 CUDA 版本
-nvidia-smi
-
-# 安装对应版本的 PyTorch
-# CUDA 11.8
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-
-# CUDA 12.1
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install loguru
 ```
 
-### 3. 可选依赖导入错误
-
-如果不需要某些功能，可以忽略对应的导入错误，或者安装缺失的包：
+也可以直接使用：
 
 ```bash
-# 例如，如果不需要 wandb
-pip install tensorboard  # 仅安装 tensorboard
+bash scripts/install.sh full
 ```
 
-## 开发环境
+安装脚本会额外补装 `loguru`。
+
+## 7. 常用开发命令
 
 ```bash
-# 克隆并安装开发版本
-git clone https://gitee.com/xlong_t/xdl.git
-cd xdl
-
-# 安装所有依赖 (包括开发工具)
-pip install -e .[all,dev]
-
-# 安装 pre-commit 钩子
-pre-commit install
-
-# 运行测试验证
-pytest tests/
+black xdl tests
+isort xdl tests
+flake8 xdl
+mypy xdl
+pytest tests/config -q
 ```
 
-## Docker 支持
+## 8. 下一步阅读
 
-如果需要 Docker 环境，可以创建 `Dockerfile`：
+安装完成后，建议按下面顺序继续：
 
-```dockerfile
-FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
-
-WORKDIR /workspace
-COPY . .
-
-RUN pip install -r requirements-full.txt
-RUN pip install -e .
-
-CMD ["python", "train.py"]
-```
-
-## 系统要求
-
-- **Python**: 3.8+
-- **PyTorch**: 1.12.0+
-- **操作系统**: Linux, Windows, macOS
-- **GPU**: 可选，推荐 NVIDIA GPU (CUDA 11.8+)
-
-## 下一步
-
-安装完成后，查看：
-
-1. [README.md](../README.md) - 项目概述
-2. [examples/](../examples/) - 示例代码
-3. [docs/](../) - 其他文档
-
-开始训练你的第一个模型：
-
-```bash
-python train.py --config config/vgg_cifar100.yaml
-```
+1. [README.md](../README.md)
+2. [XDL.md](XDL.md)
+3. [CONFIG.md](CONFIG.md)

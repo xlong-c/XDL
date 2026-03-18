@@ -1,185 +1,196 @@
-# 深度学习框架 README
+# XDL
 
-## 项目概述
+XDL 是一个基于 PyTorch 的模块化深度学习框架。它把项目拆成四个核心层次：
 
-这是一个基于PyTorch的深度学习框架, 旨在提供模块化、可扩展的机器学习开发环境。框架支持模型、数据集、优化器、调度器等组件的灵活配置和管理。
+1. 组件定义层：模型、数据集、损失、指标、优化器、调度器。
+2. 组件发现层：注册表负责把名字映射到对象。
+3. 配置装配层：配置系统负责把 YAML 解析为可构建组件。
+4. 训练编排层：`CoreModel + Trainer + Callback` 负责训练循环和训练期扩展。
 
-## 目录结构
+这套结构的目标不是追求“框架感”，而是让实验代码从一开始就具备可扩展、可复用、可迁移的形态。对快速实验，你可以直接写纯代码；对标准化实验，你可以用统一配置驱动组件构建。
 
+## 项目定位
+
+XDL 当前最适合下面两类场景：
+
+- 研究型项目，需要频繁替换模型、损失、数据集和训练策略。
+- 工程型项目，希望逐步把“脚本式训练”收敛成结构化组件和统一配置。
+
+当前成熟度更接近 `alpha`：
+
+- 模块划分、注册体系、训练器和回调系统已经成形。
+- 配置系统已经能稳定完成组件构建和引用解析。
+- logger / checkpoint / accelerate 的配置化编排仍在继续收敛，不应宣称为完全闭环的实验平台。
+
+## 核心结构
+
+源码主目录是 [`xdl/`](xdl/)：
+
+- [`xdl/model/`](xdl/model/)：模型定义与注册入口。
+- [`xdl/dataset/`](xdl/dataset/)：数据集定义与注册入口。
+- [`xdl/loss/`](xdl/loss/)：损失函数定义与注册入口。
+- [`xdl/metric/`](xdl/metric/)：指标实现与注册入口。
+- [`xdl/optimizer/`](xdl/optimizer/)：优化器封装与注册入口。
+- [`xdl/scheduler/`](xdl/scheduler/)：学习率调度器与注册入口。
+- [`xdl/trainer/`](xdl/trainer/)：`CoreModel`、`Trainer`、训练状态管理。
+- [`xdl/callbacks/`](xdl/callbacks/)：训练生命周期扩展点。
+- [`xdl/config/`](xdl/config/)：配置 schema、解析、引用解析、组件构建。
+- [`xdl/utils/`](xdl/utils/)：注册表、checkpoint、工具函数。
+
+项目根目录的高频入口还有：
+
+- [`config/`](config/)：官方 YAML 配置示例。
+- [`examples/`](examples/)：脚本级示例。
+- [`train_VAE.py`](train_VAE.py)、[`train_GAN.py`](train_GAN.py)、[`train_TwinFlow.py`](train_TwinFlow.py)：当前可直接运行的训练入口。
+- [`docs/`](docs/)：项目文档。
+
+## 为什么这么分层
+
+### 1. 组件定义和训练编排分离
+
+模型、损失、指标等对象本质上是“组件”；训练循环、回调、日志和检查点本质上是“编排逻辑”。把两者分开后：
+
+- 组件可以独立复用。
+- 训练器不需要知道每个模型的业务细节。
+- 不同任务可以共享同一套训练编排能力。
+
+### 2. 注册表只负责发现，不负责构建
+
+XDL 的注册表在 [`xdl/utils/registry.py`](xdl/utils/registry.py) 中，职责被刻意收窄为：
+
+- 注册名字。
+- 通过名字查找对象。
+
+它不负责 YAML 解析、不负责自动注入参数、不负责权重处理。这样做的好处是边界清晰，排错时也更容易定位问题。
+
+### 3. 配置系统只负责“配置层”，不直接取代 Python
+
+XDL 当前配置系统建立在 `dataclass + OmegaConf + builder` 上：
+
+- `dataclass` 固定上层结构。
+- `OmegaConf` 负责 merge、默认值和 `${...}` 插值。
+- builder 负责把配置转成真实对象。
+
+这样既保留了结构化配置的收益，也不会把项目做成一套难维护的小型 DSL。
+
+### 4. Callback 把副作用从训练循环中抽离
+
+日志、检查点、学习率监控、进度条这些逻辑都属于“训练期副作用”，不应该直接塞满 `Trainer`。Callback 系统的意义在于：
+
+- 保持训练主循环可读。
+- 给扩展留稳定挂点。
+- 避免为了新增日志或监控去反复修改训练器主逻辑。
+
+## 推荐使用方式
+
+### 方式一：纯代码方式
+
+适合快速实验、生成式模型原型和需要细粒度控制的任务。
+
+```python
+import torch
+from xdl.trainer import Trainer
+
+model = ...
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+train_loader = ...
+val_loader = ...
+
+trainer = Trainer(
+    max_epochs=10,
+    device="cuda",
+    gradient_accumulation_steps=1,
+)
+trainer.fit(model, train_loader, val_loader)
 ```
-xdl/
-├── config/          # 配置文件
-├── data/            # 数据相关文件
-├── docs/            # 文档
-├── examples/        # 示例代码
-├── logs/            # 日志文件
-├── others/          # 实验相关文件(checkpoints、data、results等)
-├── scripts/         # 执行脚本
-├── xdl/             # 源代码
-│   ├── dataset/     # 数据集定义
-│   ├── logger/      # 日志系统
-│   ├── model/       # 模型定义
-│   ├── tests/       # 测试代码
-│   ├── trainer/     # 训练器
-│   └── utils/       # 工具函数
-│       ├── components/  # 组件模块
-│       └── ...
-└── ...
+
+### 方式二：配置驱动方式
+
+适合标准化实验、组件替换频繁的项目和需要统一配置风格的场景。
+
+```python
+from xdl.config import setup_from_yaml
+
+setup = setup_from_yaml("config/unified_logger_example.yaml", device="cpu")
+
+print(type(setup.model).__name__)
+print(type(setup.optimizer).__name__)
+print(type(setup.loss_fn).__name__)
 ```
 
-## 核心特性
+配置系统当前返回 [`TrainSetup`](xdl/config/dataclass.py)，包含：
 
-### 1. 统一日志系统
+- `model`
+- `train_loader / val_loader / test_loader`
+- `optimizer`
+- `scheduler`
+- `loss_fn`
+- `metrics`
+- `device / num_epochs / batch_size`
+- `full_config`
 
-- 支持多后端：Console、File、TensorBoard
-- 统一的日志接口, 便于监控和调试
+## 扩展项目的正确方式
 
-### 2. 组件注册系统
+### 新增模型
 
-- 全局注册表：MODEL、DATASET、OPTIMIZER、SCHEDULER、LOSS、METRIC
-- 支持动态注册和构建组件
+1. 在 [`xdl/model/`](xdl/model/) 添加模型实现。
+2. 在 [`xdl/model/__init__.py`](xdl/model/__init__.py) 中注册到 `MODEL_REGISTRY`。
+3. 在代码或配置中通过注册名使用。
 
-### 3. 模块化架构
+### 新增数据集
 
-- 清晰的模块划分, 易于扩展和维护
-- 配置驱动的组件构建
+1. 在 [`xdl/dataset/`](xdl/dataset/) 添加数据集实现。
+2. 在 [`xdl/dataset/__init__.py`](xdl/dataset/__init__.py) 中注册。
+3. 通过代码或 YAML 的 `target` 使用。
+
+### 新增训练期功能
+
+如果逻辑属于日志、监控、检查点、统计或训练控制，优先写成 Callback，而不是直接改 `Trainer`。
+
+## 文档入口
+
+优先阅读下面三份文档：
+
+1. [`docs/XDL.md`](docs/XDL.md)：项目详细分析，说明结构、设计原因、收益和使用方式。
+2. [`docs/INSTALL.md`](docs/INSTALL.md)：安装、验证与开发环境说明。
+3. [`docs/CONFIG.md`](docs/CONFIG.md)：当前配置系统说明与官方写法。
 
 ## 快速开始
 
-### 安装依赖
-
-#### 方式一：使用 pip 安装（推荐）
-
-```bash
-# 基础安装（仅核心功能）
-pip install -r requirements.txt
-
-# 完整安装（所有功能）
-pip install -r requirements-full.txt
-
-# 开发环境安装
-pip install -e .[all,dev]
-```
-
-#### 方式二：使用安装脚本
-
-**Linux/Mac:**
-```bash
-# 基础安装
-bash scripts/install.sh base
-
-# 完整安装
-bash scripts/install.sh full
-
-# CPU 版本
-bash scripts/install.sh cpu
-
-# CUDA 版本
-bash scripts/install.sh cuda
-```
-
-**Windows:**
-```cmd
-# 基础安装
-scripts\install.bat base
-
-# 完整安装
-scripts\install.bat full
-
-# CPU 版本
-scripts\install.bat cpu
-
-# CUDA 版本
-scripts\install.bat cuda
-```
-
-#### 方式三：按需安装
-
-```bash
-# 仅核心依赖
-pip install torch torchvision numpy pyyaml tqdm
-
-# 计算机视觉任务
-pip install torch torchvision numpy pyyaml tqdm opencv-python albumentations matplotlib
-
-# 实验管理
-pip install torch torchvision numpy pyyaml tqdm tensorboard wandb
-
-# 模型优化
-pip install torch torchvision numpy pyyaml tqdm accelerate safetensors
-```
-
-**详细安装指南请参考 [docs/INSTALL.md](docs/INSTALL.md)**
+安装：
 
 ```bash
 pip install -e .
 ```
 
-### 运行示例
+完整安装：
 
 ```bash
-# 运行示例训练
-python train.py
-
-# 查看TensorBoard日志
-tensorboard --logdir others/logs
+pip install -e ".[all]"
 ```
 
-### 配置文件
+开发环境：
 
-框架使用YAML格式的配置文件, 支持以下配置项：
-
-- 模型配置
-- 数据集配置
-- 训练参数配置
-- 优化器配置
-- 评估指标配置
-
-## 开发指南
-
-### 代码规范
-
-- 使用中文注释, 但符号使用英文的半角符号
-- 专业术语保持英文(如loss、accuracy、epoch等)
-- 遵循现有代码风格
-
-### 组件开发
-
-新组件需通过注册系统进行注册：
-
-```python
-from xdl.utils.registry import MODEL
-
-@MODEL.register_module()
-class MyModel(nn.Module):
-    # 模型定义
+```bash
+pip install -e ".[all,dev]"
 ```
 
-## 文件说明
+也可以使用安装脚本：
 
-- `__pycache__/`: Python缓存文件
-- `.git/`: Git版本控制文件
-- `.gitignore`: Git忽略规则文件
-- `config/`: 项目配置文件
-- `data/`: 数据文件
-- `logs/`: 日志文件
-- `others/`: 存放日志文件、结果文件、缓存文件、模型权重等非代码文件
-- `scripts/`: 执行脚本
-- `xdl/`: 源代码目录
-- `tests/`: 单元测试目录
-- `config/`: 配置文件目录 (YAML)
-- `tools/`: 数据处理工具
-- `examples/`: 示例脚本
-- `others/`: 实验数据、日志、检查点等非代码资产存放处
-- `README.md`: 项目说明文件
-- `QWEN.md`: 代码助手使用说明
-- `AGENTS.md`: 智能体说明文件
-- `CLAUDE.md`: Claude Code指导文件
+```bash
+bash scripts/install.sh full
+```
 
-## 贡献指南
+配置系统测试：
 
-欢迎提交Issue和Pull Request来改进项目。
+```bash
+pytest tests/config -q
+```
 
-## 许可证
+运行现有训练脚本：
 
-[在此处添加许可证信息]
+```bash
+python train_VAE.py
+python train_GAN.py
+python train_TwinFlow.py
+```
