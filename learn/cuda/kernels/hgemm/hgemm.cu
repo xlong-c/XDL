@@ -119,13 +119,13 @@ __global__ void hgemm_shared_f16x4(
   // A 矩阵: 加载 BM x BK = 128 x 8 = 1024 half
   // 使用 float4 向量化加载, 需要 1024 / 8 = 128 次加载
   // 每个线程加载 128 / 256 = 0.5 次, 即 2 个线程协作加载 1 个 float4
-  int load_a_start_m = by * BM;
+  int load_a_start_m = by * BM; // 第m行
   int load_a_k = 0;
 
   // B 矩阵: 加载 BK x BN = 8 x 128 = 1024 half
   // 使用 float4 向量化加载, 需要 1024 / 8 = 128 次加载
   // 每个线程加载 128 / 256 = 0.5 次, 即 2 个线程协作加载 1 个 float4
-  int load_b_start_n = bx * BN;
+  int load_b_start_n = bx * BN; //第n列
   int load_b_k = 0;
 
   // 计算当前线程负责的 C 矩阵输出位置
@@ -135,16 +135,7 @@ __global__ void hgemm_shared_f16x4(
   // 寄存器存储累加结果 (TM x TN = 8 x 8)
   half frag_a[TM];    // A 矩阵片段
   half frag_b[TN];    // B 矩阵片段
-  half accum[TM][TN]; // 累加器
-
-  // 初始化累加器
-#pragma unroll
-  for (int i = 0; i < TM; ++i) {
-#pragma unroll
-    for (int j = 0; j < TN; ++j) {
-      accum[i][j] = CUDART_ZERO_FP16;
-    }
-  }
+  half accum[TM][TN] = {}; // 累加器
 
   // ========== 主循环: 沿 K 维分块处理 ==========
   for (int k_tile = 0; k_tile < K; k_tile += BK) {
