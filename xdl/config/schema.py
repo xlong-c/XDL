@@ -2,6 +2,7 @@
 配置 schema 定义。
 
 固定上层结构，底层组件参数保持在 `params` 中。
+官方主格式为 `target + params`，同时兼容旧字段。
 """
 
 from dataclasses import dataclass, field
@@ -22,6 +23,7 @@ class RuntimeConfig:
 
     device: str = "cuda"
     seed: int = 42
+    data_dir: str = "./data"
     output_dir: str = "./others"
     experiment_name: str = "default_exp"
 
@@ -41,8 +43,9 @@ class TrainerConfig:
 class ComponentConfig:
     """通用组件配置。"""
 
+    target: str = ""
     type: str = ""
-    source: str = DEFAULT_COMPONENT_SOURCE
+    source: str = ""
     params: Dict[str, Any] = field(default_factory=dict)
     target_modules: Optional[List[str]] = None
     param_groups: Dict[str, Dict[str, Any]] = field(default_factory=dict)
@@ -50,20 +53,17 @@ class ComponentConfig:
 
 
 @dataclass
-class TransformPipelineConfig:
-    """数据增强流水线配置。"""
+class TransformPipelineConfig(ComponentConfig):
+    """数据增强配置。"""
 
-    type: str = "compose"
-    items: List[ComponentConfig] = field(default_factory=list)
+    pass
 
 
 @dataclass
-class DatasetConfig:
+class DatasetConfig(ComponentConfig):
     """数据集配置。"""
 
-    type: str = ""
-    source: str = DEFAULT_COMPONENT_SOURCE
-    params: Dict[str, Any] = field(default_factory=dict)
+    # 兼容旧格式：允许 transform 仍挂在组件外层。
     transform: Any = None
 
 
@@ -76,11 +76,27 @@ class DataloaderConfig:
 
 
 @dataclass
+class DataloaderDefaultsConfig:
+    """DataLoader 默认参数配置。"""
+
+    batch_size: Optional[int] = None
+    num_workers: int = 0
+    pin_memory: bool = False
+
+
+@dataclass
 class DataConfig:
     """数据相关配置。"""
 
-    transforms: Dict[str, TransformPipelineConfig] = field(default_factory=dict)
+    # 紧凑别名：减少 transforms 的缩进层级。
+    train_transforms: Any = None
+    val_transforms: Any = None
+    test_transforms: Any = None
+
+    # transform 本身允许使用紧凑语法，底层保持灵活。
+    transforms: Dict[str, Any] = field(default_factory=dict)
     datasets: Dict[str, DatasetConfig] = field(default_factory=dict)
+    dataloader_defaults: DataloaderDefaultsConfig = field(default_factory=DataloaderDefaultsConfig)
     dataloaders: Dict[str, DataloaderConfig] = field(default_factory=dict)
 
 
@@ -124,6 +140,19 @@ class ConfigSchemaV1:
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     trainer: TrainerConfig = field(default_factory=TrainerConfig)
     model: Optional[ComponentConfig] = None
+
+    # 顶层紧凑别名：减少 data 相关配置的缩进层级。
+    train_transforms: Any = None
+    val_transforms: Any = None
+    test_transforms: Any = None
+    train_dataset: Optional[DatasetConfig] = None
+    val_dataset: Optional[DatasetConfig] = None
+    test_dataset: Optional[DatasetConfig] = None
+    dataloader_defaults: Optional[DataloaderDefaultsConfig] = None
+    train_dataloader: Optional[DataloaderConfig] = None
+    val_dataloader: Optional[DataloaderConfig] = None
+    test_dataloader: Optional[DataloaderConfig] = None
+
     data: DataConfig = field(default_factory=DataConfig)
     optimization: Optional[OptimizationConfig] = None
     loss: List[ComponentConfig] = field(default_factory=list)
@@ -158,6 +187,7 @@ __all__ = [
     "TransformPipelineConfig",
     "DatasetConfig",
     "DataloaderConfig",
+    "DataloaderDefaultsConfig",
     "DataConfig",
     "OptimizationConfig",
     "LoggingConfig",

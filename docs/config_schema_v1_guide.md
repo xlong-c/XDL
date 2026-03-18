@@ -6,7 +6,7 @@
 
 1. 现在官方推荐使用什么配置结构。
 2. `OmegaConf` 在 XDL 里负责什么，不负责什么。
-3. `transform: ${data.transforms.train}` 这类写法到底是怎么工作的。
+3. `transform: ${train_transforms}` 这类写法到底是怎么工作的。
 4. 原先 builder / registry 存在哪些问题，本轮改造修了哪些，哪些还没接完。
 
 如需看问题诊断和演进路线，请分别参考：
@@ -18,12 +18,24 @@
 
 截至本轮改造，XDL config 系统已经从“松散 YAML + 手工猜测字段”收敛为“dataclass 固定上层结构 + OmegaConf 负责配置层 + builder/registry 负责实例化”的模式。
 
+当前官方推荐的组件描述格式已经进一步统一为：
+
+- `target`
+- `params`
+
+其中：
+
+- `target` 用 `source:name` 表示组件定位
+- `params` 保存组件构造参数
+- 旧格式 `type + source + params`、`name + from_library + params` 仍兼容，但不再作为官方主格式
+
 当前已经稳定支持：
 
 - `model`
-- `data.transforms`
-- `data.datasets`
-- `data.dataloaders`
+- `train_transforms / val_transforms / test_transforms`
+- `train_dataset / val_dataset / test_dataset`
+- `train_dataloader / val_dataloader / test_dataloader`
+- `data.*` 兼容写法
 - `optimization.optimizer`
 - `optimization.scheduler`
 - `loss`
@@ -51,6 +63,7 @@ config_version: 1
 runtime:
   device: cuda
   seed: 42
+  data_dir: ./data
   output_dir: ./others
   experiment_name: demo
 
@@ -62,34 +75,32 @@ trainer:
   grad_clip_max_norm: 5.0
 
 model:
-  type: vgg16_bn
-  source: registry
+  target: registry:vgg16_bn
   params:
     num_classes: 100
 
-data:
-  transforms:
-    train: ...
-    val: ...
-  datasets:
-    train: ...
-    val: ...
-  dataloaders:
-    train: ...
-    val: ...
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 4
+  pin_memory: true
+
+train_transforms: ...
+val_transforms: ...
+train_dataset: ...
+val_dataset: ...
+train_dataloader: ...
+val_dataloader: ...
 
 optimization:
   optimizer: ...
   scheduler: ...
 
 loss:
-  - type: CrossEntropyLoss
-    source: torch.nn
+  - target: torch.nn:CrossEntropyLoss
     params: {}
 
 metrics:
-  - type: Accuracy
-    source: registry
+  - target: registry:Accuracy
     params:
       num_classes: 100
 
@@ -106,7 +117,9 @@ accelerate:
 统一规则如下：
 
 - 顶层结构由 dataclass 固定，不再让官方 YAML 自由漂移
-- 组件统一使用 `type + source + params`
+- 组件统一使用 `target + params`
+- 数据链路推荐使用顶层紧凑别名，减少一层 `data` 缩进
+- transform 推荐显式写 `Compose + params`
 - 复杂且高变动的构造参数，继续放在组件级 `params`
 - 官方示例不再继续传播 `core_config`、`data_config`、`from_library`、`backbone` 这类旧结构写法
 
@@ -145,6 +158,101 @@ accelerate:
 - 上层结构应该稳定
 - 底层组件参数天然高变动，不适合全部硬编码死
 
+## 默认值与覆盖规则
+
+当前推荐把默认值来源分成三层：
+
+1. `schema` 默认值
+   - 例如 `trainer.max_epochs`
+   - 例如 `trainer.gradient_accumulation_steps`
+   - 例如 `runtime.data_dir`
+
+2. 区块级默认值
+   - 例如 `trainer.batch_size`
+   - 例如 `dataloader_defaults.num_workers`
+   - 例如 `dataloader_defaults.pin_memory`
+
+3. 具体组件覆盖值
+   - 例如 `train_dataloader.params.batch_size`
+   - 例如 `val_dataloader.params.batch_size`
+
+当前 dataloader 的推荐规则如下：
+
+- `trainer.batch_size` 作为全局 batch size 默认值
+- `dataloader_defaults` 作为 dataloader 公共默认参数
+- `train_dataloader / val_dataloader / test_dataloader` 的 `params` 作为最终覆盖
+
+推荐写法：
+
+```yaml
+trainer:
+  batch_size: 128
+
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 4
+  pin_memory: true
+
+train_dataloader:
+  dataset: ${train_dataset}
+  params:
+    shuffle: true
+    drop_last: true
+
+val_dataloader:
+  dataset: ${val_dataset}
+  params:
+    batch_size: 256
+    shuffle: false
+```
+
+这条规则的含义是：
+
+- train loader 默认使用 `trainer.batch_size`
+- val loader 如有需要，可以显式覆盖成另一个 batch size
+- `num_workers` 和 `pin_memory` 由统一默认来源控制，而不是在每个 loader 里重复写
+
+对于 transform，当前推荐的紧凑写法是：
+
+```yaml
+train_transforms:
+  target: torchvision.transforms:Compose
+  params:
+    transforms:
+      - target: torchvision.transforms:Resize
+        params:
+          size: [224, 224]
+      - target: torchvision.transforms:ToTensor
+        params: {}
+      - target: torchvision.transforms:Normalize
+        params:
+          mean: [0.5071, 0.4867, 0.4408]
+          std: [0.2675, 0.2565, 0.2761]
+```
+
+这套写法的规则是：
+
+- `train_transforms / val_transforms / test_transforms` 放在顶层，减少一层缩进
+- `Compose` 显式写出，避免隐式约定
+- 每个 transform 项保留 `params`，与其他组件写法统一
+
+对于数据根目录，推荐使用：
+
+```yaml
+runtime:
+  data_dir: ./data
+
+train_dataset:
+  target: torchvision.datasets:CIFAR100
+  params:
+    root: ${runtime.data_dir}
+```
+
+不要把数据目录复用成 `output_dir`，因为两者语义不同：
+
+- `data_dir` 是输入资源路径
+- `output_dir` 是实验产物路径
+
 ## OmegaConf 在 XDL 里的角色
 
 当前 `OmegaConf` 的职责很明确，只负责“配置层”：
@@ -179,41 +287,39 @@ YAML / dict
 
 这正是当前阶段最稳妥的边界。
 
-## `${data.transforms.train}` 是怎么实现的
+## `${train_transforms}` 是怎么实现的
 
 以这段配置为例：
 
 ```yaml
-data:
-  transforms:
-    train:
-      type: compose
-      items:
-        - type: ToTensor
-          source: torchvision.transforms
-          params: {}
+train_transforms:
+  target: torchvision.transforms:Compose
+  params:
+    transforms:
+      - target: torchvision.transforms:ToTensor
+        params: {}
 
-  datasets:
-    train:
-      type: CIFAR100
-      source: torchvision.datasets
-      params:
-        root: ./data
-        train: true
-      transform: ${data.transforms.train}
+train_dataset:
+  target: torchvision.datasets:CIFAR100
+  params:
+    root: ${runtime.data_dir}
+    train: true
+    transform: ${train_transforms}
 ```
 
 它不是 Python 运行时直接共享对象，也不是 builder 在字符串里自己做路径查找，而是分两步完成：
 
 1. **配置插值阶段**
    - `load_config_with_schema(..., resolve=True)` 会调用 `OmegaConf.resolve(...)`
-   - `${data.transforms.train}` 会被解析成 `data.transforms.train` 对应的那一整段配置对象
-   - 这一步完成后，`dataset.transform` 已经不再是字符串，而是一个普通 dict
+   - `${train_transforms}` 会被解析成 `train_transforms` 对应的那一整段配置对象
+   - 这一步完成后，`train_dataset.params.transform` 已经不再是字符串，而是一个普通 dict 配置对象
 
 2. **实例化阶段**
-   - `setup_from_yaml(...)` 先构建 `data.transforms`
-   - 再读取 dataset 配置里的 `transform`
-   - 如果 `transform` 是 dict，就调用 `build_transform(...)`
+   - `setup_from_yaml(...)` 会先收集顶层 `train_transforms` / `val_transforms` / `test_transforms`
+   - 同时兼容旧的 `data.transforms.*` 和 `data.train_transforms` 这类写法
+   - 再统一进入 transform 构建流程
+   - 再读取 dataset 配置里的 `params.transform`
+   - 如果 `params.transform` 是 dict / list / string，就调用 `build_transform(...)`
    - 最终把真实 transform 对象塞进 dataset 构造参数里
 
 因此这类写法的本质是：
@@ -258,7 +364,8 @@ data:
 
 当前 builder 同时支持：
 
-- 新格式：`type + source + params`
+- 主格式：`target + params`
+- 兼容格式：`type + source + params`
 - 旧格式：`name + from_library + params`
 
 并且修复了库映射：
@@ -323,6 +430,41 @@ data:
 2. `vgg_cifar100.yaml` 的完整运行依赖真实数据集，不适合作为纯离线单测。
 3. 一些本地 dataset 依赖可选三方库，例如 `albumentations`，缺失时不会注册。
 4. 当前主要完成的是“配置系统主链路”，不是“完整实验平台闭环”。
+
+## Loss 语义说明
+
+当前 `loss` 同时支持两种写法：
+
+1. 单个 loss 对象
+
+```yaml
+loss:
+  target: torch.nn:CrossEntropyLoss
+  params: {}
+```
+
+2. 多个 loss 列表
+
+```yaml
+loss:
+  - target: torch.nn:CrossEntropyLoss
+    weight: 1.0
+    params: {}
+  - target: registry:SomeAuxLoss
+    weight: 0.2
+    params: {}
+```
+
+当前实现规则如下：
+
+- 单个 loss 会直接构建成对应 loss 实例
+- 多个 loss 会构建成 `WeightedLoss`
+- `weight` 只在多 loss 聚合时生效
+
+因此：
+
+- 如果只有一个 loss，推荐直接写单对象
+- 如果要组合多个 loss，再使用列表和 `weight`
 
 ## 建议的后续重点
 

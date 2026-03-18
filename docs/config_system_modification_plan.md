@@ -68,32 +68,34 @@ config_version: 1
 runtime:
   device: cuda
   seed: 42
+  data_dir: ./data
   output_dir: ./others
   experiment_name: demo
 
 trainer:
   max_epochs: 100
+  batch_size: 128
   precision: "32"
   gradient_accumulation_steps: 1
   grad_clip_max_norm: 5.0
 
 model:
-  type: vgg16_bn
-  source: registry
+  target: registry:vgg16_bn
   params:
     num_classes: 100
     dropout: 0.5
 
-data:
-  transforms:
-    train: ...
-    val: ...
-  datasets:
-    train: ...
-    val: ...
-  dataloaders:
-    train: ...
-    val: ...
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 4
+  pin_memory: true
+
+train_transforms: ...
+val_transforms: ...
+train_dataset: ...
+val_dataset: ...
+train_dataloader: ...
+val_dataloader: ...
 
 optimization:
   optimizer: ...
@@ -115,10 +117,10 @@ accelerate:
 
 统一后的配置风格建议：
 
-- 所有组件使用同一描述格式：`type + source + params`
+- 所有组件使用同一描述格式：`target + params`
 - 所有训练行为放到 `trainer`
 - 所有运行环境放到 `runtime`
-- 所有数据相关内容放到 `data`
+- 数据链路优先使用顶层紧凑别名，减少一层 `data` 缩进
 - 所有日志与保存分离成 `logging`、`checkpoint`
 
 ## Dataclass 固定策略
@@ -177,7 +179,7 @@ class DataConfig:
 
 @dataclass
 class OptimizationConfig:
-    optimizer: ComponentConfig = field(default_factory=lambda: ComponentConfig(type="", source=""))
+    optimizer: ComponentConfig = field(default_factory=lambda: ComponentConfig(target=""))
     scheduler: Optional[ComponentConfig] = None
 
 
@@ -186,7 +188,7 @@ class ConfigSchemaV1:
     config_version: int = 1
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     trainer: TrainerConfig = field(default_factory=TrainerConfig)
-    model: ComponentConfig = field(default_factory=lambda: ComponentConfig(type="", source=""))
+    model: ComponentConfig = field(default_factory=lambda: ComponentConfig(target=""))
     data: DataConfig = field(default_factory=DataConfig)
     optimization: Optional[OptimizationConfig] = None
     loss: Optional[ComponentConfig] = None
@@ -284,7 +286,7 @@ class ConfigSchemaV1:
 
 5. 统一组件描述方式。
    - 从当前混合的 `name` / `from_library` / `backbone` / `main_optimizer` 收敛到统一格式。
-   - 推荐格式：`type + source + params`
+   - 推荐格式：`target + params`
 
 6. 明确“固定层”和“灵活层”边界。
    - `runtime` / `trainer` / `logging` / `checkpoint` / `accelerate` 等固定层使用 dataclass。
@@ -325,8 +327,8 @@ class ConfigSchemaV1:
    - 如果支持，就打通 `TRANSFORM_REGISTRY`
    - 如果不支持，就移除相关承诺，避免文档误导
 4. 实现配置引用解析。
-   - 支持 `${data.transforms.train}`
-   - 支持 `${data.datasets.train}`
+   - 支持 `${train_transforms}` 与 `${data.transforms.train}`
+   - 支持 `${train_dataset}`
    - 支持 `${optimization.optimizer}`
 5. 对引用不存在、路径错误、循环引用等情况做明确失败。
 

@@ -15,54 +15,42 @@ from xdl.config.errors import ConfigValidationError
 def test_builder_resolves_torch_import_paths() -> None:
     model = build_model(
         {
-            "type": "Linear",
-            "source": "torch.nn",
+            "target": "torch.nn:Linear",
             "params": {"in_features": 4, "out_features": 2},
         }
     )
     optimizer = build_optimizer(
         model,
         {
-            "type": "SGD",
-            "source": "torch.optim",
+            "target": "torch.optim:SGD",
             "params": {"lr": 0.01},
         },
     )
     scheduler = build_scheduler(
         optimizer,
         {
-            "type": "StepLR",
-            "source": "torch.optim.lr_scheduler",
+            "target": "torch.optim.lr_scheduler:StepLR",
             "params": {"step_size": 1, "gamma": 0.5},
         },
     )
     loss_fn = build_loss(
         {
-            "type": "CrossEntropyLoss",
-            "source": "torch.nn",
+            "target": "torch.nn:CrossEntropyLoss",
             "params": {},
         }
     )
     metrics = build_metrics(
         [
             {
-                "type": "Accuracy",
-                "source": "registry",
+                "target": "registry:Accuracy",
                 "params": {"num_classes": 2},
             }
         ]
     )
     transform = build_transform(
-        {
-            "type": "compose",
-            "items": [
-                {
-                    "type": "ToTensor",
-                    "source": "torchvision.transforms",
-                    "params": {},
-                }
-            ],
-        }
+        [
+            "torchvision.transforms:ToTensor",
+        ]
     )
 
     assert isinstance(model, torch.nn.Linear)
@@ -99,8 +87,7 @@ def test_builder_keeps_legacy_torch_aliases_working() -> None:
 def test_builder_can_build_local_dataset_from_registry() -> None:
     dataset = build_dataset(
         {
-            "type": "SyntheticClassificationDataset",
-            "source": "registry",
+            "target": "registry:SyntheticClassificationDataset",
             "params": {
                 "num_samples": 5,
                 "input_shape": [4],
@@ -121,3 +108,41 @@ def test_unknown_transform_pipeline_type_fails() -> None:
         assert False, "Expected ConfigValidationError"
     except ConfigValidationError:
         pass
+
+
+def test_builder_supports_dataset_param_transform_target() -> None:
+    dataset = build_dataset(
+        {
+            "target": "torchvision.datasets:FakeData",
+            "params": {
+                "size": 2,
+                "image_size": [1, 2, 2],
+                "num_classes": 2,
+                "transform": {
+                    "target": "torchvision.transforms:Compose",
+                    "transforms": [
+                        "torchvision.transforms:ToTensor",
+                    ],
+                },
+            },
+        }
+    )
+
+    feature, target = dataset[0]
+    assert tuple(feature.shape) == (1, 2, 2)
+    assert int(target) in {0, 1}
+
+
+def test_builder_supports_compact_transform_list_with_inline_params() -> None:
+    transform = build_transform(
+        [
+            {
+                "target": "torchvision.transforms:Resize",
+                "size": [8, 8],
+            },
+            "torchvision.transforms:ToTensor",
+        ]
+    )
+
+    assert callable(transform)
+    assert type(transform).__name__ == "Compose"

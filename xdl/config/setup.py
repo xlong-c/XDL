@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Union
 
 import torch
 import yaml
+from torch.utils.data import DataLoader
 
 from .builder import (
     build_dataloader,
@@ -65,9 +66,9 @@ def _legacy_component_to_schema(
     if not component_type:
         return None
 
+    source = component_cfg.get("source") or component_cfg.get("from_library") or default_source
     normalized = {
-        "type": component_type,
-        "source": component_cfg.get("source") or component_cfg.get("from_library") or default_source,
+        "target": f"{source}:{component_type}",
         "params": dict(component_cfg.get("params") or {}),
     }
 
@@ -87,8 +88,17 @@ def _legacy_transform_pipeline_to_schema(config: Dict[str, Any]) -> Dict[str, An
         if normalized_item is not None:
             items.append(normalized_item)
 
+    pipeline_type = str(config.get("type") or config.get("combination_strategy") or "compose").lower()
+    if pipeline_type == "compose":
+        return {
+            "target": "torchvision.transforms:Compose",
+            "params": {
+                "transforms": items,
+            },
+        }
+
     return {
-        "type": config.get("type") or config.get("combination_strategy") or "compose",
+        "type": pipeline_type,
         "items": items,
     }
 
@@ -132,9 +142,9 @@ def _normalize_legacy_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
         transform_name = dataset_cfg.get("transform") if isinstance(dataset_cfg, dict) else None
         if isinstance(transform_name, str):
             if transform_name.endswith("_transform"):
-                normalized_dataset["transform"] = f"${{data.transforms.{transform_name[:-10]}}}"
+                normalized_dataset["params"]["transform"] = f"${{data.transforms.{transform_name[:-10]}}}"
             else:
-                normalized_dataset["transform"] = f"${{data.transforms.{transform_name}}}"
+                normalized_dataset["params"]["transform"] = f"${{data.transforms.{transform_name}}}"
         datasets_cfg[schema_name] = normalized_dataset
 
     legacy_dataloader_config = data_config.get("dataloader", {})
@@ -189,6 +199,11 @@ def _normalize_legacy_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
         "data": {
             "transforms": transforms_cfg,
             "datasets": datasets_cfg,
+            "dataloader_defaults": {
+                "batch_size": training_config.get("batch_size"),
+                "num_workers": training_config.get("num_workers", 0),
+                "pin_memory": training_config.get("pin_memory", False),
+            },
             "dataloaders": dataloaders_cfg,
         },
         "optimization": {
@@ -245,9 +260,21 @@ def _resolve_transform_value(
         return None
     if isinstance(transform_value, str) and transform_value in built_transforms:
         return built_transforms[transform_value]
+    if isinstance(transform_value, list):
+        return build_transform(transform_value)
     if isinstance(transform_value, dict):
         return build_transform(transform_value)
     return transform_value
+
+
+def _resolve_dataset_transform_value(
+    dataset_config: Dict[str, Any],
+    built_transforms: Dict[str, Any],
+) -> Optional[Any]:
+    params = dataset_config.get("params")
+    if isinstance(params, dict) and "transform" in params:
+        return _resolve_transform_value(params.get("transform"), built_transforms)
+    return _resolve_transform_value(dataset_config.get("transform"), built_transforms)
 
 
 def _resolve_dataset_value(
@@ -261,9 +288,140 @@ def _resolve_dataset_value(
     if isinstance(dataset_value, str) and dataset_value in built_datasets:
         return built_datasets[dataset_value]
     if isinstance(dataset_value, dict):
-        transform_value = _resolve_transform_value(dataset_value.get("transform"), built_transforms)
+        transform_value = _resolve_dataset_transform_value(dataset_value, built_transforms)
         return build_dataset(dataset_value, transform=transform_value)
     raise ConfigValidationError(f"Unable to resolve dataset for dataloader '{dataset_name}'")
+
+
+def _collect_transform_configs(data_config: Dict[str, Any]) -> Dict[str, Any]:
+    transform_configs = dict(data_config.get("transforms") or {})
+    alias_mapping = (
+        ("train_transforms", "train"),
+        ("val_transforms", "val"),
+        ("test_transforms", "test"),
+    )
+
+    for alias_key, transform_name in alias_mapping:
+        alias_value = data_config.get(alias_key)
+        if alias_value is None:
+            continue
+        if transform_name in transform_configs:
+            raise ConfigValidationError(
+                f"Cannot define both data.transforms.{transform_name} and data.{alias_key}"
+            )
+        transform_configs[transform_name] = alias_value
+
+    return transform_configs
+
+
+def _collect_top_level_transform_configs(root_config: Dict[str, Any]) -> Dict[str, Any]:
+    alias_mapping = (
+        ("train_transforms", "train"),
+        ("val_transforms", "val"),
+        ("test_transforms", "test"),
+    )
+    collected: Dict[str, Any] = {}
+
+    for alias_key, transform_name in alias_mapping:
+        alias_value = root_config.get(alias_key)
+        if alias_value is None:
+            continue
+        collected[transform_name] = alias_value
+
+    return collected
+
+
+def _collect_dataset_configs(root_config: Dict[str, Any], data_config: Dict[str, Any]) -> Dict[str, Any]:
+    dataset_configs = dict(data_config.get("datasets") or {})
+    alias_mapping = (
+        ("train_dataset", "train"),
+        ("val_dataset", "val"),
+        ("test_dataset", "test"),
+    )
+
+    for alias_key, dataset_name in alias_mapping:
+        alias_value = root_config.get(alias_key)
+        if alias_value is None:
+            continue
+        if dataset_name in dataset_configs:
+            raise ConfigValidationError(
+                f"Cannot define both data.datasets.{dataset_name} and {alias_key}"
+            )
+        dataset_configs[dataset_name] = alias_value
+
+    return dataset_configs
+
+
+def _collect_dataloader_configs(root_config: Dict[str, Any], data_config: Dict[str, Any]) -> Dict[str, Any]:
+    dataloader_configs = dict(data_config.get("dataloaders") or {})
+    alias_mapping = (
+        ("train_dataloader", "train"),
+        ("val_dataloader", "val"),
+        ("test_dataloader", "test"),
+    )
+
+    for alias_key, dataloader_name in alias_mapping:
+        alias_value = root_config.get(alias_key)
+        if alias_value is None:
+            continue
+        if dataloader_name in dataloader_configs:
+            raise ConfigValidationError(
+                f"Cannot define both data.dataloaders.{dataloader_name} and {alias_key}"
+            )
+        dataloader_configs[dataloader_name] = alias_value
+
+    return dataloader_configs
+
+
+def _collect_dataloader_defaults(root_config: Dict[str, Any], data_config: Dict[str, Any]) -> Dict[str, Any]:
+    data_defaults = data_config.get("dataloader_defaults") or {}
+    top_level_defaults = root_config.get("dataloader_defaults")
+
+    has_explicit_data_defaults = (
+        isinstance(data_defaults, dict)
+        and (
+            data_defaults.get("batch_size") is not None
+            or int(data_defaults.get("num_workers", 0)) != 0
+            or bool(data_defaults.get("pin_memory", False)) is not False
+        )
+    )
+
+    if top_level_defaults is not None and has_explicit_data_defaults:
+        raise ConfigValidationError(
+            "Cannot define both data.dataloader_defaults and top-level dataloader_defaults"
+        )
+
+    if top_level_defaults is None:
+        return dict(data_defaults) if isinstance(data_defaults, dict) else {}
+    if not isinstance(top_level_defaults, dict):
+        raise ConfigValidationError("dataloader_defaults must be a mapping")
+    return dict(top_level_defaults)
+
+
+def _merge_dataloader_params(
+    dataloader_cfg: Dict[str, Any],
+    *,
+    dataloader_defaults: Dict[str, Any],
+    trainer_batch_size: Optional[int],
+) -> Dict[str, Any]:
+    if not isinstance(dataloader_cfg, dict):
+        raise ConfigValidationError("dataloader config must be a mapping")
+
+    merged_config = dict(dataloader_cfg)
+    merged_params = {
+        key: value
+        for key, value in dataloader_defaults.items()
+        if value is not None
+    }
+    if merged_params.get("batch_size") is None and trainer_batch_size is not None:
+        merged_params["batch_size"] = int(trainer_batch_size)
+
+    loader_params = dataloader_cfg.get("params") or {}
+    if not isinstance(loader_params, dict):
+        raise ConfigValidationError("dataloader params must be a mapping")
+    merged_params.update(loader_params)
+    merged_config["params"] = merged_params
+    return merged_config
 
 
 def setup_from_yaml(
@@ -290,9 +448,23 @@ def setup_from_yaml(
     model = build_model(model_config)
 
     data_config = resolved_config.get("data", {})
-    transform_config = data_config.get("transforms", {})
-    dataset_config = data_config.get("datasets", {})
-    dataloader_config = data_config.get("dataloaders", {})
+    if not isinstance(data_config, dict):
+        data_config = {}
+
+    transform_config = _collect_transform_configs(data_config)
+    top_level_transform_config = _collect_top_level_transform_configs(resolved_config)
+    for transform_name, transform_value in top_level_transform_config.items():
+        if transform_name in transform_config:
+            raise ConfigValidationError(
+                f"Cannot define both data transform '{transform_name}' and top-level alias"
+            )
+        transform_config[transform_name] = transform_value
+
+    dataset_config = _collect_dataset_configs(resolved_config, data_config)
+    dataloader_config = _collect_dataloader_configs(resolved_config, data_config)
+    dataloader_defaults = _collect_dataloader_defaults(resolved_config, data_config)
+    trainer_config = resolved_config.get("trainer", {})
+    trainer_batch_size = trainer_config.get("batch_size")
 
     built_transforms: Dict[str, Any] = {}
     for transform_name, transform_cfg in transform_config.items():
@@ -300,11 +472,16 @@ def setup_from_yaml(
 
     built_datasets: Dict[str, Any] = {}
     for dataset_name, dataset_cfg in dataset_config.items():
-        transform_value = _resolve_transform_value(dataset_cfg.get("transform"), built_transforms)
+        transform_value = _resolve_dataset_transform_value(dataset_cfg, built_transforms)
         built_datasets[dataset_name] = build_dataset(dataset_cfg, transform=transform_value)
 
     built_dataloaders: Dict[str, DataLoader] = {}
     for dataloader_name, dataloader_cfg in dataloader_config.items():
+        merged_dataloader_cfg = _merge_dataloader_params(
+            dataloader_cfg,
+            dataloader_defaults=dataloader_defaults if isinstance(dataloader_defaults, dict) else {},
+            trainer_batch_size=trainer_batch_size,
+        )
         dataset_value = dataloader_cfg.get("dataset")
         dataset = _resolve_dataset_value(
             dataloader_name,
@@ -312,7 +489,7 @@ def setup_from_yaml(
             built_datasets,
             built_transforms,
         )
-        built_dataloaders[dataloader_name] = build_dataloader(dataset, dataloader_cfg)
+        built_dataloaders[dataloader_name] = build_dataloader(dataset, merged_dataloader_cfg)
 
     optimization_config = resolved_config.get("optimization") or {}
     optimizer_config = optimization_config.get("optimizer")
@@ -330,13 +507,16 @@ def setup_from_yaml(
     metrics = build_metrics(metrics_config)
 
     runtime_config = resolved_config.get("runtime", {})
-    trainer_config = resolved_config.get("trainer", {})
 
     runtime_device = runtime_config.get("device", "cuda" if torch.cuda.is_available() else "cpu")
     selected_device = str(device) if device is not None else str(runtime_device)
-    selected_batch_size = trainer_config.get("batch_size")
+    selected_batch_size = trainer_batch_size
+    if selected_batch_size is None and isinstance(dataloader_defaults, dict):
+        selected_batch_size = dataloader_defaults.get("batch_size")
     if selected_batch_size is None and "train" in dataloader_config:
-        selected_batch_size = dataloader_config["train"].get("params", {}).get("batch_size", 128)
+        selected_batch_size = dataloader_config["train"].get("params", {}).get("batch_size")
+    if selected_batch_size is None and built_dataloaders.get("train") is not None:
+        selected_batch_size = built_dataloaders["train"].batch_size
 
     return TrainSetup(
         model=model,

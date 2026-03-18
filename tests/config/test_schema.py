@@ -13,6 +13,7 @@ def test_can_create_structured_schema() -> None:
 
     assert cfg.config_version == CONFIG_SCHEMA_VERSION
     assert cfg.runtime.device == "cuda"
+    assert cfg.runtime.data_dir == "./data"
     assert isinstance(ConfigSchemaV1(), ConfigSchemaV1)
 
 
@@ -20,47 +21,45 @@ def test_can_merge_and_resolve_references() -> None:
     raw_config = {
         "runtime": {
             "experiment_name": "schema-smoke",
+            "data_dir": "./dataset_root",
         },
         "trainer": {
             "max_epochs": 5,
+            "batch_size": 8,
         },
         "model": {
-            "type": "vgg16_bn",
-            "source": "registry",
+            "target": "registry:vgg16_bn",
             "params": {
                 "num_classes": 100,
             },
         },
-        "data": {
-            "transforms": {
-                "train": {
-                    "type": "compose",
-                    "items": [
-                        {
-                            "type": "Resize",
-                            "source": "torchvision.transforms",
-                            "params": {"size": [224, 224]},
-                        }
-                    ],
-                }
+        "dataloader_defaults": {
+            "batch_size": "${trainer.batch_size}",
+            "num_workers": 2,
+            "pin_memory": False,
+        },
+        "train_transforms": {
+            "target": "torchvision.transforms:Compose",
+            "params": {
+                "transforms": [
+                    {
+                        "target": "torchvision.transforms:Resize",
+                        "params": {"size": [224, 224]},
+                    }
+                ]
             },
-            "datasets": {
-                "train": {
-                    "type": "CIFAR100",
-                    "source": "torchvision.datasets",
-                    "params": {
-                        "root": "./data",
-                        "train": True,
-                    },
-                    "transform": "${data.transforms.train}",
-                }
+        },
+        "train_dataset": {
+            "target": "torchvision.datasets:CIFAR100",
+            "params": {
+                "root": "${runtime.data_dir}",
+                "train": True,
+                "transform": "${train_transforms}",
             },
-            "dataloaders": {
-                "train": {
-                    "dataset": "${data.datasets.train}",
-                    "params": {"batch_size": 8, "shuffle": True},
-                }
-            },
+        },
+        "train_dataloader": {
+            "dataset": "${train_dataset}",
+            "params": {"shuffle": True},
         },
         "optimization": {
             "optimizer": {
@@ -89,9 +88,12 @@ def test_can_merge_and_resolve_references() -> None:
     resolved = to_plain_dict(cfg, resolve=True)
 
     assert cfg.trainer.max_epochs == 5
-    assert resolved["data"]["datasets"]["train"]["transform"]["type"] == "compose"
-    assert resolved["data"]["dataloaders"]["train"]["dataset"]["type"] == "CIFAR100"
-    assert resolved["model"]["type"] == "vgg16_bn"
+    assert resolved["runtime"]["data_dir"] == "./dataset_root"
+    assert resolved["dataloader_defaults"]["batch_size"] == 8
+    assert resolved["train_dataset"]["params"]["transform"]["target"] == "torchvision.transforms:Compose"
+    assert resolved["train_dataset"]["params"]["root"] == "./dataset_root"
+    assert resolved["train_dataloader"]["dataset"]["target"] == "torchvision.datasets:CIFAR100"
+    assert resolved["model"]["target"] == "registry:vgg16_bn"
 
 
 def test_unknown_top_level_field_fails_validation() -> None:
@@ -105,3 +107,19 @@ def test_unknown_top_level_field_fails_validation() -> None:
         assert False, "Expected ConfigValidationError"
     except ConfigValidationError:
         pass
+
+
+def test_single_loss_object_is_normalized_to_list() -> None:
+    cfg = load_config_with_schema(
+        {
+            "loss": {
+                "target": "torch.nn:CrossEntropyLoss",
+                "params": {},
+            }
+        }
+    )
+    resolved = to_plain_dict(cfg, resolve=True)
+
+    assert isinstance(resolved["loss"], list)
+    assert len(resolved["loss"]) == 1
+    assert resolved["loss"][0]["target"] == "torch.nn:CrossEntropyLoss"

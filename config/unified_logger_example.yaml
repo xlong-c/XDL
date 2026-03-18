@@ -5,6 +5,7 @@ config_version: 1
 runtime:
   device: "cpu"
   experiment_name: "unified_logger_example"
+  data_dir: "./data"
   output_dir: "./others"
 
 trainer:
@@ -13,76 +14,65 @@ trainer:
   gradient_accumulation_steps: 1
 
 model:
-  type: "simple_mlp"
-  source: "registry"
+  target: "registry:simple_mlp"
   params:
     input_size: 784
     hidden_size: 128
     num_classes: 10
     dropout_rate: 0.2
 
-data:
-  datasets:
-    train:
-      type: "SyntheticClassificationDataset"
-      source: "registry"
-      params:
-        num_samples: 500
-        input_shape: [784]
-        num_classes: 10
-        seed: 42
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 0
+  pin_memory: false
 
-    val:
-      type: "SyntheticClassificationDataset"
-      source: "registry"
-      params:
-        num_samples: 100
-        input_shape: [784]
-        num_classes: 10
-        seed: 43
+train_dataset:
+  target: "registry:SyntheticClassificationDataset"
+  params:
+    num_samples: 500
+    input_shape: [784]
+    num_classes: 10
+    seed: 42
 
-  dataloaders:
-    train:
-      dataset: ${data.datasets.train}
-      params:
-        batch_size: 32
-        shuffle: true
-        num_workers: 0
-        pin_memory: false
-        drop_last: true
+val_dataset:
+  target: "registry:SyntheticClassificationDataset"
+  params:
+    num_samples: 100
+    input_shape: [784]
+    num_classes: 10
+    seed: 43
 
-    val:
-      dataset: ${data.datasets.val}
-      params:
-        batch_size: 32
-        shuffle: false
-        num_workers: 0
-        pin_memory: false
-        drop_last: false
+train_dataloader:
+  dataset: ${train_dataset}
+  params:
+    shuffle: true
+    drop_last: true
+
+val_dataloader:
+  dataset: ${val_dataset}
+  params:
+    shuffle: false
+    drop_last: false
 
 optimization:
   optimizer:
-    type: "Adam"
-    source: "torch.optim"
+    target: "torch.optim:Adam"
     params:
       lr: 0.001
       weight_decay: 0.0001
 
   scheduler:
-    type: "StepLR"
-    source: "torch.optim.lr_scheduler"
+    target: "torch.optim.lr_scheduler:StepLR"
     params:
       step_size: 30
       gamma: 0.1
 
 loss:
-  - type: "CrossEntropyLoss"
-    source: "torch.nn"
+  - target: "torch.nn:CrossEntropyLoss"
     params: {}
 
 metrics:
-  - type: "Accuracy"
-    source: "registry"
+  - target: "registry:Accuracy"
     params:
       num_classes: 10
 

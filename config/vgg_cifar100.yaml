@@ -4,6 +4,7 @@ config_version: 1
 
 runtime:
   device: "cuda"
+  data_dir: "./data"
   experiment_name: "vgg16_cifar100"
   output_dir: "./others"
 
@@ -14,117 +15,99 @@ trainer:
   grad_clip_max_norm: 5.0
 
 model:
-  type: "vgg16_bn"
-  source: "registry"
+  target: "registry:vgg16_bn"
   params:
     num_classes: 100
     dropout: 0.5
 
-data:
-  transforms:
-    train:
-      type: "compose"
-      items:
-        - type: "Resize"
-          source: "torchvision.transforms"
-          params:
-            size: [224, 224]
-        - type: "RandomHorizontalFlip"
-          source: "torchvision.transforms"
-          params:
-            p: 0.5
-        - type: "RandomRotation"
-          source: "torchvision.transforms"
-          params:
-            degrees: 10
-        - type: "ToTensor"
-          source: "torchvision.transforms"
-          params: {}
-        - type: "Normalize"
-          source: "torchvision.transforms"
-          params:
-            mean: [0.5071, 0.4867, 0.4408]
-            std: [0.2675, 0.2565, 0.2761]
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 4
+  pin_memory: true
 
-    val:
-      type: "compose"
-      items:
-        - type: "Resize"
-          source: "torchvision.transforms"
-          params:
-            size: [224, 224]
-        - type: "ToTensor"
-          source: "torchvision.transforms"
-          params: {}
-        - type: "Normalize"
-          source: "torchvision.transforms"
-          params:
-            mean: [0.5071, 0.4867, 0.4408]
-            std: [0.2675, 0.2565, 0.2761]
+train_transforms:
+  target: "torchvision.transforms:Compose"
+  params:
+    transforms:
+      - target: "torchvision.transforms:Resize"
+        params:
+          size: [224, 224]
+      - target: "torchvision.transforms:RandomHorizontalFlip"
+        params:
+          p: 0.5
+      - target: "torchvision.transforms:RandomRotation"
+        params:
+          degrees: 10
+      - target: "torchvision.transforms:ToTensor"
+        params: {}
+      - target: "torchvision.transforms:Normalize"
+        params:
+          mean: [0.5071, 0.4867, 0.4408]
+          std: [0.2675, 0.2565, 0.2761]
 
-  datasets:
-    train:
-      type: "CIFAR100"
-      source: "torchvision.datasets"
-      params:
-        root: "./data"
-        train: true
-        download: true
-      transform: ${data.transforms.train}
+val_transforms:
+  target: "torchvision.transforms:Compose"
+  params:
+    transforms:
+      - target: "torchvision.transforms:Resize"
+        params:
+          size: [224, 224]
+      - target: "torchvision.transforms:ToTensor"
+        params: {}
+      - target: "torchvision.transforms:Normalize"
+        params:
+          mean: [0.5071, 0.4867, 0.4408]
+          std: [0.2675, 0.2565, 0.2761]
 
-    val:
-      type: "CIFAR100"
-      source: "torchvision.datasets"
-      params:
-        root: "./data"
-        train: false
-        download: true
-      transform: ${data.transforms.val}
+train_dataset:
+  target: "torchvision.datasets:CIFAR100"
+  params:
+    root: ${runtime.data_dir}
+    train: true
+    download: true
+    transform: ${train_transforms}
 
-  dataloaders:
-    train:
-      dataset: ${data.datasets.train}
-      params:
-        batch_size: 128
-        shuffle: true
-        num_workers: 0
-        pin_memory: false
-        drop_last: true
+val_dataset:
+  target: "torchvision.datasets:CIFAR100"
+  params:
+    root: ${runtime.data_dir}
+    train: false
+    download: true
+    transform: ${val_transforms}
 
-    val:
-      dataset: ${data.datasets.val}
-      params:
-        batch_size: 128
-        shuffle: false
-        num_workers: 0
-        pin_memory: false
-        drop_last: false
+train_dataloader:
+  dataset: ${train_dataset}
+  params:
+    shuffle: true
+    drop_last: true
+
+val_dataloader:
+  dataset: ${val_dataset}
+  params:
+    shuffle: false
+    drop_last: false
 
 optimization:
   optimizer:
-    type: "SGD"
-    source: "torch.optim"
+    target: "torch.optim:SGD"
     params:
       lr: 0.01
       momentum: 0.9
       weight_decay: 0.0005
 
   scheduler:
-    type: "MultiStepLR"
-    source: "torch.optim.lr_scheduler"
+    target: "torch.optim.lr_scheduler:MultiStepLR"
     params:
       milestones: [30, 60, 80]
       gamma: 0.1
 
 loss:
-  - type: "CrossEntropyLoss"
-    source: "torch.nn"
+  - target: "torch.nn:CrossEntropyLoss"
     weight: 1.0
     params: {}
 
 metrics:
-  - type: "Accuracy"
-    source: "registry"
+  - target: "registry:Accuracy"
     params:
       num_classes: 100
 
