@@ -3,12 +3,13 @@
 #include "cuda_bf16.h"
 #include "cuda_runtime.h"
 #include <__clang_cuda_runtime_wrapper.h>
+#include <ctime>
 #include <curand_mtgp32_kernel.h>
 
 #define FLOAT4(value) (reinterpret_cast<float4 *>(value))
 #define FLOAT4C(value) (reinterpret_cast<const float4 *>(value))
-#define HALF2(value) (reinterpret_cast<half2 *>(value))
-#define HALF2C(value) (reinterpret_cast<const half2 *>(value))
+#define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
+#define HALF2C(value) (reinterpret_cast<const half2 *>(&(value))[0])
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162 *>(value))
 #define WARP_SIZE 32
 
@@ -133,13 +134,101 @@ __global__ void hgemm_shared_f16x4(
   int thread_n = bx * BN + tx * TN; // 线程输出的起始列
 
   // 寄存器存储累加结果 (TM x TN = 8 x 8)
-  half frag_a[TM];    // A 矩阵片段
-  half frag_b[TN];    // B 矩阵片段
+  half frag_a[TM];                         // A 矩阵片段
+  half frag_b[TN];                         // B 矩阵片段
   half accum[TM][TN] = {CUDART_ZERO_FP16}; // 累加器
 
-  // 计算当前线程相对于块内的地址
-  int idx_s_am = tid /2;
-  int idx_s_ak = tid % 2;
+  // 计算当前线程相对于块内的地址,s_a是BMxBK:128x8
+  // 每行8个数据,每个线程计算4个数据,每行两个
+  int idx_s_am = tid / (BK / 4);
+  int idx_s_ak = tid % (BK / 4) * 4;
+  // s_b是BKxBN:8x128
+  // 每行128个数据,每个线程计算4个,一行需要32个线程
+  int idx_s_bk = tid / (BN / 4);
+  int idx_s_bn = tid % (BN / 4) * 4;
+
   // 计算当前块的对应的行和列
-  int load_am = by * BM ;
+  int idx_g_am = by * BM + idx_s_am;
+  int idx_g_bn = bx * BN + idx_s_bn;
+  const half2 zero2 = __halves2half2(CUDART_ZERO_FP16, CUDART_ZERO_FP16);
+
+  for (int bk = 0; bk < K; bk += BK) {
+    int idx_g_ak = bk + idx_s_ak;
+    int idx_g_bk = bk + idx_s_bk; // 计算 B 的全局 k 维索引
+
+    // 向量化加载 A: 每次写入 2 个 half
+    if (idx_g_am < M && idx_g_ak < K) {
+      if (idx_g_ak + 1 < K) {
+        HALF2(s_a[idx_s_am][idx_s_ak + 0]) = HALF2C(A[idx_g_am * K + idx_g_ak + 0]);
+      } else {
+        s_a[idx_s_am][idx_s_ak + 0] = A[idx_g_am * K + idx_g_ak + 0];
+        s_a[idx_s_am][idx_s_ak + 1] = CUDART_ZERO_FP16;
+      }
+    } else {
+      HALF2(s_a[idx_s_am][idx_s_ak + 0]) = zero2;
+    }
+    if (idx_g_am < M && idx_g_ak + 2 < K) {
+      if (idx_g_ak + 3 < K) {
+        HALF2(s_a[idx_s_am][idx_s_ak + 2]) = HALF2C(A[idx_g_am * K + idx_g_ak + 2]);
+      } else {
+        s_a[idx_s_am][idx_s_ak + 2] = A[idx_g_am * K + idx_g_ak + 2];
+        s_a[idx_s_am][idx_s_ak + 3] = CUDART_ZERO_FP16;
+      }
+    } else {
+      HALF2(s_a[idx_s_am][idx_s_ak + 2]) = zero2;
+    }
+
+    // 向量化加载 B: B 的线性索引是 [k, n] => k * N + n
+    if (idx_g_bk < K && idx_g_bn < N) {
+      if (idx_g_bn + 1 < N) {
+        HALF2(s_b[idx_s_bk][idx_s_bn + 0]) = HALF2C(B[idx_g_bk * N + idx_g_bn + 0]);
+      } else {
+        s_b[idx_s_bk][idx_s_bn + 0] = B[idx_g_bk * N + idx_g_bn + 0];
+        s_b[idx_s_bk][idx_s_bn + 1] = CUDART_ZERO_FP16;
+      }
+    } else {
+      HALF2(s_b[idx_s_bk][idx_s_bn + 0]) = zero2;
+    }
+    if (idx_g_bk < K && idx_g_bn + 2 < N) {
+      if (idx_g_bn + 3 < N) {
+        HALF2(s_b[idx_s_bk][idx_s_bn + 2]) = HALF2C(B[idx_g_bk * N + idx_g_bn + 2]);
+      } else {
+        s_b[idx_s_bk][idx_s_bn + 2] = B[idx_g_bk * N + idx_g_bn + 2];
+        s_b[idx_s_bk][idx_s_bn + 3] = CUDART_ZERO_FP16;
+      }
+    } else {
+      HALF2(s_b[idx_s_bk][idx_s_bn + 2]) = zero2;
+    }
+    __syncthreads();
+#pragma unroll
+    for (int k = 0; k < BK; ++k) {
+#pragma unroll
+      for (int m = 0; m < TM; ++m) {
+#pragma unroll
+        for (int n = 0; n < TN; ++n) {
+          int idx_temp_am = ty * TM + m;
+          int idx_temp_bn = tx * TN + n;
+          accum[m][n] += s_a[idx_temp_am][k] * s_b[k][idx_temp_bn];
+        }
+      }
+    }
+    __syncthreads();
+  }
+#pragma unroll
+  for (int m = 0; m < TM; ++m) {
+    int idx_cm = by * BM + ty * TM + m;
+    if (idx_cm >= M) {
+      continue;
+    }
+#pragma unroll
+    for (int n = 0; n < TN; n += 2) {
+      int idx_cn = bx * BN + tx * TN + n;
+      if (idx_cn + 1 < N) {
+        int idx_c = idx_cm * N + idx_cn;
+        HALF2(C[idx_c]) = HALF2(accum[m][n]);
+      } else if (idx_cn < N) {
+        C[idx_cm * N + idx_cn] = accum[m][n];
+      }
+    }
+  }
 }

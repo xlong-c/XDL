@@ -41,6 +41,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import os
+import re
 
 
 class BatchImageViewer:
@@ -239,13 +240,22 @@ class BatchImageViewer:
                     os.path.join(directory, f)
                     for f in os.listdir(directory)
                     if f.lower().endswith(valid_exts)
-                ]
+                ],
+                key=self.natural_sort_key,
             )
             self.current_batch_start = 0
             self.display_batch()
         except Exception as e:
             print(f"Error reading directory: {e}")
             messagebox.showerror("Error", f"Could not read directory: {e}")
+
+    @staticmethod
+    def natural_sort_key(path):
+        filename = os.path.basename(path).lower()
+        return [
+            int(chunk) if chunk.isdigit() else chunk
+            for chunk in re.split(r"(\d+)", filename)
+        ]
 
     def open_folder(self):
         dir_path = filedialog.askdirectory(initialdir=self.image_dir)
