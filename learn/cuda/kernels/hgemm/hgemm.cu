@@ -6,12 +6,13 @@
 #include <ctime>
 #include <curand_mtgp32_kernel.h>
 
-#define FLOAT4(value) (reinterpret_cast<float4 *>(value))
-#define FLOAT4C(value) (reinterpret_cast<const float4 *>(value))
-#define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
-#define HALF2C(value) (reinterpret_cast<const half2 *>(&(value))[0])
-#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162 *>(value))
 #define WARP_SIZE 32
+#define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
+#define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
+#define LDST64BITS(value) (reinterpret_cast<float2*>(&(value))[0])
+#define LDST128BITS(value) (reinterpret_cast<float4*>(&(value))[0])
 
 // 这是一个简单的半精度矩阵乘法核函数,每个线程计算C矩阵中的一个元素
 // 每个线程需要读取Kx2个半精度数值,并进行K次乘加操作,最后将结果写回C矩阵
@@ -231,4 +232,37 @@ __global__ void hgemm_shared_f16x4(
       }
     }
   }
+}
+
+template <const int BM = 128, const int BN = 128, const int BK = 8, const int TM = 8, const int TN = 8>
+__global__ void hgemm_shared_f16x4_pack_bank(half *A, half *B, half *C, int M, int N, int K) {
+  static_assert(BM % TM == 0, "BM must be divisible by TM");
+  static_assert(BN % TN == 0, "BN must be divisible by TN");
+  static_assert(BK % 4 == 0, "BK must be divisible by 4 for float4 loading");
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int tid = ty * blockDim.x + tx;
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
+  __shared__ half s_a[BM][BK]; // 128 x 8 = 1024 half
+  __shared__ half s_b[BK][BN]; // 8 x 128 = 1024 half
+
+  int idx_smem_am = tid / (BK / 4);     // 计算当前线程在 s_a 中的行坐标
+  int idx_smem_ak = tid % (BK / 4) * 4; // 列坐标
+  int idx_smem_bk = tid / (BN / 4);
+  int idx_smem_bn = tid % (BN / 4) * 4;
+
+  int idx_g_am = by * BM + idx_smem_am; // 线程对应的全局行坐标, by是第y块, 一块y是BM行
+  int idx_g_bn = bx * BN + idx_smem_bn;
+  const half2 zero2 = __halves2half2(CUDART_ZERO_FP16, CUDART_ZERO_FP16);
+
+  if (idx_g_am >= M && idx_g_bn >= N) return;
+  
+  // 在K上进行完整的循环,直到完成所有的值
+  for (int bk = 0; bk < K; bk += BK) { 
+    // 这里的k是循环的所以放到里面来算
+    int idx_g_ak = bk + idx_smem_ak;
+    int idx_g_bk = bk + idx_smem_bk;
+  }
+
 }
