@@ -7,12 +7,12 @@
 #include <curand_mtgp32_kernel.h>
 
 #define WARP_SIZE 32
-#define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
-#define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
-#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
-#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
-#define LDST64BITS(value) (reinterpret_cast<float2*>(&(value))[0])
-#define LDST128BITS(value) (reinterpret_cast<float4*>(&(value))[0])
+#define INT4(value) (reinterpret_cast<int4 *>(&(value))[0])
+#define FLOAT4(value) (reinterpret_cast<float4 *>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
+#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162 *>(&(value))[0])
+#define LDST64BITS(value) (reinterpret_cast<float2 *>(&(value))[0])
+#define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
 
 // 这是一个简单的半精度矩阵乘法核函数,每个线程计算C矩阵中的一个元素
 // 每个线程需要读取Kx2个半精度数值,并进行K次乘加操作,最后将结果写回C矩阵
@@ -256,13 +256,35 @@ __global__ void hgemm_shared_f16x4_pack_bank(half *A, half *B, half *C, int M, i
   int idx_g_bn = bx * BN + idx_smem_bn;
   const half2 zero2 = __halves2half2(CUDART_ZERO_FP16, CUDART_ZERO_FP16);
 
-  if (idx_g_am >= M && idx_g_bn >= N) return;
-  
+  if (idx_g_am >= M && idx_g_bn >= N)
+    return;
+
+  half r_c[TM][TN] = {CUDART_ZERO_FP16};
   // 在K上进行完整的循环,直到完成所有的值
-  for (int bk = 0; bk < K; bk += BK) { 
+  for (int bk = 0; bk < K; bk += BK) {
     // 这里的k是循环的所以放到里面来算
     int idx_g_ak = bk + idx_smem_ak;
     int idx_g_bk = bk + idx_smem_bk;
-  }
+    int addr_g_a = K * idx_g_am + idx_g_ak;
+    int addr_g_b = N * idx_g_bk + idx_g_bn;
 
+    LDST64BITS(s_a[idx_smem_am][idx_smem_ak]) = LDST64BITS(A[addr_g_a]);
+    LDST64BITS(s_b[idx_smem_bk][idx_smem_bn]) = LDST64BITS(B[addr_g_b]);
+
+    __syncthreads();
+#pragma unroll
+    for (int k = 0; k < BK; k++) {
+#pragma unroll
+      for (int m = 0; m < TM; m++) {
+#pragma unroll
+        for (int n = 0; n < TN; n++) {
+          int idx_tam = ty * TM + m;
+          int idx_tbn = tx * TN + n;
+          r_c[m][n] = __hfma(s_a[idx_tam][k], s_b[k][idx_tbn]);
+        }
+      }
+    }
+    __syncthreads();
+    for 
+  }
 }

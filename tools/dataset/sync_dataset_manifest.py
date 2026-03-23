@@ -378,7 +378,7 @@ def run(
 def main() -> None:
     # ============ 配置参数 (直接修改此处) ============
     MODE = "collect"                                # "collect" 或 "clean"
-    DATASET_DIR = path_win2wsl(r"F:\dataset\select_clein_reblad_data_resized")  # 数据集根目录
+    DATASET_DIR = path_win2wsl(r"F:\dataset\select_clein_resize_t\10925_notre")  # 数据集根目录
     CSV_NAME = "dataset_manifest.csv"               # CSV 文件名, 保存在脚本同级目录
     ONLY_IMAGE_FILES = True                         # True 仅处理图片; False 处理所有文件
     PREVIEW = True                                  # 执行前显示预览并确认
