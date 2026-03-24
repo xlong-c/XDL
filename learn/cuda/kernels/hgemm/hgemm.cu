@@ -92,8 +92,8 @@ __global__ void hgemm_sharemem(const half *A, const half *B, half *C, int M, int
 
 template <const int BM = 128, const int BN = 128, const int BK = 8, const int TM = 8, const int TN = 8>
 __global__ void hgemm_shared_f16x4(
-    const half *A,
-    const half *B,
+    half *A,
+    half *B,
     half *C,
     const int M,
     const int N,
@@ -160,7 +160,7 @@ __global__ void hgemm_shared_f16x4(
     // 向量化加载 A: 每次写入 2 个 half
     if (idx_g_am < M && idx_g_ak < K) {
       if (idx_g_ak + 1 < K) {
-        HALF2(s_a[idx_s_am][idx_s_ak + 0]) = HALF2C(A[idx_g_am * K + idx_g_ak + 0]);
+        HALF2(s_a[idx_s_am][idx_s_ak + 0]) = HALF2(A[idx_g_am * K + idx_g_ak + 0]);
       } else {
         s_a[idx_s_am][idx_s_ak + 0] = A[idx_g_am * K + idx_g_ak + 0];
         s_a[idx_s_am][idx_s_ak + 1] = CUDART_ZERO_FP16;
@@ -170,7 +170,7 @@ __global__ void hgemm_shared_f16x4(
     }
     if (idx_g_am < M && idx_g_ak + 2 < K) {
       if (idx_g_ak + 3 < K) {
-        HALF2(s_a[idx_s_am][idx_s_ak + 2]) = HALF2C(A[idx_g_am * K + idx_g_ak + 2]);
+        HALF2(s_a[idx_s_am][idx_s_ak + 2]) = HALF2(A[idx_g_am * K + idx_g_ak + 2]);
       } else {
         s_a[idx_s_am][idx_s_ak + 2] = A[idx_g_am * K + idx_g_ak + 2];
         s_a[idx_s_am][idx_s_ak + 3] = CUDART_ZERO_FP16;
@@ -182,7 +182,7 @@ __global__ void hgemm_shared_f16x4(
     // 向量化加载 B: B 的线性索引是 [k, n] => k * N + n
     if (idx_g_bk < K && idx_g_bn < N) {
       if (idx_g_bn + 1 < N) {
-        HALF2(s_b[idx_s_bk][idx_s_bn + 0]) = HALF2C(B[idx_g_bk * N + idx_g_bn + 0]);
+        HALF2(s_b[idx_s_bk][idx_s_bn + 0]) = HALF2(B[idx_g_bk * N + idx_g_bn + 0]);
       } else {
         s_b[idx_s_bk][idx_s_bn + 0] = B[idx_g_bk * N + idx_g_bn + 0];
         s_b[idx_s_bk][idx_s_bn + 1] = CUDART_ZERO_FP16;
@@ -192,7 +192,7 @@ __global__ void hgemm_shared_f16x4(
     }
     if (idx_g_bk < K && idx_g_bn + 2 < N) {
       if (idx_g_bn + 3 < N) {
-        HALF2(s_b[idx_s_bk][idx_s_bn + 2]) = HALF2C(B[idx_g_bk * N + idx_g_bn + 2]);
+        HALF2(s_b[idx_s_bk][idx_s_bn + 2]) = HALF2(B[idx_g_bk * N + idx_g_bn + 2]);
       } else {
         s_b[idx_s_bk][idx_s_bn + 2] = B[idx_g_bk * N + idx_g_bn + 2];
         s_b[idx_s_bk][idx_s_bn + 3] = CUDART_ZERO_FP16;
@@ -285,6 +285,14 @@ __global__ void hgemm_shared_f16x4_pack_bank(half *A, half *B, half *C, int M, i
       }
     }
     __syncthreads();
-    for 
+
+#pragma unroll
+    for (int m = 0; m < TM; m++)
+#pragma unroll
+      for (int n = 0; n < TN; n++) {
+        int idx_g_cn = bx * BN + tx * TN + n;
+        int addr_g_c = idx_g_cn * N + idx_g_cn;
+        LDST64BITS(C[addr_g_c]) = LDST64BITS(r_c[m][n]);
+      }
   }
 }
