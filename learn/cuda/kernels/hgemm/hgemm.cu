@@ -281,7 +281,7 @@ __global__ void hgemm_shared_f16x4_pack(half *A, half *B, half *C, int M, int N,
         for (int n = 0; n < TN; n++) {
           int idx_tam = ty * TM + m;
           int idx_tbn = tx * TN + n;
-          r_c[m][n] = __hfma(s_a[idx_tam][k], s_b[k][idx_tbn]);
+          r_c[m][n] = __hfma(s_a[idx_tam][k], s_b[k][idx_tbn], r_c[m][n]);
         }
       }
     }
@@ -344,7 +344,31 @@ __global__ void hgemm_shared_f16x4_bank(
 
 #pragma unroll
     for (int tk = 0; tk < (K / BK); tk++) {
-        
+      HALF2(rc_a[0]) = HALF2(s_a[tk][ty * TM / 2]);
+      HALF2(rc_a[2]) = HALF2(s_a[tk][ty * TM / 2 + 2]);
+      HALF2(rc_a[4]) = HALF2(s_a[tk][ty * TM / 2 + BN / 2]);
+      HALF2(rc_a[6]) = HALF2(s_a[tk][ty * TM / 2 + BN / 2 + 2]);
+
+      HALF2(rc_b[0]) = HALF2(s_b[tk][tx * TN / 2]);
+      HALF2(rc_b[2]) = HALF2(s_b[tk][tx * TN / 2 + 2]);
+      HALF2(rc_b[4]) = HALF2(s_b[tk][tx * TN / 2 + BN / 2]);
+      HALF2(rc_b[6]) = HALF2(s_b[tk][tx * TN / 2 + BN / 2 + 2]);
+
+#pragma unroll
+      for (int m = 0; m < TM; m++) {
+#pragma unroll
+        for (int n = 0; n < TN; n++) {
+          r_c[m][n] = __hfma(rc_a[m], rc_b[n], r_c[m][n]);
+        }
+      }
     }
+    __syncthreads();
+  }
+#pragma unroll
+  for (int m = 0; m < TM; m++) {
+    int idx_g_cm = by * BM + ty * TM + m;
+    int idx_g_cn = bx * BN + tx * TN;
+    int addr_c = idx_g_cm * N + idx_g_cn;
+    LDST128BITS(C[addr_c]) = LDST128BITS(r_c[m][0]);
   }
 }
