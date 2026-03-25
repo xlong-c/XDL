@@ -1,9 +1,10 @@
 # Tools 脚本编写规范
 
 ## 注意事项
-- 避免出现 f-string without any placeholders。
-- 图像保存默认质量分数为 **99** (95质量太低)。
-- 路径处理必须兼容 Windows 和 WSL。
+- 避免出现 f-string without any placeholders.
+- 图像保存默认质量分数为 **99** (95质量太低).
+- 路径处理必须兼容 Windows 和 WSL.
+- 排序规则使用自然排序.
 
 ## 统一标准模板
 

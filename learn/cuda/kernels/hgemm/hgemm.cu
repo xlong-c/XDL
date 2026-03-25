@@ -2,6 +2,7 @@
 #include "cuda_fp16.h"
 #include "cuda_bf16.h"
 #include "cuda_runtime.h"
+#include <__clang_cuda_builtin_vars.h>
 #include <__clang_cuda_runtime_wrapper.h>
 #include <ctime>
 #include <curand_mtgp32_kernel.h>
@@ -235,7 +236,7 @@ __global__ void hgemm_shared_f16x4(
 }
 
 template <const int BM = 128, const int BN = 128, const int BK = 8, const int TM = 8, const int TN = 8>
-__global__ void hgemm_shared_f16x4_pack_bank(half *A, half *B, half *C, int M, int N, int K) {
+__global__ void hgemm_shared_f16x4_pack(half *A, half *B, half *C, int M, int N, int K) {
   static_assert(BM % TM == 0, "BM must be divisible by TM");
   static_assert(BN % TN == 0, "BN must be divisible by TN");
   static_assert(BK % 4 == 0, "BK must be divisible by 4 for float4 loading");
@@ -294,5 +295,56 @@ __global__ void hgemm_shared_f16x4_pack_bank(half *A, half *B, half *C, int M, i
         int addr_g_c = idx_g_cn * N + idx_g_cn;
         LDST64BITS(C[addr_g_c]) = LDST64BITS(r_c[m][n]);
       }
+  }
+}
+
+template <const int BM = 128, const int BN = 128, const int BK = 8, const int TM = 8, const int TN = 8>
+__global__ void hgemm_shared_f16x4_bank(
+    half *A, half *B, half *C, const int M, const int N, const int K) {
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int tid = ty * blockDim.x + tx;
+  __shared__ half s_a[BK][BM]; // A的存储转置了,方便对齐计算
+  __shared__ half s_b[BK][BN];
+
+  half r_a[TM / 2];
+  half r_b[TN / 2];
+  half rc_a[TM];
+  half rc_b[TM];
+  half r_c[TM][TN] = {CUDART_ZERO_FP16};
+
+  int idx_s_am = tid / 2;        // 8个数据一次4个,一行2个线程,
+  int idx_s_ak = (tid & 1) << 2; // 第一个线程加载前面四个,第二个是后面四个
+  int idx_s_bk = tid / 32;       // 128 / 4 = 32线程每行
+  int idx_s_bn = (tid % 32) << 2;
+
+  int idx_g_am = by * BM + idx_s_am; // A矩阵是M行K列的
+  int idx_g_bn = bx * BN + idx_s_bn;
+  for (int bk = 0; bk < (K + bk - 1) / bk; bk++) {
+    // 加载数据
+    int idx_g_ak = bk * BK + idx_s_ak;
+    int idx_g_bk = bk * BK + idx_s_bk;
+    int addr_a = idx_g_am * K + idx_g_ak;
+    int addr_b = idx_g_bk * N + idx_g_bn;
+
+    HALF2(r_a[0]) = HALF2(A[addr_a + 0]);
+    HALF2(r_a[2]) = HALF2(A[addr_a + 2]);
+    HALF2(r_b[0]) = HALF2(B[addr_b + 0]);
+    HALF2(r_b[2]) = HALF2(B[addr_b + 2]);
+
+    s_a[idx_s_ak + 0][idx_s_am] = r_a[0];
+    s_a[idx_s_ak + 1][idx_s_am] = r_a[1];
+    s_a[idx_s_ak + 2][idx_s_am] = r_a[2];
+    s_a[idx_s_ak + 3][idx_s_am] = r_a[3];
+    HALF2(s_b[0]) = HALF2(r_b[0]);
+    HALF2(s_b[2]) = HALF2(r_b[2]);
+    __syncthreads();
+
+#pragma unroll
+    for (int tk = 0; tk < (K / BK); tk++) {
+        
+    }
   }
 }
