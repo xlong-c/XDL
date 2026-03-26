@@ -322,7 +322,7 @@ __global__ void hgemm_shared_f16x4_bank(
 
   int idx_g_am = by * BM + idx_s_am; // A矩阵是M行K列的
   int idx_g_bn = bx * BN + idx_s_bn;
-  for (int bk = 0; bk < (K + bk - 1) / bk; bk++) {
+  for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
     // 加载数据
     int idx_g_ak = bk * BK + idx_s_ak;
     int idx_g_bk = bk * BK + idx_s_bk;
@@ -343,11 +343,11 @@ __global__ void hgemm_shared_f16x4_bank(
     __syncthreads();
 
 #pragma unroll
-    for (int tk = 0; tk < (K / BK); tk++) {
+    for (int tk = 0; tk < BK; tk++) {
       HALF2(rc_a[0]) = HALF2(s_a[tk][ty * TM / 2]);
       HALF2(rc_a[2]) = HALF2(s_a[tk][ty * TM / 2 + 2]);
-      HALF2(rc_a[4]) = HALF2(s_a[tk][ty * TM / 2 + BN / 2]);
-      HALF2(rc_a[6]) = HALF2(s_a[tk][ty * TM / 2 + BN / 2 + 2]);
+      HALF2(rc_a[4]) = HALF2(s_a[tk][ty * TM / 2 + BM / 2]);
+      HALF2(rc_a[6]) = HALF2(s_a[tk][ty * TM / 2 + BM / 2 + 2]);
 
       HALF2(rc_b[0]) = HALF2(s_b[tk][tx * TN / 2]);
       HALF2(rc_b[2]) = HALF2(s_b[tk][tx * TN / 2 + 2]);
@@ -366,9 +366,20 @@ __global__ void hgemm_shared_f16x4_bank(
   }
 #pragma unroll
   for (int m = 0; m < TM; m++) {
-    int idx_g_cm = by * BM + ty * TM + m;
-    int idx_g_cn = bx * BN + tx * TN;
-    int addr_c = idx_g_cm * N + idx_g_cn;
-    LDST128BITS(C[addr_c]) = LDST128BITS(r_c[m][0]);
+    // 修复寄存器分块带来的不连续偏移
+    // 前 4 个元素和后 4 个元素在 M 维度相差 BM / 2
+    int sm = (m < TM / 2) ? (ty * (TM / 2) + m) : (ty * (TM / 2) + BM / 2 + (m - TM / 2));
+    int idx_g_cm = by * BM + sm;
+    
+    // 同理，N 维度上的前后两块相差 BN / 2
+    // 第一部分 (n = 0~3) -> 4 个 half，恰好用 LDST64BITS 写回
+    int sn1 = tx * (TN / 2);
+    int addr_c1 = idx_g_cm * N + bx * BN + sn1;
+    LDST64BITS(C[addr_c1]) = LDST64BITS(r_c[m][0]);
+
+    // 第二部分 (n = 4~7) -> 4 个 half，恰好用 LDST64BITS 写回
+    int sn2 = tx * (TN / 2) + BN / 2;
+    int addr_c2 = idx_g_cm * N + bx * BN + sn2;
+    LDST64BITS(C[addr_c2]) = LDST64BITS(r_c[m][TN / 2]);
   }
 }
