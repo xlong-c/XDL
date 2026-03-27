@@ -346,7 +346,7 @@ __global__ void hgemm_shared_f16x4_bank(
     for (int tk = 0; tk < BK; tk++) {
       HALF2(rc_a[0]) = HALF2(s_a[tk][ty * TM / 2]);
       HALF2(rc_a[2]) = HALF2(s_a[tk][ty * TM / 2 + 2]);
-      HALF2(rc_a[4]) = HALF2(s_a[tk][ty * TM / 2 + BM / 2]);
+      HALF2(rc_a[4]) = HALF2(s_a[tk][ty * TM / 2 + BM / 2]); // 跨一个完整的32bank进行读取,避免bank conflict
       HALF2(rc_a[6]) = HALF2(s_a[tk][ty * TM / 2 + BM / 2 + 2]);
 
       HALF2(rc_b[0]) = HALF2(s_b[tk][tx * TN / 2]);
@@ -370,7 +370,7 @@ __global__ void hgemm_shared_f16x4_bank(
     // 前 4 个元素和后 4 个元素在 M 维度相差 BM / 2
     int sm = (m < TM / 2) ? (ty * (TM / 2) + m) : (ty * (TM / 2) + BM / 2 + (m - TM / 2));
     int idx_g_cm = by * BM + sm;
-    
+
     // 同理，N 维度上的前后两块相差 BN / 2
     // 第一部分 (n = 0~3) -> 4 个 half，恰好用 LDST64BITS 写回
     int sn1 = tx * (TN / 2);
@@ -381,5 +381,38 @@ __global__ void hgemm_shared_f16x4_bank(
     int sn2 = tx * (TN / 2) + BN / 2;
     int addr_c2 = idx_g_cm * N + bx * BN + sn2;
     LDST64BITS(C[addr_c2]) = LDST64BITS(r_c[m][TN / 2]);
+  }
+}
+
+template <const int BM = 128, const int BN = 128, const int BK = 8,
+          const int TM = 8, const int TN = 8, const int OFFSET = 0>
+__global__ void hgemm_8x8_pack_bcf(half *A, half *B, half *C,
+                                   const int M, const int N, const int K) {
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int tid = ty * blockDim.x + tx;
+  __shared__ half s_a[BK][BM + OFFSET];
+  __shared__ half s_b[BK][BN + OFFSET];
+
+  half r_a[TM / 2];
+  half r_b[TN / 2];
+  half rc_a[TM];
+  half rc_b[TN];
+  half r_c[TM][TN] = {CUDART_ZERO_FP16};
+
+  int idx_s_am = tid / 2;
+  int idx_s_ak = (tid & 2) << 2;
+  int idx_s_bk = tid / 32;
+  int idx_s_bn = (tid & 31) << 2;
+
+  int idx_g_am = BM * by + idx_s_am;
+  int idx_g_bn = BN * bx + idx_s_bn;
+
+  if (idx_g_am >= M || idx_g_bn >= N)
+    return;
+
+  for (int bk = 0; bk < K / BK; bk++) {
   }
 }
