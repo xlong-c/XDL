@@ -414,5 +414,62 @@ __global__ void hgemm_8x8_pack_bcf(half *A, half *B, half *C,
     return;
 
   for (int bk = 0; bk < K / BK; bk++) {
+    int idx_g_ak = bk * BK + idx_s_ak;
+    int idx_g_bk = bk * BK + idx_g_bk;
+    int addr_a = idx_g_am * K + idx_g_ak;
+    int addr_b = idx_g_bk * N + idx_g_bn;
+    LDST64BITS(r_a[0]) = LDST64BITS(A[addr_a]);
+    LDST64BITS(r_b[0]) = LDST64BITS(B[addr_b]);
+    s_a[idx_s_ak + 0][idx_s_am] = r_a[0];
+    s_a[idx_s_ak + 1][idx_s_am] = r_a[1];
+    s_a[idx_s_ak + 2][idx_s_am] = r_a[2];
+    s_a[idx_s_ak + 3][idx_s_am] = r_a[3];
+    LDST64BITS(s_b[idx_s_bk][idx_s_bn]) = LDST64BITS(r_b[0]);
+    __syncthreads();
+
+#pragma unroll
+    for (int tk = 0; tk < BK; tk++) {
+      // 加载数据到寄存器
+      LDST64BITS(rc_a[tk][ty * TM / 2]) = LDST64BITS(s_a[tk][ty * TM / 2]); // 跨一个完整的32bank进行读取,避免bank conflict
+      LDST64BITS(rc_a[tk][ty * TM / 2 + BM / 2]) = LDST64BITS(s_a[tk][ty * TM / 2 + BM / 2]);
+      LDST64BITS(rc_b[tk][tx * TN / 2]) = LDST64BITS(r_b[tk][tx * TN / 2]);
+      LDST64BITS(rc_b[tk][tx * TN / 2 + 2]) = LDST64BITS(r_b[tk][tx * TN / 2 + 2]);
+
+#pragma unroll
+      for (int m = 0; m < TM; m++) {
+#pragma unroll
+        for (int n = 0; n < TN; n++) {
+          r_c[m][n] = __hfma(rc_a[m], rc_b[n], r_c[m][n]);
+        }
+      }
+    }
+    __syncthreads();
   }
+#pragma unroll
+  for (int i = 0; i < TM / 2; i++) {
+    int idx_c_gm = by * BM + ty * TM / 2 + i;
+    int idx_c_gn = bx * BN + tx * TN / 2;
+    int addr_c = idx_c_gm * N + idx_c_gn;
+    LDST64BITS(C[addr_c]) = LDST64BITS(r_c[i][0]);
+    LDST64BITS(C[addr_c + BN / 2]) = LDST64BITS(r_c[i][4]);
+  }
+#pragma unroll
+  for (int i = 0; i < TM / 2; i++) {
+    int idx_c_gm = by * BM + ty * TM / 2 + i + BM / 2;
+    int idx_c_gn = bx * BN + tx * TN / 2;
+    int addr_c = idx_c_gm * N + idx_c_gn;
+    LDST64BITS(C[addr_c]) = LDST64BITS(r_c[i + TM / 2][0]);
+    LDST64BITS(C[addr_c + BN / 2]) = LDST64BITS(r_c[i + TM / 2][4]);
+  }
+}
+template <const int BM = 128, const int BN = 128, const int BK = 8,
+          const int TM = 8, const int TN = 8, const int OFFSET = 0>
+__global__ void hgemm_8x8_f16x8_pack_bcf(half *A, half *B, half *C, const int M, const int N, const int K) {
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+
+  __shared__ half s_a[BK][BM + OFFSET];
+  __shared__ half s_b[BK][BN + OFFSET];
 }
