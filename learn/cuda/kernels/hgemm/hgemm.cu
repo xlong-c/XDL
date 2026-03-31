@@ -469,7 +469,157 @@ __global__ void hgemm_8x8_f16x8_pack_bcf(half *A, half *B, half *C, const int M,
   const int by = blockIdx.y;
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
+  const int tid = tx + ty * blockDim.x;
 
   __shared__ half s_a[BK][BM + OFFSET];
   __shared__ half s_b[BK][BN + OFFSET];
+
+  half r_a[TM / 2]; // 加载数据暂存
+  half r_b[TN / 2];
+  half rc_a[TM]; // 计算数据暂存
+  half rc_b[TN];
+  half r_c[TM][TN] = {CUDART_ZERO_FP16}; // 累加
+
+  //smem a:BKxBM
+  int idx_s_am = tid / 2; // 一行8个元素,一个线程4个
+  int idx_s_ak = (tid & 1) << 2;
+  int idx_s_bk = tid / 32; // 一行128个元素, 一个线程4个
+  int idx_s_bn = (tid & 31) << 2;
+
+  int idx_g_am = by * BM + idx_s_am;
+  int idx_g_bn = bx * BN + idx_s_bn;
+  if (idx_g_am >= M || idx_g_bn >= N)
+    return;
+  for (int bk = 0; bk < K / BK; bk++) {
+    int idx_g_ak = bk * BK + idx_s_ak;
+    int idx_g_bk = bk * bk + idx_s_bk;
+    int addr_a = idx_g_ak + idx_g_am * K;
+    int addr_b = idx_g_bn + idx_g_bk * N;
+    LDST64BITS(r_a[0]) = LDST64BITS(A[addr_a]);
+    LDST64BITS(r_b[0]) = LDST64BITS(B[addr_b]);
+
+    // 转置存储A
+    s_a[idx_s_ak + 0][idx_s_am] = r_a[0];
+    s_a[idx_s_ak + 1][idx_s_am] = r_a[1];
+    s_a[idx_s_ak + 2][idx_s_am] = r_a[2];
+    s_a[idx_s_ak + 3][idx_s_am] = r_a[3];
+
+    LDST64BITS(s_b[idx_s_bk][idx_s_bn]) = LDST64BITS(r_b[0]);
+    __syncthreads();
+
+#pragma unroll
+    for (int tk = 0; tk < BK; tk++) {
+      LDST128BITS(rc_a[0]) = LDST128BITS(s_a[tk][ty * TM]);
+      LDST128BITS(rc_b[0]) = LDST128BITS(s_b[tk][tx * TN]);
+#pragma unroll
+      for (int tm = 0; tm < TM; tm++) {
+
+#pragma unroll
+        for (int tn = 0; tn < TN; tn++) {
+          r_c[tm][tn] = __hfma(rc_a[tm], rc_b[tn], r_c[tm][tn]);
+        }
+      }
+    }
+    __syncthreads();
+  }
+  // 写回C
+  for (int m = 0; m < TM; m++) {
+    int idx_c_gm = by * BM + ty * TM + m;
+    int idx_c_gn = bx * BN + tx * TN;
+    int addr_c = idx_c_gm * N + idx_c_gn;
+    LDST128BITS(C[addr_c]) = LDST128BITS(r_c[m][0]);
+  }
+}
+
+template <const int BM = 128, const int BN = 128, const int BK = 8,
+          const int TM = 8, const int TN = 8, const int OFFSET = 0>
+__global__ void hgemm_8x8_f16x8_pack_bcf_dbuf(half *A, half *B, half *C, const int M, const int N, const int K) {
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int tid = tx + ty * blockDim.x;
+  __shared__ half s_a[2][BK][BM + OFFSET];
+  __shared__ half s_b[2][BK][BN + OFFSET];
+  half r_a[TM / 2]; // 加载寄存器暂存
+  half r_b[TN / 2];
+
+  half rc_a[TM];
+  half rc_b[TN];
+  half r_c[TM][TN] = {CUDART_ZERO_FP16};
+  int idx_s_am = tid / 2;
+  int idx_s_ak = (tid & 1) << 2;
+  int idx_s_bk = tid / 32;
+  int idx_s_bn = (tid & 31) << 2;
+  int idx_g_am = by * BM + idx_s_am;
+  int idx_g_bn = bx * BN + idx_s_bn;
+  if (idx_g_am >= M || idx_g_bn >= N)
+    return;
+  //双缓冲预加载一个
+  {
+    int idx_g_ak = idx_s_ak; // bk = 0
+    int idx_g_bk = idx_s_bk;
+    int addr_a = idx_g_ak + idx_g_am * K;
+    int addr_b = idx_g_bn + idx_g_bk * N;
+    LDST64BITS(r_a[0]) = LDST64BITS(A[addr_a]);
+    LDST64BITS(r_b[0]) = LDST64BITS(B[addr_b]);
+    s_a[0][idx_s_ak + 0][idx_s_am] = r_a[0];
+    s_a[0][idx_s_ak + 1][idx_s_am] = r_a[1];
+    s_a[0][idx_s_ak + 2][idx_s_am] = r_a[2];
+    s_a[0][idx_s_ak + 3][idx_s_am] = r_a[3];
+    LDST64BITS(s_b[0][idx_s_bk][idx_s_bn]) = LDST64BITS(r_b[0]);
+  }
+  __syncthreads();
+  for (int bk = 1; bk < K / BK; bk++) {
+    // 缓冲选择
+    int smem_sel = (bk - 1) % 2;
+    int smem_next = bk % 2;
+
+    int idx_g_ak = bk * BK + idx_s_ak;
+    int idx_g_bk = bk * BK + idx_s_bk;
+    int addr_a = idx_g_ak + idx_g_am * K;
+    int addr_b = idx_g_bn + idx_g_bk * N;
+    LDST64BITS(r_a[0]) = LDST64BITS(A[addr_a]);
+    LDST64BITS(r_b[0]) = LDST64BITS(B[addr_b]);
+#pragma unroll
+    for (int tk = 0; tk < BK; tk++) {
+#pragma unroll
+      for (int tm = 0; tm < TM; tm++) {
+#pragma unroll
+        for (int tn = 0; tn < TN; tn++) {
+          r_c[tm][tn] = __hfma(rc_a[tm], rc_b[tn], r_c[tm][tn]);
+        }
+      }
+    }
+    // 缓冲写入下一块要用的
+    s_a[smem_next][idx_s_ak + 0][idx_s_am] = r_a[0];
+    s_a[smem_next][idx_s_ak + 1][idx_s_am] = r_a[1];
+    s_a[smem_next][idx_s_ak + 2][idx_s_am] = r_a[2];
+    s_a[smem_next][idx_s_ak + 3][idx_s_am] = r_a[3];
+    LDST64BITS(s_a[smem_next][idx_s_bk][idx_s_bn]) = LDST64BITS(r_b[0]);
+    __syncthreads();
+  }
+  // 算到最后剩一块
+  {
+#pragma unroll
+    for (int tk = 0; tk < BK; tk++) {
+      LDST128BITS(rc_a[0]) = LDST128BITS(s_a[1][tk][ty * TM]); // 双数结尾默认1
+      LDST128BITS(rc_b[0]) = LDST128BITS(s_b[1][tk][tx * TN]);
+#pragma unroll
+      for (int tm = 0; tm < TM; tm++) {
+#pragma unroll
+        for (int tn = 0; tm < TM; tm++) {
+          r_c[tm][tn] = __hfma(rc_a[tm], rc_b[tn], r_c[tm][tn]);
+        }
+      }
+    }
+    __syncthreads();
+  }
+  // 写回C
+  for (int m = 0; m < TM; m++) {
+    int idx_c_gm = by * BM + ty * TM + m;
+    int idx_c_gn = bx * BN + tx * TN;
+    int addr_c = idx_c_gm * N + idx_c_gn;
+    LDST128BITS(C[addr_c]) = LDST128BITS(r_c[m][0]);
+  }
 }
