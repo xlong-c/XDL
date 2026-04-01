@@ -56,7 +56,7 @@ __global__ void hgemm_wmma_m16n16k16(const half *A, const half *B, half *C, int 
 
 template <const int WMMA_M = 16, const int WMMA_N = 16, const int WMMA_K = 16,
           const int WMMA_TILE_M = 4, const int WMMA_TILE_N = 2>
-__global__ void hgemm_wmma_m16n16k16_tiled_m4n2(const half *A, const half *B, half *C, int M, int N, int K) {
+__global__ void hgemm_wmma_m16n16k16_tiled_m4n2(half *A, half *B, half *C, int M, int N, int K) {
   const int bx = blockIdx.x;
   const int by = blockIdx.y;
   const int NUM_K_ITERS = div_ceil(K, WMMA_K);
@@ -76,4 +76,33 @@ __global__ void hgemm_wmma_m16n16k16_tiled_m4n2(const half *A, const half *B, ha
   const int load_smem_b_k = tid / 16; // s_b 16x32 一次2个数据,一行16个线程
   const int load_smem_b_n = (tid % 16) * 2;
   const int load_gmem_a_m = by * BM + load_smem_a_m;
+  const int load_gmem_b_n = bx * BN + load_smem_b_n;
+  if (load_gmem_a_m > M || load_gmem_b_n > N)
+    return;
+
+  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> acc[WMMA_TILE_M][WMMA_TILE_N];
+#pragma unroll
+  for (int i = 0; i < WMMA_TILE_M; ++i) {
+#pragma unroll
+    for (int j = 0; j < WMMA_TILE_N; ++j) {
+      wmma::fill_fragment(acc[i][j], 0.0f);
+    }
+  }
+#pragma unroll
+  for (int k = 0; k < NUM_K_ITERS; ++k) {
+    int load_gmem_a_k = k * WMMA_K + load_smem_a_k;
+    int addr_a = load_gmem_a_m * K + load_gmem_a_k;
+    int load_gmem_b_k = k * WMMA_K + load_smem_b_k;
+    int addr_b = load_gmem_b_k * N + load_gmem_b_n;
+    LDST128BITS(s_b[load_smem_b_k][load_smem_b_n]) = LDST128BITS(B[addr_b]);
+    LDST128BITS(s_a[load_smem_a_m][load_smem_a_k]) = LDST128BITS(A[addr_a]);
+    __syncthreads();
+    wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> a;
+    wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major> b;
+#pragma unroll
+    for (int i = 0; i < WMMA_TILE_M; ++i) {
+      const int warp_smem_a_m = warp_m * WMMA_M * WMMA_TILE_M + i * WMMA_M;
+      wmma::load_matrix_sync(a, &s_a[warp_smem_a_m][0], BK);
+    }
+  }
 }
