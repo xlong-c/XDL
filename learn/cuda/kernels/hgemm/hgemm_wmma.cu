@@ -256,19 +256,63 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async(half *A, half *B,
     uint32_t load_smem_b_ptr = __cvta_generic_to_shared(&s_b[smem_sel_next][idx_s_bk][idx_s_bn]);
     CP_ASYNC_CG(load_smem_a_ptr, &A[addr_a], 16);
     CP_ASYNC_CG(load_smem_b_ptr, &B[addr_b], 16);
-    CP_ASYNC_COMMIT_GROUP();
 
     wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> a[WARP_TILE_M];
     wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> b[WARP_TILE_N];
 #pragma unroll
     for (int i = 0; i < WARP_TILE_M; i++) {
-      int idx_a = i * WMMA_M + warp_m * (WMMA_M * WMMA_TILE_M); // 
+      int idx_a = i * WMMA_M + warp_m * (WMMA_M * WMMA_TILE_M); //
       wmma::load_matrix_sync(
           a[i], &s_a[smem_sel][idx_a][0], BK);
     }
 
 #pragma unroll
+    for (int j = 0; j < WARP_TILE_N; j++) {
+      int idx_b = j * WMMA_N + warp_n * (WMMA_N * WMMA_TILE_N); //
+      wmma::load_matrix_sync(
+          b[j], &s_b[smem_sel][0][idx_b], BN);
+    }
 
+// 计算
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; i++) {
+#pragma unroll
+      for (int j = 0; j < WARP_TILE_N; j++) {
+        wmma::mma_sync(acc[i][j], a[i], b[j], acc[i][j]);
+      }
+    }
+    CP_ASYNC_COMMIT_GROUP();
     CP_ASYNC_WAIT_GROUP(0);
+    __syncthreads();
+  }
+  { // 计算最后一段K
+    wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> a[WARP_TILE_M];
+    wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> b[WARP_TILE_N];
+#pragma unroll // 寄存器初始化
+    for (int i = 0; i < WARP_TILE_M; i++) {
+      int idx_a = i * WMMA_M + warp_m * (WMMA_M * WMMA_TILE_M);
+    }
+#pragma unroll
+    for (int j = 0; j < WARP_TILE_N; j++) {
+      int idx_b = j * WMMA_N + warp_n * (WMMA_N * WMMA_TILE_N);
+    }
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; i++) {
+#pragma unroll
+      for (int j = 0; j < WARP_TILE_N; j++) {
+        wmma::mma_sync(acc[i][j], a[i], b[j], acc[i][j]);
+      }
+    }
+  }
+// 存储结果
+#pragma unroll
+  for (int i = 0; i < WMMA_TILE_M; i++) {
+#pragma unroll
+    for (int j = 0; j < WARP_TILE_N; j++) {
+      int idx_c_m = by * BM + i * WMMA_M + warp_m * (WMMA_M * WMMA_TILE_M);
+      int idx_c_n = bx * BN + j * WMMA_N + warp_n * (WMMA_N * WMMA_TILE_N);
+      wmma::store_matrix_sync(C + idx_c_m * N + idx_c_n, acc[i][j], N, wmma::mem_row_major);
+    }
   }
 }
+
