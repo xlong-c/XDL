@@ -90,6 +90,54 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
     int addr_b = idx_g_bk * N + idx_g_bn;
 
     uint32_t smem_a_ptr = (smem_a_ptr_base + (K * s_a_offset + idx_s_am * (BK + A_PAD) + idx_s_ak) * sizeof(half));
-    uint32_t smem_b_ptr = ;
+    uint32_t smem_b_ptr = (smem_b_ptr_base + (N * s_b_offset + idx_s_bn * (BN + B_PAD) + idx_s_bk) * sizeof(half));
+
+    CP_ASYNC_CG(smem_a_ptr, &A[addr_a], sizeof(half) * 16)
+    CP_ASYNC_CG(smem_b_ptr, &B[addr_b], sizeof(half) * 16)
+
+    // commit
+    CP_ASYNC_COMMIT_GROUP();
+  }
+  CP_ASYNC_WAIT_GROUP(0);
+  __syncthreads();
+#pragma unroll
+  for (int k = (K_STAGE - 1); k < K; ++k) {
+    int smem_sel = (k + 1) % K_STAGE;
+    int smem_sel_next = k % K_STAGE;
+
+    int idx_g_ak = k * WMMA_K + idx_s_ak;
+    int addr_a = idx_g_ak * K + idx_g_ak;
+    int idx_g_bk = k * WMMA_K + idx_s_bk;
+    int addr_b = idx_g_bk * N + idx_g_bn;
+
+    uint32_t smem_a_ptr = (smem_a_ptr_base + (K * s_a_offset + idx_s_am * (BK + A_PAD) + idx_s_ak) * sizeof(half));
+    uint32_t smem_b_ptr = (smem_b_ptr_base + (N * s_b_offset + idx_s_bn * (BN + B_PAD) + idx_s_bk) * sizeof(half));
+
+    CP_ASYNC_CG(smem_a_ptr, &A[addr_a], sizeof(half) * 16)
+    CP_ASYNC_CG(smem_b_ptr, &B[addr_b], sizeof(half) * 16)
+
+    // commit
+    CP_ASYNC_COMMIT_GROUP();
+
+    wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_K, WMMA_K, wmma::row_major> a_frag[WARP_TILE_M];
+    wmma::fragment<wmma::matrix_b, WMMA_K, WMMA_N, WMMA_K, wmma::row_major> b_frag[WARP_TILE_N];
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; ++i) {
+      const int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
+      wmma::load_matrix_sync(
+          a_frag[i],
+          &s_a[smem_sel][warp_smem_a_m][0],
+          BK + A_PAD);
+    }
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_N; ++i) {
+      const int warp_smem_b_n = warp_n * (WMMA_N * WARP_TILE_N) + i * WMMA_N;
+      wmma::load_matrix_sync(
+          b_frag[i],
+          &s_b[smem_sel][warp_smem_b_n][0],
+          BN + B_PAD);
+    }
   }
 }
