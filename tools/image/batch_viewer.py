@@ -184,6 +184,16 @@ class BatchImageViewer:
         self.slice_entry.pack(side=tk.LEFT, padx=5)
         self.slice_entry.bind("<Return>", lambda e: self.on_slice_change())
 
+        tk.Label(self.controls_frame, text="Parts:", bg="gray90").pack(
+            side=tk.LEFT, padx=(10, 5)
+        )
+        self.slice_parts_var = tk.StringVar(value=str(self.slice_parts))
+        self.slice_parts_entry = tk.Entry(
+            self.controls_frame, width=4, textvariable=self.slice_parts_var
+        )
+        self.slice_parts_entry.pack(side=tk.LEFT, padx=5)
+        self.slice_parts_entry.bind("<Return>", lambda e: self.on_slice_parts_change())
+
         tk.Label(self.controls_frame, text="PadX:", bg="gray90").pack(
             side=tk.LEFT, padx=(20, 5)
         )
@@ -379,8 +389,9 @@ class BatchImageViewer:
                 self.current_batch_layout.append(None)
 
         actual_displayed = min(batch_size, len(self.image_paths) - start_idx)
+        slice_info = f"[切片:{len(self.slice_indices)}/{self.slice_parts}]" if self.slice_enabled else ""
         self.lbl_status.config(
-            text=f"{start_idx + 1}-{start_idx + actual_displayed} / {len(self.image_paths)} (cols:{effective_cols})"
+            text=f"{start_idx + 1}-{start_idx + actual_displayed} / {len(self.image_paths)} (cols:{effective_cols}) {slice_info}"
         )
 
     def get_effective_cols(self):
@@ -484,6 +495,20 @@ class BatchImageViewer:
                     indices.append(idx)
             if indices:
                 self.slice_indices = sorted(set(indices))
+                self.display_batch()
+        except ValueError:
+            pass
+
+    def on_slice_parts_change(self):
+        try:
+            new_parts = int(self.slice_parts_var.get())
+            if new_parts >= 1:
+                self.slice_parts = new_parts
+                # Filter out indices that are now out of range
+                self.slice_indices = [idx for idx in self.slice_indices if idx <= self.slice_parts]
+                if not self.slice_indices and self.slice_parts > 0:
+                    self.slice_indices = [1]
+                self.slice_var.set(",".join(map(str, self.slice_indices)))
                 self.display_batch()
         except ValueError:
             pass
