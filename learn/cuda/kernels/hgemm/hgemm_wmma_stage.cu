@@ -49,7 +49,7 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
   const int warp_m = warp_id / WARP_TILE_N;
   const int warp_n = warp_id % WARP_TILE_N;
 
-  int NUM_K_ITERS = div_ceil(K, WMMA_K);
+  int NUM_K_TILES = div_ceil(K, WMMA_K);
 
   constexpr int BM = WMMA_M * WMMA_TILE_M * WARP_TILE_M;
   constexpr int BN = WMMA_N * WMMA_TILE_N * WARP_TILE_N; // 16*2*4 = 128
@@ -98,8 +98,10 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
     // commit
     CP_ASYNC_COMMIT_GROUP();
   }
+
   CP_ASYNC_WAIT_GROUP(0);
   __syncthreads();
+
 #pragma unroll
   for (int k = (K_STAGE - 1); k < K; ++k) {
     int smem_sel = (k + 1) % K_STAGE;
@@ -118,10 +120,10 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
 
     // commit
     CP_ASYNC_COMMIT_GROUP();
-
+    // 读取数据
     wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_K, WMMA_K, wmma::row_major> a_frag[WARP_TILE_M];
     wmma::fragment<wmma::matrix_b, WMMA_K, WMMA_N, WMMA_K, wmma::row_major> b_frag[WARP_TILE_N];
-
+    // stage 0
 #pragma unroll
     for (int i = 0; i < WARP_TILE_M; ++i) {
       const int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
@@ -138,6 +140,41 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
           b_frag[i],
           &s_b[smem_sel][warp_smem_b_n][0],
           BN + B_PAD);
+    }
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; ++i) {
+#pragma unroll
+      for (int j = 0; j < WARP_TILE_N; ++j) {
+        wmma::mma_sync(acc[i][j], a_frag[i], b_frag[j], acc[i]);
+      }
+    }
+    CP_ASYNC_WAIT_GROUP(K_STAGE - 2);
+    __syncthreads();
+  }
+  if ((K_STAGE - 2) > 0) {
+    CP_ASYNC_WAIT_GROUP(0);
+    __syncthreads();
+  }
+  { // stage K_STAGE - 1
+#pragma unroll
+    for (int k = 0; k < (K_STAGE - 1); ++k) {
+      // 选择缓存
+      const int stage_sel = (NUM_K_TILES - (K_STAGE - 1) + K) % K_STAGE;
+    }
+  }
+
+//store
+#pragma unroll
+  for (int i = 0; i < WARP_TILE_M; i++) {
+#pragma unroll
+    for (int j = 0; j < WARP_TILE_N; j++) {
+      const int store_gmem_am = by * BM + warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
+      const int store_gmem_bn = bx * BN + warp_n * (WMMA_N * WARP_TILE_N) + j * WMMA_N;
+      wmma::store_matrix_sync(
+          C + store_gmem_am * N + store_gmem_bn,
+          acc[i][j],
+          N, wmma::mem_row_major);
     }
   }
 }
