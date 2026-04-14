@@ -1,3 +1,4 @@
+#include <__clang_cuda_builtin_vars.h>
 #include <__clang_cuda_runtime_wrapper.h>
 #include <algorithm>
 #include <cstdint>
@@ -41,19 +42,19 @@ template <const int WMMA_M = 16, const int WMMA_N = 16, const int WMMA_K = 16,
           const bool BLOCK_SWIZZLE = false>
 __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half *B, half *C,
                                                                   int M, int N, int K) {
-  const int bx = blockIdx.x;
+  const int bx = ((int)BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;
   const int by = blockIdx.y;
   const int tid = threadIdx.x + blockIdx.x * blockDim.x;
   const int warp_id = tid / WARP_SIZE;
   const int lane_id = tid % WARP_SIZE;
-  const int warp_m = warp_id / WARP_TILE_N;
-  const int warp_n = warp_id % WARP_TILE_N;
+  const int warp_m = warp_id / WARP_TILE_M;
+  const int warp_n = warp_id % WARP_TILE_M;
 
   int NUM_K_TILES = div_ceil(K, WMMA_K);
 
-  constexpr int BM = WMMA_M * WMMA_TILE_M * WARP_TILE_M;
+  constexpr int BM = WMMA_M * WMMA_TILE_M * WMMA_TILE_N; // 16*4*2 = 128
   constexpr int BN = WMMA_N * WMMA_TILE_N * WARP_TILE_N; // 16*2*4 = 128
-  constexpr int BK = WMMA_K;
+  constexpr int BK = WMMA_K;                             // 16
 
   __shared__ half s_a[K_STAGE][BM][BK + A_PAD], s_b[K_STAGE][BK][BN + B_PAD];
   constexpr int s_a_offset = BM + B_PAD;
@@ -83,7 +84,7 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
   uint32_t smem_b_ptr_base = __cvta_generic_to_shared(s_b);
 
 #pragma unroll
-  for (int k = 0; k < (K_STAGE - 1); ++k) {
+  for (int k = 0; k < (K_STAGE - 1); ++k) { // 预加载
     int idx_g_ak = k * WMMA_K + idx_s_ak;
     int addr_a = idx_g_ak * K + idx_g_ak;
     int idx_g_bk = k * WMMA_K + idx_s_bk;
@@ -92,8 +93,8 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
     uint32_t smem_a_ptr = (smem_a_ptr_base + (K * s_a_offset + idx_s_am * (BK + A_PAD) + idx_s_ak) * sizeof(half));
     uint32_t smem_b_ptr = (smem_b_ptr_base + (N * s_b_offset + idx_s_bn * (BN + B_PAD) + idx_s_bk) * sizeof(half));
 
-    CP_ASYNC_CG(smem_a_ptr, &A[addr_a], sizeof(half) * 16)
-    CP_ASYNC_CG(smem_b_ptr, &B[addr_b], sizeof(half) * 16)
+    CP_ASYNC_CG(smem_a_ptr, &A[addr_a], 16) // 每个线程8个half
+    CP_ASYNC_CG(smem_b_ptr, &B[addr_b], 16)
 
     // commit
     CP_ASYNC_COMMIT_GROUP();
@@ -103,7 +104,7 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
   __syncthreads();
 
 #pragma unroll
-  for (int k = (K_STAGE - 1); k < K; ++k) {
+  for (int k = (K_STAGE - 1); k < NUM_K_TILES; k++) {
     int smem_sel = (k + 1) % K_STAGE;
     int smem_sel_next = k % K_STAGE;
 
@@ -115,8 +116,8 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
     uint32_t smem_a_ptr = (smem_a_ptr_base + (K * s_a_offset + idx_s_am * (BK + A_PAD) + idx_s_ak) * sizeof(half));
     uint32_t smem_b_ptr = (smem_b_ptr_base + (N * s_b_offset + idx_s_bn * (BN + B_PAD) + idx_s_bk) * sizeof(half));
 
-    CP_ASYNC_CG(smem_a_ptr, &A[addr_a], sizeof(half) * 16)
-    CP_ASYNC_CG(smem_b_ptr, &B[addr_b], sizeof(half) * 16)
+    CP_ASYNC_CG(smem_a_ptr, &A[addr_a], 16)
+    CP_ASYNC_CG(smem_b_ptr, &B[addr_b], 16)
 
     // commit
     CP_ASYNC_COMMIT_GROUP();
@@ -152,15 +153,38 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
     CP_ASYNC_WAIT_GROUP(K_STAGE - 2);
     __syncthreads();
   }
-  if ((K_STAGE - 2) > 0) {
+  if ((K_STAGE - 2) > 0) { // 最后一批数据缓存未完成，等待
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads();
   }
-  { // stage K_STAGE - 1
+  { // stage K_STAGE - 1 最后一节
 #pragma unroll
     for (int k = 0; k < (K_STAGE - 1); ++k) {
       // 选择缓存
-      const int stage_sel = (NUM_K_TILES - (K_STAGE - 1) + K) % K_STAGE;
+      const int stage_sel = (NUM_K_TILES - (K_STAGE - 1) + k) % K_STAGE;
+      wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_K, WMMA_K, wmma::row_major> a_frag[WARP_TILE_M];
+      wmma::fragment<wmma::matrix_b, WMMA_K, WMMA_N, WMMA_K, wmma::row_major> b_frag[WARP_TILE_N];
+#pragma unroll
+      for (int i = 0; i < WARP_TILE_M; ++i) {
+        wmma ::load_matrix_sync(
+            a_frag[i],
+            &s_a[stage_sel][warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M][0],
+            BK + A_PAD);
+      }
+#pragma unroll
+      for (int i = 0; i < WARP_TILE_N; ++i) {
+        wmma ::load_matrix_sync(
+            b_frag[i],
+            &s_b[stage_sel][warp_n * (WMMA_N * WARP_TILE_N) + i * WMMA_N][0],
+            BN + B_PAD);
+      }
+#pragma unroll
+      for (int i = 0; i < WARP_TILE_M; ++i) {
+#pragma unroll
+        for (int j = 0; j < WARP_TILE_N; ++j) {
+          wmma::mma_sync(acc[i][j], a_frag[i], b_frag[j], acc[i]);
+        }
+      }
     }
   }
 
@@ -177,4 +201,31 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(half *A, half 
           N, wmma::mem_row_major);
     }
   }
+}
+
+template <const int WMMA_M = 16, const int WMMA_N = 16, const int WMMA_K = 16,
+          const int WMMA_TILE_M = 4, const int WMMA_TILE_N = 2,
+          const int WARP_TILE_M = 2, const int WARP_TILE_N = 4,
+          const int K_STAGE = 2, const int A_PAD = 0, const int B_PAD = 0,
+          const bool BLOCK_SWIZZLE = false>
+__global__ void __launch_bounds__(256) hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem_kernel(
+    half *A, half *B, half *C,
+    int M, int N, int K) {
+  const int bx = blockIdx.x + ((int)BLOCK_SWIZZLE) * gridDim.x * blockIdx.z;
+  const int by = blockIdx.y;
+  const int NUM_K_TILES = div_ceil(K, WMMA_K);
+  const int BM = WMMA_M * WARP_TILE_M * WMMA_TILE_M;
+  const int BN = WMMA_N * WARP_TILE_N * WMMA_TILE_N;
+  const int BK = WMMA_K;
+  extern __shared__ half smem[];
+  half *s_a = smem;
+  half *s_b = smem + (BK + A_PAD) * BM * K_STAGE;
+  constexpr int s_a_stage_offset = BM * (BK + A_PAD);
+  constexpr int s_b_stage_offset = BK * (BN + B_PAD);
+  const int tid = threadIdx.x + threadIdx.y * blockDim.x;
+  const int warp_id = tid / WARP_SIZE;
+  const int lane_id = tid % WARP_SIZE;
+  const int warp_m = warp_id / WMMA_TILE_N;
+  const int warp_n = warp_id % WMMA_TILE_N;
+  
 }
