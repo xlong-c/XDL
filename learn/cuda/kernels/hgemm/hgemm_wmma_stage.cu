@@ -1,6 +1,7 @@
 #include <__clang_cuda_builtin_vars.h>
 #include <__clang_cuda_runtime_wrapper.h>
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
@@ -227,5 +228,52 @@ __global__ void __launch_bounds__(256) hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage
   const int lane_id = tid % WARP_SIZE;
   const int warp_m = warp_id / WMMA_TILE_N;
   const int warp_n = warp_id % WMMA_TILE_N;
-  
+
+  int load_smem_a_m = tid / 2;
+  int load_smem_a_k = (tid & 1) << 3; // (tid % 2 ==0) ? 0 : 8;
+  int load_smem_b_k = tid / 16;       // BN = 128 128/6 = 16
+  int load_smem_b_n = (tid & 15) << 3;
+
+  int load_gmem_a_m = BM * by + load_smem_a_m;
+  int load_gmem_b_n = BN * bx + load_smem_b_n;
+
+  //累加器
+  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> acc[WARP_TILE_M][WARP_TILE_N];
+#pragma unroll
+  for (int i = 0; i < WARP_TILE_M; ++i) {
+#pragma unroll
+    for (int j = 0; j < WARP_TILE_N; ++j) {
+      wmma::fill_fragment(acc[i][j], 0.0f);
+    }
+  }
+  // 缓存指针
+  uint32_t smem_a_ptr_base = __cvta_generic_to_shared(s_a);
+  uint32_t smem_b_ptr_base = __cvta_generic_to_shared(s_b);
+#pragma unroll
+  // 预加载k stage - 1块数据
+  for (int k = 0; k < (K_STAGE - 1); ++k) {
+    int load_gmem_a_k = K * WMMA_K + load_smem_a_k;
+    int load_gmem_b_k = K * WMMA_K + load_smem_b_k;
+    int load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;
+    int load_gmem_b_addr = load_gmem_b_k * N + load_gmem_b_n;
+
+    uint32_t load_smem_a_ptr = (smem_a_ptr_base +
+                                (K * s_a_stage_offset + load_smem_a_m * (BK + A_PAD) +
+                                 load_smem_a_k)) *
+                               sizeof(half);
+    uint32_t load_smem_b_ptr = (smem_b_ptr_base +
+                                (K * s_b_stage_offset + load_smem_b_k * BN +
+                                 load_smem_b_n)) *
+                               sizeof(half);
+    CP_ASYNC_CG(load_smem_a_ptr, &A[load_gmem_a_addr], 16)
+    CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16)
+    CP_ASYNC_COMMIT_GROUP();
+  }
+  CP_ASYNC_WAIT_GROUP(K_STAGE - 2);
+  __syncthreads();
+
+#pragma unroll
+  for (int k = (K_STAGE - 1); k < NUM_K_TILES; k++) {
+    int smem_sel = (k + 1) % K_STAGE;
+  }
 }
