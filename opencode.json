@@ -1,22 +1,21 @@
 {
     "$schema": "https://opencode.ai/config.json",
-    "model": "bailian-coding-plan/qwen3.5-plus",
     "plugin": [
-        // "oh-my-opencode"
+        "oh-my-opencode"
     ],
     "provider": {
         "yunwu-claude": {
-            "npm": "@ai-sdk/anthropic",
-            "name": "云雾 Claude",
+            "npm": "@ai-sdk/openai",
+            "name": "hello",
             "options": {
-                "baseURL": "https://yunwu.ai/v1",
-                "apiKey": "sk-V8UxbUXVOCsBmZKvDeYMJ8yzTrb88ukYunoGJQkm35bFvUFu"
+                "baseURL": "https://api.us-west-2.modal.direct/v1",
+                "apiKey": "modalresearch_jl6uex5KM1LY70BxL5OsW2CWqqr5NQmb2E6pLhwhwlw"
             },
             "models": {
-                "claude-sonnet-4-6": {
-                    "name": "Claude Sonnet 4.6",
+                "zai-org/GLM-5.1-FP8": {
+                    "name": "GLM",
                     "limit": {
-                        "context": 1000000,
+                        "context": 256000,
                         "output": 65536
                     }
                 }
