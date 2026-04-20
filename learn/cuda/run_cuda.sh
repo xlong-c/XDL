@@ -196,6 +196,8 @@ RUNTIME_LIB_DIRS=""
 NEED_CUBLAS=0
 NEED_CUBLAS_LT=0
 NEED_CUTE=0
+CPP_STD_FLAG="-std=c++23"
+ARCH_FLAGS="-arch=sm_120"
 
 if [ -n "$CUBLAS_LIB_DIR" ]; then
     CUBLAS_LIB_FILE=$(find "$CUBLAS_LIB_DIR" -maxdepth 1 -name 'libcublas.so*' 2>/dev/null | head -n 1 || true)
@@ -214,7 +216,6 @@ fi
 if grep -Eq '#include[[:space:]]*<cute/|#include[[:space:]]*"cute/' "$SOURCE_PATH"; then
     NEED_CUTE=1
 fi
-
 if [ "$NEED_CUTE" -eq 1 ]; then
     if [ -z "$CUTE_INCLUDE_DIR" ]; then
         echo "错误: 检测到 CuTe 头文件引用, 但未找到 CUTLASS/CuTe include 路径。可通过 CUTE_INCLUDE_DIR 或 CUTLASS_HOME 指定。" >&2
@@ -268,13 +269,16 @@ echo "[build] $SOURCE_REL -> $TARGET_PATH"
 [ -n "$CUBLAS_LT_LIB_FILE" ] && echo "[cuda] cublasLt file: $CUBLAS_LT_LIB_FILE"
 [ -n "$EXTRA_LINK_DIR_FLAGS" ] && echo "[link] extra dir flags: $EXTRA_LINK_DIR_FLAGS"
 [ -n "$EXTRA_LINK_FLAGS" ] && echo "[link] extra flags: $EXTRA_LINK_FLAGS"
+echo "[build] c++ standard: $CPP_STD_FLAG"
+[ -n "$ARCH_FLAGS" ] && echo "[build] arch flags: $ARCH_FLAGS"
 
 # NVCC_FLAGS 允许用户以环境变量形式追加额外参数。
 # shellcheck disable=SC2086
 if [ -n "$CUDA_INCLUDE_DIR" ] && [ -n "$CUBLAS_INCLUDE_DIR" ] && [ "$CUDA_INCLUDE_DIR" != "$CUBLAS_INCLUDE_DIR" ]; then
     nvcc "$SOURCE_PATH" \
         -O3 \
-        -std=c++17 \
+        "$CPP_STD_FLAG" \
+        ${ARCH_FLAGS:-} \
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
         -I"$CUDA_INCLUDE_DIR" \
@@ -287,7 +291,8 @@ if [ -n "$CUDA_INCLUDE_DIR" ] && [ -n "$CUBLAS_INCLUDE_DIR" ] && [ "$CUDA_INCLUD
 elif [ -n "$CUDA_INCLUDE_DIR" ]; then
     nvcc "$SOURCE_PATH" \
         -O3 \
-        -std=c++17 \
+        "$CPP_STD_FLAG" \
+        ${ARCH_FLAGS:-} \
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
         -I"$CUDA_INCLUDE_DIR" \
@@ -299,7 +304,8 @@ elif [ -n "$CUDA_INCLUDE_DIR" ]; then
 elif [ -n "$CUBLAS_INCLUDE_DIR" ]; then
     nvcc "$SOURCE_PATH" \
         -O3 \
-        -std=c++17 \
+        "$CPP_STD_FLAG" \
+        ${ARCH_FLAGS:-} \
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
         -I"$CUBLAS_INCLUDE_DIR" \
@@ -312,7 +318,8 @@ else
     echo "[warn] 未找到额外 CUDA include 路径, 将仅使用 nvcc 默认搜索路径" >&2
     nvcc "$SOURCE_PATH" \
         -O3 \
-        -std=c++17 \
+        "$CPP_STD_FLAG" \
+        ${ARCH_FLAGS:-} \
         -I"$PROJECT_ROOT" \
         -I"$SOURCE_DIR" \
         ${EXTRA_INCLUDE_FLAGS:-} \
