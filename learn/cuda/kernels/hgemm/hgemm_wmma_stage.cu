@@ -374,7 +374,7 @@ __global__ void
 hgemm_wmma_m16k16n16_mma4x4_warp4x4_stage_dsmem_kernel(const half *A, const half *B, half *C,
                                                        const int M, const int N, const int K) {
   const int by = blockIdx.y;
-  const int bx = (int)BLOCK_SWIZZLE * blockIdx.z * blockDim.x + blockIdx.x;
+  const int bx = blockIdx.x + ((int)BLOCK_SWIZZLE) * gridDim.x * blockIdx.z;
   const int tid = threadIdx.x + threadIdx.y * blockDim.x;
   const int NUM_K_TILES = div_ceil(K, WMMA_K);
   const int BM = WMMA_M * WARP_TILE_M * WMMA_TILE_M;
@@ -382,9 +382,9 @@ hgemm_wmma_m16k16n16_mma4x4_warp4x4_stage_dsmem_kernel(const half *A, const half
   const int BK = WMMA_K;
   extern __shared__ half smem[];
   half *s_a = smem;
-  half *s_b = smem + (K_STAGE * BK) * (BN + B_PAD);
-  constexpr int s_a_stage_offset = BK * (BM + A_PAD); // 每个stage的缓存大小
-  constexpr int s_b_stage_offset = BN * (BK + B_PAD);
+  half *s_b = smem + K_STAGE * BM * (BK + A_PAD);
+  constexpr int s_a_stage_offset = BM * (BK + A_PAD); // 每个stage的缓存大小
+  constexpr int s_b_stage_offset = BK * (BN + B_PAD);
   const int warp = tid / WARP_SIZE;
   const int warp_m = warp / WMMA_TILE_N;
   const int warp_n = warp % WMMA_TILE_N;
@@ -409,9 +409,123 @@ hgemm_wmma_m16k16n16_mma4x4_warp4x4_stage_dsmem_kernel(const half *A, const half
   }
   uint32_t smem_a_base_ptr = __cvta_generic_to_shared(s_a);
   uint32_t smem_b_base_ptr = __cvta_generic_to_shared(s_b);
-#pragma //填充
-  for (int k = 0; k < (K_STAGE - 1); k++) {
+
+#pragma unroll
+  for (int k = 0; k < (K_STAGE - 1); ++k) {
     int load_gmem_a_k = k * WMMA_K + load_smem_a_k;
     int load_gmem_b_k = k * WMMA_K + load_smem_b_k;
+    int load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;
+    int load_gmem_b_addr = load_gmem_b_k * N + load_gmem_b_n;
+    uint32_t load_smem_a_ptr =
+        smem_a_base_ptr +
+        (k * s_a_stage_offset + load_smem_a_m * (BK + A_PAD) + load_smem_a_k) * sizeof(half);
+    uint32_t load_smem_b_ptr =
+        smem_b_base_ptr +
+        (k * s_b_stage_offset + load_smem_b_k * (BN + B_PAD) + load_smem_b_n) * sizeof(half);
+    CP_ASYNC_CG(load_smem_a_ptr, &A[load_gmem_a_addr], 16);
+    CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
+    CP_ASYNC_COMMIT_GROUP();
+  }
+
+  CP_ASYNC_WAIT_GROUP(K_STAGE - 2);
+  __syncthreads();
+
+#pragma unroll
+  for (int k = (K_STAGE - 1); k < NUM_K_TILES; ++k) {
+    const int smem_sel = (k + 1) % K_STAGE;
+    const int smem_sel_next = k % K_STAGE;
+
+    int load_gmem_a_k = k * WMMA_K + load_smem_a_k;
+    int load_gmem_b_k = k * WMMA_K + load_smem_b_k;
+    int load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;
+    int load_gmem_b_addr = load_gmem_b_k * N + load_gmem_b_n;
+    uint32_t load_smem_a_ptr =
+        smem_a_base_ptr +
+        (smem_sel_next * s_a_stage_offset + load_smem_a_m * (BK + A_PAD) + load_smem_a_k) *
+            sizeof(half);
+    uint32_t load_smem_b_ptr =
+        smem_b_base_ptr +
+        (smem_sel_next * s_b_stage_offset + load_smem_b_k * (BN + B_PAD) + load_smem_b_n) *
+            sizeof(half);
+    CP_ASYNC_CG(load_smem_a_ptr, &A[load_gmem_a_addr], 16);
+    CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
+    CP_ASYNC_COMMIT_GROUP();
+
+    wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> a_frag[WARP_TILE_M];
+    wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> b_frag[WARP_TILE_N];
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; ++i) {
+      const int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
+      half *load_smem_a_frag_ptr =
+          s_a + smem_sel * s_a_stage_offset + warp_smem_a_m * (BK + A_PAD);
+      wmma::load_matrix_sync(a_frag[i], load_smem_a_frag_ptr, BK + A_PAD);
+    }
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_N; ++i) {
+      const int warp_smem_b_n = warp_n * (WMMA_N * WARP_TILE_N) + i * WMMA_N;
+      half *load_smem_b_frag_ptr =
+          s_b + smem_sel * s_b_stage_offset + warp_smem_b_n;
+      wmma::load_matrix_sync(b_frag[i], load_smem_b_frag_ptr, BN + B_PAD);
+    }
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; ++i) {
+#pragma unroll
+      for (int j = 0; j < WARP_TILE_N; ++j) {
+        wmma::mma_sync(acc[i][j], a_frag[i], b_frag[j], acc[i][j]);
+      }
+    }
+
+    CP_ASYNC_WAIT_GROUP(K_STAGE - 2);
+    __syncthreads();
+  }
+
+  if ((K_STAGE - 2) > 0) {
+    CP_ASYNC_WAIT_GROUP(0);
+    __syncthreads();
+  }
+
+  // 处理流水线尾部尚未计算的 stage。
+#pragma unroll
+  for (int k = 0; k < (K_STAGE - 1); ++k) {
+    const int stage_sel = (NUM_K_TILES - (K_STAGE - 1) + k) % K_STAGE;
+    wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> a_frag[WARP_TILE_M];
+    wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> b_frag[WARP_TILE_N];
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; ++i) {
+      const int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
+      half *load_smem_a_frag_ptr =
+          s_a + stage_sel * s_a_stage_offset + warp_smem_a_m * (BK + A_PAD);
+      wmma::load_matrix_sync(a_frag[i], load_smem_a_frag_ptr, BK + A_PAD);
+    }
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_N; ++i) {
+      const int warp_smem_b_n = warp_n * (WMMA_N * WARP_TILE_N) + i * WMMA_N;
+      half *load_smem_b_frag_ptr =
+          s_b + stage_sel * s_b_stage_offset + warp_smem_b_n;
+      wmma::load_matrix_sync(b_frag[i], load_smem_b_frag_ptr, BN + B_PAD);
+    }
+
+#pragma unroll
+    for (int i = 0; i < WARP_TILE_M; ++i) {
+#pragma unroll
+      for (int j = 0; j < WARP_TILE_N; ++j) {
+        wmma::mma_sync(acc[i][j], a_frag[i], b_frag[j], acc[i][j]);
+      }
+    }
+  }
+
+#pragma unroll
+  for (int i = 0; i < WARP_TILE_M; ++i) {
+#pragma unroll
+    for (int j = 0; j < WARP_TILE_N; ++j) {
+      const int store_gmem_m = by * BM + warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
+      const int store_gmem_n = bx * BN + warp_n * (WMMA_N * WARP_TILE_N) + j * WMMA_N;
+      wmma::store_matrix_sync(C + store_gmem_m * N + store_gmem_n, acc[i][j], N, wmma::mem_row_major);
+    }
   }
 }
