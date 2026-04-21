@@ -51,3 +51,45 @@ uint32_t make_smem_desc(half *ptr) {
   desc |= 1llu << 62;
   return desc;
 }
+#define WGMMA_M64N128K16_F16F16F16(d, sA, sB, ScaleD, ScaleA, ScaleB,         \
+                                   TransA, TransB)                            \
+  {                                                                           \
+    uint64_t desc_a = make_smem_desc(&(sA)[0]);                               \
+    uint64_t desc_b = make_smem_desc(&(sB)[0]);                               \
+    asm volatile(                                                             \
+        "{\n"                                                                 \
+        "wgmma.mma_async.sync.aligned.m64n128k16.f16.f16.f16 "                \
+        "{%0,   %1,   %2,   %3,   %4,   %5,   %6,   %7,   "                   \
+        " %8,   %9,   %10,  %11,  %12,  %13,  %14,  %15,  "                   \
+        " %16,  %17,  %18,  %19,  %20,  %21,  %22,  %23,  "                   \
+        " %24,  %25,  %26,  %27,  %28,  %29,  %30,  %31},"                    \
+        " %32,"                                                               \
+        " %33,"                                                               \
+        " %34, %35, %36, %37, %38;\n"                                         \
+        "}\n"                                                                 \
+        : "+r"((d)[0][0]), "+r"((d)[0][1]), "+r"((d)[0][2]), "+r"((d)[0][3]), \
+          "+r"((d)[1][0]), "+r"((d)[1][1]), "+r"((d)[1][2]), "+r"((d)[1][3]), \
+          "+r"((d)[2][0]), "+r"((d)[2][1]), "+r"((d)[2][2]), "+r"((d)[2][3]), \
+          "+r"((d)[3][0]), "+r"((d)[3][1]), "+r"((d)[3][2]), "+r"((d)[3][3]), \
+          "+r"((d)[4][0]), "+r"((d)[4][1]), "+r"((d)[4][2]), "+r"((d)[4][3]), \
+          "+r"((d)[5][0]), "+r"((d)[5][1]), "+r"((d)[5][2]), "+r"((d)[5][3]), \
+          "+r"((d)[6][0]), "+r"((d)[6][1]), "+r"((d)[6][2]), "+r"((d)[6][3]), \
+          "+r"((d)[7][0]), "+r"((d)[7][1]), "+r"((d)[7][2]), "+r"((d)[7][3])  \
+        : "l"(desc_a), "l"(desc_b), "n"(int32_t(ScaleD)),                     \
+          "n"(int32_t(ScaleA)), "n"(int32_t(ScaleB)),                         \
+          "n"(int32_t(TransA)), "n"(int32_t(TransB)));                        \
+  }
+template <int BlockMajorSize, int BlockMinorSize>
+__host__ static inline void create_tensor_map(CUtensorMap *tma_map, half *gmem_ptr, int blocks_height, int blocks_width) {
+
+  void *gmem_address = (void *)gmem_ptr;
+  uint64_t gmem_prob_shape[5] = {
+      (uint64_t)BlockMinorSize * blocks_width,
+      (uint64_t)BlockMajorSize * blocks_height,
+      1, 1, 1};
+  uint64_t gmem_stride[5] = {
+      sizeof(half), sizeof(half) * BlockMinorSize * blocks_width, 0, 0, 0};
+  uint64_t smem_box_shape[5] = {uint32_t(BlockMinorSize), uint32_t(BlockMajorSize), 1, 1, 1};
+  uint64_t smem_box_stride[5] = {1, 1, 1, 1, 1};
+  CUresult result = cuTensorMapCreate(tma_map,
+  }}
