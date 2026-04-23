@@ -80,16 +80,24 @@ uint32_t make_smem_desc(half *ptr) {
           "n"(int32_t(TransA)), "n"(int32_t(TransB)));                        \
   }
 template <int BlockMajorSize, int BlockMinorSize>
-__host__ static inline void create_tensor_map(CUtensorMap *tma_map, half *gmem_ptr, int blocks_height, int blocks_width) {
-
+__host__ static inline void create_tensor_map(CUtensorMap *tma_map,
+                                              half *gmem_ptr,
+                                              int blocks_height,
+                                              int blocks_width) {
   void *gmem_address = (void *)gmem_ptr;
-  uint64_t gmem_prob_shape[5] = {
-      (uint64_t)BlockMinorSize * blocks_width,
-      (uint64_t)BlockMajorSize * blocks_height,
-      1, 1, 1};
-  uint64_t gmem_stride[5] = {
+  uint64_t gmem_prob_shape[5] = {(uint64_t)BlockMinorSize * blocks_width,
+                                 (uint64_t)BlockMajorSize * blocks_height,
+                                 1, 1, 1};
+  uint64_t gmem_prob_stride[5] = {
       sizeof(half), sizeof(half) * BlockMinorSize * blocks_width, 0, 0, 0};
-  uint64_t smem_box_shape[5] = {uint32_t(BlockMinorSize), uint32_t(BlockMajorSize), 1, 1, 1};
-  uint64_t smem_box_stride[5] = {1, 1, 1, 1, 1};
-  CUresult result = cuTensorMapCreate(tma_map,
-  }}
+  uint32_t smem_box_shape[5] = {uint32_t(BlockMinorSize),
+                                uint32_t(BlockMajorSize), 1, 1, 1};
+  uint32_t smem_box_stride[5] = {1, 1, 1, 1, 1};
+  CUresult result = cuTensorMapEncodeTiled(
+      tma_map, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, 2, gmem_address,
+      gmem_prob_shape, gmem_prob_stride + 1, smem_box_shape, smem_box_stride,
+      CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_128B,
+      CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
+  if (result != CUDA_SUCCESS)
+    printf("cuTensorMapEncodeTiled failed: %d\n", (int)result);
+}
