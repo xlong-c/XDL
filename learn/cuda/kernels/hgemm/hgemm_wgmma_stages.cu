@@ -101,3 +101,47 @@ __host__ static inline void create_tensor_map(CUtensorMap *tma_map,
   if (result != CUDA_SUCCESS)
     printf("cuTensorMapEncodeTiled failed: %d\n", (int)result);
 }
+__host__ static inline CUtensorMap *allocate_and_create_tensor_map(
+    half *src, int blocks_height, int blocks_width) {
+  CUtensorMap *tma_map_d;
+  cudaMalloc(&tma_map_d, sizeof(CUtensorMap));
+  CUtensorMap tma_map_host;
+  create_tensor_map<128, 64>(&tma_map_host, src, blocks_height, blocks_width);
+  cudaMemcpy(tma_map_d, &tma_map_host, sizeof(CUtensorMap),
+             cudaMemcpyHostToDevice);
+  return tma_map_d;
+}
+
+template <int BM, int BN, int BK, int QSIZE>
+struct WgmmaSMem {
+  alignas(128) half A[BM * BK * QSIZE];
+  alignas(128) half B[BK * BN * QSIZE];
+};
+
+// TN: A row major MxK, B col major NxK, C row major MxN
+// 128x128, wgmma m64n128k16, warp specialized (1 producer + 1 consumer),
+// stages, block swizzle, TMA, f16 accum
+template <const int WGMMA_M = 64, const int WGMMA_N = 128,
+          const int WGMMA_K = 16, const int BM = 128, const int BN = 128,
+          const int BK = 64, const int NUM_THREADS = 256,
+          const int K_STAGE = 3, const bool BLOCK_SWIZZLE = false>
+__global__ void __launch_bounds__(NUM_THREADS)
+    hgemm_wgmma_m64n128k16_f16acc_stages_tma_ws_tn_kernel(
+        int M, int N, int K,
+        const CUtensorMap *__restrict__ tensorMapA, const CUtensorMap *__restrict__ tensorMapB) {
+  const int bx = ((int)BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;
+  const int by = blockIdx.y;
+  constexpr int num_consumers = (NUM_THREADS / WARPGROUP_SIZE) - 1;
+  constexpr int B_WG_M = BM / num_consumers;
+  if (bx >= div_ceil(N, BN) || by >= div_ceil(M, BM))
+    return;
+  extern __shared__ __align__(128) uint8_t smem[];
+  WgmmaSMem<BM, BN, BK, K_STAGE> &s = *reinterpret_cast<WgmmaSMem<BM, BN, BK, K_STAGE> *>(smem);
+  half *s_a = s.A;
+  half *s_b = s.B;
+#pragma nv_diag_suppress static_val_with_dynamic_init
+  __shared__ barrier full[K_STAGE], empty[K_STAGE];
+
+  const int num_blocks_k = div_ceil(K, BK);
+  const in
+}
