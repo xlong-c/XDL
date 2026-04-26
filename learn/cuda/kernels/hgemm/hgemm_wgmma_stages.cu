@@ -34,7 +34,6 @@
   asm volatile("wgmma.wait_group.sync.aligned %0;\n" : : "n"(n) : "memory")
 
 using barrier = cuda::barrier<cuda::thread_scope_block>;
-namespace cde = cuda ::device::experimental;
 
 HOST_DEVICE_INLINE
 int div_ceil(int a, int b) {
@@ -127,7 +126,7 @@ template <const int WGMMA_M = 64, const int WGMMA_N = 128,
           const int K_STAGE = 3, const bool BLOCK_SWIZZLE = false>
 __global__ void __launch_bounds__(NUM_THREADS)
     hgemm_wgmma_m64n128k16_f16acc_stages_tma_ws_tn_kernel(
-        int M, int N, int K,
+        int M, int N, int K, half *C,
         const CUtensorMap *__restrict__ tensorMapA, const CUtensorMap *__restrict__ tensorMapB) {
   const int bx = ((int)BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;
   const int by = blockIdx.y;
@@ -143,5 +142,101 @@ __global__ void __launch_bounds__(NUM_THREADS)
   __shared__ barrier full[K_STAGE], empty[K_STAGE];
 
   const int num_blocks_k = div_ceil(K, BK);
-  const in
+  const int wg_idx = threadIdx.x / WARPGROUP_SIZE;
+  const int tid = threadIdx.x % WARPGROUP_SIZE;
+  if (threadIdx.x == 0) {
+    for (int i = 0; i < K_STAGE; ++i) {
+      init(&full[i], num_consumers * WARPGROUP_SIZE + 1);
+      init(&empty[i], num_consumers * WARPGROUP_SIZE + 1);
+    }
+    asm volatile("fence.proxy.async.shared::cta;" ::: "memory");
+  }
+  __syncthreads();
+  if (wg_idx == 0) {
+    if (tid == 0) {
+      int qidx = 0;
+      for (int block_k_iter = 0; block_k_iter < num_blocks_k;
+           ++block_k_iter, ++qidx) {
+        if (qidx == K_STAGE)
+          qidx = 0;
+        // wait for consumer to release this slot
+        empty[qidx].wait(empty[qidx].arrive());
+        // TMA load A tile: coords = (k_offset, m_offset)
+        cuda::ptx::cp_async_bulk_tensor(
+            cuda::ptx::space_shared_t{}, cuda::ptx::space_global_t{},
+            &s_a[qidx * BK * BM], tensorMapA,
+            {int32_t(block_k_iter * BK), int32_t(by * BM)},
+            cuda::device::barrier_native_handle(full[qidx]));
+        // TMA load B tile: coords = (k_offset, n_offset)
+        cuda::ptx::cp_async_bulk_tensor(
+            cuda::ptx::space_shared_t{}, cuda::ptx::space_global_t{},
+            &s_b[qidx * BK * BN], tensorMapB,
+            {int32_t(block_k_iter * BK), int32_t(bx * BN)},
+            cuda::device::barrier_native_handle(full[qidx]));
+        // signal expected bytes for TMA completion tracking
+        [[maybe_unused]] auto token = cuda::device::barrier_arrive_tx(
+            full[qidx], 1, (BK * BN + BK * BM) * sizeof(half));
+      }
+    }
+  } // Consumer warpgroup (WG1): WGMMA compute
+  else {
+    // arrive on all empty barriers initially (consumer is ready)
+    for (int i = 0; i < K_STAGE; ++i) {
+      [[maybe_unused]] auto token = empty[i].arrive();
+    }
+
+    // f16 accumulators: d[m_tile][N/16][4], uint32_t carries half2
+    uint32_t d[B_WG_M / WGMMA_M][WGMMA_N / 16][4];
+    memset(d, 0, sizeof(d));
+
+    int qidx = 0;
+    for (int block_k_iter = 0; block_k_iter < num_blocks_k;
+         ++block_k_iter, ++qidx) {
+      if (qidx == K_STAGE)
+        qidx = 0;
+
+      // wait for TMA to finish loading this slot
+      full[qidx].wait(full[qidx].arrive());
+
+      // wgmma fence: ensure smem writes visible & accum regs ready
+      WGMMA_FENCE();
+#pragma unroll
+      for (int m_it = 0; m_it < B_WG_M / WGMMA_M; ++m_it) {
+        half *wgmma_sA = s_a + qidx * BK * BM + BK * m_it * WGMMA_M;
+#pragma unroll
+        for (int k_it = 0; k_it < BK / WGMMA_K; ++k_it) {
+          WGMMA_M64N128K16_F16F16F16(
+              d[m_it], wgmma_sA + k_it * WGMMA_K,
+              s_b + qidx * BK * BN + k_it * WGMMA_K,
+              1, 1, 1, 0, 0);
+        }
+      }
+      WGMMA_COMMIT_GROUP();
+      WGMMA_WAIT_GROUP(0);
+      // release this slot for producer to reuse
+      [[maybe_unused]] auto token = empty[qidx].arrive();
+    }
+
+    // Epilogue: store accumulators to row-major C.
+    const int lane = tid % WARP_SIZE;
+    const int warp = tid / WARP_SIZE;
+    const int row = warp * 16 + lane / 4;
+
+    half *block_C = C + by * BM * N + bx * BN;
+#pragma unroll
+    for (int m_it = 0; m_it < B_WG_M / WGMMA_M; ++m_it) {
+      int yo = m_it * WGMMA_M;
+#pragma unroll
+      for (int g = 0; g < WGMMA_N / 16; ++g) {
+        int col = g * 16 + 2 * (lane % 4);
+#define IDX(i, j) (((i) + yo) * N + (j))
+        *reinterpret_cast<uint32_t *>(&block_C[IDX(row, col)]) = d[m_it][g][0];
+        *reinterpret_cast<uint32_t *>(&block_C[IDX(row + 8, col)]) = d[m_it][g][1];
+        *reinterpret_cast<uint32_t *>(&block_C[IDX(row, col + 8)]) = d[m_it][g][2];
+        *reinterpret_cast<uint32_t *>(&block_C[IDX(row + 8, col + 8)]) =
+            d[m_it][g][3];
+#undef IDX
+      }
+    }
+  }
 }
