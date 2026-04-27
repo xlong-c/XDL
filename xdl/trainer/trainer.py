@@ -96,6 +96,50 @@ class Trainer:
         self._device = None if accelerate_config is not None else self._get_device_from_spec()
         self._is_setup = False
 
+    @classmethod
+    def from_setup(cls, setup) -> "Trainer":
+        """从 TrainSetup 创建 Trainer 并自动配置日志/检查点。
+
+        自动将 setup 中的 accelerate_config / logging_config / checkpoint_config
+        传递给 Trainer 构造函数和 setup_logger()。
+
+        Args:
+            setup: setup_from_yaml() 返回的 TrainSetup 对象。
+
+        Returns:
+            Trainer: 已配置好回调（日志、检查点、进度条）的训练器实例。
+
+        Example:
+            >>> setup = setup_from_yaml('config/vgg_cifar100.yaml')
+            >>> model = setup.create_model()
+            >>> trainer = Trainer.from_setup(setup)
+            >>> trainer.fit(model, setup.train_loader, setup.val_loader)
+        """
+        trainer = cls(
+            max_epochs=setup.num_epochs,
+            device=setup.device,
+            accelerate_config=setup.accelerate_config,
+        )
+
+        log_cfg = setup.logging_config
+        ckpt_cfg = setup.checkpoint_config
+
+        trainer.setup_logger(
+            log_dir=log_cfg.get("log_dir", "./others/logs"),
+            checkpoint_dir=ckpt_cfg.get(
+                "dirpath", log_cfg.get("output_dir", "./others/checkpoints")
+            ),
+            monitor=ckpt_cfg.get("monitor", "val_loss"),
+            mode=ckpt_cfg.get("mode", "min"),
+            save_top_k=ckpt_cfg.get("save_top_k", 1),
+            every_n_epochs=ckpt_cfg.get("every_n_epochs", 1),
+            enable_tensorboard=log_cfg.get("enable_tensorboard", True),
+            enable_console=log_cfg.get("enable_console", False),
+            enable_checkpoint=bool(ckpt_cfg),
+        )
+
+        return trainer
+
     def _get_device_from_spec(self) -> torch.device:
         """根据 device_spec 选择设备 - 直接使用用户提供的设备规格, 让PyTorch处理错误"""
         # 如果用户指定了具体设备, 直接使用, 让PyTorch处理错误
@@ -123,7 +167,9 @@ class Trainer:
         enable_console: bool = False,
         enable_total_progress: bool = False,
         tqdm_metric_keys: Optional[List[str]] = None,
-        **kwargs,
+        console_log_frequency: Optional[int] = None,
+        tensorboard_log_frequency: int = 1,
+        save_last: bool = True,
     ):
         """
         快速配置常用回调函数(日志、检查点、进度条等)
@@ -144,8 +190,7 @@ class Trainer:
         if enable_console:
             self.callback_list.add_callback(
                 ConsoleCallback(
-                    log_frequency=kwargs.get(
-                        "console_log_frequency", log_every_n_steps),
+                    log_frequency=console_log_frequency if console_log_frequency is not None else log_every_n_steps,
                     log_train=True,
                     log_validation=True,
                     log_validation_frequency="epoch",
@@ -158,7 +203,7 @@ class Trainer:
                 TensorBoardCallback(
                     experiment_name=experiment_name,
                     log_dir=log_dir,
-                    log_frequency=kwargs.get("tensorboard_log_frequency", 1),
+                    log_frequency=tensorboard_log_frequency,
                     log_train=True,
                     log_validation=True,
                     log_validation_frequency="epoch",
@@ -174,7 +219,7 @@ class Trainer:
                     mode=mode,
                     save_top_k=save_top_k,
                     every_n_epochs=every_n_epochs,
-                    save_last=kwargs.get("save_last", True),
+                    save_last=save_last,
                 )
             )
 

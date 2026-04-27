@@ -265,16 +265,14 @@ def build_transform(config: Any) -> Any:
 
     if not config:
         return None
-    if isinstance(config, list):
-        config_dict = _normalize_transform_shorthand(config)
-    elif isinstance(config, str):
-        config_dict = _normalize_transform_shorthand(config)
+    if isinstance(config, (list, str)):
+        normalized = _normalize_transform_shorthand(config)
     elif isinstance(config, Mapping):
-        config_dict = dict(config)
+        normalized = _normalize_transform_shorthand(dict(config))
     else:
         raise ConfigValidationError("transform config must be a mapping, list, or target string")
 
-    return _build_component(_normalize_transform_shorthand(config_dict), kind="transform")
+    return _build_component(normalized, kind="transform")
 
 
 def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> Any:

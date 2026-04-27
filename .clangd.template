@@ -1,30 +1,80 @@
 CompileFlags:
-  Add: [
-    "-isystem/path/to/your/conda/envs/xdl/targets/x86_64-linux/include",
-    "-isystem/path/to/your/conda/envs/xdl/include/python3.12",
-    "-isystem/path/to/your/conda/envs/xdl/lib/python3.12/site-packages/torch/include",
-    "-isystem/path/to/your/conda/envs/xdl/lib/python3.12/site-packages/torch/include/torch/csrc/api/include",
-    "-isystem/path/to/your/conda/envs/xdl/lib/python3.12/site-packages/pybind11/include",
-    "-DTORCH_EXTENSION_NAME=elementwise_lib",
-    "-DTORCH_API_INCLUDE_EXTENSION_H",
-    "-D__CUDACC__",
-    "-D__NVCC__",
-    "-DPYTORCH_EXTENSION",
-    "--cuda-path=/path/to/your/conda/envs/xdl/targets/x86_64-linux",
-    "--cuda-gpu-arch=sm_80",
-    "-Wno-unknown-cuda-version",
-    "--no-cuda-version-check",
-    "-xcuda",
-    "-fPIC",
-    "-O3",
-    "-std=c++17",
-    "-I/path/to/your/conda/envs/xdl/include/python3.12"
-  ]
+  Add:
+    [
+      "-isystem/root/miniconda3/envs/xdl/include/python3.12",
+      "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/torch/include",
+      "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/torch/include/torch/csrc/api/include",
+      "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/pybind11/include",
+      "-DTORCH_EXTENSION_NAME=elementwise_lib",
+      "-DTORCH_API_INCLUDE_EXTENSION_H",
+      "-DPYTORCH_EXTENSION",
+      "-fPIC",
+      "-O3",
+      "-std=c++20",
+      "-I/root/miniconda3/envs/xdl/include/python3.12",
+    ]
 Diagnostics:
-  Suppress: [
-    "drv_unknown_argument",
-    "ovl_no_viable_member_function_in_call",
-    "member_function_call_bad_type"
-  ]
+  Suppress:
+    [
+      "drv_unknown_argument",
+      "ovl_no_viable_member_function_in_call",
+      "member_function_call_bad_type",
+    ]
 Completion:
   AllScopes: true
+
+---
+If:
+  PathMatch:
+    - ".*\\.cu$"
+CompileFlags:
+  Remove:
+    [
+      "-std=c++23",
+      "-std=gnu++23",
+    ]
+  Add:
+    [
+      "-isystem/root/miniconda3/envs/xdl/targets/x86_64-linux/include",
+      "-isystem/root/miniconda3/envs/xdl/targets/x86_64-linux/include/cccl",
+      "-I/root/workspace/xdl/third_party/cutlass/include",
+      "-isystem/root/miniconda3/envs/xdl/lib/python3.12/site-packages/nvidia/cu13/include",
+      "--cuda-gpu-arch=sm_90a",
+      "-nocudainc",
+      "-nocudalib",
+      "-include",
+      "device_launch_parameters.h",
+      "-Wno-unknown-cuda-version",
+      "--no-cuda-version-check",
+      "-xcuda",
+      "-std=c++20",
+    ]
+Diagnostics:
+  UnusedIncludes: None
+  Suppress:
+    [
+      "typename_nested_not_found",
+      "ovl_no_oper",
+      "template_instantiate_undefined",
+      "module_odr_violation_function",
+      "redefinition",
+      "unused-includes",
+    ]
+
+---
+If:
+  PathMatch:
+    - ".*hgemm_wgmma_stages\\.cu$"
+CompileFlags:
+  Add:
+    [
+      "-D__CUDACC__",
+      "-ferror-limit=0",
+    ]
+Diagnostics:
+  Suppress:
+    [
+      "cuda_ovl_target",
+      "constexpr_redecl_mismatch",
+      "fatal_too_many_errors",
+    ]

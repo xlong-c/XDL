@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cstdint>
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
 #include <cuda_fp8.h>
@@ -34,22 +33,28 @@
   asm volatile("wgmma.wait_group.sync.aligned %0;\n" : : "n"(n) : "memory")
 
 using barrier = cuda::barrier<cuda::thread_scope_block>;
+namespace cde = cuda::device::experimental;
 
 HOST_DEVICE_INLINE
-int div_ceil(int a, int b) {
-  return (a % b != 0) ? (a / b + 1) : (a / b);
-}
+int div_ceil(int a, int b) { return (a % b != 0) ? (a / b + 1) : (a / b); }
 
-DEVICE_INLINE
-uint32_t make_smem_desc(half *ptr) {
+// make wgmma shared memory matrix descriptor.
+// encodes smem base addr, leading byte offset=16, stride byte offset=1024,
+// and 128B swizzle mode (bit 62).
+DEVICE_INLINE uint64_t make_smem_desc(half *ptr) {
   uint32_t addr = static_cast<uint32_t>(__cvta_generic_to_shared(ptr));
   uint64_t desc = 0x0000000000000000;
   desc |= SMEM_DESC_ENCODE(addr);
   desc |= SMEM_DESC_ENCODE((uint64_t)16) << 16;
   desc |= SMEM_DESC_ENCODE((uint64_t)1024) << 32;
-  desc |= 1llu << 62;
+  desc |= 1llu << 62; // 128B swizzle
   return desc;
 }
+
+// wgmma.mma_async.sync.aligned.m64n128k16.f16.f16.f16
+// 32 output registers (uint32_t=half2), both A/B from shared memory (SS).
+// ScaleD: 0=clear accum, 1=accumulate. ScaleA/B: 1=no negate.
+// TransA/TransB: 0=no transpose.
 #define WGMMA_M64N128K16_F16F16F16(d, sA, sB, ScaleD, ScaleA, ScaleB,         \
                                    TransA, TransB)                            \
   {                                                                           \
@@ -78,6 +83,10 @@ uint32_t make_smem_desc(half *ptr) {
           "n"(int32_t(ScaleA)), "n"(int32_t(ScaleB)),                         \
           "n"(int32_t(TransA)), "n"(int32_t(TransB)));                        \
   }
+
+// TMA descriptor creation (2D, matching fast.cu/matmul_4 style).
+// Matrix (H, W) row-major: shape=(W, H), stride=(sizeof(half)*W).
+// Box: (BlockMinorSize, BlockMajorSize). Swizzle: 128B.
 template <int BlockMajorSize, int BlockMinorSize>
 __host__ static inline void create_tensor_map(CUtensorMap *tma_map,
                                               half *gmem_ptr,
@@ -100,6 +109,7 @@ __host__ static inline void create_tensor_map(CUtensorMap *tma_map,
   if (result != CUDA_SUCCESS)
     printf("cuTensorMapEncodeTiled failed: %d\n", (int)result);
 }
+
 __host__ static inline CUtensorMap *allocate_and_create_tensor_map(
     half *src, int blocks_height, int blocks_width) {
   CUtensorMap *tma_map_d;
@@ -111,6 +121,7 @@ __host__ static inline CUtensorMap *allocate_and_create_tensor_map(
   return tma_map_d;
 }
 
+// shared memory layout for TMA multi-stage pipeline.
 template <int BM, int BN, int BK, int QSIZE>
 struct WgmmaSMem {
   alignas(128) half A[BM * BK * QSIZE];
@@ -127,31 +138,41 @@ template <const int WGMMA_M = 64, const int WGMMA_N = 128,
 __global__ void __launch_bounds__(NUM_THREADS)
     hgemm_wgmma_m64n128k16_f16acc_stages_tma_ws_tn_kernel(
         int M, int N, int K, half *C,
-        const CUtensorMap *__restrict__ tensorMapA, const CUtensorMap *__restrict__ tensorMapB) {
+        const CUtensorMap *__restrict__ tensorMapA,
+        const CUtensorMap *__restrict__ tensorMapB) {
+  // BLOCK_SWIZZLE 0/1 control use block swizzle or not.
   const int bx = ((int)BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;
   const int by = blockIdx.y;
-  constexpr int num_consumers = (NUM_THREADS / WARPGROUP_SIZE) - 1;
-  constexpr int B_WG_M = BM / num_consumers;
+  constexpr int num_consumers = (NUM_THREADS / WARPGROUP_SIZE) - 1; // 1
+  constexpr int B_WG_M = BM / num_consumers;                        // 128
+
   if (bx >= div_ceil(N, BN) || by >= div_ceil(M, BM))
     return;
+
   extern __shared__ __align__(128) uint8_t smem[];
-  WgmmaSMem<BM, BN, BK, K_STAGE> &s = *reinterpret_cast<WgmmaSMem<BM, BN, BK, K_STAGE> *>(smem);
+  WgmmaSMem<BM, BN, BK, K_STAGE> &s =
+      *reinterpret_cast<WgmmaSMem<BM, BN, BK, K_STAGE> *>(smem);
   half *s_a = s.A;
   half *s_b = s.B;
-#pragma nv_diag_suppress static_val_with_dynamic_init
+
+#pragma nv_diag_suppress static_var_with_dynamic_init
   __shared__ barrier full[K_STAGE], empty[K_STAGE];
 
-  const int num_blocks_k = div_ceil(K, BK);
-  const int wg_idx = threadIdx.x / WARPGROUP_SIZE;
-  const int tid = threadIdx.x % WARPGROUP_SIZE;
+  const int num_blocks_k = K / BK;
+  const int wg_idx = threadIdx.x / WARPGROUP_SIZE; // 0=producer, 1=consumer
+  const int tid = threadIdx.x % WARPGROUP_SIZE;    // 0~127 within WG
+
+  // Init barriers: num_consumers*128 consumer threads + 1 producer thread.
   if (threadIdx.x == 0) {
     for (int i = 0; i < K_STAGE; ++i) {
       init(&full[i], num_consumers * WARPGROUP_SIZE + 1);
       init(&empty[i], num_consumers * WARPGROUP_SIZE + 1);
     }
-    asm volatile("fence.proxy.async.shared::cta;" ::: "memory");
+    cde::fence_proxy_async_shared_cta();
   }
   __syncthreads();
+
+  // Producer warpgroup (WG0): TMA loads global -> shared
   if (wg_idx == 0) {
     if (tid == 0) {
       int qidx = 0;
@@ -162,23 +183,20 @@ __global__ void __launch_bounds__(NUM_THREADS)
         // wait for consumer to release this slot
         empty[qidx].wait(empty[qidx].arrive());
         // TMA load A tile: coords = (k_offset, m_offset)
-        cuda::ptx::cp_async_bulk_tensor(
-            cuda::ptx::space_shared_t{}, cuda::ptx::space_global_t{},
-            &s_a[qidx * BK * BM], tensorMapA,
-            {int32_t(block_k_iter * BK), int32_t(by * BM)},
-            cuda::device::barrier_native_handle(full[qidx]));
+        cde::cp_async_bulk_tensor_2d_global_to_shared(
+            &s_a[qidx * BK * BM], tensorMapA, block_k_iter * BK,
+            by * BM, full[qidx]);
         // TMA load B tile: coords = (k_offset, n_offset)
-        cuda::ptx::cp_async_bulk_tensor(
-            cuda::ptx::space_shared_t{}, cuda::ptx::space_global_t{},
-            &s_b[qidx * BK * BN], tensorMapB,
-            {int32_t(block_k_iter * BK), int32_t(bx * BN)},
-            cuda::device::barrier_native_handle(full[qidx]));
+        cde::cp_async_bulk_tensor_2d_global_to_shared(
+            &s_b[qidx * BK * BN], tensorMapB, block_k_iter * BK,
+            bx * BN, full[qidx]);
         // signal expected bytes for TMA completion tracking
         [[maybe_unused]] auto token = cuda::device::barrier_arrive_tx(
             full[qidx], 1, (BK * BN + BK * BM) * sizeof(half));
       }
     }
-  } // Consumer warpgroup (WG1): WGMMA compute
+  }
+  // Consumer warpgroup (WG1): WGMMA compute
   else {
     // arrive on all empty barriers initially (consumer is ready)
     for (int i = 0; i < K_STAGE; ++i) {

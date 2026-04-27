@@ -51,11 +51,33 @@ class TrainSetup:
     # 完整配置（用于调试或自定义逻辑）
     full_config: Dict[str, Any] = field(default_factory=dict)
     
+    # 日志 / 检查点 / 加速配置
+    logging_config: Dict[str, Any] = field(default_factory=dict)
+    checkpoint_config: Dict[str, Any] = field(default_factory=dict)
+    accelerate_config: Optional[Dict[str, Any]] = None
+
     # 训练参数
     device: str = "cuda"
     num_epochs: int = 100
     batch_size: int = 128
     
+    def create_model(self):
+        """将外部组件包装为 CoreModel 子类，直接对接 Trainer.fit()。
+
+        Returns:
+            TrainSetupModel: 包装后的 CoreModel 实例，内部已配置好
+                optimizer / loss_fn / scheduler / metrics。
+        """
+        from xdl.trainer.trainSetupModel import TrainSetupModel
+
+        return TrainSetupModel(
+            model=self.model,
+            optimizer=self.optimizer,
+            loss_fn=self.loss_fn,
+            scheduler=self.scheduler,
+            metrics=self.metrics,
+        )
+
     def __repr__(self) -> str:
         """友好的字符串表示"""
         return (

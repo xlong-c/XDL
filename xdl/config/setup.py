@@ -32,6 +32,7 @@ from .builder import (
 from .dataclass import TrainSetup
 from .errors import ConfigValidationError
 from .resolver import load_config_with_schema, to_plain_dict
+from .schema import CONFIG_SCHEMA_VERSION
 
 def _load_raw_yaml(config_path: Path) -> Dict[str, Any]:
     with open(config_path, "r", encoding="utf-8") as file:
@@ -68,65 +69,22 @@ def _resolve_dataset_transform_value(
 
 def _resolve_dataset_value(
     dataset_name: str,
-    dataset_value: Any,
     built_datasets: Dict[str, Any],
-    built_transforms: Dict[str, Any],
 ) -> Any:
-    if dataset_name in built_datasets:
-        return built_datasets[dataset_name]
-    if isinstance(dataset_value, str) and dataset_value in built_datasets:
-        return built_datasets[dataset_value]
-    if isinstance(dataset_value, dict):
-        transform_value = _resolve_dataset_transform_value(dataset_value, built_transforms)
-        return build_dataset(dataset_value, transform=transform_value)
-    raise ConfigValidationError(f"Unable to resolve dataset for dataloader '{dataset_name}'")
+    if dataset_name not in built_datasets:
+        raise ConfigValidationError(f"No pre-built dataset found for dataloader '{dataset_name}'")
+    return built_datasets[dataset_name]
 
 
-def _collect_transform_configs(root_config: Dict[str, Any]) -> Dict[str, Any]:
-    alias_mapping = (
-        ("train_transforms", "train"),
-        ("val_transforms", "val"),
-        ("test_transforms", "test"),
-    )
+def _collect_configs(
+    root_config: Dict[str, Any],
+    alias_mapping: tuple,
+) -> Dict[str, Any]:
     collected: Dict[str, Any] = {}
-
-    for alias_key, transform_name in alias_mapping:
+    for alias_key, short_name in alias_mapping:
         alias_value = root_config.get(alias_key)
         if alias_value is not None:
-            collected[transform_name] = alias_value
-
-    return collected
-
-
-def _collect_dataset_configs(root_config: Dict[str, Any]) -> Dict[str, Any]:
-    alias_mapping = (
-        ("train_dataset", "train"),
-        ("val_dataset", "val"),
-        ("test_dataset", "test"),
-    )
-    collected: Dict[str, Any] = {}
-
-    for alias_key, dataset_name in alias_mapping:
-        alias_value = root_config.get(alias_key)
-        if alias_value is not None:
-            collected[dataset_name] = alias_value
-
-    return collected
-
-
-def _collect_dataloader_configs(root_config: Dict[str, Any]) -> Dict[str, Any]:
-    alias_mapping = (
-        ("train_dataloader", "train"),
-        ("val_dataloader", "val"),
-        ("test_dataloader", "test"),
-    )
-    collected: Dict[str, Any] = {}
-
-    for alias_key, dataloader_name in alias_mapping:
-        alias_value = root_config.get(alias_key)
-        if alias_value is not None:
-            collected[dataloader_name] = alias_value
-
+            collected[short_name] = alias_value
     return collected
 
 
@@ -179,17 +137,36 @@ def setup_from_yaml(
 
     raw_config = _load_raw_yaml(path)
 
-    merged_config = load_config_with_schema(raw_config)
-    resolved_config = to_plain_dict(merged_config, resolve=True)
+    declared_version = raw_config.get("config_version")
+    if declared_version is not None and declared_version != CONFIG_SCHEMA_VERSION:
+        raise ConfigValidationError(
+            f"Unsupported config version {declared_version}. "
+            f"Expected {CONFIG_SCHEMA_VERSION}."
+        )
+
+    merged_config = load_config_with_schema(raw_config, resolve=True)
+    resolved_config = to_plain_dict(merged_config, resolve=False)
 
     model_config = resolved_config.get("model")
     if not isinstance(model_config, dict) or not model_config:
         raise ConfigValidationError("model config cannot be empty")
     model = build_model(model_config)
 
-    transform_config = _collect_transform_configs(resolved_config)
-    dataset_config = _collect_dataset_configs(resolved_config)
-    dataloader_config = _collect_dataloader_configs(resolved_config)
+    transform_config = _collect_configs(resolved_config, (
+        ("train_transforms", "train"),
+        ("val_transforms", "val"),
+        ("test_transforms", "test"),
+    ))
+    dataset_config = _collect_configs(resolved_config, (
+        ("train_dataset", "train"),
+        ("val_dataset", "val"),
+        ("test_dataset", "test"),
+    ))
+    dataloader_config = _collect_configs(resolved_config, (
+        ("train_dataloader", "train"),
+        ("val_dataloader", "val"),
+        ("test_dataloader", "test"),
+    ))
     dataloader_defaults = _collect_dataloader_defaults(resolved_config)
     trainer_config = resolved_config.get("trainer", {})
     trainer_batch_size = trainer_config.get("batch_size")
@@ -210,13 +187,7 @@ def setup_from_yaml(
             dataloader_defaults=dataloader_defaults,
             trainer_batch_size=trainer_batch_size,
         )
-        dataset_value = dataloader_cfg.get("dataset")
-        dataset = _resolve_dataset_value(
-            dataloader_name,
-            dataset_value,
-            built_datasets,
-            built_transforms,
-        )
+        dataset = _resolve_dataset_value(dataloader_name, built_datasets)
         built_dataloaders[dataloader_name] = build_dataloader(dataset, merged_dataloader_cfg)
 
     optimization_config = resolved_config.get("optimization") or {}
@@ -238,6 +209,14 @@ def setup_from_yaml(
     runtime_device = runtime_config.get("device", "cuda" if torch.cuda.is_available() else "cpu")
     selected_device = str(device) if device is not None else str(runtime_device)
 
+    logging_config = resolved_config.get("logging") or {}
+    if not isinstance(logging_config, dict):
+        logging_config = {}
+    checkpoint_config = resolved_config.get("checkpoint") or {}
+    if not isinstance(checkpoint_config, dict):
+        checkpoint_config = {}
+    accelerate_config = resolved_config.get("accelerate")
+
     selected_batch_size = trainer_batch_size
     if selected_batch_size is None:
         selected_batch_size = dataloader_defaults.get("batch_size")
@@ -245,10 +224,20 @@ def setup_from_yaml(
         selected_batch_size = dataloader_config["train"].get("params", {}).get("batch_size")
     if selected_batch_size is None and built_dataloaders.get("train") is not None:
         selected_batch_size = built_dataloaders["train"].batch_size
+    if selected_batch_size is None:
+        raise ConfigValidationError(
+            "batch_size must be specified in at least one of: "
+            "trainer.batch_size, dataloader_defaults.batch_size, "
+            "or train_dataloader.params.batch_size"
+        )
+
+    train_loader = built_dataloaders.get("train")
+    if train_loader is None:
+        raise ConfigValidationError("train_dataloader config is required")
 
     return TrainSetup(
         model=model,
-        train_loader=built_dataloaders.get("train"),
+        train_loader=train_loader,
         optimizer=optimizer,
         loss_fn=loss_fn,
         val_loader=built_dataloaders.get("val"),
@@ -258,7 +247,10 @@ def setup_from_yaml(
         full_config=resolved_config,
         device=selected_device,
         num_epochs=int(trainer_config.get("max_epochs", 100)),
-        batch_size=int(selected_batch_size or 128),
+        batch_size=int(selected_batch_size),
+        logging_config=logging_config,
+        checkpoint_config=checkpoint_config,
+        accelerate_config=accelerate_config,
     )
 
 
