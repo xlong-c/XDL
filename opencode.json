@@ -3,24 +3,6 @@
     "plugin": [
         "oh-my-opencode"
     ],
-    "provider": {
-        "yunwu-claude": {
-            "npm": "@ai-sdk/openai",
-            "name": "hello",
-            "options": {
-                "baseURL": "https://api.us-west-2.modal.direct/v1",
-                "apiKey": "modalresearch_jl6uex5KM1LY70BxL5OsW2CWqqr5NQmb2E6pLhwhwlw"
-            },
-            "models": {
-                "zai-org/GLM-5.1-FP8": {
-                    "name": "GLM",
-                    "limit": {
-                        "context": 256000,
-                        "output": 65536
-                    }
-                }
-            }
-        }
-    },
+    "model": "deepseek/qwen3-coder-plus",
     "mcp": {}
 }
