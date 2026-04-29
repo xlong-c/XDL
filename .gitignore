@@ -5,7 +5,11 @@ __pycache__/
 
 # C extensions
 *.so
-
+.omc/
+.codex/
+.github/
+.opencode/
+.playwright-cli/
 # Distribution / packaging
 .Python
 build/
