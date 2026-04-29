@@ -1,3 +1,11 @@
+"""
+TwinFlow: 连续时间生成模型 (Continuous-Time Generative Model).
+
+结合 RCGM 整流、一致性正则化、分布匹配、增强目标等技术。
+训练: training_step() → 采样: sampling_loop()
+参考: RCGM (https://github.com/LINs-lab/RCGM), UCGM (arXiv:2505.07447)
+"""
+
 import torch
 from typing import List, Callable, Union, Literal
 import numpy as np
@@ -6,6 +14,18 @@ from xdl.utils.weight import update_ema
 
 
 class TwinFlow(torch.nn.Module):
+    """TwinFlow 连续时间生成模型。
+
+    核心机制:
+    - alpha_in/gamma_in: 前向扩散系数 (数据→噪声)
+    - alpha_to/gamma_to: 反向生成系数 (噪声→数据)
+    - F_t = alpha_to * model(x_t): 模型预测的分数/流函数
+    - dent: 雅可比行列式 (alpha_in*gamma_to - gamma_in*alpha_to)
+
+    训练损失 = 加权L2 + RCGM整流 + 一致性正则化 + 分布匹配
+    采样支持一阶/二阶ODE + SDE随机校正 + 外推加速
+    """
+
     def __init__(
         self,
         # --- Training Strategy & Consistency Control ---
@@ -109,6 +129,11 @@ class TwinFlow(torch.nn.Module):
         c: List[torch.Tensor],
         e: List[torch.Tensor],
     ):
+        """准备训练输入: 采样时间步 + 划分batch + 构造目标。
+
+        将batch分为4组: e2e(一步生成), mul(多步生成), any(任意步), adv(对抗生成)。
+        返回: x_t(加噪输入), t, tt, c, e, target(训练目标), masks(batch分组掩码)
+        """
         # 1. Init time and containers
         bsz, device = x.shape[0], x.device
         assert bsz >= 4  # we need minimal batch=4 to assign different target time, see L132
@@ -202,6 +227,10 @@ class TwinFlow(torch.nn.Module):
         pred_w_c: torch.Tensor,
         pred_wo_c: torch.Tensor,
     ):
+        """增强训练目标: target += ratio * (pred_w_c - pred_wo_c)。
+
+        利用条件/无条件预测差异增强目标，引导模型向条件生成方向优化。
+        """
         target[idx] = target[idx] + ratio * (pred_w_c[idx] - pred_wo_c[idx])
         # target[~idx] = (target[~idx] + pred_w_c[~idx]) * 0.50
         return target
@@ -239,9 +268,10 @@ class TwinFlow(torch.nn.Module):
         c: List[torch.Tensor],
         N: int,
     ):
-        """
-        References:
-        - RCGM: https://github.com/LINs-lab/RCGM/blob/main/assets/paper.pdf
+        """RCGM整流目标: 用多步ODE积分修正训练目标，减少离散化误差。
+
+        公式: Ft_tar = (F_th_t * cof_l - Ft_tar * cof_r) - target, 然后clamp.
+        参考: https://github.com/LINs-lab/RCGM
         """
         t_m = (t - 0.01).clamp_min(tt)
         x_t = x_t - target * 0.01
@@ -285,6 +315,10 @@ class TwinFlow(torch.nn.Module):
         x: torch.Tensor,
         c: List[torch.Tensor],
     ):
+        """分布匹配: 计算正向/反向路径的梯度差异 (x_grad, F_grad)。
+
+        用于一致性正则化——迫使正向(t→0)和反向(-t→0)的生成结果一致。
+        """
         z = torch.randn_like(x)
         t = self.sample_beta(1.0, 1.0, x)
         x_t = z * self.alpha_in(t) + x * self.gamma_in(t)
@@ -306,6 +340,15 @@ class TwinFlow(torch.nn.Module):
         step: int,
         v: torch.Tensor,
     ):
+        """单步训练 (由外部训练循环调用)。
+
+        流程:
+        1. prepare_inputs → 加噪 + batch分组
+        2. forward → 预测 F_th_t
+        3. enhance_target → 增强目标 (可选)
+        4. get_rcgm_target → RCGM整流 (可选, 多步ODE)
+        5. 加权L2损失 + 一致性损失 (dist_match)
+        """
         with torch.no_grad():
             x_t, t, tt, c, e, target, sample_masks = self.prepare_inputs(
                 model, x, c, e)
@@ -383,6 +426,19 @@ class TwinFlow(torch.nn.Module):
         tt: Union[torch.Tensor, None] = None,
         **model_kwargs,
     ):
+        """单步前向传播。
+
+        Args:
+            model: 底层去噪/评分网络
+            x_t: 加噪输入 [B, C, H, W]
+            t: 当前时间步 [B,]
+            tt: 目标时间步 [B,] (None时等同于t, 用于一致性训练)
+        Returns:
+            x_hat: 预测的干净数据
+            z_hat: 预测的噪声
+            F_t: 分数/流函数 = alpha_to * model(x_t)
+            dent: 雅可比行列式
+        """
         if tt is not None:
             tt = tt.flatten()
         
@@ -415,9 +471,18 @@ class TwinFlow(torch.nn.Module):
         sampling_style: Literal["few", "mul", "any"] = "few",
         **model_kwargs,
     ):
-        """
-        References:
-        - UCGM (Sampler): https://arxiv.org/abs/2505.07447 (Unified Continuous Generative Models)
+        """生成采样循环: 从噪声逐步去噪生成数据。
+
+        Args:
+            inital_noise_z: 初始随机噪声
+            sampling_steps: 采样步数
+            stochast_ratio: 随机性比例 (0=纯ODE, "SDE"=自适应SDE, >0=固定噪声)
+            extrapol_ratio: 外推加速系数
+            sampling_order: ODE阶数 (1=欧拉, 2=Heun-like二阶)
+            sampling_style: "few"(→t=0), "mul"(→t_cur), "any"(→t_next)
+        Returns:
+            [steps+1, B, C, H, W] 采样中间结果堆叠
+        参考: UCGM (arXiv:2505.07447)
         """
         input_dtype = inital_noise_z.dtype
         assert sampling_order in [1, 2]
