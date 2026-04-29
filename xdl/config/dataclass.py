@@ -55,6 +55,7 @@ class TrainSetup:
     logging_config: Dict[str, Any] = field(default_factory=dict)
     checkpoint_config: Dict[str, Any] = field(default_factory=dict)
     accelerate_config: Optional[Dict[str, Any]] = None
+    deepspeed_config: Optional[Dict[str, Any]] = None
 
     # 训练参数
     device: str = "cuda"

@@ -21,6 +21,7 @@ from xdl.errors import RegistryError
 REGISTRY_IMPORTS = {
     "model": "xdl.model",
     "dataset": "xdl.dataset",
+    "collate": "xdl.dataset",
     "loss": "xdl.loss",
     "metric": "xdl.metric",
     "optimizer": "xdl.optimizer",
@@ -34,6 +35,7 @@ TRANSFORM_CONFIG_META_KEYS = {
 COMPONENT_ALLOWED_EXTRA_KEYS = {
     "model": set(),
     "dataset": set(),
+    "collate": set(),
     "optimizer": {"target_modules", "param_groups"},
     "scheduler": set(),
     "loss": {"weight"},
@@ -52,6 +54,7 @@ def _ensure_registry_populated(kind: str) -> None:
 def _get_registry(kind: str) -> Any:
     _ensure_registry_populated(kind)
     from xdl.utils.registry import (
+        COLLATE_REGISTRY,
         DATASET_REGISTRY,
         LOSS_REGISTRY,
         METRIC_REGISTRY,
@@ -64,6 +67,7 @@ def _get_registry(kind: str) -> Any:
     registries = {
         "model": MODEL_REGISTRY,
         "dataset": DATASET_REGISTRY,
+        "collate": COLLATE_REGISTRY,
         "loss": LOSS_REGISTRY,
         "metric": METRIC_REGISTRY,
         "optimizer": OPTIMIZER_REGISTRY,
@@ -300,12 +304,16 @@ def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> An
     return dataset_cls(**params)
 
 
-def build_dataloader(dataset: Any, config: Dict[str, Any]) -> DataLoader:
+def build_dataloader(
+    dataset: Any, config: Dict[str, Any], collate_fn: Optional[Any] = None
+) -> DataLoader:
     """从配置构建 DataLoader。"""
 
     if not isinstance(config, Mapping):
         raise ConfigValidationError("dataloader config must be a mapping")
     params = dict(config.get("params") or {})
+    if collate_fn is not None:
+        params["collate_fn"] = collate_fn
     return DataLoader(dataset, **params)
 
 
@@ -455,6 +463,21 @@ def build_loss(config: Any) -> torch.nn.Module:
         weights.append(float(loss_cfg.get("weight", 1.0)))
 
     return WeightedLoss(losses, weights)
+
+
+def build_collate_fn(config: Any) -> Optional[Any]:
+    """从配置解析 collate_fn。支持三种形式：None / 可调用对象 / target+params 配置。"""
+
+    if config is None:
+        return None
+    if callable(config):
+        return config
+    if isinstance(config, str):
+        source, component_type = _split_target("collate", config)
+        return _resolve_component("collate", component_type, source)
+    if isinstance(config, Mapping) and "target" in config:
+        return _build_component(dict(config), kind="collate")
+    raise ConfigValidationError(f"Invalid collate_fn config: {config}")
 
 
 def build_metrics(config: List[Dict[str, Any]]) -> List[Any]:

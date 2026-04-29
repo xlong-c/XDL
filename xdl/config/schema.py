@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from omegaconf import DictConfig, OmegaConf
 
-from .accelerate_config import AccelerateConfig
+from .accelerate_config import AccelerateConfig, DeepSpeedConfig
 from .errors import ConfigError
 
 CONFIG_SCHEMA_VERSION = 1
@@ -68,6 +68,7 @@ class DataloaderConfig:
 
     dataset: Any = None
     params: Dict[str, Any] = field(default_factory=dict)
+    collate_fn: Any = None
 
 
 @dataclass
@@ -77,6 +78,7 @@ class DataloaderDefaultsConfig:
     batch_size: Optional[int] = None
     num_workers: int = 0
     pin_memory: bool = False
+    collate_fn: Any = None
 
 
 @dataclass
@@ -137,6 +139,7 @@ class ConfigSchemaV1:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     accelerate: Optional[AccelerateConfig] = None
+    deepspeed: Optional[DeepSpeedConfig] = None
 
 
 def create_config_schema() -> ConfigSchemaV1:
@@ -169,5 +172,6 @@ __all__ = [
     "CheckpointConfig",
     "ConfigSchemaV1",
     "create_config_schema",
+    "DeepSpeedConfig",
     "create_structured_config",
 ]

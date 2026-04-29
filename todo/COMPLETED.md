@@ -100,3 +100,63 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 
 **变更**：
 - [xdl/trainer/trainer.py](../xdl/trainer/trainer.py)：新增 `console_log_frequency`、`tensorboard_log_frequency`、`save_last` 三个显式参数，移除 `**kwargs`，拼写错误直接 `TypeError` 暴露
+
+---
+
+# 第一轮 P0/P1 — 组件补全 + 质量提升
+
+| # | 任务 | 改动摘要 |
+|---|------|----------|
+| P0-1 | 未注册组件补全 | +5 注册 (SOAP/MAE/MSE/RMSE/FATT) |
+| P0-2 | 回调导出修复 | +5 export (DeviceStats/Lambda/LR/Monitor/Summary/Timer) |
+| P0-3 | TwinFlow 文档 | 中文 docstring (模块/类/7 方法) |
+| P1-1 | AGENTS.md 更新 | 30 模型表格 + YAML 示例 |
+| P1-2 | hairdata 去重 | HairAugMixin, -191 行 |
+| P1-3 | IoU/Dice 统一 | __call__ auto-detect 多分类 |
+| P1-4 | P/R/F1 average | macro/micro 双模式 |
+| P1-5 | 异常层次统一 | XDLError + 5 子类 |
+
+---
+
+# 第二轮 P0/P1 — 功能扩展 + 基础设施
+
+## P0-1: collate_fn 支持
+
+- `xdl/utils/registry.py`：新增 `COLLATE_REGISTRY` + `register_collate`
+- `xdl/dataset/collate.py`（新建）：`PadCollate` + `DictCollate`
+- `xdl/dataset/__init__.py`：导入 collate 模块
+- `xdl/config/builder.py`：`build_collate_fn()` + `build_dataloader(collate_fn=)`
+- `xdl/config/schema.py`：schema 新增 `collate_fn` 字段
+- `xdl/config/setup.py`：解析并传递 collate_fn
+
+## P0-2: 新增损失函数
+
+- `xdl/loss/huber_loss.py`（新建）：`HuberLoss`
+- `xdl/loss/contrastive_loss.py`（新建）：`InfoNCE` / `NTXentLoss`
+- `xdl/loss/dice_loss.py`（新建）：`DiceLoss` + `GeneralizedDiceLoss`
+- `xdl/loss/__init__.py`：注册 5 个新损失，总数 8 → 13
+
+## P1-1: 视觉数据集模板
+
+- `xdl/dataset/vision_datasets.py`（新建）：`CIFAR10Dataset` / `MNISTDataset`（`_Wrapper` 模式）
+- `xdl/dataset/__init__.py`：注册 CIFAR10 / MNIST
+- torchvision 可选依赖
+
+## P1-2: DeepSpeed 配置层 (Phase 1)
+
+- `xdl/config/accelerate_config.py`：新增 `DeepSpeedConfig`（from_dict / to_initialize_kwargs）
+- `xdl/config/schema.py`：`ConfigSchemaV1` 新增 `deepspeed` 字段
+- `xdl/config/dataclass.py`：`TrainSetup` 新增 `deepspeed_config`
+- `xdl/config/setup.py`：提取 deepspeed 配置
+- `config/deepspeed_zero{1,2,3}.json`（新建）：ZeRO 模板
+- API 调研：`model_parameters` 必填；`"auto"` 仅 HF 层支持；与 Accelerate 可共存
+
+## P1-3: 测试覆盖 (Phase 1-2)
+
+- `tests/conftest.py`（新建）：`dummy_batch` / `dummy_image_batch` / `tiny_model`
+- `.github/workflows/tests.yml`（新建）：CI（Python 3.10/3.12）
+- `tests/utils/test_registry.py`（新建）：9 tests
+- `tests/metric/test_metrics.py`（新建）：13 tests
+- `tests/loss/test_losses.py`（新建）：14 tests
+- `tests/dataset/test_basic.py`（新建）：3 tests
+- 测试覆盖：16 (3 files) → 56 (7 files, +40 tests)

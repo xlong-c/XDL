@@ -65,6 +65,88 @@ class AccelerateConfig:
 
 
 @dataclass
+class DeepSpeedConfig:
+    """原生 DeepSpeed 配置 — 对应 deepspeed.initialize() 的 config 参数。
+
+    支持两种使用方式：
+    1. 指定 config_path 引用外部 JSON
+    2. 直接在 YAML 中内联配置（zero_stage / fp16 / bf16 等）
+    """
+
+    enabled: bool = False
+    config_path: Optional[str] = None
+    zero_stage: int = 2
+    fp16: bool = True
+    bf16: bool = False
+    gradient_accumulation_steps: Optional[int] = None
+    train_batch_size: Optional[int] = None
+    train_micro_batch_size_per_gpu: Optional[int] = None
+    gradient_clipping: Optional[float] = None
+    offload_optimizer: bool = False
+    offload_param: bool = False
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DeepSpeedConfig":
+        """从 YAML 解析的字典构建 DeepSpeed 配置。"""
+        valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered = {k: v for k, v in data.items() if k in valid_keys}
+        return cls(**filtered)
+
+    def to_initialize_kwargs(self) -> Dict[str, Any]:
+        """生成 deepspeed.initialize(config=...) 所需的配置字典或路径。
+
+        直接返回 config 的值（dict 或 str 路径），
+        调用方用 deepspeed.initialize(model=..., optimizer=..., config=result)。
+
+        如果指定了 config_path，返回路径字符串；
+        否则根据内联字段自动生成 DeepSpeed 配置字典。
+        """
+        if self.config_path:
+            return {"config": self.config_path}
+
+        # batch_size 三要素：指定两个，第三个自动推断
+        # 至少需要 train_micro_batch_size_per_gpu
+        if self.train_micro_batch_size_per_gpu is None:
+            ds_config: Dict[str, Any] = {
+                "train_micro_batch_size_per_gpu": 1,
+            }
+        else:
+            ds_config = {
+                "train_micro_batch_size_per_gpu": self.train_micro_batch_size_per_gpu,
+            }
+
+        if self.train_batch_size is not None:
+            ds_config["train_batch_size"] = self.train_batch_size
+        if self.gradient_accumulation_steps is not None:
+            ds_config["gradient_accumulation_steps"] = self.gradient_accumulation_steps
+
+        ds_config["zero_optimization"] = {"stage": self.zero_stage}
+
+        if self.fp16:
+            ds_config["fp16"] = {"enabled": True}
+        elif self.bf16:
+            ds_config["bf16"] = {"enabled": True}
+
+        if self.gradient_clipping is not None:
+            ds_config["gradient_clipping"] = self.gradient_clipping
+
+        if self.zero_stage >= 2 and self.offload_optimizer:
+            ds_config["zero_optimization"]["offload_optimizer"] = {"device": "cpu"}
+        if self.zero_stage == 3 and self.offload_param:
+            ds_config["zero_optimization"]["offload_param"] = {"device": "cpu"}
+
+        return {"config": ds_config}
+
+    def is_available(self) -> bool:
+        """检查 deepspeed 是否可导入。"""
+        try:
+            import deepspeed  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+
+@dataclass
 class DistributedConfig:
     """
     分布式训练配置

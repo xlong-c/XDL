@@ -1,55 +1,30 @@
 # TODO: XDL 优化任务总览
 
-> 最后更新: 2026-04-29 | autopilot 模块分析生成
+> 最后更新: 2026-04-29 | 两轮 P0/P1 全部完成
 
 ---
 
-## 已归档
+## 当前状态
 
-YAML 配置启动体系审查 — 10 项全部完成。详见 [COMPLETED.md](COMPLETED.md)。
+所有已完成任务归档至 [COMPLETED.md](COMPLETED.md)，详情：
 
----
-
-## 当前活跃: XDL 模块全面优化
-
-### P0 — 立即修复（功能缺口）
-
-| 编号 | 任务 | 预估 | 状态 |
-|------|------|------|------|
-| [P0-1](P0-1-unregistered-components.md) | 未注册组件补全 (SOAP/MAE/MSE/RMSE/FATT) | 1.5h | ✅ DONE |
-| [P0-2](P0-2-callbacks-export.md) | 回调 `__init__.py` 导出修复 (5 个回调) | 10min | ✅ DONE |
-| [P0-3](P0-3-twinflow-docs.md) | TwinFlow 生成模型文档 | 2h | ✅ DONE |
-
-### P1 — 短期改进（质量提升）
-
-| 编号 | 任务 | 预估 | 状态 |
-|------|------|------|------|
-| [P1-1](P1-1-agents-md-update.md) | model/AGENTS.md 更新到 28 条目 | 1h | ✅ DONE |
-| P1-2 | 数据集增强代码去重 (hairdata 3 文件) | 3h | ✅ DONE |
-| P1-3 | IoU/Dice 多类别接口统一 | 1h | ✅ DONE |
-| P1-4 | Precision/Recall/F1 averaging 模式扩展 | 1h | ✅ DONE |
-| P1-5 | 错误处理增强 (统一异常层次) | 2h | ✅ DONE |
-
-### P2 — 中期增强（功能扩展）
-
-| 编号 | 任务 | 预估 | 状态 |
-|------|------|------|------|
-| P2-1 | 原生 DeepSpeed 集成 | 1w | ⬜ TODO |
-| P2-2 | 新增损失函数 (Huber/InfoNCE 等) | 1-2w | ⬜ TODO |
-| P2-3 | 通用数据集支持 (CIFAR/MNIST 等) | 3-5d | ⬜ TODO |
-| P2-4 | collate_fn 支持 | 2h | ⬜ TODO |
-| P2-5 | 完整测试覆盖 | 2-3w | ⬜ TODO |
+| 轮次 | 包含 | 归档位置 |
+|------|------|----------|
+| 初始轮 | P0-01 ~ P2-10 (YAML 启动体系修复) | COMPLETED.md |
+| 第一轮 | P0 (3 项) + P1 (5 项) — 组件补全 + 质量提升 | archive/ + COMPLETED.md |
+| 第二轮 | P0 (2 项) + P1 (3 项) — 功能扩展 + 基础设施 | COMPLETED.md |
 
 ---
 
-## 推荐执行顺序
+## 第二轮产出摘要
 
-```
-本周  → P0-1, P0-2 (补全注册缺口，零风险)
-下周  → P0-3, P1-1, P1-3 (文档 + 接口修复)
-本月  → P1-2, P1-4, P1-5 (代码质量)
-下月+ → P2 系列 (新功能)
-```
+| 编号 | 任务 | 关键产出 |
+|------|------|----------|
+| P0-1 | collate_fn 支持 | COLLATE_REGISTRY, PadCollate/DictCollate, YAML 集成 |
+| P0-2 | 新增损失函数 | HuberLoss, InfoNCE, DiceLoss (13 个注册损失) |
+| P1-1 | 视觉数据集 | CIFAR10/MNIST 模板, torchvision 可选依赖 |
+| P1-2 | DeepSpeed 配置层 | DeepSpeedConfig, ZeRO-1/2/3 模板 |
+| P1-3 | 测试覆盖 | conftest + CI + 40 tests (16 → 56) |
 
 ---
 
@@ -57,4 +32,3 @@ YAML 配置启动体系审查 — 10 项全部完成。详见 [COMPLETED.md](COM
 
 - [XDL 模块功能边界文档](../docs/xdl-functional-boundary.md)
 - [XDL 优化方向分析](../docs/xdl-optimization-plan.md)
-- [Autopilot Spec](../.omc/autopilot/spec.md)

@@ -20,6 +20,7 @@ import yaml
 from torch.utils.data import DataLoader
 
 from .builder import (
+    build_collate_fn,
     build_dataloader,
     build_dataset,
     build_loss,
@@ -188,7 +189,12 @@ def setup_from_yaml(
             trainer_batch_size=trainer_batch_size,
         )
         dataset = _resolve_dataset_value(dataloader_name, built_datasets)
-        built_dataloaders[dataloader_name] = build_dataloader(dataset, merged_dataloader_cfg)
+        collate_fn = build_collate_fn(
+            dataloader_cfg.get("collate_fn") or dataloader_defaults.get("collate_fn")
+        )
+        built_dataloaders[dataloader_name] = build_dataloader(
+            dataset, merged_dataloader_cfg, collate_fn=collate_fn
+        )
 
     optimization_config = resolved_config.get("optimization") or {}
     optimizer_config = optimization_config.get("optimizer")
@@ -216,6 +222,7 @@ def setup_from_yaml(
     if not isinstance(checkpoint_config, dict):
         checkpoint_config = {}
     accelerate_config = resolved_config.get("accelerate")
+    deepspeed_config = resolved_config.get("deepspeed")
 
     selected_batch_size = trainer_batch_size
     if selected_batch_size is None:
@@ -251,6 +258,7 @@ def setup_from_yaml(
         logging_config=logging_config,
         checkpoint_config=checkpoint_config,
         accelerate_config=accelerate_config,
+        deepspeed_config=deepspeed_config,
     )
 
 

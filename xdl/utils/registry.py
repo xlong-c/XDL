@@ -83,6 +83,7 @@ SCHEDULER_REGISTRY = Registry("SCHEDULER")
 LOSS_REGISTRY = Registry("LOSS")
 METRIC_REGISTRY = Registry("METRIC")
 TRANSFORM_REGISTRY = Registry("TRANSFORM")
+COLLATE_REGISTRY = Registry("COLLATE")
 
 # --- 快捷装饰器 ---
 register_model = MODEL_REGISTRY.register
@@ -92,6 +93,7 @@ register_scheduler = SCHEDULER_REGISTRY.register
 register_loss = LOSS_REGISTRY.register
 register_metric = METRIC_REGISTRY.register
 register_transform = TRANSFORM_REGISTRY.register
+register_collate = COLLATE_REGISTRY.register
 
 # --- 检查/帮助辅助函数 ---
 

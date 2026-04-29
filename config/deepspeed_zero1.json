@@ -1,0 +1,15 @@
+{
+  "_comment": "ZeRO-1 配置模板 — 使用前替换 train_batch_size 和 train_micro_batch_size_per_gpu",
+  "train_batch_size": 32,
+  "train_micro_batch_size_per_gpu": 4,
+  "gradient_accumulation_steps": 1,
+  "gradient_clipping": 1.0,
+  "fp16": {
+    "enabled": true
+  },
+  "zero_optimization": {
+    "stage": 1
+  },
+  "steps_per_print": 10,
+  "wall_clock_breakdown": false
+}

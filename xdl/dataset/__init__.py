@@ -11,9 +11,18 @@ GridImageCsvDataset = None
 GridImageDirDataset = None
 Hair10HairDataset = None
 
+from . import collate  # 注册 PadCollate / DictCollate
 from .basic import SyntheticClassificationDataset
 
 register_dataset("SyntheticClassificationDataset")(SyntheticClassificationDataset)
+
+# 视觉数据集
+from .vision_datasets import CIFAR10Dataset, MNISTDataset
+
+if CIFAR10Dataset is not None:
+    register_dataset("CIFAR10")(CIFAR10Dataset)
+if MNISTDataset is not None:
+    register_dataset("MNIST")(MNISTDataset)
 
 try:
     from .hairdata import GridImageDataset as GridImageCsvDataset
@@ -41,4 +50,6 @@ __all__ = [
     "GridImageCsvDataset",
     "GridImageDirDataset",
     "Hair10HairDataset",
+    "CIFAR10Dataset",
+    "MNISTDataset",
 ]
