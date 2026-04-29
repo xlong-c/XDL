@@ -16,6 +16,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from .errors import ComponentResolutionError, ConfigValidationError
+from xdl.errors import RegistryError
 
 REGISTRY_IMPORTS = {
     "model": "xdl.model",
@@ -79,7 +80,7 @@ def _resolve_component(kind: str, component_type: str, source: str) -> Any:
         registry = _get_registry(kind)
         try:
             return registry.get(component_type)
-        except KeyError as exc:
+        except (RegistryError, KeyError) as exc:
             raise ComponentResolutionError(kind, component_type, source=source) from exc
 
     try:

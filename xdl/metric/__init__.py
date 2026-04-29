@@ -1,5 +1,16 @@
 from ..utils.registry import register_metric
-from .metrics import Accuracy, DiceCoefficient, F1Score, IoU, Precision, Recall, TopKAccuracy
+from .metrics import (
+    Accuracy,
+    DiceCoefficient,
+    F1Score,
+    IoU,
+    MeanAbsoluteError,
+    MeanSquaredError,
+    Precision,
+    Recall,
+    RootMeanSquaredError,
+    TopKAccuracy,
+)
 
 
 # 注册名保持和类名一直大写开头
@@ -12,6 +23,9 @@ def _register_metrics():
     register_metric("IoU")(IoU)
     register_metric("DiceCoefficient")(DiceCoefficient)
     register_metric("TopKAccuracy")(TopKAccuracy)
+    register_metric("MeanAbsoluteError")(MeanAbsoluteError)
+    register_metric("MeanSquaredError")(MeanSquaredError)
+    register_metric("RootMeanSquaredError")(RootMeanSquaredError)
 
 
 _register_metrics()
@@ -24,5 +38,8 @@ __all__ = [
     "IoU",
     "DiceCoefficient",
     "TopKAccuracy",
+    "MeanAbsoluteError",
+    "MeanSquaredError",
+    "RootMeanSquaredError",
     "register_metric",
 ]

@@ -8,6 +8,8 @@ import inspect
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
+from xdl.errors import RegistryError
+
 # 设置日志
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ class Registry:
         msg = f"'{name}' not found in {self.name} registry."
         if matches:
             msg += f" Did you mean: {matches}?"
-        raise KeyError(msg)
+        raise RegistryError(msg)
 
     def get_signature(self, name: str) -> str:
         """获取并格式化组件的参数签名。"""

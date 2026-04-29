@@ -45,6 +45,6 @@ print('All models accounted for')
 
 ## 完成标准
 
-- [ ] 28 个注册条目在文档中列出
-- [ ] TwinFlow 有使用示例
-- [ ] FATT 状态已说明
+- [x] 28 个注册条目在文档中列出
+- [x] TwinFlow 有使用示例
+- [x] FATT 状态已说明

@@ -48,29 +48,14 @@ class Accuracy:
 
 class Precision:
     """
-    精确率指标
+    精确率指标 — 支持 macro/micro 平均。
     """
 
     def __init__(self, num_classes: int | None = None, average: str = "macro"):
-        """
-        Args:
-            num_classes: 分类数量
-            average: 平均方式,'macro' 或 'micro'
-        """
         self.num_classes = num_classes
         self.average = average
 
     def __call__(self, pred: torch.Tensor, target: torch.Tensor) -> float:
-        """
-        计算精确率
-
-        Args:
-            pred: 预测值,形状为 (batch_size, num_classes)
-            target: 真实标签,形状为 (batch_size,)
-
-        Returns:
-            精确率
-        """
         if pred.dim() > 1 and pred.shape[1] > 1:
             pred_labels = torch.argmax(pred, dim=1)
         else:
@@ -79,44 +64,39 @@ class Precision:
         if self.num_classes is None:
             self.num_classes = len(torch.unique(target))
 
+        # micro: 全局 TP / (TP + FP)
+        if self.average == "micro":
+            tp = torch.tensor(0.0, device=target.device)
+            fp = torch.tensor(0.0, device=target.device)
+            for class_idx in range(self.num_classes):
+                pred_pos = pred_labels == class_idx
+                true_pos = target == class_idx
+                tp += (pred_pos & true_pos).sum().float()
+                fp += (pred_pos & ~true_pos).sum().float()
+            return (tp / (tp + fp)).item() if tp + fp > 0 else 0.0
+
+        # macro: 逐类平均
         precision_sum = torch.tensor(0.0, device=target.device)
         for class_idx in range(self.num_classes):
-            pred_positive = pred_labels == class_idx
-            true_positive = target == class_idx
-            tp = (pred_positive & true_positive).sum().float()
-            fp = (pred_positive & ~true_positive).sum().float()
-
+            pred_pos = pred_labels == class_idx
+            true_pos = target == class_idx
+            tp = (pred_pos & true_pos).sum().float()
+            fp = (pred_pos & ~true_pos).sum().float()
             if tp + fp > 0:
                 precision_sum += tp / (tp + fp)
-
         return (precision_sum / self.num_classes).item()
 
 
 class Recall:
     """
-    召回率指标
+    召回率指标 — 支持 macro/micro 平均。
     """
 
     def __init__(self, num_classes: int | None = None, average: str = "macro"):
-        """
-        Args:
-            num_classes: 分类数量
-            average: 平均方式,'macro' 或 'micro'
-        """
         self.num_classes = num_classes
         self.average = average
 
     def __call__(self, pred: torch.Tensor, target: torch.Tensor) -> float:
-        """
-        计算召回率
-
-        Args:
-            pred: 预测值,形状为 (batch_size, num_classes)
-            target: 真实标签,形状为 (batch_size,)
-
-        Returns:
-            召回率
-        """
         if pred.dim() > 1 and pred.shape[1] > 1:
             pred_labels = torch.argmax(pred, dim=1)
         else:
@@ -125,44 +105,39 @@ class Recall:
         if self.num_classes is None:
             self.num_classes = len(torch.unique(target))
 
+        # micro: 全局 TP / (TP + FN)
+        if self.average == "micro":
+            tp = torch.tensor(0.0, device=target.device)
+            fn = torch.tensor(0.0, device=target.device)
+            for class_idx in range(self.num_classes):
+                pred_pos = pred_labels == class_idx
+                true_pos = target == class_idx
+                tp += (pred_pos & true_pos).sum().float()
+                fn += (~pred_pos & true_pos).sum().float()
+            return (tp / (tp + fn)).item() if tp + fn > 0 else 0.0
+
+        # macro: 逐类平均
         recall_sum = torch.tensor(0.0, device=target.device)
         for class_idx in range(self.num_classes):
-            pred_positive = pred_labels == class_idx
-            true_positive = target == class_idx
-            tp = (pred_positive & true_positive).sum().float()
-            fn = (~pred_positive & true_positive).sum().float()
-
+            pred_pos = pred_labels == class_idx
+            true_pos = target == class_idx
+            tp = (pred_pos & true_pos).sum().float()
+            fn = (~pred_pos & true_pos).sum().float()
             if tp + fn > 0:
                 recall_sum += tp / (tp + fn)
-
         return (recall_sum / self.num_classes).item()
 
 
 class F1Score:
     """
-    F1分数指标
+    F1分数指标 — 支持 macro/micro 平均。
     """
 
     def __init__(self, num_classes: int | None = None, average: str = "macro"):
-        """
-        Args:
-            num_classes: 分类数量
-            average: 平均方式,'macro' 或 'micro'
-        """
         self.num_classes = num_classes
         self.average = average
 
     def __call__(self, pred: torch.Tensor, target: torch.Tensor) -> float:
-        """
-        计算F1分数
-
-        Args:
-            pred: 预测值,形状为 (batch_size, num_classes)
-            target: 真实标签,形状为 (batch_size,)
-
-        Returns:
-            F1分数
-        """
         if pred.dim() > 1 and pred.shape[1] > 1:
             pred_labels = torch.argmax(pred, dim=1)
         else:
@@ -171,21 +146,33 @@ class F1Score:
         if self.num_classes is None:
             self.num_classes = len(torch.unique(target))
 
+        # micro: 全局聚合后算 F1
+        if self.average == "micro":
+            tp = torch.tensor(0.0, device=target.device)
+            fp = torch.tensor(0.0, device=target.device)
+            fn = torch.tensor(0.0, device=target.device)
+            for class_idx in range(self.num_classes):
+                pred_pos = pred_labels == class_idx
+                true_pos = target == class_idx
+                tp += (pred_pos & true_pos).sum().float()
+                fp += (pred_pos & ~true_pos).sum().float()
+                fn += (~pred_pos & true_pos).sum().float()
+            if tp + fp + fn == 0:
+                return 0.0
+            return (tp / (tp + 0.5 * (fp + fn))).item()
+
+        # macro: 逐类 F1 平均
         f1_sum = torch.tensor(0.0, device=target.device)
         for class_idx in range(self.num_classes):
-            pred_positive = pred_labels == class_idx
-            true_positive = target == class_idx
-            tp = (pred_positive & true_positive).sum().float()
-            fp = (pred_positive & ~true_positive).sum().float()
-            fn = (~pred_positive & true_positive).sum().float()
-
+            pred_pos = pred_labels == class_idx
+            true_pos = target == class_idx
+            tp = (pred_pos & true_pos).sum().float()
+            fp = (pred_pos & ~true_pos).sum().float()
+            fn = (~pred_pos & true_pos).sum().float()
             precision = tp / (tp + fp) if tp + fp > 0 else torch.tensor(0.0, device=target.device)
             recall = tp / (tp + fn) if tp + fn > 0 else torch.tensor(0.0, device=target.device)
-
             if precision + recall > 0:
-                f1 = 2 * (precision * recall) / (precision + recall)
-                f1_sum += f1
-
+                f1_sum += 2 * (precision * recall) / (precision + recall)
         return (f1_sum / self.num_classes).item()
 
 
@@ -287,167 +274,119 @@ class TopKAccuracy:
 
 class IoU:
     """
-    IoU(交并比)指标
-    主要用于分割任务,计算预测区域和真实区域的交并比
+    IoU(交并比)指标 — 支持二分类和多分类分割任务。
+
+    __call__ 自动检测输入形状:
+    - 二分类: pred/target 同为 2D/3D (B, H, W) 或含单通道 (B, 1, H, W)
+    - 多分类: pred (B, C, H, W) + target (B, H, W), C>1 时自动触发 per-class 平均
     """
 
-    def __init__(self, threshold: float = 0.5, epsilon: float = 1e-6):
-        """
-        Args:
-            threshold: 二值化阈值,将预测结果转换为二值掩码
-            epsilon: 避免除以零的小常数
-        """
+    def __init__(
+        self,
+        num_classes: int | None = None,
+        average: str = "macro",
+        threshold: float = 0.5,
+        epsilon: float = 1e-6,
+    ):
+        self.num_classes = num_classes
+        self.average = average
         self.threshold = threshold
         self.epsilon = epsilon
 
     def __call__(self, pred: torch.Tensor, target: torch.Tensor) -> float:
-        """
-        计算IoU
+        # 多分类: pred 4D 且通道数 > 1 → per-class macro IoU
+        if pred.dim() == 4 and pred.shape[1] > 1:
+            num_classes = self.num_classes or pred.shape[1]
+            if target.dim() != 3:
+                raise ValueError(
+                    f"多分类 target 应为 (B, H, W), 实际 {target.shape}"
+                )
+            pred_labels = torch.argmax(pred, dim=1)
+            iou_sum = torch.tensor(0.0, device=target.device)
+            for class_idx in range(num_classes):
+                pred_mask = (pred_labels == class_idx).float()
+                target_mask = (target == class_idx).float()
+                intersection = (pred_mask * target_mask).sum()
+                union = pred_mask.sum() + target_mask.sum() - intersection
+                if union > 0:
+                    iou_sum += intersection / (union + self.epsilon)
+            return (iou_sum / num_classes).item()
 
-        Args:
-            pred: 预测值,形状为 (batch_size, ...) 或 (batch_size, 1, ...)
-            target: 真实标签,形状与pred相同
-
-        Returns:
-            IoU分数 (0-1之间的浮点数)
-        """
-        # 确保输入形状一致
+        # 二分类
         if pred.shape != target.shape:
             raise ValueError(f"预测和真实标签形状不匹配: {pred.shape} vs {target.shape}")
-
-        # 如果有通道维度且为1,则压缩
         if pred.dim() > 2 and pred.shape[1] == 1:
             pred = pred.squeeze(1)
         if target.dim() > 2 and target.shape[1] == 1:
             target = target.squeeze(1)
-
-        # 二值化预测结果
         pred_binary = (pred > self.threshold).float()
         target_binary = target.float()
-
-        # 计算交集和并集
         intersection = (pred_binary * target_binary).sum()
         union = pred_binary.sum() + target_binary.sum() - intersection
-
-        # 计算IoU
-        iou = intersection / (union + self.epsilon)
-
-        return iou.item()
+        return (intersection / (union + self.epsilon)).item()
 
     def __call_multi_class__(
         self, pred: torch.Tensor, target: torch.Tensor, num_classes: int
     ) -> float:
-        """
-        计算多类IoU的平均值
-
-        Args:
-            pred: 预测值,形状为 (batch_size, num_classes, height, width)
-            target: 真实标签,形状为 (batch_size, height, width)
-            num_classes: 类别数量
-
-        Returns:
-            平均IoU分数
-        """
-        if pred.dim() != 4 or target.dim() != 3:
-            raise ValueError(
-                "多类IoU需要pred形状为(batch_size, num_classes, height, width),target形状为(batch_size, height, width)"
-            )
-
-        pred_labels = torch.argmax(pred, dim=1)
-        iou_sum = torch.tensor(0.0, device=target.device)
-
-        for class_idx in range(num_classes):
-            pred_mask = (pred_labels == class_idx).float()
-            target_mask = (target == class_idx).float()
-
-            intersection = (pred_mask * target_mask).sum()
-            union = pred_mask.sum() + target_mask.sum() - intersection
-
-            if union > 0:
-                iou_sum += intersection / (union + self.epsilon)
-
-        return (iou_sum / num_classes).item()
+        """Deprecated: 请直接使用 __call__, 自动检测多分类。"""
+        return self(pred, target)
 
 
 class DiceCoefficient:
     """
-    Dice系数指标
-    主要用于分割任务,计算预测区域和真实区域的Dice系数
+    Dice系数指标 — 支持二分类和多分类分割任务。
+
+    __call__ 自动检测输入形状:
+    - 二分类: pred/target 同为 2D/3D (B, H, W) 或含单通道 (B, 1, H, W)
+    - 多分类: pred (B, C, H, W) + target (B, H, W), C>1 时自动触发 per-class 平均
     """
 
-    def __init__(self, threshold: float = 0.5, epsilon: float = 1e-6):
-        """
-        Args:
-            threshold: 二值化阈值,将预测结果转换为二值掩码
-            epsilon: 避免除以零的小常数
-        """
+    def __init__(
+        self,
+        num_classes: int | None = None,
+        average: str = "macro",
+        threshold: float = 0.5,
+        epsilon: float = 1e-6,
+    ):
+        self.num_classes = num_classes
+        self.average = average
         self.threshold = threshold
         self.epsilon = epsilon
 
     def __call__(self, pred: torch.Tensor, target: torch.Tensor) -> float:
-        """
-        计算Dice系数
+        # 多分类: pred 4D 且通道数 > 1 → per-class macro Dice
+        if pred.dim() == 4 and pred.shape[1] > 1:
+            num_classes = self.num_classes or pred.shape[1]
+            if target.dim() != 3:
+                raise ValueError(
+                    f"多分类 target 应为 (B, H, W), 实际 {target.shape}"
+                )
+            pred_labels = torch.argmax(pred, dim=1)
+            dice_sum = torch.tensor(0.0, device=target.device)
+            for class_idx in range(num_classes):
+                pred_mask = (pred_labels == class_idx).float()
+                target_mask = (target == class_idx).float()
+                intersection = (pred_mask * target_mask).sum()
+                total = pred_mask.sum() + target_mask.sum()
+                if total > 0:
+                    dice_sum += (2 * intersection) / (total + self.epsilon)
+            return (dice_sum / num_classes).item()
 
-        Args:
-            pred: 预测值,形状为 (batch_size, ...) 或 (batch_size, 1, ...)
-            target: 真实标签,形状与pred相同
-
-        Returns:
-            Dice系数 (0-1之间的浮点数)
-        """
-        # 确保输入形状一致
+        # 二分类
         if pred.shape != target.shape:
             raise ValueError(f"预测和真实标签形状不匹配: {pred.shape} vs {target.shape}")
-
-        # 如果有通道维度且为1,则压缩
         if pred.dim() > 2 and pred.shape[1] == 1:
             pred = pred.squeeze(1)
         if target.dim() > 2 and target.shape[1] == 1:
             target = target.squeeze(1)
-
-        # 二值化预测结果
         pred_binary = (pred > self.threshold).float()
         target_binary = target.float()
-
-        # 计算交集和预测区域与真实区域的总和
         intersection = (pred_binary * target_binary).sum()
         total = pred_binary.sum() + target_binary.sum()
-
-        # 计算Dice系数
-        dice = (2 * intersection) / (total + self.epsilon)
-
-        return dice.item()
+        return ((2 * intersection) / (total + self.epsilon)).item()
 
     def __call_multi_class__(
         self, pred: torch.Tensor, target: torch.Tensor, num_classes: int
     ) -> float:
-        """
-        计算多类Dice系数的平均值
-
-        Args:
-            pred: 预测值,形状为 (batch_size, num_classes, height, width)
-            target: 真实标签,形状为 (batch_size, height, width)
-            num_classes: 类别数量
-
-        Returns:
-            平均Dice系数
-        """
-        if pred.dim() != 4 or target.dim() != 3:
-            raise ValueError(
-                "多类Dice系数需要pred形状为(batch_size, num_classes, height, width),target形状为(batch_size, height, width)"
-            )
-
-        pred_labels = torch.argmax(pred, dim=1)
-        dice_sum = torch.tensor(0.0, device=target.device)
-
-        for class_idx in range(num_classes):
-            pred_mask = (pred_labels == class_idx).float()
-            target_mask = (target == class_idx).float()
-
-            intersection = (pred_mask * target_mask).sum()
-            total = pred_mask.sum() + target_mask.sum()
-
-            if total > 0:
-                dice_sum += (2 * intersection) / (total + self.epsilon)
-
-        return (dice_sum / num_classes).item()
+        """Deprecated: 请直接使用 __call__, 自动检测多分类。"""
+        return self(pred, target)

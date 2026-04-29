@@ -4,8 +4,10 @@
 
 from typing import Optional
 
+from xdl.errors import XDLError
 
-class ConfigError(Exception):
+
+class ConfigError(XDLError):
     """配置系统基础异常。"""
 
 

@@ -16,19 +16,19 @@ YAML 配置启动体系审查 — 10 项全部完成。详见 [COMPLETED.md](COM
 
 | 编号 | 任务 | 预估 | 状态 |
 |------|------|------|------|
-| [P0-1](P0-1-unregistered-components.md) | 未注册组件补全 (SOAP/MAE/MSE/RMSE/FATT) | 1.5h | ⬜ TODO |
-| [P0-2](P0-2-callbacks-export.md) | 回调 `__init__.py` 导出修复 (5 个回调) | 10min | ⬜ TODO |
-| [P0-3](P0-3-twinflow-docs.md) | TwinFlow 生成模型文档 | 2h | ⬜ TODO |
+| [P0-1](P0-1-unregistered-components.md) | 未注册组件补全 (SOAP/MAE/MSE/RMSE/FATT) | 1.5h | ✅ DONE |
+| [P0-2](P0-2-callbacks-export.md) | 回调 `__init__.py` 导出修复 (5 个回调) | 10min | ✅ DONE |
+| [P0-3](P0-3-twinflow-docs.md) | TwinFlow 生成模型文档 | 2h | ✅ DONE |
 
 ### P1 — 短期改进（质量提升）
 
 | 编号 | 任务 | 预估 | 状态 |
 |------|------|------|------|
-| [P1-1](P1-1-agents-md-update.md) | model/AGENTS.md 更新到 28 条目 | 1h | ⬜ TODO |
-| P1-2 | 数据集增强代码去重 (hairdata 3 文件) | 3h | ⬜ TODO |
-| P1-3 | IoU/Dice 多类别接口统一 | 1h | ⬜ TODO |
-| P1-4 | Precision/Recall/F1 averaging 模式扩展 | 1h | ⬜ TODO |
-| P1-5 | 错误处理增强 (统一异常层次) | 2h | ⬜ TODO |
+| [P1-1](P1-1-agents-md-update.md) | model/AGENTS.md 更新到 28 条目 | 1h | ✅ DONE |
+| P1-2 | 数据集增强代码去重 (hairdata 3 文件) | 3h | ✅ DONE |
+| P1-3 | IoU/Dice 多类别接口统一 | 1h | ✅ DONE |
+| P1-4 | Precision/Recall/F1 averaging 模式扩展 | 1h | ✅ DONE |
+| P1-5 | 错误处理增强 (统一异常层次) | 2h | ✅ DONE |
 
 ### P2 — 中期增强（功能扩展）
 

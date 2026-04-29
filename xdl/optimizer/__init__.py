@@ -6,6 +6,7 @@ from xdl.utils.registry import register_optimizer
 
 # Muon优化器
 from .muon import Muon, MuonWithAuxAdam, SingleDeviceMuon, SingleDeviceMuonWithAuxAdam
+from .soap import SOAP
 
 
 def _register_optimizers():
@@ -16,6 +17,7 @@ def _register_optimizers():
     register_optimizer("SingleDeviceMuon")(SingleDeviceMuon)
     register_optimizer("MuonWithAuxAdam")(MuonWithAuxAdam)
     register_optimizer("SingleDeviceMuonWithAuxAdam")(SingleDeviceMuonWithAuxAdam)
+    register_optimizer("SOAP")(SOAP)
 
 
 # 自动执行优化器注册
@@ -27,4 +29,5 @@ __all__ = [
     "SingleDeviceMuon",
     "MuonWithAuxAdam",
     "SingleDeviceMuonWithAuxAdam",
+    "SOAP",
 ]

@@ -57,4 +57,4 @@ print('All 5 callbacks imported OK')
 
 ## 完成标准
 
-- [ ] 所有 5 个回调可通过 `from xdl.callbacks import Xxx` 导入
+- [x] 所有 5 个回调可通过 `from xdl.callbacks import Xxx` 导入

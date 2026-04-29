@@ -33,6 +33,7 @@ from .vit import (
     vit_tiny_patch16_224,
 )
 from .generate import TwinFlow
+from .segment.fatt import FATT
 
 
 def _register_models():
@@ -76,6 +77,7 @@ def _register_models():
     # 注册简单 MLP
     register_model("SimpleMLP")(SimpleMLP)
     register_model("simple_mlp")(simple_mlp)
+    register_model("FATT")(FATT)
 
 
 # 自动执行模型注册
@@ -115,4 +117,6 @@ __all__ = [
     "vit_huge_patch14_224",
     # Generate
     "TwinFlow",
+    # Segment
+    "FATT",
 ]

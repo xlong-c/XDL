@@ -92,6 +92,6 @@ python -c "from xdl.model import MODEL_REGISTRY; assert 'FATT' in MODEL_REGISTRY
 
 ## 完成标准
 
-- [ ] `SOAP` 可通过 `OPTIMIZER_REGISTRY.get("SOAP")` 获取
-- [ ] `MeanAbsoluteError/MeanSquaredError/RootMeanSquaredError` 可通过 `METRIC_REGISTRY.get(...)` 获取
-- [ ] `FATT` 可通过 `MODEL_REGISTRY.get("FATT")` 获取
+- [x] `SOAP` 可通过 `OPTIMIZER_REGISTRY.get("SOAP")` 获取
+- [x] `MeanAbsoluteError/MeanSquaredError/RootMeanSquaredError` 可通过 `METRIC_REGISTRY.get(...)` 获取
+- [x] `FATT` 可通过 `MODEL_REGISTRY.get("FATT")` 获取
