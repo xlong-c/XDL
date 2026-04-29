@@ -1,6 +1,6 @@
 """XDL 统一异常层次。
 
-所有框架级异常继承自 XDLError，便于统一捕获和处理。
+所有框架级异常继承自 XDLError, 便于统一捕获和处理。
 标准 Python 异常 (ValueError, TypeError 等) 仍用于参数校验等通用场景。
 """
 
