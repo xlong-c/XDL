@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlashAttention 可视化教程 — 从 Softmax 到 FA2</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1b26;
+    --surface2: #24253a;
+    --border: #2f3350;
+    --text: #c9d1d9;
+    --text2: #8b949e;
+    --accent: #7aa2f7;
+    --accent2: #bb9af7;
+    --green: #9ece6a;
+    --red: #f7768e;
+    --orange: #e0af68;
+    --cyan: #7dcfff;
+    --yellow: #e0af68;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text); line-height:1.6;
+  }
+  header {
+    background: var(--surface); border-bottom:1px solid var(--border);
+    padding: 24px 32px; text-align:center;
+  }
+  header h1 { font-size:1.8rem; color:#fff; }
+  header p { color:var(--text2); margin-top:4px; font-size:0.95rem; }
+
+  nav {
+    display:flex; flex-wrap:wrap; gap:4px; padding:16px 32px;
+    background:var(--surface); border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:100; justify-content:center;
+  }
+  nav button {
+    background:transparent; border:1px solid var(--border); color:var(--text2);
+    padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.85rem;
+    transition: all 0.2s;
+  }
+  nav button:hover { border-color:var(--accent); color:var(--text); }
+  nav button.active {
+    background:var(--accent); color:#fff; border-color:var(--accent);
+  }
+
+  main { max-width:1100px; margin:0 auto; padding:32px 24px; }
+
+  .section { display:none; }
+  .section.active { display:block; }
+
+  h2 { font-size:1.5rem; color:var(--accent); margin-bottom:8px; }
+  h3 { font-size:1.1rem; color:var(--accent2); margin:24px 0 8px; }
+  .subtitle { color:var(--text2); margin-bottom:24px; font-size:0.9rem; }
+
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:24px; margin-bottom:24px;
+  }
+  .card h4 { color:var(--accent); margin-bottom:12px; font-size:1rem; }
+
+  /* 数学公式 */
+  .formula {
+    background:var(--surface2); border-radius:8px; padding:16px 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size:0.9rem;
+    margin:12px 0; overflow-x:auto; white-space:pre; color:var(--cyan);
+  }
+
+  /* 代码块 */
+  pre {
+    background:var(--surface2); border-radius:8px; padding:16px 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size:0.82rem;
+    overflow-x:auto; line-height:1.5; color:var(--text);
+  }
+  pre .kw { color:var(--accent2); }
+  pre .fn { color:var(--cyan); }
+  pre .cm { color:var(--text2); font-style:italic; }
+  pre .num { color:var(--orange); }
+  pre .op { color:var(--accent); }
+
+  /* 流程图 */
+  .flow {
+    display:flex; align-items:center; justify-content:center;
+    gap:12px; flex-wrap:wrap; padding:16px 0; margin:16px 0;
+  }
+  .flow .node {
+    background:var(--surface2); border:2px solid var(--border);
+    border-radius:10px; padding:12px 18px; text-align:center;
+    font-family: 'JetBrains Mono', monospace; font-size:0.85rem;
+    min-width:80px; transition: all 0.3s;
+  }
+  .flow .node.highlight { border-color:var(--accent); box-shadow:0 0 12px rgba(122,162,247,0.3); }
+  .flow .node.danger { border-color:var(--red); }
+  .flow .node.success { border-color:var(--green); }
+  .flow .arrow { color:var(--text2); font-size:1.5rem; user-select:none; }
+
+  /* 内存对比 */
+  .mem-grid {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr));
+    gap:16px; margin:16px 0;
+  }
+  .mem-bar {
+    background:var(--surface2); border-radius:8px; padding:16px;
+    text-align:center;
+  }
+  .mem-bar .bar {
+    height:8px; border-radius:4px; margin-bottom:8px;
+    transition: width 0.8s ease;
+  }
+  .mem-bar .bar.red { background:var(--red); }
+  .mem-bar .bar.green { background:var(--green); }
+  .mem-bar .bar.accent { background:var(--accent); }
+  .mem-bar .val { font-size:1.4rem; font-weight:700; color:#fff; }
+  .mem-bar .label { font-size:0.8rem; color:var(--text2); }
+
+  /* 表格 */
+  table { width:100%; border-collapse:collapse; margin:16px 0; }
+  th, td {
+    padding:10px 14px; text-align:left; border-bottom:1px solid var(--border);
+    font-size:0.9rem;
+  }
+  th { color:var(--accent); font-weight:600; }
+  td { color:var(--text); }
+
+  /* 动画图 */
+  .vis-container {
+    position:relative; background:var(--surface2); border-radius:12px;
+    padding:24px; margin:20px 0; overflow:hidden; min-height:200px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  canvas { display:block; max-width:100%; }
+
+  /* Step by step */
+  .step-list { counter-reset:step; }
+  .step {
+    position:relative; padding:16px 16px 16px 56px; margin:12px 0;
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+  }
+  .step::before {
+    counter-increment:step; content:counter(step);
+    position:absolute; left:12px; top:14px;
+    width:30px; height:30px; border-radius:50%;
+    background:var(--accent); color:#fff; display:flex;
+    align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;
+  }
+  .step .step-title { font-weight:600; margin-bottom:4px; color:#fff; }
+
+  .callout {
+    border-left:3px solid var(--accent); background:var(--surface2);
+    padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0;
+    font-size:0.9rem;
+  }
+  .callout.warn { border-color:var(--orange); }
+  .callout.success { border-color:var(--green); }
+
+  /* flash highlights */
+  .highlight { color:var(--orange); font-weight:600; }
+  .dim { color:var(--text2); }
+
+  @media (max-width:768px) {
+    nav { padding:12px 16px; }
+    nav button { padding:6px 10px; font-size:0.78rem; }
+    main { padding:20px 12px; }
+    .flow { flex-direction:column; }
+    .flow .arrow { transform:rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FlashAttention 可视化教程</h1>
+  <p>从 Naive Softmax → Online Softmax → Attention Baseline → FlashAttention v1 → FA2</p>
+</header>
+
+<nav id="nav">
+  <button class="active" data-tab="0">01. Softmax</button>
+  <button data-tab="1">02. Online Softmax</button>
+  <button data-tab="2">03. Attention Baseline</button>
+  <button data-tab="3">04. FlashAttention v1</button>
+  <button data-tab="4">05. Triton Softmax</button>
+  <button data-tab="5">06. FA v2</button>
+</nav>
+
+<main>
+<!-- ========================== 01 ========================== -->
+<section class="section active" id="sec0">
+<h2>01. Softmax — 从 Naive 到 Safe</h2>
+<p class="subtitle">理解数值稳定性：为什么要减去 row max</p>
+
+<div class="card">
+  <h4>Softmax 定义</h4>
+  <div class="formula">softmax(xᵢ) = exp(xᵢ) / Σⱼ exp(xⱼ)</div>
+  <p>问题：当 x 很大时，<code>exp(1000)</code> 会溢出；x 很小时会下溢为 0。</p>
+</div>
+
+<div class="vis-container">
+  <canvas id="c01" width="900" height="280"></canvas>
+</div>
+
+<div class="mem-grid">
+  <div class="mem-bar">
+    <div class="bar red" style="width:100%"></div>
+    <div class="val" style="color:var(--red)">NaN / inf</div>
+    <div class="label">Naive Softmax 大值输入</div>
+  </div>
+  <div class="mem-bar">
+    <div class="bar green" style="width:100%"></div>
+    <div class="val" style="color:var(--green)">[0.09, 0.24, 0.67]</div>
+    <div class="label">Safe Softmax 输出</div>
+  </div>
+</div>
+
+<h3>Safe Softmax 公式</h3>
+<div class="formula">m = max(x)
+softmax(xᵢ) = exp(xᵢ - m) / Σⱼ exp(xⱼ - m)</div>
+
+<div class="callout success">
+  <strong>关键洞察：</strong>分子分母同时除以 exp(m)，数学结果不变，但 exp(xᵢ − m) 最大值是 exp(0) = 1，永远不会溢出。
+</div>
+
+<div class="card">
+  <h4>本节 Kernel 对比</h4>
+  <pre><span class="cm">// Naive — 会溢出</span>
+numerator = <span class="fn">tl.exp</span>(row)
+denom = <span class="fn">tl.sum</span>(numerator)
+output = numerator / denom
+
+<span class="cm">// Safe — 先减 row max</span>
+row_max = <span class="fn">tl.max</span>(row)
+numerator = <span class="fn">tl.exp</span>(row - row_max)
+denom = <span class="fn">tl.sum</span>(numerator)
+output = numerator / denom</pre>
+</div>
+
+<div class="callout">
+  <strong>和 Attention 的关系：</strong>标准 attention 每一行都是一个 softmax — <code>probs[row,:] = softmax(scores[row,:])</code>。后续 FlashAttention 只是避免把完整 scores/probs 写到 HBM。
+</div>
+</section>
+
+<!-- ========================== 02 ========================== -->
+<section class="section" id="sec1">
+<h2>02. Online Softmax — 分块 Streaming 更新</h2>
+<p class="subtitle">FlashAttention 的核心积木：用两个标量状态替代全局信息</p>
+
+<div class="card">
+  <h4>Safe Softmax 的局限</h4>
+  <p>需要先读完一整行才能知道 <code>m = max(row)</code> 和 <code>l = Σ exp(x − m)</code>。如果一行太长（如 seq_len=128K），无法一次放入 SRAM。</p>
+</div>
+
+<h3>分块合并公式</h3>
+<div class="formula">已有状态:
+  m_old = max(旧 blocks)
+  l_old = Σ exp(x_old − m_old)
+
+新来一个 block:
+  m_block = max(block)
+  l_block = Σ exp(block − m_block)
+
+合并:
+  m_new = max(m_old, m_block)
+  l_new = exp(m_old − m_new) · l_old   +   exp(m_block − m_new) · l_block</div>
+
+<div class="callout success">
+  <strong>关键：</strong>只需要保存两个标量 (m, l)，就能分块累加出精确结果。这就是 "online" — 不需要回头看旧数据。
+</div>
+
+<div class="vis-container">
+  <canvas id="c02" width="900" height="320"></canvas>
+</div>
+
+<h3>两遍扫描策略</h3>
+<div class="step-list">
+  <div class="step">
+    <div class="step-title">第一遍：扫描所有 block，维护 (running_max, running_sum)</div>
+    每个 block 算完就合并到全局状态，不需要保留 block 数据。
+  </div>
+  <div class="step">
+    <div class="step-title">第二遍：用最终的 (m, l) 写出概率</div>
+    重新读取每个 block，用统一的 m 和 l 计算 softmax 输出。
+  </div>
+</div>
+
+<div class="callout">
+  <strong>对 Attention 的启发：</strong>Attention 中每个 query row 不仅需要分母，还需要 <code>O = Σ softmax(scoreⱼ) · Vⱼ</code>。所以 FlashAttention 保存的状态扩展到三个：<code>(m, l, acc)</code>，其中 acc 是 V 的加权累积。
+</div>
+</section>
+
+<!-- ========================== 03 ========================== -->
+<section class="section" id="sec2">
+<h2>03. Attention Baseline — 显存灾难</h2>
+<p class="subtitle">看清楚为什么 materialize N×N 矩阵不可行</p>
+
+<div class="card">
+  <h4>标准 Scaled Dot-Product Attention</h4>
+  <div class="formula">S = Q · Kᵀ / √d        ← [batch, heads, N, N]
+P = softmax(S)          ← [batch, heads, N, N]
+O = P · V               ← [batch, heads, N, d]</div>
+</div>
+
+<div class="vis-container">
+  <canvas id="c03" width="900" height="380"></canvas>
+</div>
+
+<h3>S + P 显存爆炸</h3>
+<table>
+  <tr><th>seq_len N</th><th>S + P (fp16)</th><th>说明</th></tr>
+  <tr><td>1,024</td><td style="color:var(--green)">128 MiB</td><td>尚可接受</td></tr>
+  <tr><td>2,048</td><td style="color:var(--yellow)">512 MiB</td><td>开始吃力</td></tr>
+  <tr><td>4,096</td><td style="color:var(--orange)">2 GiB</td><td>单层已很大</td></tr>
+  <tr><td>8,192</td><td style="color:var(--red)">8 GiB</td><td>加上 Q/K/V/O 就爆了</td></tr>
+  <tr><td>32,768</td><td style="color:var(--red)">128 GiB</td><td>A100 80G 直接 OOM</td></tr>
+</table>
+<p class="dim">计算方式：batch=1, heads=32, N×N×2 tensors×2 bytes = 128N² bytes</p>
+
+<div class="card">
+  <h4>Baseline 的 3 个 Triton Kernel</h4>
+  <pre><span class="cm">// Step 1: QKᵀ → 写出完整 S [N×N]</span>
+<span class="fn">_scores_kernel</span>(q, k, scores_ptr)
+
+<span class="cm">// Step 2: softmax(row) → 写出完整 P [N×N]</span>
+<span class="fn">_row_softmax_kernel</span>(scores_ptr, probs_ptr)
+
+<span class="cm">// Step 3: P·V → 写出 O [N×d]</span>
+<span class="fn">_pv_kernel</span>(probs_ptr, v, out_ptr)</pre>
+</div>
+
+<div class="callout warn">
+  <strong>为什么这里故意这样写？</strong>目的是用 Triton 看清楚 baseline 的 HBM 读写成本 — 每一步都要把巨大的 N×N 矩阵写回显存再读回来。
+</div>
+</section>
+
+<!-- ========================== 04 ========================== -->
+<section class="section" id="sec3">
+<h2>04. FlashAttention v1 — IO-Aware Tiling</h2>
+<p class="subtitle">不改变数学结果，改变执行顺序</p>
+
+<div class="flow">
+  <div class="node">Q Block<br><span class="dim">BLOCK_M × d</span></div>
+  <span class="arrow">→</span>
+  <div class="node highlight">Online<br>Softmax<br>State</div>
+  <span class="arrow">→</span>
+  <div class="node">× K,V<br>Blocks<br><span class="dim">loop over all</span></div>
+  <span class="arrow">→</span>
+  <div class="node success">O Block<br><span class="dim">write once</span></div>
+</div>
+
+<h3>核心算法</h3>
+<div class="formula">for each Q block:              <span class="cm">// grid: (num_Q_blocks, batch*heads)</span>
+    m = -inf, l = 0, acc = 0
+    for each K,V block:
+        Sᵢⱼ = Q_block · K_blockᵀ      <span class="cm">// on-chip matmul</span>
+        update (m, l, acc)          <span class="cm">// online softmax merge</span>
+    O_block = acc / l               <span class="cm">// final rescale, write once</span></div>
+
+<div class="vis-container">
+  <canvas id="c04" width="900" height="400"></canvas>
+</div>
+
+<h3>关键对比</h3>
+<table>
+  <tr><th></th><th>Baseline</th><th>FA v1</th></tr>
+  <tr><td>S 矩阵</td><td style="color:var(--red)">写入 HBM (N×N)</td><td style="color:var(--green)">不写入</td></tr>
+  <tr><td>P 矩阵</td><td style="color:var(--red)">写入 HBM (N×N)</td><td style="color:var(--green)">不写入</td></tr>
+  <tr><td>O 矩阵</td><td>写入 N×d</td><td>写入 N×d</td></tr>
+  <tr><td>HBM 读写</td><td style="color:var(--red)">O(N²)</td><td style="color:var(--green)">O(N)</td></tr>
+  <tr><td>数学结果</td><td>精确</td><td>精确（完全相同）</td></tr>
+</table>
+
+<div class="callout success">
+  <strong>常见误区：</strong>FlashAttention 不是 sparse attention 或近似 attention。数学结果和普通 attention 完全一致，只是 IO 方式不同。
+</div>
+
+<div class="callout warn">
+  <strong>v1 的局限：</strong>非 matmul FLOPs 偏多；batch×heads 小时 thread blocks 不够多；block 内 warp 分工有额外 shared memory 通信。这些是 FA2 要改的。
+</div>
+</section>
+
+<!-- ========================== 05 ========================== -->
+<section class="section" id="sec4">
+<h2>05. Triton Fused Softmax</h2>
+<p class="subtitle">把一行 softmax 映射到一个 Triton program</p>
+
+<div class="card">
+  <h4>Triton 编程模型映射</h4>
+  <table>
+    <tr><th>概念</th><th>Triton 对应</th></tr>
+    <tr><td>一个 program</td><td>一行 row</td></tr>
+    <tr><td>tl.arange</td><td>该行的列索引</td></tr>
+    <tr><td>tl.load</td><td>读入一行</td></tr>
+    <tr><td>tl.max</td><td>行最大值</td></tr>
+    <tr><td>tl.exp</td><td>分子</td></tr>
+    <tr><td>tl.sum</td><td>分母</td></tr>
+    <tr><td>tl.store</td><td>写出结果</td></tr>
+  </table>
+</div>
+
+<div class="formula">Fused Softmax 在一个 kernel 里完成:
+max → exp → sum → divide
+不需要多个 op 之间反复读写全量 tensor</div>
+
+<div class="vis-container">
+  <canvas id="c05" width="900" height="260"></canvas>
+</div>
+
+<div class="callout">
+  <strong>为什么这里单独写 softmax kernel？</strong>FlashAttention 的 forward kernel 本质就是 <code>QK matmul tile</code> + <code>row softmax update</code> + <code>PV matmul tile</code>。看懂 Triton 的 row program 再看 FlashAttention 的 Q block program 会容易很多。
+</div>
+</section>
+
+<!-- ========================== 06 ========================== -->
+<section class="section" id="sec5">
+<h2>06. FlashAttention-2 — Work Partitioning 优化</h2>
+<p class="subtitle">在 FA v1 基础上优化并行度和 warp 分工</p>
+
+<h3>FA2 改进的三个维度</h3>
+<div class="mem-grid">
+  <div class="mem-bar">
+    <div class="val" style="color:var(--accent)">①</div>
+    <div class="label">减少 non-matmul FLOPs</div>
+    <p style="font-size:0.8rem;color:var(--text2);margin-top:8px;">减少 online softmax 的 rescale 开销</p>
+  </div>
+  <div class="mem-bar">
+    <div class="val" style="color:var(--accent2)">②</div>
+    <div class="label">增加并行度</div>
+    <p style="font-size:0.8rem;color:var(--text2);margin-top:8px;">batch×heads 小时也有足够 thread blocks</p>
+  </div>
+  <div class="mem-bar">
+    <div class="val" style="color:var(--green)">③</div>
+    <div class="label">改善 warp 分工</div>
+    <p style="font-size:0.8rem;color:var(--text2);margin-top:8px;">减少 shared memory 往返</p>
+  </div>
+</div>
+
+<h3>FA2 Launch Grid</h3>
+<div class="formula">grid x: Q blocks along sequence  <span class="cm">// cdiv(N, BLOCK_M)</span>
+grid y: batch * heads             <span class="cm">// each (b,h) independent</span>
+
+each program:
+  owns one Q block
+  loops over all K,V blocks
+  keeps m, l, acc on chip
+  writes one O block</div>
+
+<div class="vis-container">
+  <canvas id="c06" width="900" height="300"></canvas>
+</div>
+
+<h3>FA v1 vs FA2 核心差异</h3>
+<table>
+  <tr><th>维度</th><th>FA v1</th><th>FA v2</th></tr>
+  <tr><td>launch grid</td><td>1D: Q blocks × (batch*heads)</td><td>2D: Q blocks × (batch*heads)</td></tr>
+  <tr><td>work partitioning</td><td>粗粒度</td><td>更细的 warp 分工</td></tr>
+  <tr><td>non-matmul 开销</td><td>online softmax rescale 较频繁</td><td>优化 rescale 路径</td></tr>
+  <tr><td>occupancy</td><td>batch×heads 小时不足</td><td>更充分利用 SM</td></tr>
+</table>
+
+<div class="callout">
+  <strong>本节代码与官方 tutorial 一致：</strong>forward 主干和 Triton 官方 fused attention tutorial 相同。为教学可读性，没有实现 backward、dropout、autotune、varlen、FP8 等生产级细节。
+</div>
+</section>
+</main>
+
+<script>
+// ========== Tab Navigation ==========
+const nav = document.getElementById('nav');
+nav.addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') return;
+  const idx = parseInt(e.target.dataset.tab);
+  nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  document.querySelectorAll('main .section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec' + idx).classList.add('active');
+  // 重绘 canvas
+  setTimeout(drawAll, 50);
+});
+
+// ========== Canvas Drawing Utilities ==========
+function axis(c, x, y, w, h, opts = {}) {
+  const { labelX, labelY, color = '#2f3350', arrow = true } = opts;
+  c.strokeStyle = color; c.lineWidth = 1; c.beginPath();
+  c.moveTo(x, y); c.lineTo(x + w, y); c.moveTo(x, y); c.lineTo(x, y - h);
+  c.stroke();
+  if (arrow) {
+    c.beginPath(); c.moveTo(x + w, y); c.lineTo(x + w - 8, y - 4); c.lineTo(x + w - 8, y + 4); c.fillStyle = color; c.fill();
+    c.beginPath(); c.moveTo(x, y - h); c.lineTo(x - 4, y - h + 8); c.lineTo(x + 4, y - h + 8); c.fill();
+  }
+  if (labelX) { c.fillStyle = '#8b949e'; c.font = '12px sans-serif'; c.fillText(labelX, x + w - 30, y + 16); }
+  if (labelY) { c.fillStyle = '#8b949e'; c.fillText(labelY, x + 6, y - h + 14); }
+}
+
+function roundedRect(c, x, y, w, h, r, fill, stroke) {
+  c.beginPath(); c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+  if (fill) { c.fillStyle = fill; c.fill(); }
+  if (stroke) { c.strokeStyle = stroke; c.lineWidth = 2; c.stroke(); }
+}
+
+function text(c, t, x, y, opts = {}) {
+  const { color = '#c9d1d9', font = '13px sans-serif', align = 'center' } = opts;
+  c.fillStyle = color; c.font = font; c.textAlign = align; c.fillText(t, x, y);
+}
+
+// ========== 01: Softmax 图表 ==========
+function draw01() {
+  const canvas = document.getElementById('c01');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  // 输入值
+  const vals = [1000, 1001, 1002];
+  const barW = 70, gap = 40, startX = 100, baseY = 220;
+
+  // 标题
+  text(c, '输入 logits = [1000, 1001, 1002]', W/2, 30, { color: '#fff', font: 'bold 14px sans-serif' });
+
+  // Naive 路径
+  text(c, 'Naive Softmax', startX + barW*1.5 + gap, 60, { color: '#f7768e', font: 'bold 13px sans-serif' });
+  vals.forEach((v, i) => {
+    const x = startX + i*(barW+gap);
+    const h = Math.min(60, v/20);
+    c.fillStyle = v > 100 ? '#f7768e' : '#7aa2f7';
+    c.fillRect(x, baseY - h, barW, h);
+    text(c, v, x+barW/2, baseY+18, { font: '11px monospace' });
+    // exp 溢出
+    const expH = Math.min(100, Math.exp(v-999)*0.01);
+    c.fillStyle = 'rgba(247,118,142,0.4)';
+    c.fillRect(x + 5, baseY - 100 - expH, barW - 10, expH);
+  });
+  text(c, 'exp(x) → overflow! → NaN', startX + barW*1.5 + gap, baseY + 50, { color: '#f7768e', font: '12px sans-serif' });
+
+  // Safe 路径
+  const svals = [-2, -1, 0];
+  text(c, 'Safe Softmax (x - max)', startX + barW*1.5 + gap, baseY + 80, { color: '#9ece6a', font: 'bold 13px sans-serif' });
+  svals.forEach((v, i) => {
+    const x = startX + i*(barW+gap);
+    const h = Math.max(8, v*20 + 30);
+    c.fillStyle = '#9ece6a';
+    c.fillRect(x, baseY + 100 - h, barW, h);
+    text(c, v, x+barW/2, baseY + 118, { font: '11px monospace' });
+    text(c, 'exp='+(Math.exp(v).toFixed(2)), x+barW/2, baseY + 118 + 16, { font: '10px monospace', color: '#8b949e' });
+  });
+  text(c, 'exp(x−m) ≤ 1 → 安全 → [0.09, 0.24, 0.67]', startX + barW*1.5 + gap, baseY + 150, { color: '#9ece6a', font: '12px sans-serif' });
+}
+
+// ========== 02: Online Softmax 图表 ==========
+function draw02() {
+  const canvas = document.getElementById('c02');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  const blocks = [
+    { label: 'Block 0', values: [3, 7, 1, 5], max: 7, sum: 0 },
+    { label: 'Block 1', values: [8, 2, 4, 6], max: 8, sum: 0 },
+    { label: 'Block 2', values: [9, 3, 1, 2], max: 9, sum: 0 },
+  ];
+
+  // 计算 block sums
+  blocks.forEach(b => {
+    b.sum = b.values.reduce((s, v) => s + Math.exp(v - b.max), 0);
+  });
+
+  text(c, '行数据分 3 个 Block 扫描（online softmax 合并）', W/2, 24, { color: '#fff', font: 'bold 14px sans-serif' });
+
+  const bx = 40, by = 60, bw = 250, bh = 70, gap = 15;
+
+  // 画三个 block
+  blocks.forEach((b, i) => {
+    const y = by + i*(bh+gap);
+    roundedRect(c, bx, y, bw, bh, 8, '#1a1b26', '#2f3350');
+    text(c, b.label, bx + 44, y + 22, { align: 'left', font: 'bold 12px sans-serif', color: '#7dcfff' });
+    text(c, '[' + b.values.join(', ') + ']', bx + 44, y + 42, { align: 'left', font: '11px monospace', color: '#c9d1d9' });
+    text(c, 'm_block=' + b.max, bx + 44, y + 60, { align: 'left', font: '10px monospace', color: '#e0af68' });
+
+    // block max 框
+    roundedRect(c, bx + 6, y + 8, 34, 26, 5, null, '#e0af68');
+    text(c, 'm', bx + 23, y + 28, { font: '11px sans-serif', color: '#e0af68' });
+  });
+
+  // State 列
+  const sx = 340;
+  text(c, 'Running State', sx + 80, by + 10, { color: '#bb9af7', font: 'bold 13px sans-serif' });
+
+  const states = [
+    { m: 7, l: 3.02 },
+    { m: 8, l: 3.02 * Math.exp(7-8) + 1 * Math.exp(8-8) },
+    { m: 9, l: 0 },
+  ];
+  // recalc
+  states[1].l = states[0].l * Math.exp(7-8) + blocks[1].sum * Math.exp(8-8);
+  states[2].l = states[1].l * Math.exp(8-9) + blocks[2].sum * Math.exp(9-9);
+
+  states.forEach((s, i) => {
+    const y = by + i*(bh+gap);
+    roundedRect(c, sx, y, 180, bh, 8, '#1a1b26', '#bb9af7');
+
+    text(c, `m=${s.m.toFixed(1)}`, sx + 90, y + 30, { font: '13px monospace', color: '#bb9af7' });
+    text(c, `l=${s.l.toFixed(3)}`, sx + 90, y + 52, { font: '13px monospace', color: '#bb9af7' });
+  });
+
+  // 合并公式
+  const fy = by + blocks.length*(bh+gap) + 30;
+  text(c, '合并公式:  m_new = max(m_old, m_block)', W/2, fy, { font: '12px monospace', color: '#7aa2f7' });
+  text(c, 'l_new = exp(m_old − m_new)·l_old  +  exp(m_block − m_new)·l_block', W/2, fy + 22, { font: '12px monospace', color: '#7aa2f7' });
+}
+
+// ========== 03: Attention Baseline 图表 ==========
+function draw03() {
+  const canvas = document.getElementById('c03');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  text(c, 'Baseline Attention — 三步写出 3 个中间矩阵', W/2, 22, { color: '#fff', font: 'bold 14px sans-serif' });
+
+  // Q, K matrices
+  const mx = 60, my = 60, cell = 18;
+  function drawMat(x, y, rows, cols, label, color) {
+    for (let r = 0; r < rows; r++) {
+      for (let co = 0; co < cols; co++) {
+        c.fillStyle = `rgba(122,162,247,${0.1 + 0.3 * Math.random()})`;
+        if (color === 'red') c.fillStyle = `rgba(247,118,142,${0.1 + 0.3 * Math.random()})`;
+        if (color === 'green') c.fillStyle = `rgba(158,206,106,${0.1 + 0.3 * Math.random()})`;
+        c.fillRect(x + co*cell, y + r*cell, cell-2, cell-2);
+      }
+    }
+    c.fillStyle = color || '#7aa2f7';
+    text(c, label, x + cols*cell/2, y - 14, { font: 'bold 12px sans-serif' });
+    text(c, `${rows}×${cols}`, x + cols*cell/2, y + rows*cell + 16, { font: '10px monospace', color: '#8b949e' });
+  }
+
+  const N = 6, d0 = 4; // visual sizes
+  drawMat(mx, my, N, d0, 'Q [N×d]', '#7aa2f7');
+  drawMat(mx + d0*cell + 50, my, N, d0, 'K [N×d]', '#7dcfff');
+
+  // S matrix N×N
+  const sx = mx, sy = my + N*cell + 50;
+  for (let r = 0; r < N; r++) {
+    for (let co = 0; co < N; co++) {
+      c.fillStyle = `rgba(247,118,142,${0.15 + 0.25 * Math.random()})`;
+      c.fillRect(sx + co*cell, sy + r*cell, cell-2, cell-2);
+    }
+  }
+  text(c, 'S = QKᵀ [N×N]', sx + N*cell/2, sy - 14, { font: 'bold 12px sans-serif', color: '#f7768e' });
+  text(c, '⚠ 显存杀手', sx + N*cell/2, sy + N*cell + 16, { font: '10px sans-serif', color: '#f7768e' });
+
+  // P matrix N×N
+  const px = sx + N*cell + 50, py = sy;
+  for (let r = 0; r < N; r++) {
+    for (let co = 0; co < N; co++) {
+      c.fillStyle = `rgba(247,118,142,${0.1 + 0.2 * Math.random()})`;
+      c.fillRect(px + co*cell, py + r*cell, cell-2, cell-2);
+    }
+  }
+  text(c, 'P = softmax(S) [N×N]', px + N*cell/2, py - 14, { font: 'bold 12px sans-serif', color: '#f7768e' });
+  text(c, '⚠ 又一个 N×N', px + N*cell/2, py + N*cell + 16, { font: '10px sans-serif', color: '#f7768e' });
+
+  // V matrix
+  drawMat(sx + N*cell/2 + 50, sy + N*cell + 50 + 30, N, d0, 'V [N×d]', '#bb9af7');
+
+  // O matrix
+  const ox = px + N*cell/2 + 50, oy = sy + N*cell + 80;
+  for (let r = 0; r < N; r++) {
+    for (let co = 0; co < d0; co++) {
+      c.fillStyle = `rgba(158,206,106,${0.2 + 0.4 * Math.random()})`;
+      c.fillRect(ox + co*cell, oy + r*cell, cell-2, cell-2);
+    }
+  }
+  text(c, 'O = PV [N×d]', ox + d0*cell/2, oy - 14, { font: 'bold 12px sans-serif', color: '#9ece6a' });
+
+  // highlight
+  c.strokeStyle = '#f7768e'; c.lineWidth = 2; c.setLineDash([4, 4]);
+  c.strokeRect(sx-4, sy-4, N*cell+8, N*cell+8);
+  c.strokeRect(px-4, py-4, N*cell+8, N*cell+8);
+  c.setLineDash([]);
+
+  text(c, '问题：当 N=8192 时，S+P = 8 GiB（还没算 Q,K,V,O）', W/2, oy + N*cell + 30, { color: '#f7768e', font: 'bold 13px sans-serif' });
+}
+
+// ========== 04: FA v1 图表 ==========
+function draw04() {
+  const canvas = document.getElementById('c04');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  text(c, 'FlashAttention v1 — 分块计算，不写出 N×N 矩阵', W/2, 22, { color: '#fff', font: 'bold 14px sans-serif' });
+
+  // Q matrix 分块
+  const cell = 14, bx = 30, by = 60;
+  const qRows = 8, qCols = 4;
+  const blockRows = 2, blockCols = qCols;
+
+  // Q blocks
+  const blocks = [];
+  for (let b = 0; b < 4; b++) {
+    const br = b * blockRows;
+    const x = bx + (b % 2) * 200;
+    const y = by + Math.floor(b / 2) * 170;
+    // draw Q block
+    for (let r = br; r < br + blockRows && r < qRows; r++) {
+      for (let co = 0; co < qCols; co++) {
+        c.fillStyle = `rgba(122,162,247,${0.3 + 0.4 * Math.random()})`;
+        c.fillRect(x + co*cell, y + (r-br)*cell, cell-1, cell-1);
+      }
+    }
+    roundedRect(c, x - 4, y - 4, qCols*cell + 6, blockRows*cell + 6, 4, null, '#7aa2f7');
+    text(c, `Q block ${b}`, x + qCols*cell/2, y - 10, { font: '10px sans-serif', color: '#7aa2f7' });
+
+    // KV scan
+    const kvx = x + qCols*cell + 40;
+    for (let kv = 0; kv < 4; kv++) {
+      const kvy = y + kv * 22;
+      for (let r = kv*2; r < Math.min(kv*2+2, qRows); r++) {
+        for (let co = 0; co < qCols; co++) {
+          c.fillStyle = `rgba(125,207,255,${0.2 + 0.3 * Math.random()})`;
+          c.fillRect(kvx + co*cell, kvy + (r-kv*2)*cell, cell-1, cell-1);
+        }
+      }
+      roundedRect(c, kvx - 2, kvy - 2, qCols*cell + 2, 2*cell + 2, 2, null, '#7dcfff');
+      text(c, `KV${kv}`, kvx + qCols*cell/2, kvy + 2*cell + 12, { font: '8px sans-serif', color: '#7dcfff' });
+    }
+
+    // state
+    const sx = kvx + qCols*cell + 30;
+    roundedRect(c, sx, y + 5, 90, 50, 6, '#24253a', '#bb9af7');
+    text(c, `m, l, acc`, sx + 45, y + 22, { font: '11px monospace', color: '#bb9af7' });
+    text(c, `on SRAM`, sx + 45, y + 42, { font: '9px sans-serif', color: '#8b949e' });
+
+    // O block output
+    const ox = sx + 110;
+    for (let r = br; r < br + blockRows && r < qRows; r++) {
+      for (let co = 0; co < qCols; co++) {
+        c.fillStyle = `rgba(158,206,106,${0.4 + 0.4 * Math.random()})`;
+        c.fillRect(ox + co*cell, y + (r-br)*cell, cell-1, cell-1);
+      }
+    }
+    roundedRect(c, ox - 4, y - 4, qCols*cell + 6, blockRows*cell + 6, 4, null, '#9ece6a');
+    text(c, `O block ${b}`, ox + qCols*cell/2, y - 10, { font: '10px sans-serif', color: '#9ece6a' });
+  }
+
+  text(c, '每个 Q block 独立扫描全部 K,V block，online softmax 合并 → 最后写一次 O', W/2, H-16, { font: '11px sans-serif', color: '#8b949e' });
+}
+
+// ========== 05: Triton Softmax 图表 ==========
+function draw05() {
+  const canvas = document.getElementById('c05');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  text(c, 'Triton Fused Softmax — 一个 program = 一行数据', W/2, 24, { color: '#fff', font: 'bold 14px sans-serif' });
+
+  const nCols = 16, cell = 24, sx = 60, sy = 70;
+  const rows = [
+    { label: 'Row 0', vals: Array.from({length: nCols}, () => (Math.random()*6-2).toFixed(1)) },
+    { label: 'Row 1', vals: Array.from({length: nCols}, () => (Math.random()*6-2).toFixed(1)) },
+    { label: 'Row 2', vals: Array.from({length: nCols}, () => (Math.random()*6-2).toFixed(1)) },
+  ];
+
+  rows.forEach((row, i) => {
+    const y = sy + i * 50;
+    // program label
+    roundedRect(c, sx - 4, y - 4, nCols*cell + 8, cell + 6, 4, null, '#7aa2f7');
+    text(c, `program_id(${i})`, sx - 44, y + cell/2 + 4, { align: 'right', font: '10px monospace', color: '#7aa2f7' });
+
+    // cells with gradient (input)
+    row.vals.forEach((v, j) => {
+      const val = parseFloat(v);
+      const alpha = 0.15 + 0.35 * (val + 3) / 6;
+      c.fillStyle = `rgba(125,207,255,${Math.min(0.7, alpha)})`;
+      c.fillRect(sx + j*cell, y, cell-2, cell-2);
+    });
+
+    // operations annotation
+    const opX = sx + nCols*cell + 30;
+    text(c, '→ max → exp → sum → /', opX + 70, y + cell/2 + 4, { font: '10px monospace', color: '#e0af68' });
+
+    // output (probability) - simplified
+    const outX = opX + 160;
+    row.vals.forEach((v, j) => {
+      const val = parseFloat(v);
+      const alpha = Math.exp(val) / row.vals.reduce((s, x) => s + Math.exp(parseFloat(x)), 0);
+      c.fillStyle = `rgba(158,206,106,${Math.min(0.7, alpha*3)})`;
+      c.fillRect(outX + j*cell, y, cell-2, cell-2);
+    });
+
+    text(c, '→ store', outX + nCols*cell + 20, y + cell/2 + 4, { font: '10px monospace', color: '#9ece6a' });
+  });
+
+  text(c, '所有操作（load, max, exp, sum, divide, store）在一个 kernel 内完成', W/2, sy + rows.length*50 + 40, { font: '12px sans-serif', color: '#7aa2f7' });
+}
+
+// ========== 06: FA2 图表 ==========
+function draw06() {
+  const canvas = document.getElementById('c06');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  text(c, 'FA2 Launch Grid: 每个 program 负责一个 Q block，循环扫描所有 K,V', W/2, 22, { color: '#fff', font: 'bold 14px sans-serif' });
+
+  // Grid visualization
+  const gx = 40, gy = 60, cellW = 140, cellH = 80, gap = 10;
+  const gridRows = 2, gridCols = 4;
+
+  for (let r = 0; r < gridRows; r++) {
+    for (let co = 0; co < gridCols; co++) {
+      const x = gx + co * (cellW + gap);
+      const y = gy + r * (cellH + gap);
+      roundedRect(c, x, y, cellW, cellH, 8, '#1a1b26', '#2f3350');
+
+      // Q block portion
+      const qAlpha = 0.2 + 0.3 * Math.random();
+      c.fillStyle = `rgba(122,162,247,${qAlpha})`;
+      c.fillRect(x + 4, y + 4, cellW - 8, cellH/2 - 8);
+      text(c, `Q block [${co},${r}]`, x + cellW/2, y + cellH/2 - 8, { font: '10px monospace', color: '#7aa2f7' });
+
+      // K,V scan indicator
+      c.fillStyle = 'rgba(125,207,255,0.15)';
+      c.fillRect(x + 4, y + cellH/2, cellW - 8, cellH/2 - 8);
+      text(c, 'scan K,V blocks', x + cellW/2, y + cellH - 5, { font: '9px monospace', color: '#7dcfff' });
+    }
+  }
+
+  // Grid axes
+  text(c, 'grid.x = Q blocks (cdiv(N, BLOCK_M))', gx + gridCols*(cellW+gap)/2, gy + gridRows*(cellH+gap) + 30, { font: '12px sans-serif', color: '#7aa2f7' });
+  text(c, 'grid.y', gx - 20, gy + gridRows*(cellH+gap)/2, { font: '12px sans-serif', color: '#bb9af7', align: 'right' });
+  text(c, '=', gx - 20, gy + gridRows*(cellH+gap)/2 + 18, { font: '12px sans-serif', color: '#8b949e', align: 'right' });
+  text(c, 'batch×heads', gx - 20, gy + gridRows*(cellH+gap)/2 + 36, { font: '12px sans-serif', color: '#bb9af7', align: 'right' });
+
+  // 底部对比
+  const bottomY = gy + gridRows*(cellH+gap) + 60;
+  text(c, 'vs FA v1 主要改进:', W/2, bottomY, { font: 'bold 12px sans-serif', color: '#fff' });
+
+  const items = [
+    { text: '减少 non-matmul FLOPs', color: '#7aa2f7' },
+    { text: '增加并行度 (batch×heads 小时也够 thread blocks)', color: '#bb9af7' },
+    { text: '改善 warp work partitioning，减少 shared memory 通信', color: '#9ece6a' },
+  ];
+  items.forEach((item, i) => {
+    text(c, `• ${item.text}`, W/2, bottomY + 22 + i*22, { font: '11px sans-serif', color: item.color });
+  });
+}
+
+// ========== Init ==========
+function drawAll() {
+  draw01(); draw02(); draw03(); draw04(); draw05(); draw06();
+}
+window.addEventListener('load', drawAll);
+</script>
+
+</body>
+</html>
