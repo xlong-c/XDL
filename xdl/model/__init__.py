@@ -34,6 +34,7 @@ from .vit import (
 )
 from .generate import TwinFlow
 from .segment.fatt import FATT
+from .lowlevel import RGT, ATD
 
 
 def _register_models():
@@ -79,6 +80,13 @@ def _register_models():
     register_model("simple_mlp")(simple_mlp)
     register_model("FATT")(FATT)
 
+    # 注册 RGT 超分辨率模型
+    register_model("RGT")(RGT)
+    register_model("RGT_S")(RGT)  # RGT small 变体，共用 RGT 类
+
+    # 注册 ATD 超分辨率模型
+    register_model("ATD")(ATD)
+
 
 # 自动执行模型注册
 _register_models()
@@ -119,4 +127,7 @@ __all__ = [
     "TwinFlow",
     # Segment
     "FATT",
+    # Lowlevel SR
+    "RGT",
+    "ATD",
 ]

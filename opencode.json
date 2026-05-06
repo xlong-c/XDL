@@ -3,6 +3,6 @@
     "plugin": [
         "oh-my-opencode"
     ],
-    "model": "deepseek/qwen3-coder-plus",
+    "model": "deepseek/deepseek-v4-pro",
     "mcp": {}
 }

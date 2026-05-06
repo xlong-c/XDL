@@ -10,7 +10,8 @@ from .checkpoint import (
     save_checkpoint,
     unflatten_state_dict,
 )
-from .tools import enable_tensor_debug_info,path_win2wsl
+from .tools import enable_tensor_debug_info, path_win2wsl
+from .tiling import tile_inference
 from .registry import (
     DATASET_REGISTRY,
     LOSS_REGISTRY,
@@ -66,4 +67,6 @@ __all__ = [
     # Tools
     "enable_tensor_debug_info",
     "path_win2wsl",
+    # Tiling
+    "tile_inference",
 ]
