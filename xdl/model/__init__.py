@@ -34,7 +34,7 @@ from .vit import (
 )
 from .generate import TwinFlow
 from .segment.fatt import FATT
-from .lowlevel import RGT, ATD
+from .lowlevel import RGT, ATD, RRDBNet, OFTSR_UNet, OFTSR_SuperResModel, AutoEncoder_RRDBNet, ProbabilisticAutoEncoder_RRDBNet
 
 
 def _register_models():
@@ -87,6 +87,17 @@ def _register_models():
     # 注册 ATD 超分辨率模型
     register_model("ATD")(ATD)
 
+    # 注册 RRDBNet (ESRGAN 生成器)
+    register_model("RRDBNet")(RRDBNet)
+
+    # 注册 OFTSR Flow-based SR 模型
+    register_model("OFTSR_UNet")(OFTSR_UNet)
+    register_model("OFTSR_SuperResModel")(OFTSR_SuperResModel)
+
+    # 注册 AESOP AutoEncoder 模型
+    register_model("AutoEncoder_RRDBNet")(AutoEncoder_RRDBNet)
+    register_model("ProbabilisticAutoEncoder_RRDBNet")(ProbabilisticAutoEncoder_RRDBNet)
+
 
 # 自动执行模型注册
 _register_models()
@@ -130,4 +141,9 @@ __all__ = [
     # Lowlevel SR
     "RGT",
     "ATD",
+    "RRDBNet",
+    "OFTSR_UNet",
+    "OFTSR_SuperResModel",
+    "AutoEncoder_RRDBNet",
+    "ProbabilisticAutoEncoder_RRDBNet",
 ]

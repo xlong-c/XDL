@@ -29,7 +29,7 @@ xdl/
 
 ## 核心约束
 
-- **所有组件必须通过注册系统注册**：`@MODEL.register_module()` / `@DATASET.register_module()` 等
+- **所有组件必须通过注册系统注册**：在对应 `__init__.py` 中用 `register_*("Name")(Class)` 集中注册（非装饰器模式）
 - 支持六种注册类型：MODEL, DATASET, OPTIMIZER, SCHEDULER, LOSS, METRIC
 - **回调优先级**：数值越小越先执行，未指定时默认 999
 - 所有函数必须加类型注解
