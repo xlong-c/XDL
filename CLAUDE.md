@@ -30,15 +30,39 @@ xdl/
 ## 核心约束
 
 - **所有组件必须通过注册系统注册**：在对应 `__init__.py` 中用 `register_*("Name")(Class)` 集中注册（非装饰器模式）
-- 支持六种注册类型：MODEL, DATASET, OPTIMIZER, SCHEDULER, LOSS, METRIC
+- 支持八种注册类型：MODEL, DATASET, OPTIMIZER, SCHEDULER, LOSS, METRIC, TRANSFORM, COLLATE
 - **回调优先级**：数值越小越先执行，未指定时默认 999
 - 所有函数必须加类型注解
+- **脚本参数**：Python 脚本统一使用 `tyro` + `dataclass` 管理参数，禁止使用 `argparse` / `args`。Agent 可通过 CLI 传参，用户通过 dataclass 默认值或 YAML 配置，`tyro` 原生支持两者
 
 ## 三种使用方式
 
 1. **纯代码**（VAE/GAN 示例）：手动实例化所有组件，`python train_VAE.py`
 2. **YAML 配置（推荐）**：`setup = setup_from_yaml('config/xxx.yaml')` → 返回 `TrainSetup` dataclass，一行拿到 model/optimizer/train_loader 等全部组件
 3. **DeepSpeed 分布式**：`deepspeed train_script.py --deepspeed config/deepspeed_config.json`
+
+## tyro 脚本参数规范
+
+所有训练/推理脚本使用 `tyro` + `dataclass` 管理参数：
+
+```python
+from dataclasses import dataclass
+import tyro
+
+@dataclass
+class Config:
+    """训练配置"""
+    input_path: str                 # 必填参数
+    batch_size: int = 32            # 可选参数，有默认值
+    lr: float = 1e-4
+    verbose: bool = False           # bool 标志
+
+config = tyro.cli(Config)
+```
+
+- Agent 调用时用 CLI：`python script.py --input-path /data --batch-size 64`
+- 用户直接用 dataclass 默认值或在代码中导入并传入 YAML 解析后的 dict：`Config(**yaml_dict)`
+- `tyro` 原生支持嵌套 dataclass、enum、Union 等类型
 
 ## 命令
 

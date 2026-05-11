@@ -9,7 +9,7 @@ PyTorch 深度学习包，组件注册系统 + 回调生命周期 + YAML 配置�
 - 多文件重构或架构级变更时，先进入规划模式（EnterPlanMode）制定方案
 - 不确定文件位置或调用关系时，优先搜索而非猜测
 - 涉及第三方库用法、API 变更、最佳实践等外部知识时，先用 WebSearch 查最新文档
-- **脚本参数**：Python 脚本不使用命令行参数解析库（如 `argparse`/`args`），优先使用 YAML 配置或代码内显式配置
+- **脚本参数**：Python 脚本统一使用 `tyro` + `dataclass` 管理参数，禁止使用 `argparse` / `args`
 
 ## 架构
 
@@ -48,7 +48,7 @@ xdl/
 │   ├── lambda_callback.py         # 灵活 lambda 钩子
 │   ├── logging_callback.py        # 通用日志回调
 │   └── sampling_animation_callback.py  # 生成模型采样动画
-├── model/                         # 模型架构（30 注册条目）
+├── model/                         # 模型架构（38 注册条目）
 │   ├── resnet.py                  # ResNet 系列 (18/34/50/101/152)
 │   ├── vgg.py                     # VGG 系列 (11/13/16/19 + BN 变体)
 │   ├── vit.py                     # Vision Transformer 系列 (Tiny→Huge)
@@ -57,13 +57,15 @@ xdl/
 │   │   └── twinflow.py            # TwinFlow 连续时间生成模型
 │   ├── segment/
 │   │   └── fatt.py                # FATT 分割模型
-│   └── lowlevel/                  # 底层模型（非注册，直接 import）
+│   └── lowlevel/                  # 底层 SR 模型（也已注册）
 │       ├── rgt_arch.py            # RGT (Transformer SR)
 │       ├── atd_arch.py            # ATD (Transformer SR)
 │       ├── esc_arch.py            # ESC (Transformer SR)
 │       ├── rrdb_arch.py           # RRDBNet (ESRGAN backbone)
 │       ├── oftsr_unet.py          # OFTSR UNet + SuperResModel
-│       └── aesop_autoencoder.py   # AESOP AutoEncoder + ProbabilisticAutoEncoder
+│       ├── aesop_autoencoder.py   # AESOP AutoEncoder + ProbabilisticAutoEncoder
+│       ├── realplksr_arch.py      # RealPLKSR
+│       └── realplksr_arch_ult.py  # RealPLKSR Ultra
 ├── dataset/                       # 数据集定义
 │   ├── basic.py                   # SyntheticClassificationDataset
 │   ├── vision_datasets.py         # CIFAR10, MNIST
@@ -89,7 +91,7 @@ xdl/
 │   ├── cosine_annealing_lr.py     # CosineAnnealingLR
 │   └── cosine_annealing_warm_restarts.py  # CosineAnnealingWarmRestarts
 └── utils/                         # 工具层
-    ├── registry.py                # Registry + 6 种 Registry 实例 + build_*() / register_*()
+    ├── registry.py                # Registry + 8 种 Registry 实例 + build_*() / register_*()
     ├── checkpoint.py              # save_checkpoint / detect_and_load_checkpoint / flatten/unflatten
     ├── tiling.py                  # tile_inference（分块推理）
     ├── tools.py                   # enable_tensor_debug_info / path_win2wsl
@@ -100,7 +102,7 @@ xdl/
 
 ### 注册系统
 
-六种注册类型，各有独立的 `Registry` 实例和 `register_*` / `build_*` 函数：
+八种注册类型，各有独立的 `Registry` 实例和 `register_*` / `build_*` 函数：
 
 | 类型 | Registry 实例 | register 函数 | build 函数 |
 |------|-------------|-------------|-----------|
@@ -110,8 +112,14 @@ xdl/
 | SCHEDULER | `SCHEDULER_REGISTRY` | `register_scheduler()` | `build_scheduler()` |
 | LOSS | `LOSS_REGISTRY` | `register_loss()` | `build_loss()` |
 | METRIC | `METRIC_REGISTRY` | `register_metric()` | `build_metric()` |
+| TRANSFORM | `TRANSFORM_REGISTRY` | `register_transform()` | `build_transform()` |
+| COLLATE | `COLLATE_REGISTRY` | `register_collate()` | — |
 
-外加两个辅助注册表：`COLLATE_REGISTRY`、`TRANSFORM_REGISTRY`。
+此外，`registry.py` 导入时会自动预注册常用 PyTorch 原生组件：
+- 优化器：`Adam`, `AdamW`, `SGD`, `RMSprop`
+- 损失函数：`CrossEntropyLoss`, `MSELoss`, `L1Loss`, `BCEWithLogitsLoss`
+
+提供 `inspect_model(name)` / `inspect_optimizer(name)` / `inspect_dataset(name)` 辅助函数查看组件签名。
 
 注册模式（在对应 `__init__.py` 中集中调用，**非装饰器模式**）：
 
@@ -146,7 +154,7 @@ YAML 文件 → setup_from_yaml() → TrainSetup dataclass → create_model() �
 
 ## 已注册组件速查
 
-### 模型 (30) — 详见 [xdl/model/AGENTS.md](xdl/model/AGENTS.md)
+### 模型 (38) — 详见 [xdl/model/AGENTS.md](xdl/model/AGENTS.md)
 
 **ResNet**: `BasicBlock`, `Bottleneck`, `ResNet`, `resnet18`, `resnet34`, `resnet50`, `resnet101`, `resnet152`
 **VGG**: `VGG`, `vgg11`, `vgg11_bn`, `vgg13`, `vgg13_bn`, `vgg16`, `vgg16_bn`, `vgg19`, `vgg19_bn`
@@ -154,8 +162,7 @@ YAML 文件 → setup_from_yaml() → TrainSetup dataclass → create_model() �
 **MLP**: `SimpleMLP`, `simple_mlp`
 **生成**: `TwinFlow`
 **分割**: `FATT`
-
-**注意**：`lowlevel/` 目录下的模型（RGT, ATD, ESC, RRDBNet, OFTSR 系列, AESOP 系列）**不走注册系统**，直接通过 `from xdl.model.lowlevel import XXX` 使用。
+**底层 SR**: `RGT`, `RGT_S`, `ATD`, `RRDBNet`, `OFTSR_UNet`, `OFTSR_SuperResModel`, `AutoEncoder_RRDBNet`, `ProbabilisticAutoEncoder_RRDBNet`
 
 ### 损失 (8)
 
@@ -252,7 +259,6 @@ pytest tests/ -v --cov=xdl           # 测试
 
 - GPU 内存紧张时用梯度累积、AMP、激活检查点
 - DeepSpeed/Accelerate 分布式训练需同步保存检查点
-- `lowlevel/` 下模型不走注册系统，不支持 YAML `target: "registry:XXX"` 方式加载
 - `learn/` 目录为 C++23 CUDA 内核实验，不遵循 Python 规范
 - 数据集模块中的 GridImage/Hair 系列依赖可选第三方库，导入失败不阻断框架
 - scheduler 实例化时第一个参数是 optimizer（PyTorch 标准接口）
