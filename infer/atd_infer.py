@@ -1,23 +1,23 @@
 """ATD 超分辨率推理脚本。
 
 用法:
-    python infer/atd_infer.py -i photo.jpg -o sr_photo.png
-    python infer/atd_infer.py -i photo.jpg -o sr.png --fp16 --batch 4
-
-默认从 others/001_ATD_SRx2_finetune.pth 加载 x2 权重。
+    python infer/atd_infer.py
+    python infer/atd_infer.py --input photo.jpg --output sr.png
+    python infer/atd_infer.py --input photo.jpg --fp16 --tile-size 96
 """
 
-import argparse
 import time
-from pathlib import Path
+from dataclasses import dataclass
 
 import torch
+import tyro
 from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor, to_pil_image
 
 from xdl.model.lowlevel import ATD
 from xdl.utils.tiling import tile_inference
 
+# ATD x2 模型架构（固定参数）
 MODEL_CFG = {
     "img_size": 96,
     "in_chans": 3,
@@ -38,84 +38,77 @@ MODEL_CFG = {
 }
 
 
-def load_atd(weight_path: str, device: str = "cuda", fp16: bool = False) -> ATD:
-    """加载 ATD 模型并载入预训练权重。"""
+@dataclass
+class Config:
+    """ATD x2 超分辨率推理"""
+    input: str = "infer/images/debug_before_sr.png"
+    output: str = "infer/images/debug_atd_x2.png"
+    weight: str = "others/001_ATD_SRx2_finetune.pth"
+    fp16: bool = False
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    tile: bool = True
+    tile_size: int = 96
+    tile_pad: int = 12
+    batch_size: int = 4
+
+
+def load_model(config: Config) -> ATD:
     model = ATD(**MODEL_CFG)
-    ckpt = torch.load(weight_path, map_location="cpu", weights_only=True)
+    ckpt = torch.load(config.weight, map_location="cpu", weights_only=True)
     state_dict = ckpt["params"]
 
-    if fp16:
+    if config.fp16:
         model = model.half()
         state_dict = {k: v.half() for k, v in state_dict.items()}
 
-    model = model.to(device)
+    model = model.to(config.device)
     model.load_state_dict(state_dict, strict=True)
     model.eval()
-    print(f"已加载权重: {weight_path}  (fp16={fp16})")
+
+    n_params = sum(p.numel() for p in model.parameters()) / 1e6
+    print(f"已加载: ATD x2 ({n_params:.1f}M) <- {config.weight}  (fp16={config.fp16})")
     return model
 
 
-def infer_image(
-    model: ATD,
-    image: Image.Image,
-    tile_size: int = 96,
-    tile_pad: int = 12,
-    batch_size: int = 4,
-    fp16: bool = False,
-    device: str = "cuda",
-) -> Image.Image:
-    """对单张 PIL 图像做超分推理。"""
-    dtype = torch.float16 if fp16 else torch.float32
-    img_tensor = pil_to_tensor(image).to(dtype=dtype, device=device) / 255.0
-
-    if tile_size > 0:
-        sr_tensor = tile_inference(
-            model, img_tensor, tile_size=tile_size, tile_pad=tile_pad,
-            scale=2, batch_size=batch_size,
-        )
-    else:
-        with torch.no_grad():
-            sr_tensor = model(img_tensor.unsqueeze(0)).squeeze(0)
-
-    sr_tensor = sr_tensor.clamp(0, 1)
-    return to_pil_image(sr_tensor.cpu())
-
-
 def main():
-    parser = argparse.ArgumentParser(description="ATD x2 超分辨率推理")
-    parser.add_argument("-i", "--input", required=True, help="输入图像路径")
-    parser.add_argument("-o", "--output", default="sr_atd_output.png", help="输出图像路径")
-    parser.add_argument("--weight", default="others/001_ATD_SRx2_finetune.pth", help="预训练权重路径")
-    parser.add_argument("--tile", type=int, default=96, help="分块大小 (0=不分块)")
-    parser.add_argument("--pad", type=int, default=12, help="分块重叠宽度")
-    parser.add_argument("--batch", type=int, default=4, help="tile 批量大小")
-    parser.add_argument("--fp16", action="store_true", help="FP16 半精度推理")
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    args = parser.parse_args()
+    config = tyro.cli(Config)
 
-    root = Path(__file__).resolve().parent.parent
-    weight_path = root / args.weight if not Path(args.weight).is_absolute() else Path(args.weight)
-    input_path = Path(args.input)
+    print(f"设备: {config.device}  |  fp16={config.fp16}  |  tile={config.tile_size if config.tile else 0}  |  batch={config.batch_size}")
 
-    print(f"设备: {args.device}  |  fp16={args.fp16}  |  tile={args.tile}  |  batch={args.batch}")
-    print(f"输入: {input_path}")
+    model = load_model(config)
 
-    model = load_atd(str(weight_path), device=args.device, fp16=args.fp16)
+    img = Image.open(config.input).convert("RGB")
+    w, h = img.size
+    print(f"输入: {config.input} ({w}x{h})")
 
-    image = Image.open(input_path).convert("RGB")
-    print(f"图像尺寸: {image.size[0]}x{image.size[1]}")
+    dtype = torch.float16 if config.fp16 else torch.float32
+    tensor = pil_to_tensor(img).to(dtype=dtype, device=config.device) / 255.0
+
+    # warmup
+    for _ in range(3):
+        with torch.no_grad():
+            _ = model(tensor.unsqueeze(0))
+    if config.device == "cuda":
+        torch.cuda.synchronize()
+        torch.cuda.reset_peak_memory_stats()
 
     t0 = time.perf_counter()
-    sr_image = infer_image(
-        model, image, tile_size=args.tile, tile_pad=args.pad,
-        batch_size=args.batch, fp16=args.fp16, device=args.device,
-    )
+    with torch.no_grad():
+        if config.tile:
+            out = tile_inference(model, tensor, tile_size=config.tile_size, tile_pad=config.tile_pad, scale=2, batch_size=config.batch_size)
+        else:
+            out = model(tensor.unsqueeze(0)).squeeze(0)
+    if config.device == "cuda":
+        torch.cuda.synchronize()
     elapsed = time.perf_counter() - t0
 
-    print(f"输出尺寸: {sr_image.size[0]}x{sr_image.size[1]}")
-    print(f"推理耗时: {elapsed:.2f}s")
-    sr_image.save(args.output)
-    print(f"已保存: {args.output}")
+    out = out.clamp(0, 1)
+    sr = to_pil_image(out.cpu())
+    sr.save(config.output)
+
+    mem = torch.cuda.max_memory_reserved(config.device) / 1024 ** 2 if config.device == "cuda" else 0
+    print(f"输出: {config.output} ({sr.size[0]}x{sr.size[1]})")
+    print(f"推理耗时: {elapsed*1000:.1f}ms  |  显存占用: {mem:.0f} MB")
 
 
 if __name__ == "__main__":

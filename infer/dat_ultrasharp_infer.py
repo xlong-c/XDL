@@ -1,8 +1,7 @@
-"""Real-ESRGAN x2plus 超分辨率推理脚本
+"""DAT (Dual Aggregation Transformer) UltraSharpV2 超分辨率推理脚本
 
-用法:
-    python infer/realesrgan_infer.py
-    python infer/realesrgan_infer.py --input photo.jpg --output sr.png
+使用 DAT 架构 (dat_2 配置).
+对应权重: 4x-UltraSharpV2.pth (Kim2091)
 """
 
 import time
@@ -13,28 +12,41 @@ import tyro
 from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor, to_pil_image
 
-from xdl.model.lowlevel import RRDBNet
+from xdl.model.lowlevel.dat_arch import dat_2
+from xdl.utils.tiling import tile_inference
 
 
 @dataclass
 class Config:
-    """Real-ESRGAN x2plus 超分辨率推理"""
+    """DAT UltraSharpV2 推理配置"""
     input: str = "infer/images/debug_before_sr.png"
-    output: str = "infer/images/debug_realesrgan_x2.png"
-    weight: str = "others/RealESRGAN_x2plus.pth"
-    scale: int = 2
-    fp16: bool = False
+    output: str = "infer/images/debug_dat_ultrasharp_x4.png"
+    weight: str = "others/4x-UltraSharpV2.pth"
+    scale: int = 4
+    fp16: bool = True
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    tile: bool = True
+    tile_size: int = 64
+    tile_pad: int = 8
 
 
-def load_model(config: Config) -> RRDBNet:
-    model = RRDBNet(
-        num_in_ch=3, num_out_ch=3,
-        num_feat=64, num_block=23, num_grow_ch=32,
+def load_model(config: Config):
+    model = dat_2(
         scale=config.scale,
+        in_chans=3,
+        img_size=64,
+        img_range=1.0,
+        split_size=(8, 32),
+        depth=(6, 6, 6, 6, 6, 6),
+        embed_dim=180,
+        num_heads=(6, 6, 6, 6, 6, 6),
+        expansion_factor=2,
+        resi_connection="1conv",
+        upsampler="pixelshuffle",
     )
+
     ckpt = torch.load(config.weight, map_location="cpu", weights_only=True)
-    state_dict = ckpt.get("params_ema", ckpt)
+    state_dict = ckpt.get("params_ema", ckpt.get("params", ckpt))
 
     if config.fp16:
         model = model.half()
@@ -48,7 +60,7 @@ def load_model(config: Config) -> RRDBNet:
         model = torch.compile(model, mode="reduce-overhead")
 
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"已加载: Real-ESRGAN x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16={config.fp16}, compile)")
+    print(f"已加载: DAT (dat_2) x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16+compile)")
     return model
 
 
@@ -74,7 +86,10 @@ def main():
 
     t0 = time.perf_counter()
     with torch.no_grad():
-        out = model(tensor.unsqueeze(0)).squeeze(0)
+        if config.tile:
+            out = tile_inference(model, tensor, tile_size=config.tile_size, tile_pad=config.tile_pad, scale=config.scale)
+        else:
+            out = model(tensor.unsqueeze(0)).squeeze(0)
     if config.device == "cuda":
         torch.cuda.synchronize()
     elapsed = time.perf_counter() - t0
