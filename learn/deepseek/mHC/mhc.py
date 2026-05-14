@@ -1,148 +1,240 @@
-import math
+from typing import Tuple
+
 import torch
 from torch import nn
-import torch.nn.functional as F
-from xdl.utils import enable_tensor_debug_info
-
-enable_tensor_debug_info()
 
 
-class RMSNorm(nn.Module):
-    def __init__(self, d_model, eps=1e-12):
-        super(RMSNorm, self).__init__()
-        self.gamma = nn.Parameter(torch.ones(d_model))
+class UnweightedRMSNorm(nn.Module):
+    def __init__(self, eps: float = 1.0e-6) -> None:
+        super().__init__()
         self.eps = eps
 
-    def forward(self, x):
-        mean = (x**2).mean(-1, keepdim=True)
-        out_mean = x / torch.sqrt(mean + self.eps)  # root mean square
-        out = self.gamma * out_mean
-        return out
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        scale = torch.rsqrt(x.float().square().mean(dim=-1, keepdim=True) + self.eps)
+        return x * scale.to(x.dtype)
 
 
-def sinkhorn_knopp_batched(A, it=1000, eps=1e-8):
+def sinkhorn_normalize(logits: torch.Tensor, iters: int, eps: float) -> torch.Tensor:
     """
-    A is not negative matrix
+    对齐 SGLang 的数值路径:
+    1. 逐行减 max 做稳定化
+    2. exp 转成正矩阵
+    3. 先做一轮行归一化 + 列归一化
+    4. 再做若干轮行列交替归一化
     """
+    if logits.dim() < 2 or logits.shape[-1] != logits.shape[-2]:
+        raise ValueError(f"expected [..., N, N] logits, got {tuple(logits.shape)}")
 
-    (
-        batch_size,
-        n,
-        _,
-    ) = A.shape
+    matrix = logits - logits.max(dim=-1, keepdim=True).values
+    matrix = torch.exp(matrix)
+    matrix = matrix / matrix.sum(dim=-1, keepdim=True).clamp_min(eps) + eps
+    matrix = matrix / matrix.sum(dim=-2, keepdim=True).clamp_min(eps)
 
-    u = torch.ones(batch_size, n)
-    v = torch.ones(batch_size, n)
+    for _ in range(max(iters - 1, 0)):
+        matrix = matrix / matrix.sum(dim=-1, keepdim=True).clamp_min(eps)
+        matrix = matrix / matrix.sum(dim=-2, keepdim=True).clamp_min(eps)
 
-    for _ in range(it):
-        v_temp = v.unsqueeze(2)  # (B, n, 1)
-        Av = torch.bmm(A, v_temp).squeeze(2)  # (B, n)
-        u = 1.0 / (Av + eps)
-
-        u_temp = u.unsqueeze(2)  # (B, n, 1)
-        At_u = torch.bmm(A.transpose(1, 2), u_temp).squeeze(2)
-        v = 1.0 / (At_u + eps)
-
-    U = torch.diag_embed(u)  # (B, n, n)
-    V = torch.diag_embed(v)  # (B, n, n)
-    P = torch.bmm(torch.bmm(U, A), V)
-
-    return P, U, V
+    return matrix
 
 
-class ManifoldHyperConnectionFuse(nn.Module):
+def split_mixes_with_sinkhorn(
+    mixes: torch.Tensor,
+    scale: torch.Tensor,
+    base: torch.Tensor,
+    hc_mult: int,
+    sinkhorn_iters: int,
+    eps: float,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    if mixes.dim() != 3:
+        raise ValueError(f"expected mixes shape [B, L, M], got {tuple(mixes.shape)}")
+
+    pre_logits = mixes[:, :, :hc_mult] * scale[0].float() + base[:hc_mult].float()
+    post_logits = (
+        mixes[:, :, hc_mult : 2 * hc_mult] * scale[1].float()
+        + base[hc_mult : 2 * hc_mult].float()
+    )
+    comb_logits = (
+        mixes[:, :, 2 * hc_mult :] * scale[2].float() + base[2 * hc_mult :].float()
+    )
+
+    pre_mix = torch.sigmoid(pre_logits) + eps
+    post_mix = 2.0 * torch.sigmoid(post_logits)
+    comb_mix = sinkhorn_normalize(
+        comb_logits.view(*mixes.shape[:2], hc_mult, hc_mult),
+        iters=sinkhorn_iters,
+        eps=eps,
+    )
+    return pre_mix, post_mix, comb_mix
+
+
+class ManifoldHyperConnection(nn.Module):
     """
-    h: hyper hidden matrix (BxLxNxD)
+    学习用的单一 canonical mHC 实现。
+
+    residual streams:
+        [B, L, N, D]
         B: batch_size
-        L: Seq_len
-        N: expansion rate
-        D: feature dim
+        L: seq_len
+        N: hyper-connection expansion rate
+        D: hidden dim
     """
 
-    def __init__(self, dim, rate, layer_id, max_sk_it):
-        super(ManifoldHyperConnectionFuse, self).__init__()
-
-        self.n = rate
+    def __init__(
+        self,
+        dim: int,
+        rate: int,
+        layer_id: int,
+        sinkhorn_iters: int,
+        eps: float = 1.0e-6,
+    ) -> None:
+        super().__init__()
         self.dim = dim
+        self.rate = rate
+        self.layer_id = layer_id
+        self.sinkhorn_iters = sinkhorn_iters
+        self.eps = eps
 
-        self.nc = self.n * self.dim
-        self.n2 = self.n * self.n
+        self.flat_dim = dim * rate
+        self.mix_dim = rate * rate + 2 * rate
 
-        self.norm = RMSNorm(dim * rate)
+        self.prenorm = UnweightedRMSNorm(eps=eps)
+        self.mix_weight = nn.Parameter(torch.zeros(self.flat_dim, self.mix_dim))
+        self.mix_scale = nn.Parameter(torch.ones(3) * 0.01)
+        self.mix_base = nn.Parameter(torch.zeros(self.mix_dim))
 
-        # parameters
-        self.w = nn.Parameter(torch.zeros(self.nc, self.n2 + 2 * self.n))
-        self.alpha = nn.Parameter(torch.ones(3) * 0.01)
-        self.beta = nn.Parameter(torch.zeros(self.n2 + 2 * self.n) * 0.01)
+    def _project_mixes(self, residual: torch.Tensor) -> torch.Tensor:
+        if residual.dim() != 4:
+            raise ValueError(f"expected residual shape [B, L, N, D], got {tuple(residual.shape)}")
+        if residual.shape[-2] != self.rate or residual.shape[-1] != self.dim:
+            raise ValueError(
+                f"expected residual shape [B, L, {self.rate}, {self.dim}], got {tuple(residual.shape)}"
+            )
 
-        # max sinkhorn knopp iterations
-        self.max_sk_it = max_sk_it
+        flat = residual.reshape(*residual.shape[:2], self.flat_dim).float()
+        flat = self.prenorm(flat)
+        return flat @ self.mix_weight.float()
 
-    def mapping(self, h, res_norm):
-        B, L, N, D = h.shape
+    def pre(self, residual: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        输入 residual streams，输出:
+        - post_mix: [B, L, N, 1]
+        - comb_mix: [B, L, N, N]
+        - layer_input: [B, L, D]
+        """
+        mixes = self._project_mixes(residual)
+        pre_mix, post_mix, comb_mix = split_mixes_with_sinkhorn(
+            mixes=mixes,
+            scale=self.mix_scale,
+            base=self.mix_base,
+            hc_mult=self.rate,
+            sinkhorn_iters=self.sinkhorn_iters,
+            eps=self.eps,
+        )
+        layer_input = (pre_mix.to(residual.dtype).unsqueeze(-1) * residual).sum(dim=-2)
+        return post_mix.unsqueeze(-1), comb_mix, layer_input
 
-        # 1.vectorize
-        h_vec_flat = h.reshape(B, L, N * D)
+    def post(
+        self,
+        layer_output: torch.Tensor,
+        residual: torch.Tensor,
+        post_mix: torch.Tensor,
+        comb_mix: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        对齐论文 / HF / SGLang:
+            out = comb^T @ residual + post * layer_output
+        """
+        if layer_output.shape[:2] != residual.shape[:2] or layer_output.shape[-1] != residual.shape[-1]:
+            raise ValueError(
+                f"expected layer_output shape [B, L, {self.dim}] matching residual, got {tuple(layer_output.shape)}"
+            )
 
-        # RMSNorm Fused Trick: gamma-scaling
-        h_vec = self.norm.gamma * h_vec_flat
-
-        # 2.projection
-        H = h_vec @ self.w
-
-        # RMSNorm Fused: compute r
-        r = h_vec_flat.norm(dim=-1, keepdim=True) / math.sqrt(self.nc)
-        r_ = 1.0 / r
-
-        # 4. mapping
-        n = N
-        H_pre = r_ * H[:, :, :n] * self.alpha[0] + self.beta[:n]
-        H_post = r_ * H[:, :, n : 2 * n] * self.alpha[1] + self.beta[n : 2 * n]
-        H_res = r_ * H[:, :, 2 * n :] * self.alpha[2] + self.beta[2 * n :]
-
-        # 5. final constrained mapping
-        H_pre = F.sigmoid(H_pre)
-        H_post = 2 * F.sigmoid(H_post)
-
-        # 6. sinkhorn_knopp iteration
-        H_res = H_res.reshape(B, L, N, N)
-        H_res_exp = H_res.exp()
-        with torch.no_grad():
-            _, U, V = res_norm(H_res_exp.reshape(B * L, N, N), self.max_sk_it)
-        # recover
-        P = torch.bmm(torch.bmm(U.detach(), H_res_exp.reshape(B * L, N, N)), V.detach())
-        H_res = P.reshape(B, L, N, N)
-
-        return H_pre, H_post, H_res
-
-    def process(self, h, H_pre, H_res):
-        h_pre = H_pre.unsqueeze(dim=2) @ h
-        h_res = H_res @ h
-        return h_pre, h_res
-
-    def depth_connection(self, h_res, h_out, beta):
-        post_mapping = beta.unsqueeze(dim=-1) @ h_out
-        out = post_mapping + h_res
-        return out
+        residual_mix = torch.matmul(comb_mix.to(residual.dtype).transpose(-1, -2), residual)
+        layer_mix = post_mix.to(layer_output.dtype) * layer_output.unsqueeze(-2)
+        return residual_mix + layer_mix
 
 
-dim = 512
-rate = 8
-layer_id = 10
-dynamic = True
+class FeedForward(nn.Module):
+    def __init__(self, dim: int, hidden_dim: int) -> None:
+        super().__init__()
+        self.up_proj = nn.Linear(dim, hidden_dim)
+        self.act = nn.GELU()
+        self.down_proj = nn.Linear(hidden_dim, dim)
 
-bsz = 1
-seq_len = 32
-max_sk_it = 20
-mHC = ManifoldHyperConnectionFuse(
-    dim=dim, rate=rate, layer_id=layer_id, max_sk_it=max_sk_it
-)
-attn = nn.Linear(dim, dim)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.down_proj(self.act(self.up_proj(x)))
 
-h = torch.randn(bsz, seq_len, rate, dim)
 
-H_pre, H_post, H_res = mHC.mapping(h, sinkhorn_knopp_batched)
-h_pre, h_res = mHC.process(h, H_pre, H_res)
-h_out = attn(h_pre)
-out = mHC.depth_connection(h_res, h_out, beta=H_post)
-print("out", out.shape)
+class DecoderBlockMHC(nn.Module):
+    """
+    最小可学习版 Decoder block。
+
+    结构故意保持朴素:
+    1. attn_hc.pre -> attention_like -> attn_hc.post
+    2. ffn_hc.pre -> ffn -> ffn_hc.post
+
+    这里的 attention_like 用线性层代替，目的是把 mHC 的数据流讲清楚。
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        rate: int,
+        layer_id: int,
+        sinkhorn_iters: int,
+        ffn_hidden_dim: int | None = None,
+        eps: float = 1.0e-6,
+    ) -> None:
+        super().__init__()
+        if ffn_hidden_dim is None:
+            ffn_hidden_dim = dim * 4
+
+        self.attn_hc = ManifoldHyperConnection(
+            dim=dim,
+            rate=rate,
+            layer_id=layer_id,
+            sinkhorn_iters=sinkhorn_iters,
+            eps=eps,
+        )
+        self.attention_like = nn.Linear(dim, dim)
+        self.ffn_hc = ManifoldHyperConnection(
+            dim=dim,
+            rate=rate,
+            layer_id=layer_id,
+            sinkhorn_iters=sinkhorn_iters,
+            eps=eps,
+        )
+        self.ffn = FeedForward(dim=dim, hidden_dim=ffn_hidden_dim)
+
+    def forward(self, residual: torch.Tensor) -> torch.Tensor:
+        post_mix, comb_mix, layer_input = self.attn_hc.pre(residual)
+        layer_output = self.attention_like(layer_input)
+        residual = self.attn_hc.post(layer_output, residual, post_mix, comb_mix)
+
+        post_mix, comb_mix, layer_input = self.ffn_hc.pre(residual)
+        layer_output = self.ffn(layer_input)
+        residual = self.ffn_hc.post(layer_output, residual, post_mix, comb_mix)
+        return residual
+
+
+def _demo() -> None:
+    dim = 512
+    rate = 8
+    layer_id = 10
+    batch_size = 1
+    seq_len = 32
+    sinkhorn_iters = 20
+
+    residual = torch.randn(batch_size, seq_len, rate, dim)
+    block = DecoderBlockMHC(
+        dim=dim,
+        rate=rate,
+        layer_id=layer_id,
+        sinkhorn_iters=sinkhorn_iters,
+    )
+    out = block(residual)
+    print("out", out.shape)
+
+
+if __name__ == "__main__":
+    _demo()
