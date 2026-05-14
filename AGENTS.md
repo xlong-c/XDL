@@ -41,6 +41,21 @@ xdl/
 2. **YAML 配置（推荐）**：`setup = setup_from_yaml('config/xxx.yaml')` → 返回 `TrainSetup` dataclass，一行拿到 model/optimizer/train_loader 等全部组件
 3. **DeepSpeed 分布式**：`deepspeed train_script.py --deepspeed config/deepspeed_config.json`
 
+## XDL 训练脚本接入备忘
+
+编写新的训练入口时，优先先看 `train_VAE.py`、`train_TwinFlow.py`、`examples/*finetune.py` 和 `xdl/trainer/{trainer.py,coreModel.py}`。这几个文件能最快说明 XDL 的真实生命周期。
+
+- `Trainer.fit()` 会先调用 `model.setup("fit")`，再执行 Trainer 的设备/优化器 setup；大模型、diffusers pipeline、PEFT LoRA 等重组件适合在 `CoreModel.setup()` 中懒加载。
+- `CoreModel.training_step()` 是**手动优化模式**，Trainer 不会自动 `zero_grad/backward/step`。训练步里需要自行调用 `optimizer.zero_grad()`、`self.manual_backward(loss)`、`self.clip_gradients(...)`、`optimizer.step()`，并用 `self.log()` 记录指标。
+- `configure_optimizers()` 在 `setup()` 之后由 Trainer 调用；如果优化器依赖懒加载出来的模块，必须确保这些模块已经在 `setup()` 中初始化。
+- 标准非 Accelerate 路径下，Trainer 只会把 `CoreModel.__dict__` 中的 `nn.Module` 属性迁移到设备；`diffusers.Pipeline` 不是 `nn.Module`，需要把底层 `vae/text_encoder/transformer` 注册成模块属性，或在模型钩子中显式 `pipe.to(device)`。
+- Trainer 对 batch 的自动设备迁移只处理顶层 iterable 里的 tensor；字典、嵌套 list/dict、第三方 dataset 返回的复杂结构，建议在 `training_step()` 内显式 `.to(self.device)`。
+- `on_train_step_start()` 会在 `training_step()` 前递增 `_total_train_steps`；自己实现梯度累积时要注意这个计数已经是当前 step。Trainer 构造参数里的 `gradient_accumulation_steps` 不会替代手动优化逻辑。
+- 自定义保存优先用 Callback。XDL 的通用 `ModelCheckpoint` 会保存 `CoreModel` 的 state_dict/optimizer 状态；diffusers/PEFT LoRA 这类权重通常要写专门的 callback 调 `save_pretrained()` 或 `StableDiffusion3Pipeline.save_lora_weights()`。
+- `inference_data` 会走验证/推理周期并调用 `CoreModel.inference(data)`，适合生成式模型的采样预览；没有 val loader 时也可以只传 prompts 做周期性采样。
+- 对外部 `third_party/` 代码不要只信 README 路径，先用 `grep`/`find` 查真实文件；如果第三方目录不是 Python package，可在脚本里用受控的 `sys.path.insert()` 或 `importlib.util.spec_from_file_location()` 加载。
+- 训练脚本参数继续遵守本仓库约束：不要引入 `argparse`，优先 YAML 配置；需要切换配置时可用环境变量指向 YAML。
+
 ## 命令
 
 ```bash
