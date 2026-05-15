@@ -9,14 +9,14 @@
 
 using namespace cute;
 
-#define CUDA_CHECK(call)                                                       \
-  do {                                                                         \
-    cudaError_t err = call;                                                    \
-    if (err != cudaSuccess) {                                                  \
-      fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__,         \
-              cudaGetErrorString(err));                                        \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
+#define CUDA_CHECK(call)                                               \
+  do {                                                                 \
+    cudaError_t err = call;                                            \
+    if (err != cudaSuccess) {                                          \
+      fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__, \
+              cudaGetErrorString(err));                                \
+      exit(EXIT_FAILURE);                                              \
+    }                                                                  \
   } while (0)
 
 // ref:
@@ -62,7 +62,7 @@ struct FlashAttnConfig {
                     // vectorized copy instead
 
   // MMA config
-  static_assert(std::is_same_v<T, half_t> || std::is_same_v<T, bfloat16_t>);
+  static_assert(std::is_same_v<T, half_t> || std::is_same_v<T, bfloat16_t>); // 限制数据类型为half或bfloat16
   // For simplicity, mnk == (16, 8, 8) is used: two MMAs will have the same
   // layout so that we don't need to adjust tSrS to fit in tOrS
   using MMA_Atom = std::conditional_t<std::is_same_v<T, half_t>,
@@ -97,10 +97,9 @@ __global__ void flash_attn_cute_kernel(typename FlashAttnConfig_::T *pQ,
   constexpr int BlockQO = FlashAttnConfig_::BlockQO;
   constexpr int BlockKV = FlashAttnConfig_::BlockKV;
   constexpr int HeadDim = FlashAttnConfig_::HeadDim;
-  using TiledCopy = typename FlashAttnConfig_::TiledCopyQKVO;
-  using SmemCopyAtom = typename FlashAttnConfig_::SmemCopyAtom;
-  using SmemCopyAtomTransposed =
-      typename FlashAttnConfig_::SmemCopyAtomTransposed;
+  using TiledCopy = typename FlashAttnConfig_::TiledCopyQKVO;   // to smem
+  using SmemCopyAtom = typename FlashAttnConfig_::SmemCopyAtom; // to rmem
+  using SmemCopyAtomTransposed = typename FlashAttnConfig_::SmemCopyAtomTransposed;
   using SmemCopyAtomO = typename FlashAttnConfig_::SmemCopyAtomO;
   using TiledMMA = typename FlashAttnConfig_::TiledMMA;
   assert(HeadDim == D);
@@ -127,12 +126,12 @@ __global__ void flash_attn_cute_kernel(typename FlashAttnConfig_::T *pQ,
   auto gO =
       local_tile(O, make_shape(_1{}, _1{}, Int<BlockQO>{}, Int<HeadDim>{}),
                  make_coord(bx, by, bz, 0))(0, 0, _, _); // (BlockQO, HeadDim)
-  auto gK = local_tile(
-      K, make_shape(_1{}, _1{}, Int<BlockKV>{}, Int<HeadDim>{}),
-      make_coord(bx, by, _, 0))(0, 0, _, _, _); // (BlockKV, HeadDim, RestKV)
-  auto gV = local_tile(
-      V, make_shape(_1{}, _1{}, Int<BlockKV>{}, Int<HeadDim>{}),
-      make_coord(bx, by, _, 0))(0, 0, _, _, _); // (BlockKV, HeadDim, RestKV)
+  auto gK =
+      local_tile(K, make_shape(_1{}, _1{}, Int<BlockKV>{}, Int<HeadDim>{}),
+                 make_coord(bx, by, _, 0))(0, 0, _, _, _); // (BlockKV, HeadDim, RestKV)
+  auto gV =
+      local_tile(V, make_shape(_1{}, _1{}, Int<BlockKV>{}, Int<HeadDim>{}),
+                 make_coord(bx, by, _, 0))(0, 0, _, _, _); // (BlockKV, HeadDim, RestKV)
 
   __shared__ T psQ[BlockQO * HeadDim], psK[BlockKV * HeadDim],
       psV[BlockKV * HeadDim];
@@ -155,11 +154,9 @@ __global__ void flash_attn_cute_kernel(typename FlashAttnConfig_::T *pQ,
   auto tQgQ = thr_copy.partition_S(gQ); // (Copy, BlockQOCopy, HeadDimCopy)
   auto tQsQ = thr_copy.partition_D(sQ); // (Copy, BlockQOCopy, HeadDimCopy)
   auto tKsK = thr_copy.partition_D(sK); // (Copy, BlockKVCopy, HeadDimCopy)
-  auto tKgK =
-      thr_copy.partition_S(gK); // (Copy, BlockKVCopy, HeadDimCopy, RestKV)
+  auto tKgK = thr_copy.partition_S(gK); // (Copy, BlockKVCopy, HeadDimCopy, RestKV)
   auto tVsV = thr_copy.partition_D(sV);
-  auto tVgV =
-      thr_copy.partition_S(gV); // (Copy, BlockKVCopy, HeadDimCopy, RestKV)
+  auto tVgV = thr_copy.partition_S(gV); // (Copy, BlockKVCopy, HeadDimCopy, RestKV)
 
   TiledMMA tiled_mma;
   auto thr_mma = tiled_mma.get_slice(tx);
@@ -167,10 +164,9 @@ __global__ void flash_attn_cute_kernel(typename FlashAttnConfig_::T *pQ,
   auto tSrK = thr_mma.partition_fragment_B(sK); // (MMA, MMA_KV, MMA_HEAD)
   auto tSrS = partition_fragment_C(
       tiled_mma, Shape<Int<BlockQO>, Int<BlockKV>>{}); // (MMA, MMA_QO, MMA_KV)
-  auto tOrVt = thr_mma.partition_fragment_B(sVt); // (MMA, MMA_Headdim, MMA_KV)
+  auto tOrVt = thr_mma.partition_fragment_B(sVt);      // (MMA, MMA_Headdim, MMA_KV)
   auto tOrO = partition_fragment_C(
-      tiled_mma,
-      Shape<Int<BlockQO>, Int<HeadDim>>{}); // (MMA, MMA_QO, MMA_Headdim)
+      tiled_mma, Shape<Int<BlockQO>, Int<HeadDim>>{}); // (MMA, MMA_QO, MMA_Headdim)
   clear(tOrO);
 
   auto tiled_s2r_copy_Q = make_tiled_copy_A(SmemCopyAtom{}, tiled_mma);
