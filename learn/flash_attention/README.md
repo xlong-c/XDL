@@ -28,6 +28,8 @@ FlashAttention-2 的 forward kernel 思路。每一节都有一份讲义 `.md` �
 6. [06_flash_attention_v2.md](06_flash_attention_v2.md) /
    [06_flash_attention_v2.py](06_flash_attention_v2.py)
    - 用 Triton 写 FlashAttention-2 风格的 forward kernel, 重点是 work partitioning。
+7. [fa4/README.md](fa4/README.md)
+   - 只保留 6 个核心文件的 FlashAttention-4 极简阅读版, 适合先抓主线。
 
 ## 运行方式
 
