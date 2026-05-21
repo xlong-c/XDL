@@ -30,8 +30,8 @@ xdl/
 
 ## 核心约束
 
-- **所有组件必须通过注册系统注册**：在对应 `__init__.py` 中用 `register_*("Name")(Class)` 集中注册（非装饰器模式）
-- 支持六种注册类型：MODEL, DATASET, OPTIMIZER, SCHEDULER, LOSS, METRIC
+- **所有组件必须通过注册系统注册**：在对应 `__init__.py` 中用 `register_*("Name")(Class)` 集中注册
+- 支持八种注册类型：MODEL, DATASET, OPTIMIZER, SCHEDULER, LOSS, METRIC, TRANSFORM, COLLATE
 - **回调优先级**：数值越小越先执行，未指定时默认 999
 - 所有函数必须加类型注解
 
@@ -74,5 +74,34 @@ pytest tests/ -v --cov=xdl       # 测试
 
 ## 子模块文档
 
-- [xdl/callbacks/AGENTS.md](xdl/callbacks/AGENTS.md) — 回调系统详解
-- [xdl/model/AGENTS.md](xdl/model/AGENTS.md) — 模型架构详解
+### 顶层目录
+
+- [config/AGENTS.md](config/AGENTS.md) — 训练与运行配置目录
+- [data/AGENTS.md](data/AGENTS.md) — 本地数据目录
+- [docs/AGENTS.md](docs/AGENTS.md) — 仓库文档目录
+- [downloads/AGENTS.md](downloads/AGENTS.md) — 下载产物目录
+- [examples/AGENTS.md](examples/AGENTS.md) — 示例脚本目录
+- [infer/AGENTS.md](infer/AGENTS.md) — 推理脚本目录
+- [learn/AGENTS.md](learn/AGENTS.md) — 学习与实验目录
+- [others/AGENTS.md](others/AGENTS.md) — 其他资产目录
+- [research/AGENTS.md](research/AGENTS.md) — 研究资料目录
+- [scripts/AGENTS.md](scripts/AGENTS.md) — 仓库维护脚本目录
+- [tests/AGENTS.md](tests/AGENTS.md) — 测试目录
+- [third_party/AGENTS.md](third_party/AGENTS.md) — 第三方代码与资产目录
+- [tools/AGENTS.md](tools/AGENTS.md) — 数据与工程工具目录
+- [train/AGENTS.md](train/AGENTS.md) — 训练入口目录
+- [xdl/AGENTS.md](xdl/AGENTS.md) — XDL 框架源码根目录
+- [xqt/AGENTS.md](xqt/AGENTS.md) — 量化与实验脚本目录
+
+### XDL 核心子模块
+
+- [xdl/callbacks/AGENTS.md](xdl/callbacks/AGENTS.md) — 回调系统
+- [xdl/config/AGENTS.md](xdl/config/AGENTS.md) — 配置构建子模块
+- [xdl/dataset/AGENTS.md](xdl/dataset/AGENTS.md) — 数据集子模块
+- [xdl/loss/AGENTS.md](xdl/loss/AGENTS.md) — 损失函数子模块
+- [xdl/metric/AGENTS.md](xdl/metric/AGENTS.md) — 评估指标子模块
+- [xdl/model/AGENTS.md](xdl/model/AGENTS.md) — 模型架构子模块
+- [xdl/optimizer/AGENTS.md](xdl/optimizer/AGENTS.md) — 优化器子模块
+- [xdl/scheduler/AGENTS.md](xdl/scheduler/AGENTS.md) — 学习率调度器子模块
+- [xdl/trainer/AGENTS.md](xdl/trainer/AGENTS.md) — 训练器核心子模块
+- [xdl/utils/AGENTS.md](xdl/utils/AGENTS.md) — 注册系统与工具子模块

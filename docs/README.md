@@ -1,24 +1,28 @@
 # XDL 文档索引
 
-`docs/` 目录只保留与 XDL 框架本身直接相关的文档，目标是让文档集围绕“框架结构、设计原因、使用方式”收敛，而不是混入研究笔记或阶段性工作记录。
+`docs/` 只保留与 XDL 框架本身直接相关的长期文档。研究笔记、阶段性分析和一次性草案应放在 `research/`，不在这里堆叠。
 
 ## 推荐阅读顺序
 
-1. [XDL.md](XDL.md)
-   - 项目详细分析。
-   - 说明 XDL 的模块结构、分层方式、为什么这样设计、这套设计带来的收益，以及不同层该怎么使用。
+1. [INSTALL.md](INSTALL.md)
+   - 安装、验证、当前可运行入口。
 
-2. [INSTALL.md](INSTALL.md)
-   - 安装方式、开发环境、验证命令和常见注意事项。
+2. [XDL.md](XDL.md)
+   - 框架定位、核心分层、两条推荐使用路径。
 
 3. [CONFIG.md](CONFIG.md)
-   - 当前配置系统说明。
-   - 包括 schema 结构、引用解析、推荐 YAML 写法，以及配置系统当前边界。
+   - `setup_from_yaml()`、schema v1、`target + params`、YAML 组织方式。
 
-## 文档原则
+4. [xdl-functional-boundary.md](xdl-functional-boundary.md)
+   - 各源码子模块职责速查。
 
-当前文档集遵循三个原则：
+5. [xdl-optimization-plan.md](xdl-optimization-plan.md)
+   - 当前仍有效的后续优化方向。
 
-- 只保留与 XDL 框架直接相关的内容。
-- 优先解释“结构为什么这样设计”，而不是只罗列文件名。
-- 文档必须能够指导使用，而不是只记录一次性工作过程。
+## 文档边界
+
+- `INSTALL.md` 只讲环境、安装和验证。
+- `XDL.md` 只讲框架结构、训练入口和扩展方式。
+- `CONFIG.md` 只讲配置系统。
+- `xdl-functional-boundary.md` 只做模块职责速查，不重复写长篇使用指南。
+- `xdl-optimization-plan.md` 只保留仍然有效的待办，不复述现状说明。

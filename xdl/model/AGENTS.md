@@ -1,165 +1,59 @@
-# XDL Models — 模型架构模块
+# xdl/model — 模型架构模块
 
-**Updated:** 2026-04-29
-**Branch:** master
+## 目录职责
 
-## 概述
+- 提供可注册的模型类与工厂函数
+- 为纯代码训练和 YAML 配置构建提供模型入口
 
-XDL 模型模块包含常用深度学习网络架构，通过注册系统支持配置化构建。当前共 **30 个**注册条目。
+## 当前内容
 
-## 架构
+- `resnet.py`：ResNet 系列
+- `vgg.py`：VGG 系列
+- `vit.py`：Vision Transformer 系列
+- `simple_mlp.py`：SimpleMLP 与默认工厂
+- `generate/twinflow.py`：TwinFlow 生成模型
+- `segment/fatt.py`：FATT 分割模型
+- `lowlevel/`：底层超分模型
 
-```
-xdl/model/
-├── __init__.py         # 统一注册入口 (30 条目)
-├── resnet.py           # ResNet 系列 (18/34/50/101/152)
-├── vgg.py              # VGG 系列 (11/13/16/19, BN 变体)
-├── vit.py              # Vision Transformer 系列 (Tiny→Huge)
-├── simple_mlp.py       # 简单 MLP
-├── generate/           # 生成模型
-│   └── twinflow.py     # TwinFlow 连续时间生成模型
-└── segment/            # 分割模型
-    └── fatt.py         # FATT 分割模型
-```
+当前 `MODEL_REGISTRY` 中有 **38** 个注册条目，覆盖：
 
-## 已注册模型 (30 条目)
+- ResNet：`BasicBlock`、`Bottleneck`、`ResNet`、`resnet18/34/50/101/152`
+- VGG：`VGG`、`vgg11/11_bn/13/13_bn/16/16_bn/19/19_bn`
+- ViT：`PatchEmbedding`、`MultiHeadAttention`、`TransformerBlock`、`VisionTransformer`、`vit_tiny/small/base/large/huge`
+- MLP：`SimpleMLP`、`simple_mlp`
+- 生成：`TwinFlow`
+- 分割：`FATT`
+- 底层 SR：`RGT`、`RGT_S`、`ATD`、`RRDBNet`、`OFTSR_UNet`、`OFTSR_SuperResModel`、`AutoEncoder_RRDBNet`、`ProbabilisticAutoEncoder_RRDBNet`
 
-### ResNet 系列 (8)
+## 修改约束
 
-| 模型 | 注册名 | 说明 |
-|------|--------|------|
-| BasicBlock | `BasicBlock` | 基础残差块 (18/34 层) |
-| Bottleneck | `Bottleneck` | 瓶颈残差块 (50/101/152 层) |
-| ResNet (基类) | `ResNet` | 可自定义配置 |
-| ResNet-18 | `resnet18` | 轻量级 |
-| ResNet-34 | `resnet34` | 中轻量 |
-| ResNet-50 | `resnet50` | 标准 |
-| ResNet-101 | `resnet101` | 深层 |
-| ResNet-152 | `resnet152` | 极深 |
-
-### VGG 系列 (9)
-
-| 模型 | 注册名 | 说明 |
-|------|--------|------|
-| VGG (基类) | `VGG` | 可自定义配置 |
-| VGG-11 | `vgg11` | 无 BN |
-| VGG-11-BN | `vgg11_bn` | 带 BN |
-| VGG-13 | `vgg13` | 无 BN |
-| VGG-13-BN | `vgg13_bn` | 带 BN |
-| VGG-16 | `vgg16` | 无 BN |
-| VGG-16-BN | `vgg16_bn` | 带 BN |
-| VGG-19 | `vgg19` | 无 BN |
-| VGG-19-BN | `vgg19_bn` | 带 BN |
-
-### Vision Transformer 系列 (9)
-
-| 模型 | 注册名 | 参数量 |
-|------|--------|--------|
-| PatchEmbedding | `PatchEmbedding` | 图像分块嵌入 |
-| MultiHeadAttention | `MultiHeadAttention` | 多头注意力 |
-| TransformerBlock | `TransformerBlock` | Transformer 块 |
-| VisionTransformer (基类) | `VisionTransformer` | 可自定义配置 |
-| ViT-Tiny | `vit_tiny_patch16_224` | ~5M |
-| ViT-Small | `vit_small_patch16_224` | ~22M |
-| ViT-Base | `vit_base_patch16_224` | ~86M |
-| ViT-Large | `vit_large_patch16_224` | ~307M |
-| ViT-Huge | `vit_huge_patch14_224` | ~632M |
-
-### MLP (2)
-
-| 模型 | 注册名 | 说明 |
-|------|--------|------|
-| SimpleMLP (类) | `SimpleMLP` | 可自定义隐藏层维度 |
-| simple_mlp (工厂) | `simple_mlp` | 默认配置 (784→256→128→10) |
-
-### 生成模型 (1)
-
-| 模型 | 注册名 | 说明 |
-|------|--------|------|
-| TwinFlow | `TwinFlow` | 连续时间生成模型 (RCGM + 一致性正则化) |
-
-### 分割模型 (1)
-
-| 模型 | 注册名 | 说明 |
-|------|--------|------|
-| FATT | `FATT` | Feature-Aware Transformer 分割模型 |
+- 新模型先放到合适的子文件，再在 `xdl/model/__init__.py` 中集中注册
+- 不在定义处使用装饰器式注册；本仓约定是集中注册
+- 模型文件优先只放结构实现，不混入训练脚本逻辑
+- 模型参数假设、输入尺寸假设和外部依赖要写清楚
 
 ## 使用方式
 
-### 纯代码方式
+纯代码：
 
 ```python
-from xdl.model import resnet50, vit_base_patch16_224, SimpleMLP, TwinFlow, FATT
+from xdl.model import resnet50, SimpleMLP
 
-# CNN
-model = resnet50(num_classes=100)
-# ViT
-vit = vit_base_patch16_224(num_classes=1000)
-# MLP
+cnn = resnet50(num_classes=100)
 mlp = SimpleMLP(in_features=784, hidden_dims=[512, 256], out_features=10)
 ```
 
-### YAML 配置方式（推荐）
-
-```python
-from xdl.utils.registry import build_model
-
-model = build_model("resnet50", num_classes=100)
-```
+YAML：
 
 ```yaml
-# ResNet
 model:
   target: "registry:resnet50"
   params:
     num_classes: 100
 ```
 
-```yaml
-# TwinFlow — 连续时间生成模型
-model:
-  target: "registry:TwinFlow"
-  params:
-    consistc_ratio: 1.0       # 一致性正则化权重
-    ema_decay_rate: 0.99      # EMA 衰减率
-    estimate_order: 2         # ODE 求解阶数 (1 或 2)
-    num_sampling_steps: 20    # 采样步数
-    sde_correction: true      # SDE 随机校正
-    dist_match_weight: 0.1    # 分布匹配权重
-    lr: 0.001                 # 学习率
-    beta1: 0.9                # Adam beta1
-```
+## 验证建议
 
-## 开发规范
-
-### 注册新模型
-
-```python
-from xdl.utils.registry import register_model
-import torch.nn as nn
-
-@register_model("MyModel")
-class MyModel(nn.Module):
-    def __init__(self, num_classes: int = 10):
-        super().__init__()
-        # 实现
-```
-
-### 模型命名约定
-
-- 类名：`PascalCase`（如 `ResNet`, `VisionTransformer`, `FATT`）
-- 工厂函数：`snake_case`（如 `resnet50`, `vit_base_patch16_224`）
-- 注册名：与类名或工厂函数一致
-
-### 必须实现
-
-1. `__init__`：接受 `num_classes` 参数
-2. `forward`：标准前向传播
-3. 在 `xdl/model/__init__.py` 中 `import`、`register`、`__all__` 导出
-
-## 注意事项
-
-- **输入尺寸**：ViT 系列默认 224×224（Huge 为 14 patch, 224 输入）
-- **预训练权重**：当前未提供，需自行加载
-- **segment/ 目录**：FATT 已注册可用，非预留状态
-- **TwinFlow**：详见模块 docstring，支持 ODE/SDE 采样、RCGM 整流、分布匹配
+- 改注册后检查 `MODEL_REGISTRY.list_available()` 是否包含新条目
+- 至少补一个最小 `forward` 形状验证
+- 影响配置构建时同步检查 `setup_from_yaml()` 主路径

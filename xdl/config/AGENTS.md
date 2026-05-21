@@ -1,0 +1,27 @@
+# xdl/config — 配置构建子模块
+
+## 目录职责
+
+- 负责 YAML 到 `TrainSetup` 的解析、校验与组件构建
+- 承担配置 schema、引用解析、builder 组装和错误定义
+
+## 核心文件
+
+- `setup.py`：`setup_from_yaml()` 入口
+- `dataclass.py`：`TrainSetup` 数据结构
+- `builder.py`：`build_model()`、`build_optimizer()` 等构建流程
+- `resolver.py`：配置引用与变量解析
+- `schema.py`：配置版本与合法性约束
+- `errors.py`：配置系统异常
+
+## 修改约束
+
+- 优先保持 `setup_from_yaml()` 的用户接口稳定
+- 新字段要同步考虑 dataclass、builder、schema 和测试
+- 解析逻辑优先结构化处理，不靠脆弱字符串拼接
+- 配置错误应抛清晰异常，便于定位字段问题
+
+## 验证建议
+
+- 修改后先跑 `tests/config/`
+- 涉及 registry 构建时联动检查 `xdl/utils/registry.py`

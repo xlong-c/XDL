@@ -6,81 +6,83 @@ PyTorch 深度学习框架，组件注册系统 + 回调生命周期。Python 3.
 
 - **语言**：所有推理和回答均使用中文
 - 做非 trivial 改动前，先用 `grep` / `find` / Agent 搜索代码库，理解现有模式再动手
-- 多文件重构或架构级变更时，先进入规划模式（EnterPlanMode）制定方案
+- 多文件重构或架构级变更时，先进入规划模式制定方案
 - 不确定文件位置或调用关系时，优先搜索而非猜测
-- 涉及第三方库用法、API 变更、最佳实践等外部知识时，先用 WebSearch 查最新文档
+- 涉及第三方库用法、API 变更、最佳实践等外部知识时，先查最新文档
+- **脚本参数**：Python 脚本不要使用命令行参数解析库（如 `argparse` / `args`），优先使用 YAML 配置或代码内显式配置
 
 ## 架构
 
-```
+```text
 xdl/
-├── callbacks/   # 训练生命周期钩子（优先级越小越先执行，默认 999）
+├── callbacks/   # 训练生命周期钩子
 ├── dataset/     # 数据集定义
 ├── loss/        # 损失函数
 ├── metric/      # 评估指标
-├── model/       # 模型架构（CNN、ViT、生成模型等）
-├── optimizer/   # 优化器封装
+├── model/       # 模型架构
+├── optimizer/   # 优化器
 ├── scheduler/   # 学习率调度器
 ├── trainer/     # 训练器核心
-└── utils/       # 注册系统（registry）
+└── utils/       # 注册系统与基础工具
 ```
 
-其他目录：`config/`（YAML 配置）、`learn/`（CUDA 内核实验）、`tools/`（数据工具）、`tests/`。
+其他目录：`config/`、`docs/`、`examples/`、`learn/`、`tests/`、`tools/`。
 
 ## 核心约束
 
-- **所有组件必须通过注册系统注册**：在对应 `__init__.py` 中用 `register_*("Name")(Class)` 集中注册（非装饰器模式）
-- 支持八种注册类型：MODEL, DATASET, OPTIMIZER, SCHEDULER, LOSS, METRIC, TRANSFORM, COLLATE
-- **回调优先级**：数值越小越先执行，未指定时默认 999
+- 所有组件通过注册系统注册，并在对应 `__init__.py` 中集中调用 `register_*("Name")(Class)`
+- 当前注册类型包括：MODEL、DATASET、OPTIMIZER、SCHEDULER、LOSS、METRIC、TRANSFORM、COLLATE
+- 回调优先级数值越小越先执行，默认值为 `999`
 - 所有函数必须加类型注解
-- **脚本参数**：Python 脚本统一使用 `tyro` + `dataclass` 管理参数，禁止使用 `argparse` / `args`。Agent 可通过 CLI 传参，用户通过 dataclass 默认值或 YAML 配置，`tyro` 原生支持两者
 
-## 三种使用方式
+## 训练接入备忘
 
-1. **纯代码**（VAE/GAN 示例）：手动实例化所有组件，`python train_VAE.py`
-2. **YAML 配置（推荐）**：`setup = setup_from_yaml('config/xxx.yaml')` → 返回 `TrainSetup` dataclass，一行拿到 model/optimizer/train_loader 等全部组件
-3. **DeepSpeed 分布式**：`deepspeed train_script.py --deepspeed config/deepspeed_config.json`
+编写训练入口时，优先先看：
 
-## tyro 脚本参数规范
+- `train_VAE.py`
+- `train_TwinFlow.py`
+- `xdl/trainer/trainer.py`
+- `xdl/trainer/coreModel.py`
 
-所有训练/推理脚本使用 `tyro` + `dataclass` 管理参数：
+关键点：
 
-```python
-from dataclasses import dataclass
-import tyro
-
-@dataclass
-class Config:
-    """训练配置"""
-    input_path: str                 # 必填参数
-    batch_size: int = 32            # 可选参数，有默认值
-    lr: float = 1e-4
-    verbose: bool = False           # bool 标志
-
-config = tyro.cli(Config)
-```
-
-- Agent 调用时用 CLI：`python script.py --input-path /data --batch-size 64`
-- 用户直接用 dataclass 默认值或在代码中导入并传入 YAML 解析后的 dict：`Config(**yaml_dict)`
-- `tyro` 原生支持嵌套 dataclass、enum、Union 等类型
-
-## 命令
-
-```bash
-pip install -e ".[all]"          # 安装
-python train_VAE.py              # VAE 训练 (MNIST)
-python train_GAN.py              # GAN 训练 (MNIST)
-CUDA_VISIBLE_DEVICES=0,1 python train_VAE.py  # 指定 GPU
-pytest tests/ -v --cov=xdl       # 测试
-```
-
-## 注意事项
-
-- GPU 内存紧张时用梯度累积、AMP、激活检查点
-- DeepSpeed/Accelerate 分布式训练需同步保存检查点
-- `learn/` 目录下为 C++23 CUDA 内核实验代码，不遵循 Python 规范
+- `Trainer.fit()` 会先调用 `model.setup("fit")`
+- `CoreModel.training_step()` 是手动优化模式，不会自动 `zero_grad/backward/step`
+- `configure_optimizers()` 在 `setup()` 之后调用
+- 标准非 Accelerate 路径下，Trainer 只会自动迁移 `nn.Module` 属性到设备
+- 复杂 batch 结构建议在 `training_step()` 内显式 `.to(self.device)`
+- 自定义保存优先通过 callback 集成
 
 ## 子模块文档
 
-- [xdl/callbacks/AGENTS.md](xdl/callbacks/AGENTS.md) — 回调系统详解
-- [xdl/model/AGENTS.md](xdl/model/AGENTS.md) — 模型架构详解
+### 顶层目录
+
+- [config/CLAUDE.md](config/CLAUDE.md) — 训练与运行配置目录
+- [data/CLAUDE.md](data/CLAUDE.md) — 本地数据目录
+- [docs/CLAUDE.md](docs/CLAUDE.md) — 仓库文档目录
+- [downloads/CLAUDE.md](downloads/CLAUDE.md) — 下载产物目录
+- [examples/CLAUDE.md](examples/CLAUDE.md) — 示例脚本目录
+- [infer/CLAUDE.md](infer/CLAUDE.md) — 推理脚本目录
+- [learn/CLAUDE.md](learn/CLAUDE.md) — 学习与实验目录
+- [others/CLAUDE.md](others/CLAUDE.md) — 其他资产目录
+- [research/CLAUDE.md](research/CLAUDE.md) — 研究资料目录
+- [scripts/CLAUDE.md](scripts/CLAUDE.md) — 仓库维护脚本目录
+- [tests/CLAUDE.md](tests/CLAUDE.md) — 测试目录
+- [third_party/CLAUDE.md](third_party/CLAUDE.md) — 第三方代码与资产目录
+- [tools/CLAUDE.md](tools/CLAUDE.md) — 数据与工程工具目录
+- [train/CLAUDE.md](train/CLAUDE.md) — 训练入口目录
+- [xdl/CLAUDE.md](xdl/CLAUDE.md) — XDL 框架源码根目录
+- [xqt/CLAUDE.md](xqt/CLAUDE.md) — 量化与实验脚本目录
+
+### XDL 核心子模块
+
+- [xdl/callbacks/CLAUDE.md](xdl/callbacks/CLAUDE.md) — 回调系统
+- [xdl/config/CLAUDE.md](xdl/config/CLAUDE.md) — 配置构建子模块
+- [xdl/dataset/CLAUDE.md](xdl/dataset/CLAUDE.md) — 数据集子模块
+- [xdl/loss/CLAUDE.md](xdl/loss/CLAUDE.md) — 损失函数子模块
+- [xdl/metric/CLAUDE.md](xdl/metric/CLAUDE.md) — 评估指标子模块
+- [xdl/model/CLAUDE.md](xdl/model/CLAUDE.md) — 模型架构子模块
+- [xdl/optimizer/CLAUDE.md](xdl/optimizer/CLAUDE.md) — 优化器子模块
+- [xdl/scheduler/CLAUDE.md](xdl/scheduler/CLAUDE.md) — 学习率调度器子模块
+- [xdl/trainer/CLAUDE.md](xdl/trainer/CLAUDE.md) — 训练器核心子模块
+- [xdl/utils/CLAUDE.md](xdl/utils/CLAUDE.md) — 注册系统与工具子模块

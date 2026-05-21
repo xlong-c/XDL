@@ -1,81 +1,79 @@
-# 加速器模块
+# xdl.trainer
 
-XDL 框架的分布式训练加速器模块, 提供对多种分布式训练框架的统一支持。
+`xdl/trainer/` 是 XDL 的训练编排层，负责把任务逻辑、训练循环和配置构建结果接起来。
 
-## 🚀 快速开始
+## 当前文件
+
+- `trainer.py`：`Trainer` 主类
+- `coreModel.py`：`CoreModel` 基类
+- `trainSetupModel.py`：把 `TrainSetup` 外部组件包装成 `CoreModel`
+- `trainer_state.py`：训练状态管理
+
+## 三个关键对象
+
+### `CoreModel`
+
+承载任务逻辑。通常需要实现：
+
+- `training_step()`
+- `validation_step()`
+- `configure_optimizers()`
+
+当前采用手动优化模式，训练步里需要自行处理：
+
+- `optimizer.zero_grad()`
+- `self.manual_backward(loss)`
+- `self.clip_gradients(...)`
+- `optimizer.step()`
+
+### `Trainer`
+
+承载训练循环编排。负责：
+
+- `model.setup("fit")`
+- 设备与 accelerate 初始化
+- epoch / step 循环
+- callback 调度
+- 验证与推理采样周期
+
+最小用法：
 
 ```python
 from xdl.trainer import Trainer
-from xdl.trainer.accelerate_config import AcceleratorConfig
 
-# 自动检测最佳策略
-trainer = Trainer(
-    max_epochs=10,
-    accelerator_strategy='auto'
-)
-
-# 训练
+trainer = Trainer(max_epochs=10, device="cuda")
 trainer.fit(model, train_loader, val_loader)
 ```
 
-## 📦 核心组件
+### `TrainSetupModel`
 
-### 1. AcceleratorConfig - 配置类
-统一管理所有加速器配置。
+桥接 YAML 配置流和 `Trainer.fit()`。
 
-```python
-config = AcceleratorConfig(
-    strategy='accelerate',
-    mixed_precision='fp16',
-    gradient_accumulation_steps=4,
-    gradient_clipping=1.0
-)
-```
-
-### 2. AcceleratorManager - 管理器
-提供统一的加速器接口。
+用法：
 
 ```python
-from xdl.trainer.accelerate_manager import create_accelerator_manager
+from xdl.config import setup_from_yaml
+from xdl.trainer import Trainer
 
-manager = create_accelerator_manager(config)
-manager.initialize(trainer)
+setup = setup_from_yaml("config/unified_logger_example.yaml", device="cpu")
+model = setup.create_model()
+trainer = Trainer.from_setup(setup)
+trainer.fit(model, setup.train_loader, setup.val_loader)
 ```
 
-### 3. AcceleratorCallback - 回调
-统一处理分布式训练逻辑。
+## 当前边界
 
-```python
-from xdl.callbacks.accelerate_callback import AcceleratorCallback
+- `Trainer` 负责编排，不负责具体任务前向和损失细节
+- `CoreModel` 负责任务逻辑，不负责日志、检查点等横切能力
+- 日志、检查点、早停、监控优先通过 `xdl/callbacks/` 接入
+- 大模型、外部 pipeline、LoRA 等重组件适合放到 `model.setup("fit")` 中惰性初始化
 
-callback = AcceleratorCallback(config)
-```
+## 阅读顺序
 
-## 📚 文档
+建议按下面顺序看：
 
-- [快速开始](../docs/ACCELERATOR_QUICKSTART.md) - 5 分钟上手指南
-- [完整架构](../docs/ACCELERATOR_ARCHITECTURE.md) - 详细的架构设计文档
-- [实现总结](../docs/IMPLEMENTATION_SUMMARY.md) - 实现的详细信息
-
-## 🧪 测试
-
-```bash
-python -m pytest tests/test_accelerator.py -v
-```
-
-## 📝 示例
-
-```bash
-python examples/accelerate_usage_example.py
-```
-
-## 🤝 支持的加速器
-
-- **Accelerate** - HuggingFace 的轻量级分布式训练库
-- **DeepSpeed** - 微软的深度学习优化库, 适合大模型训练
-- **FSDP** - PyTorch 的全参数分片训练
-- **None** - 纯 CPU/GPU 训练
-
-## 📄 许可证
-
-遵循项目许可证。
+1. [coreModel.py](/root/workspace/xdl/xdl/trainer/coreModel.py)
+2. [trainer.py](/root/workspace/xdl/xdl/trainer/trainer.py)
+3. [trainSetupModel.py](/root/workspace/xdl/xdl/trainer/trainSetupModel.py)
+4. [../../docs/XDL.md](/root/workspace/xdl/docs/XDL.md)
+5. [../../docs/CONFIG.md](/root/workspace/xdl/docs/CONFIG.md)
