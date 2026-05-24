@@ -28,6 +28,7 @@ for k in range(cols_a):
     a_col = A[:, k]
     b_row = B[k, :]
     C_col_row += torch.outer(a_col, b_row)
+    print(torch.outer(a_col, b_row).shape)
 
 print("col x row sum:")
 print(C_col_row)
