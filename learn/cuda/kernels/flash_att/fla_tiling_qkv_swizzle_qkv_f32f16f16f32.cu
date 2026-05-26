@@ -412,9 +412,9 @@ __global__ void __launch_bounds__(WARP_SIZE *kMmaTileSeqLenQ *kMmaTileSeqLenK)
 #pragma unroll
         for (int j = 0; j < kWarpTileSeqLenK; ++j) {
           HMMA16816F32(R_S[0][j][0], R_S[0][j][1], R_S[0][j][2], R_S[0][j][3],
-                       R_Q[0][0], R_Q[0][1], R_Q[0][2], R_Q[0][3], R_K[j][0],
-                       R_K[j][1], R_S[0][j][0], R_S[0][j][1], R_S[0][j][2],
-                       R_S[0][j][3]);
+                       R_Q[0][0], R_Q[0][1], R_Q[0][2], R_Q[0][3],
+                       R_K[j][0], R_K[j][1],
+                       R_S[0][j][0], R_S[0][j][1], R_S[0][j][2], R_S[0][j][3]);
         }
       }
 
@@ -644,9 +644,10 @@ __global__ void __launch_bounds__(WARP_SIZE *kMmaTileSeqLenQ *kMmaTileSeqLenK)
           //   tile_V_Bc = 3 -> 取 P[:, 48:64]
           // 每个 16 列片段对应 R_S 中相邻的两个 MMA 片段。
           int w = tile_V_Bc * 2;
-          HMMA16816F32(R_O[0], R_O[1], R_O[2], R_O[3], R_S[0][w][0],
-                       R_S[0][w][1], R_S[0][w + 1][0], R_S[0][w + 1][1], R_V[0],
-                       R_V[1], R_O[0], R_O[1], R_O[2], R_O[3]);
+          HMMA16816F32(R_O[0], R_O[1], R_O[2], R_O[3],
+                       R_S[0][w][0], R_S[0][w][1], R_S[0][w + 1][0], R_S[0][w + 1][1],
+                       R_V[0], R_V[1],
+                       R_O[0], R_O[1], R_O[2], R_O[3]);
         }
         if constexpr (kStage < 2) {
           // 单 stage 模式下，等当前轮 P@V 完成后再允许覆盖 V 缓冲区。
