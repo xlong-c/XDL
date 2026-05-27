@@ -14,6 +14,7 @@ setup_from_yaml 函数。
 
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+from collections.abc import Mapping
 
 import torch
 import yaml
@@ -70,9 +71,19 @@ def _resolve_dataset_transform_value(
 
 def _resolve_dataset_value(
     dataset_name: str,
+    dataloader_cfg: Dict[str, Any],
     built_datasets: Dict[str, Any],
+    built_transforms: Dict[str, Any],
 ) -> Any:
     if dataset_name not in built_datasets:
+        dataset_value = dataloader_cfg.get("dataset")
+        if isinstance(dataset_value, str) and dataset_value in built_datasets:
+            return built_datasets[dataset_value]
+        if isinstance(dataset_value, Mapping) and dataset_value.get("target"):
+            transform_value = _resolve_dataset_transform_value(dataset_value, built_transforms)
+            return build_dataset(dict(dataset_value), transform=transform_value)
+        if dataset_value is not None and not isinstance(dataset_value, str):
+            return dataset_value
         raise ConfigValidationError(f"No pre-built dataset found for dataloader '{dataset_name}'")
     return built_datasets[dataset_name]
 
@@ -188,7 +199,12 @@ def setup_from_yaml(
             dataloader_defaults=dataloader_defaults,
             trainer_batch_size=trainer_batch_size,
         )
-        dataset = _resolve_dataset_value(dataloader_name, built_datasets)
+        dataset = _resolve_dataset_value(
+            dataloader_name,
+            dataloader_cfg,
+            built_datasets,
+            built_transforms,
+        )
         collate_fn = build_collate_fn(
             dataloader_cfg.get("collate_fn") or dataloader_defaults.get("collate_fn")
         )

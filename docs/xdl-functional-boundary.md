@@ -1,6 +1,6 @@
 # XDL 模块功能边界速查
 
-本文档只做“模块职责速查”，不重复长篇架构介绍。详细背景请看 [XDL.md](XDL.md)，配置细节请看 [CONFIG.md](CONFIG.md)。
+本文档只做“模块职责速查”，不重复长篇架构介绍。详细背景请看 [XDL.md](XDL.md)，配置细节请看 [CONFIG.md](CONFIG.md)，公共 API 边界请看 [API.md](API.md)。
 
 ## 1. 总览
 
@@ -150,6 +150,7 @@ xdl/
 
 关键点：
 
+- 稳定公共入口是 `from xdl.trainer import CoreModel, Trainer, TrainSetupModel`
 - `Trainer.fit()` 先调用 `model.setup("fit")`
 - `CoreModel.training_step()` 是手动优化模式
 - callback 在这里被统一调度
@@ -167,6 +168,7 @@ xdl/
 
 - 这是基础设施层，改动影响面大
 - registry 只做名字到对象的映射，不掺配置解析
+- 自定义组件稳定接入方式是 `register_*("Name")(ClassOrFunction)`
 
 ## 12. 依赖关系
 

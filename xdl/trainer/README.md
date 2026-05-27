@@ -11,6 +11,14 @@
 
 ## 三个关键对象
 
+新代码推荐从子包入口导入：
+
+```python
+from xdl.trainer import CoreModel, Trainer, TrainSetupModel
+```
+
+历史文件级路径仍保持兼容，但文档和新示例优先使用上面的稳定入口。
+
 ### `CoreModel`
 
 承载任务逻辑。通常需要实现：
@@ -39,7 +47,7 @@
 最小用法：
 
 ```python
-from xdl.trainer import Trainer
+from xdl.trainer import CoreModel, Trainer
 
 trainer = Trainer(max_epochs=10, device="cuda")
 trainer.fit(model, train_loader, val_loader)
@@ -77,3 +85,4 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 3. [trainSetupModel.py](/root/workspace/xdl/xdl/trainer/trainSetupModel.py)
 4. [../../docs/XDL.md](/root/workspace/xdl/docs/XDL.md)
 5. [../../docs/CONFIG.md](/root/workspace/xdl/docs/CONFIG.md)
+6. [../../docs/API.md](/root/workspace/xdl/docs/API.md)

@@ -89,12 +89,15 @@ Homepage = "https://github.com/xlong/xdl"
 Repository = "https://gitee.com/xlong_t/xdl"
 Documentation = "https://github.com/xlong/xdl#readme"
 
+[project.scripts]
+xdl-usage = "xdl.usage:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["xdl*"]
 
 [tool.setuptools.package-data]
-xdl = ["py.typed"]
+xdl = ["py.typed", "USAGE.md"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

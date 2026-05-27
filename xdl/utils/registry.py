@@ -5,8 +5,9 @@
 
 import difflib
 import inspect
+import importlib
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from xdl.errors import RegistryError
 
@@ -36,6 +37,10 @@ class Registry:
 
     def get(self, name: str) -> Any:
         """根据名称获取对象。用法: Registry.get('name')(*args, **kwargs)"""
+        if name in self._registry:
+            return self._registry[name]
+
+        _ensure_builtin_registries_for(self)
         if name in self._registry:
             return self._registry[name]
 
@@ -72,6 +77,7 @@ class Registry:
             return f"Could not get signature for {name}: {e}"
 
     def list_available(self) -> List[str]:
+        _ensure_builtin_registries_for(self)
         return list(self._registry.keys())
 
 
@@ -94,6 +100,38 @@ register_loss = LOSS_REGISTRY.register
 register_metric = METRIC_REGISTRY.register
 register_transform = TRANSFORM_REGISTRY.register
 register_collate = COLLATE_REGISTRY.register
+
+_BOOTSTRAPPED_MODULES: Dict[str, bool] = {}
+_BOOTSTRAPPING_MODULES: Set[str] = set()
+
+
+def _bootstrap_modules_for_registry(registry: Registry) -> List[str]:
+    if registry is MODEL_REGISTRY:
+        return ["xdl.model"]
+    if registry is DATASET_REGISTRY or registry is COLLATE_REGISTRY:
+        return ["xdl.dataset"]
+    if registry is OPTIMIZER_REGISTRY:
+        return ["xdl.optimizer"]
+    if registry is SCHEDULER_REGISTRY:
+        return ["xdl.scheduler"]
+    if registry is LOSS_REGISTRY:
+        return ["xdl.loss"]
+    if registry is METRIC_REGISTRY:
+        return ["xdl.metric"]
+    return []
+
+
+def _ensure_builtin_registries_for(registry: Registry) -> None:
+    """按需导入内置组件模块，避免依赖顶层 xdl import 的副作用。"""
+    for module_path in _bootstrap_modules_for_registry(registry):
+        if _BOOTSTRAPPED_MODULES.get(module_path) or module_path in _BOOTSTRAPPING_MODULES:
+            continue
+        _BOOTSTRAPPING_MODULES.add(module_path)
+        try:
+            importlib.import_module(module_path)
+            _BOOTSTRAPPED_MODULES[module_path] = True
+        finally:
+            _BOOTSTRAPPING_MODULES.discard(module_path)
 
 # --- 检查/帮助辅助函数 ---
 

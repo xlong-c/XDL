@@ -13,10 +13,13 @@
 3. [CONFIG.md](CONFIG.md)
    - `setup_from_yaml()`、schema v1、`target + params`、YAML 组织方式。
 
-4. [xdl-functional-boundary.md](xdl-functional-boundary.md)
+4. [API.md](API.md)
+   - 稳定公共 API、实验性 API、内部实现边界和废弃策略。
+
+5. [xdl-functional-boundary.md](xdl-functional-boundary.md)
    - 各源码子模块职责速查。
 
-5. [xdl-optimization-plan.md](xdl-optimization-plan.md)
+6. [xdl-optimization-plan.md](xdl-optimization-plan.md)
    - 当前仍有效的后续优化方向。
 
 ## 文档边界
@@ -24,5 +27,6 @@
 - `INSTALL.md` 只讲环境、安装和验证。
 - `XDL.md` 只讲框架结构、训练入口和扩展方式。
 - `CONFIG.md` 只讲配置系统。
+- `API.md` 只讲公共 API 兼容边界，不重复使用教程。
 - `xdl-functional-boundary.md` 只做模块职责速查，不重复写长篇使用指南。
 - `xdl-optimization-plan.md` 只保留仍然有效的待办，不复述现状说明。

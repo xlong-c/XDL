@@ -54,6 +54,8 @@ YAML
 model = setup.create_model()
 ```
 
+公共入口契约见 [API.md](API.md)。配置主链路推荐只依赖 `from xdl.config import setup_from_yaml, TrainSetup`，不要直接依赖 `xdl.config.setup` 内部辅助函数。
+
 ## 3. 模块分工
 
 `xdl/config/` 主要由四部分组成：
@@ -158,6 +160,7 @@ train_dataloader:
 
 - `dataloader_defaults` 负责公共默认值
 - `train_dataloader.params` 负责局部覆盖
+- `val_dataloader.dataset: ${train_dataset}` 这类写法可以复用已有 dataset 配置
 - `trainer.batch_size` 可作为默认 batch size 来源
 - `collate_fn` 支持 `None`、可调用对象或 `target + params`
 
@@ -240,3 +243,4 @@ print(len(setup.train_loader.dataset))
 - 它不定义统一 CLI
 - 它不自动覆盖所有任务特化逻辑
 - 它更适合“配置化构建组件”，而不是“声明式描述整个实验世界”
+- schema dataclass、resolver 和 builder 内部辅助函数仍属于演进中的 API；稳定入口以 [API.md](API.md) 为准

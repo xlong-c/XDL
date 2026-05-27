@@ -26,7 +26,7 @@ XDL 是一个基于 PyTorch 的模块化深度学习框架。它提供三条核�
 典型写法：
 
 ```python
-from xdl.trainer import Trainer
+from xdl.trainer import CoreModel, Trainer
 
 model = MyCoreModel()
 trainer = Trainer(max_epochs=10, device="cuda")
@@ -63,7 +63,20 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 1. [docs/INSTALL.md](docs/INSTALL.md)
 2. [docs/XDL.md](docs/XDL.md)
 3. [docs/CONFIG.md](docs/CONFIG.md)
-4. [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md)
+4. [docs/API.md](docs/API.md)
+5. [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md)
+
+## 稳定公共入口
+
+新代码优先依赖这些入口：
+
+```python
+from xdl.config import setup_from_yaml, TrainSetup
+from xdl.trainer import CoreModel, Trainer, TrainSetupModel
+from xdl.callbacks import Callback
+```
+
+完整公共 API 边界见 [docs/API.md](docs/API.md)。历史文件级导入路径仍保持兼容，但推荐逐步迁移到子包入口。
 
 ## 快速开始
 
@@ -92,3 +105,22 @@ python train_VAE.py
 python train_GAN.py
 python train_TwinFlow.py
 ```
+
+## Wheel 安装后的单文件入口
+
+如果只有安装后的 `xdl` 包，没有源码仓库，可以直接查看随 wheel 分发的用法摘要：
+
+```bash
+python -m xdl.usage
+xdl-usage
+```
+
+Python 内可用：
+
+```python
+import xdl
+
+print(xdl.get_usage_text())
+```
+
+这份单文件入口也会随 wheel 分发，可作为没有源码仓库时的快速使用说明。

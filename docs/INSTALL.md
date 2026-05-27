@@ -79,6 +79,23 @@ print("import xdl ok")
 PY
 ```
 
+### 查看安装包内用法说明
+
+如果是从 wheel 安装，源码仓库里的 `docs/`、`examples/`、`config/` 不一定存在。安装包内固定提供一份单文件入口：
+
+```bash
+python -m xdl.usage
+xdl-usage
+```
+
+Python 内也可以读取：
+
+```python
+import xdl
+
+print(xdl.get_usage_text())
+```
+
 ### 验证配置构建主链路
 
 ```bash
@@ -157,3 +174,4 @@ bash scripts/install.sh full
 1. [README.md](../README.md)
 2. [XDL.md](XDL.md)
 3. [CONFIG.md](CONFIG.md)
+4. [API.md](API.md)

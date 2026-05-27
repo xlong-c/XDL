@@ -1,11 +1,12 @@
 # XDL 项目结构与使用说明
 
-本文档只回答四件事：
+本文档只回答五件事：
 
 1. XDL 是什么。
 2. XDL 的核心层次怎样分工。
 3. 当前推荐怎样接入训练。
-4. 新功能应该扩展到哪一层。
+4. 安装后怎样快速找到用法和公共 API。
+5. 新功能应该扩展到哪一层。
 
 ## 1. 项目定位
 
@@ -68,7 +69,13 @@ XDL 的主干可以概括为五层：
 
 ### `CoreModel`
 
-`xdl/trainer/coreModel.py` 承载任务逻辑。用户通常需要在子类里实现：
+`CoreModel` 承载任务逻辑。新代码推荐从子包入口导入：
+
+```python
+from xdl.trainer import CoreModel
+```
+
+历史路径 `from xdl.trainer.coreModel import CoreModel` 继续兼容。用户通常需要在子类里实现：
 
 - `training_step()`
 - `validation_step()`
@@ -107,7 +114,7 @@ XDL 当前采用手动优化模式。也就是说，训练步里需要自行处�
 典型写法：
 
 ```python
-from xdl.trainer import Trainer
+from xdl.trainer import CoreModel, Trainer
 
 model = MyCoreModel()
 trainer = Trainer(max_epochs=10, device="cuda")
@@ -143,7 +150,34 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 - `setup.create_model()`：把外部组件包装成 `TrainSetupModel`
 - `Trainer.from_setup()`：按配置补齐常用回调
 
-## 5. 当前推荐的接入顺序
+## 5. 安装后单文件入口和公共 API
+
+只安装 wheel、没有源码仓库时，可以直接查看包内用法摘要：
+
+```bash
+python -m xdl.usage
+xdl-usage
+```
+
+Python 内也可以读取同一份文本：
+
+```python
+import xdl
+
+print(xdl.get_usage_text())
+```
+
+新代码优先依赖这些稳定入口：
+
+```python
+from xdl.config import setup_from_yaml, TrainSetup
+from xdl.trainer import CoreModel, Trainer, TrainSetupModel
+from xdl.callbacks import Callback
+```
+
+完整 Stable / Provisional / Internal API 边界见 [API.md](API.md)。
+
+## 6. 当前推荐的接入顺序
 
 当你要接一个新训练任务时，优先按下面顺序阅读：
 
@@ -151,11 +185,12 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 2. [train_TwinFlow.py](../train_TwinFlow.py)
 3. [xdl/trainer/trainer.py](../xdl/trainer/trainer.py)
 4. [xdl/trainer/coreModel.py](../xdl/trainer/coreModel.py)
-5. [docs/CONFIG.md](CONFIG.md)
+5. [CONFIG.md](CONFIG.md)
+6. [API.md](API.md)
 
 这样能最快看清真实生命周期，而不是只看目录名猜结构。
 
-## 6. 怎样扩展 XDL
+## 7. 怎样扩展 XDL
 
 ### 新增模型 / 数据集 / loss / metric / optimizer / scheduler
 
@@ -181,7 +216,7 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 - 组件实例化变化：改 `builder.py`
 - 训练装配变化：改 `setup.py`
 
-## 7. 当前边界
+## 8. 当前边界
 
 XDL 现在已经具备稳定的“组件注册 + 配置构建 + 训练编排”主链路，但仍有明确边界：
 
