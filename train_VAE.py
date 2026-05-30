@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 from torch.utils.data import DataLoader, random_split
-from torchvision import datasets, transforms
+ from torchvision import datasets, transforms
 
 from xdl.callbacks.logging_callback import LoggingCallback
 from xdl.callbacks.sampling_animation_callback import SamplingAnimationCallback
