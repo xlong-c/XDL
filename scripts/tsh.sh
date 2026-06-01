@@ -1,1 +1,0 @@
-accelerate launch --num_processes=4 --num_machines=1 --mixed_precision=bf16 train_1216.py

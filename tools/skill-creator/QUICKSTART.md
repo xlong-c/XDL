@@ -5,17 +5,11 @@
 ### 步骤 1: 运行创建工具
 
 ```bash
-cd /root/workspace/xdl
-
 # 方式 A: 交互式创建（推荐新手）
 python tools/skill-creator/interactive.py
 
-# 方式 B: 命令行创建（快速）
-python tools/skill-creator/create_skill.py \
-  --name hello-skill \
-  --description "我的第一个 Skill" \
-  --tool "greet=打招呼工具" \
-  --tool "calculate=计算工具"
+# 方式 B: 修改 create_skill.py 顶部 CONFIG 后运行
+python tools/skill-creator/create_skill.py
 ```
 
 ### 步骤 2: 查看生成的结构
@@ -106,7 +100,7 @@ if __name__ == "__main__":
 
 ```bash
 # 测试 MCP 服务器能否启动
-cd /root/workspace/xdl/hello_skill
+cd hello_skill
 python -m hello_skill.mcp_server
 
 # 在 OpenCode 中使用

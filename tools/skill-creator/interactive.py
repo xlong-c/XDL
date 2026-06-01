@@ -195,10 +195,8 @@ def main():
     if choice == "1":
         interactive_mode()
     elif choice == "2":
-        print("\n使用命令行模式，请运行:")
-        print("python tools/skill-creator/create_skill.py --name <skill-name> --description <description>")
-        print("\n示例:")
-        print("python tools/skill-creator/create_skill.py --name image-processor --description '图像处理工具集'")
+        print("\n请修改 tools/skill-creator/create_skill.py 顶部 CONFIG 后运行:")
+        print("python tools/skill-creator/create_skill.py")
     else:
         print("❌ 无效选项")
 

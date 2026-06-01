@@ -1,11 +1,27 @@
+"""ImageNet 数据集下载脚本(从 Hugging Face)。
+
+支持完整 ImageNet、Tiny ImageNet 和子集下载。
+直接修改 `CONFIG` 后运行，不使用命令行参数解析库。
 """
-ImageNet 数据集下载脚本(从 Hugging Face)
-支持完整 ImageNet、Tiny ImageNet 和子集下载
-"""
+
+from __future__ import annotations
 
 import os
 import sys
-import argparse
+from typing import Any, Dict
+
+
+CONFIG: Dict[str, Any] = {
+    "dataset": "full",
+    "save_path": r"F:\dataset\imagenet_hf",
+    "torchvision_path": r"F:\dataset\imagenet",
+    "split": "validation",
+    "num_samples": 10000,
+    "convert": False,
+    "mirror": None,
+    "no_mirror": False,
+    "token": None,
+}
 
 
 def setup_hf_mirror(mirror_url=None):
@@ -48,7 +64,7 @@ def setup_hf_token(token=None):
             print("  3. 访问: https://huggingface.co/datasets/ILSVRC/imagenet-1k")
             print("  4. 同意使用条款并申请访问权限")
             print("\n使用方法：")
-            print("  python download_imagenet.py --token hf_xxx --dataset full --split validation --convert")
+            print("  在 CONFIG['token'] 中填入 token，或设置 HF_TOKEN 环境变量")
             return False
 
     try:
@@ -257,68 +273,23 @@ def _convert_split(dataset, output_path):
             Image.fromarray(img).save(img_path)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="从 Hugging Face 下载 ImageNet 数据集")
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        choices=["full", "wds", "tiny", "subset"],
-        default="full",
-        help="数据集类型: full(完整), wds(WebDataset格式), tiny(Tiny ImageNet), subset(子集)"
-    )
-    parser.add_argument(
-        "--save-path",
-        type=str,
-        default=r"F:\dataset\imagenet_hf",
-        help="HuggingFace 格式保存路径"
-    )
-    parser.add_argument(
-        "--torchvision-path",
-        type=str,
-        default=r"F:\dataset\imagenet",
-        help="torchvision 格式输出路径(可选)"
-    )
-    parser.add_argument(
-        "--split",
-        type=str,
-        default="validation",
-        choices=["train", "validation"],
-        help="下载的数据集分割(仅对 full 模式有效)"
-    )
-    parser.add_argument(
-        "--num-samples",
-        type=int,
-        default=10000,
-        help="子集模式的样本数量"
-    )
-    parser.add_argument(
-        "--convert",
-        action="store_true",
-        help="下载后转换为 torchvision 格式"
-    )
-    parser.add_argument(
-        "--mirror",
-        type=str,
-        default=None,
-        help="HuggingFace 镜像站点 (默认: https://hf-mirror.com)。可用镜像: hf-mirror.com, 无: None"
-    )
-    parser.add_argument(
-        "--no-mirror",
-        action="store_true",
-        help="不使用镜像,直接从官方源下载"
-    )
-    parser.add_argument(
-        "--token",
-        type=str,
-        default=None,
-        help="HuggingFace 访问 Token(ImageNet-1K 需要)。获取方式: https://huggingface.co/settings/tokens"
-    )
+def main(config: Dict[str, Any] = CONFIG) -> None:
+    dataset = str(config["dataset"])
+    save_path = str(config["save_path"])
+    torchvision_path = str(config["torchvision_path"])
+    split = str(config["split"])
+    num_samples = int(config["num_samples"])
+    convert = bool(config["convert"])
+    no_mirror = bool(config["no_mirror"])
 
-    args = parser.parse_args()
+    if dataset not in {"full", "wds", "tiny", "subset"}:
+        raise ValueError("CONFIG['dataset'] 必须是 full、wds、tiny 或 subset")
+    if split not in {"train", "validation"}:
+        raise ValueError("CONFIG['split'] 必须是 train 或 validation")
 
     # 配置镜像(如果未指定 --no-mirror)
-    if not args.no_mirror:
-        setup_hf_mirror(args.mirror)
+    if not no_mirror:
+        setup_hf_mirror(config["mirror"])
     else:
         print("⚠ 未使用镜像,直接从官方源下载(可能较慢)")
 
@@ -326,24 +297,24 @@ def main():
     check_dependencies()
 
     # 配置 Token(ImageNet-1K 需要)
-    if not setup_hf_token(args.token):
+    if not setup_hf_token(config["token"]):
         print("\n✗ 认证失败,无法继续下载")
         print("请按照上述提示获取 Token 后重试")
         sys.exit(1)
 
     # 根据选择下载数据集
-    if args.dataset == "full":
-        _ = download_imagenet_full(args.save_path, args.split)
-    elif args.dataset == "wds":
-        _ = download_imagenet_wds(args.save_path)
-    elif args.dataset == "tiny":
-        _ = download_tiny_imagenet(args.save_path)
-    elif args.dataset == "subset":
-        _ = download_imagenet_subset(args.save_path, args.num_samples)
+    if dataset == "full":
+        _ = download_imagenet_full(save_path, split)
+    elif dataset == "wds":
+        _ = download_imagenet_wds(save_path)
+    elif dataset == "tiny":
+        _ = download_tiny_imagenet(save_path)
+    elif dataset == "subset":
+        _ = download_imagenet_subset(save_path, num_samples)
 
     # 可选：转换为 torchvision 格式
-    if args.convert:
-        convert_to_torchvision_format(args.save_path, args.torchvision_path)
+    if convert:
+        convert_to_torchvision_format(save_path, torchvision_path)
 
     print(f"\n{'='*60}")
     print("✓ 所有操作完成！")
@@ -351,14 +322,14 @@ def main():
     print("\n使用方法:")
     print("\n1. HuggingFace 格式:")
     print("   from datasets import load_from_disk")
-    print(f"   dataset = load_from_disk('{args.save_path}')")
+    print(f"   dataset = load_from_disk('{save_path}')")
 
-    if args.convert:
+    if convert:
         print("\n2. torchvision 格式 (推荐用于 torchao_vit.py):")
         print("   from torchvision.datasets import ImageNet")
-        print(f"   dataset = ImageNet(root='{args.torchvision_path}', split='val')")
+        print(f"   dataset = ImageNet(root='{torchvision_path}', split='val')")
         print("\n修改 torchao_vit.py 中的路径:")
-        print(f"   IMAGE_NET_ROOT = r'{os.path.join(args.torchvision_path, 'val')}'")
+        print(f"   IMAGE_NET_ROOT = r'{os.path.join(torchvision_path, 'val')}'")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@
 - `README.md`：文档索引
 - `INSTALL.md`：安装说明
 - `CONFIG.md`：配置系统说明
+- `API.md`：Stable / Provisional / Internal API 边界和兼容策略
 - `XDL.md`：框架结构与使用说明
 - `xdl-functional-boundary.md`：模块职责速查
 - `xdl-optimization-plan.md`：当前仍有效的优化方向
@@ -19,6 +20,7 @@
 
 - 文档内容优先与真实代码保持一致，不写脱离实现的理想化描述
 - 涉及 API、目录、生命周期时，先回查源码再更新文案
+- 涉及公开 API、导出符号或兼容承诺时，必须同步检查并更新 `API.md`
 - 大改动时同步更新交叉引用和索引页
 - 规划文档与现状说明要区分清楚，避免混写
 - `docs/` 只保留长期有效内容；阶段性调研优先放 `research/`

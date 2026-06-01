@@ -1,11 +1,17 @@
 """公共 API 兼容性测试。"""
 
+import subprocess
+import sys
+
 
 def test_top_level_usage_api_is_lightweight() -> None:
-    import xdl
+    script = (
+        "import xdl; "
+        "assert xdl.get_usage_text().startswith('# XDL'); "
+        "assert 'trainer' not in xdl.__dict__"
+    )
 
-    assert xdl.get_usage_text().startswith("# XDL")
-    assert "trainer" not in xdl.__dict__
+    subprocess.run([sys.executable, "-c", script], check=True)
 
 
 def test_stable_config_api_imports() -> None:

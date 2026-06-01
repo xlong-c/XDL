@@ -61,7 +61,7 @@ class Trainer:
     ):
         # 训练参数
         self.max_epochs = max_epochs
-        self.gradient_accumulation_steps = gradient_accumulation_steps
+        self.gradient_accumulation_steps = max(1, int(gradient_accumulation_steps or 1))
         self.grad_clip_max_norm = grad_clip_max_norm
         self.grad_clip_norm_type = grad_clip_norm_type
 
@@ -253,6 +253,43 @@ class Trainer:
         return self.state.global_step if hasattr(self, "state") else 0
 
     @property
+    def accumulation_steps(self) -> int:
+        """获取当前梯度累积窗口大小"""
+        return self.gradient_accumulation_steps
+
+    @property
+    def micro_step(self) -> int:
+        """获取全局 micro-batch 训练步数"""
+        return self.global_step
+
+    @property
+    def micro_step_in_accumulation(self) -> int:
+        """获取当前累积窗口内的 1-based micro step"""
+        if self.micro_step <= 0:
+            return 0
+        return ((self.micro_step - 1) % self.accumulation_steps) + 1
+
+    @property
+    def optimizer_step(self) -> int:
+        """获取按完整累积窗口推导出的优化器更新计数"""
+        return self.micro_step // self.accumulation_steps
+
+    @property
+    def is_accumulation_start(self) -> bool:
+        """当前 micro step 是否为一个累积窗口的起点"""
+        return self.micro_step > 0 and self.micro_step_in_accumulation == 1
+
+    @property
+    def is_accumulation_boundary(self) -> bool:
+        """当前 micro step 是否到达完整累积窗口边界"""
+        return self.micro_step > 0 and self.micro_step % self.accumulation_steps == 0
+
+    @property
+    def should_optimizer_step(self) -> bool:
+        """是否应在当前 micro step 执行 optimizer.step()"""
+        return self.is_accumulation_boundary
+
+    @property
     def current_epoch(self) -> int:
         """获取当前epoch"""
         if self._model and hasattr(self._model, "_current_epoch"):
@@ -307,6 +344,7 @@ class Trainer:
         self._train_dataloader = train_dataloader
         self._val_dataloader = val_dataloader
         self._inference_data = inference_data
+        self._sync_gradient_accumulation_to_model(model)
 
         # 阶段1-3：设置 - 提前执行 setup 以确定设备
         if hasattr(model, "setup"):
@@ -572,6 +610,11 @@ class Trainer:
                     for _scheduler in self._model.schedulers
                 ]
 
+    def _sync_gradient_accumulation_to_model(self, model: CoreModel) -> None:
+        """同步 Trainer 的梯度累积配置到 CoreModel helper。"""
+        if hasattr(model, "_set_gradient_accumulation_steps"):
+            model._set_gradient_accumulation_steps(self.gradient_accumulation_steps)
+
     def _setup(self):
         """初始化设备和其他组件"""
         if getattr(self, "_is_setup", False):
@@ -709,6 +752,7 @@ class Trainer:
         # 设置模型和数据
         self._model = model
         self._test_dataloader = test_dataloader
+        self._sync_gradient_accumulation_to_model(model)
 
         # 确保已 setup
         if not getattr(self, "_is_setup", False):

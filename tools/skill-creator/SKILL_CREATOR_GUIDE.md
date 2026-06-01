@@ -6,14 +6,13 @@
 
 Skill Creator 已经集成到项目中，无需额外安装。
 
-**位置**: `/root/workspace/xdl/tools/skill-creator/`
+**位置**: `tools/skill-creator/`
 
 ## 🚀 快速开始
 
 ### 方式一：交互式创建（推荐新手）
 
 ```bash
-cd /root/workspace/xdl
 python tools/skill-creator/interactive.py
 ```
 
@@ -23,25 +22,13 @@ python tools/skill-creator/interactive.py
 3. 工具定义（名称、描述、参数）
 4. 确认后自动生成完整结构
 
-### 方式二：命令行创建（快速）
+### 方式二：配置脚本创建
 
 ```bash
-cd /root/workspace/xdl
-
-# 创建基础 Skill
-python tools/skill-creator/create_skill.py \
-  --name my-skill \
-  --description "我的 Skill 描述"
-
-# 创建带工具的 Skill
-python tools/skill-creator/create_skill.py \
-  --name image-processor \
-  --description "图像处理工具集" \
-  --author "Your Name" \
-  --tool "resize=调整图片尺寸" \
-  --tool "crop=裁剪图片" \
-  --tool "convert=转换图片格式"
+python tools/skill-creator/create_skill.py
 ```
+
+运行前修改 `tools/skill-creator/create_skill.py` 顶部的 `CONFIG`。
 
 ## 📁 生成的结构
 
@@ -67,25 +54,13 @@ project/
 ### 示例 1: 创建计算器 Skill
 
 ```bash
-python tools/skill-creator/create_skill.py \
-  --name calculator \
-  --description "数学计算工具集" \
-  --tool "add=加法运算" \
-  --tool "subtract=减法运算" \
-  --tool "multiply=乘法运算" \
-  --tool "divide=除法运算"
+python tools/skill-creator/interactive.py
 ```
 
 ### 示例 2: 创建网络工具 Skill
 
 ```bash
-python tools/skill-creator/create_skill.py \
-  --name web-tools \
-  --description "网络请求和数据处理工具" \
-  --author "Your Name" \
-  --tool "fetch_url=获取网页内容" \
-  --tool "check_status=检查网站状态" \
-  --tool "extract_links=提取网页链接"
+python tools/skill-creator/create_skill.py
 ```
 
 ## 📝 实现步骤
@@ -295,28 +270,17 @@ async def robust_tool(args: dict) -> dict:
         return {"success": False, "error": str(e)}
 ```
 
-## 🔧 命令行参数
+## 🔧 配置项
 
 ```
-usage: create_skill.py [-h] --name NAME --description DESCRIPTION
-                       [--author AUTHOR] [--license LICENSE] [--output OUTPUT]
-                       [--tool NAME=DESCRIPTION ...]
-
-为 OpenCode 创建新的 MCP Skill
-
-可选参数:
-  -h, --help            显示帮助信息
-  --name NAME, -n NAME  Skill 名称（kebab-case）
-  --description DESCRIPTION, -d DESCRIPTION
-                        Skill 描述
-  --author AUTHOR, -a AUTHOR
-                        作者名（默认：XDL Team）
-  --license LICENSE, -l LICENSE
-                        许可证（默认：MIT）
-  --output OUTPUT, -o OUTPUT
-                        输出目录（默认：.）
-  --tool NAME=DESCRIPTION, -t NAME=DESCRIPTION
-                        添加工具定义，可重复使用
+CONFIG = {
+    "name": "my-skill",
+    "description": "我的 Skill 描述",
+    "author": "XDL Team",
+    "license": "MIT",
+    "output": ".",
+    "tools": ["tool_name=工具描述"],
+}
 ```
 
 ## 🐛 故障排除

@@ -50,7 +50,7 @@ class MyModel(CoreModel):
 
     def training_step(self, batch: Any, batch_idx: int) -> None:
         x, y = batch
-        optimizer = self.optimizers
+        optimizer = self.optimizers[0]
 
         optimizer.zero_grad()
         logits = self.net(x)
@@ -58,7 +58,7 @@ class MyModel(CoreModel):
         self.manual_backward(loss)
         optimizer.step()
 
-        self.log("train_loss", float(loss.detach().cpu()))
+        self.log("loss", loss.detach(), prefix="train")
 
     def configure_optimizers(self) -> AdamW:
         return AdamW(self.net.parameters(), lr=1e-3)
@@ -79,8 +79,30 @@ trainer.fit(model, train_loader)
 - `Trainer.fit()` 会先调用 `model.setup("fit")`，再做设备、优化器和 callback setup。
 - `configure_optimizers()` 在 `setup()` 之后被调用；依赖懒加载模块的优化器要在这里创建。
 - Trainer 不会自动优化；`training_step()` 内要自己完成优化流程。
-- 记录指标用 `self.log("name", value)`，callback 和进度条会读取这些指标。
+- 记录指标用 `self.log("name", value)`，callback 和进度条会读取这些指标；`self.log("loss", value, prefix="train")` 会生成兼容旧脚本的 `train_loss` 键。
 - 需要梯度裁剪时，在 `training_step()` 中调用 `self.clip_gradients(...)`。
+- 手动梯度累积可以用 `self.accumulation_steps`、`self.is_accumulation_start`、`self.is_accumulation_boundary`、`self.should_optimizer_step`，这些 helper 基于 Trainer 的 `gradient_accumulation_steps`。
+
+梯度累积写法：
+
+```python
+def training_step(self, batch: Any, batch_idx: int) -> None:
+    x, y = batch
+    optimizer = self.optimizers[0]
+
+    if self.is_accumulation_start:
+        optimizer.zero_grad(set_to_none=True)
+
+    logits = self.net(x)
+    loss = self.loss_fn(logits, y)
+    self.manual_backward(loss / self.accumulation_steps)
+
+    if self.should_optimizer_step:
+        self.clip_gradients(self.net, gradient_clip_val=1.0)
+        optimizer.step()
+
+    self.log("loss", loss.detach(), prefix="train")
+```
 
 ## 大模型训练骨架
 
@@ -114,14 +136,15 @@ class LargeModelFinetune(CoreModel):
         # self.text_encoder = self.pipe.text_encoder
 
     def training_step(self, batch: Any, batch_idx: int) -> None:
-        optimizer = self.optimizers
+        optimizer = self.optimizers[0]
         optimizer.zero_grad()
 
-        # 复杂 batch 建议在这里显式移动到 self.device。
+        # Trainer 会递归迁移 Tensor / dict / list / tuple / dataclass。
+        # 自定义第三方对象仍建议在这里显式处理设备。
         # loss = ...
         # self.manual_backward(loss)
         # optimizer.step()
-        # self.log("train_loss", float(loss.detach().cpu()))
+        # self.log("loss", loss.detach(), prefix="train")
 
     def configure_optimizers(self) -> AdamW:
         trainable_params = [p for p in self.parameters() if p.requires_grad]
@@ -131,9 +154,9 @@ class LargeModelFinetune(CoreModel):
 大模型注意事项：
 
 - 标准非 Accelerate 路径只会迁移 `CoreModel.__dict__` 中的 `nn.Module` 属性；普通 pipeline 不是 `nn.Module`。
-- 字典、嵌套 list/dict、第三方 dataset 的复杂 batch，建议在 `training_step()` 内显式 `.to(self.device)`。
-- `Trainer` 构造参数里的 `gradient_accumulation_steps` 不会替代手动优化逻辑；自己实现累积时要自己控制 backward/step。
-- `on_train_step_start()` 会在 `training_step()` 前递增 `_total_train_steps`，自定义累积或保存逻辑要注意当前 step 计数。
+- Trainer 会递归迁移 batch 里的 `Tensor / dict / list / tuple / dataclass`；第三方自定义对象仍建议在 `training_step()` 内显式 `.to(self.device)`。
+- `Trainer` 构造参数里的 `gradient_accumulation_steps` 不会替代手动优化逻辑；自己实现累积时用 `self.accumulation_steps`、`self.is_accumulation_start`、`self.is_accumulation_boundary` 控制 backward/step。
+- `on_train_step_start()` 会在 `training_step()` 前递增 `_total_train_steps`；新代码优先读 `self.micro_step`，不要直接依赖私有字段。
 - diffusers/PEFT LoRA 权重保存优先写专用 callback，调用 `save_pretrained()` 或框架自己的保存 API。
 
 ## 路径二：YAML 配置训练
@@ -281,6 +304,6 @@ from xdl.callbacks import Callback
 - 不要期待 `training_step()` 自动优化；XDL 当前是手动优化模式。
 - 不要把大模型权重加载放在模块 import 阶段。
 - 不要只把 diffusers pipeline 挂到 `self.pipe` 就指望 Trainer 迁移设备；底层 `nn.Module` 也要挂到 `self`。
-- 不要让复杂 batch 依赖 Trainer 自动迁移；在 `training_step()` 显式处理。
+- 不要让第三方自定义 batch 对象完全依赖 Trainer 自动迁移；内置容器会递归迁移，但自定义对象需要在 `training_step()` 显式处理。
 - 新训练脚本不要引入 `argparse`；优先 YAML 配置，或用环境变量选择 YAML 文件。
 - 只安装 wheel 时，仓库里的 `examples/`、`docs/`、`config/` 不一定存在；以本文件和包内公开 API 为准。

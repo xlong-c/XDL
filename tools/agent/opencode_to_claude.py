@@ -1,17 +1,28 @@
 #!/usr/bin/env python3
-"""
-OpenCode Skill 到 Claude Code MCP 配置转换器
+"""OpenCode Skill 到 Claude Code MCP 配置转换器。
 
 将 .opencode/skills/ 下的 OpenCode skill 配置转换为 Claude Code 的 mcp.json 格式。
+直接修改 `CONFIG` 后运行，不使用命令行参数解析库。
 """
 
+from __future__ import annotations
+
 import json
-import argparse
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 
 
-def convert_opencode_skill(skill_dir: Path, project_root: Path) -> Dict[str, Any]:
+CONFIG = {
+    "opencode_skills": ".opencode/skills",
+    "project_root": ".",
+    "output": ".claude/mcp.json",
+}
+
+
+def convert_opencode_skill(
+    skill_dir: Path,
+    project_root: Path,
+) -> Optional[Dict[str, Any]]:
     """
     转换单个 OpenCode skill 配置
 
@@ -55,11 +66,15 @@ def convert_opencode_skill(skill_dir: Path, project_root: Path) -> Dict[str, Any
         "command": mcp_config.get("command"),
         "args": mcp_config.get("args", []),
         "cwd": abs_cwd,
-        "env": env
+        "env": env,
     }
 
 
-def convert_all(opencode_skills_dir: Path, project_root: Path, output_file: Path):
+def convert_all(
+    opencode_skills_dir: Path,
+    project_root: Path,
+    output_file: Path,
+) -> None:
     """
     转换所有 OpenCode skills
 
@@ -84,9 +99,7 @@ def convert_all(opencode_skills_dir: Path, project_root: Path, output_file: Path
             mcp_servers[skill_name] = mcp_config
             print(f"✓ 转换 skill: {skill_name}")
 
-    result = {
-        "mcpServers": mcp_servers
-    }
+    result = {"mcpServers": mcp_servers}
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w", encoding="utf-8") as f:
@@ -96,31 +109,10 @@ def convert_all(opencode_skills_dir: Path, project_root: Path, output_file: Path
     print(f"共转换 {len(mcp_servers)} 个 MCP 服务器")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="将 OpenCode skill 配置转换为 Claude Code MCP 配置"
-    )
-    parser.add_argument(
-        "--opencode-skills",
-        default=".opencode/skills",
-        help="OpenCode skills 目录 (默认: .opencode/skills)"
-    )
-    parser.add_argument(
-        "--project-root",
-        default=".",
-        help="项目根目录 (默认: .)"
-    )
-    parser.add_argument(
-        "--output",
-        default=".claude/mcp.json",
-        help="输出文件路径 (默认: .claude/mcp.json)"
-    )
-
-    args = parser.parse_args()
-
-    project_root = Path(args.project_root).resolve()
-    opencode_skills_dir = project_root / args.opencode_skills
-    output_file = project_root / args.output
+def main(config: Dict[str, str] = CONFIG) -> None:
+    project_root = Path(config["project_root"]).resolve()
+    opencode_skills_dir = project_root / config["opencode_skills"]
+    output_file = project_root / config["output"]
 
     convert_all(opencode_skills_dir, project_root, output_file)
 

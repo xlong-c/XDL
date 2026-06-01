@@ -1,28 +1,39 @@
 #!/usr/bin/env python3
-"""SD3.5 Text Encoder - 输出格式和 promt.pt 一致."""
+"""SD3.5 prompt embedding pre-encoder.
+
+直接修改 `CONFIG` 后运行，不使用命令行参数解析库。
+如需访问 gated 模型，先在环境变量中设置 `HF_TOKEN` 或执行
+`huggingface-cli login`。
+"""
 
 from __future__ import annotations
 
 import os
 import torch
-from diffusers import StableDiffusion3Pipeline
-
-
-os.environ["HF_TOKEN"] = "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"
-#!/usr/bin/env python
-# coding=utf-8
-"""
-Script to pre-generate prompt embeddings for Stable Diffusion 3.5 training
-to reduce computational overhead during training.
-"""
-
-import argparse
 from transformers import CLIPTextModelWithProjection, T5EncoderModel, T5TokenizerFast
 from transformers import CLIPTokenizer
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
-def load_pipeline(pretrained_model_path, revision=None, variant=None):
+CONFIG: Dict[str, Any] = {
+    "pretrained_model_path": "stabilityai/stable-diffusion-3.5-medium",
+    "output_dir": "precomputed_embeds",
+    "prompts": [
+        "Transfer the hairstyle from Image2 to Image1 while preserving facial features, expressions, and background."
+    ],
+    "prompt_file": None,
+    "device": "cuda",
+    "revision": None,
+    "variant": None,
+}
+
+
+def load_pipeline(
+    pretrained_model_path: str,
+    revision: Optional[str] = None,
+    variant: Optional[str] = None,
+) -> Dict[str, object]:
     """
     Load the SD3.5 pipeline components needed for text encoding
     """
@@ -444,75 +455,33 @@ def load_embeddings(embed_path, device="cuda"):
     return prompt_embeds, pooled_embeds
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Generate pre-encoded prompt embeddings for SD3.5 training"
-    )
-    parser.add_argument(
-        "--pretrained_model_path",
-        type=str,
-        default="stabilityai/stable-diffusion-3.5-medium",
-        help="Path to pretrained SD3.5 model or HuggingFace Hub identifier",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="precomputed_embeds",
-        help="Directory to save generated embeddings",
-    )
-    parser.add_argument(
-        "--prompts",
-        nargs="+",
-        type=str,
-        help="Prompts to encode (can provide multiple)",
-    )
-    parser.add_argument(
-        "--prompt_file",
-        type=str,
-        help="Path to text file containing one prompt per line",
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="Device to use for encoding ('cuda' or 'cpu')",
-    )
-    parser.add_argument(
-        "--revision", type=str, default=None, help="Specific model revision to use"
-    )
-    parser.add_argument(
-        "--variant", type=str, default=None, help="Model variant (e.g., 'fp16')"
-    )
-
-    args = parser.parse_args()
-
-    # Get prompts from either command line or file
-    prompts = []
-    if args.prompts:
-        prompts.extend(args.prompts)
-    if args.prompt_file:
-        with open(args.prompt_file, "r", encoding="utf-8") as f:
+def load_prompts(config: Dict[str, Any]) -> List[str]:
+    prompts: List[str] = []
+    config_prompts = config.get("prompts") or []
+    prompts.extend(str(prompt) for prompt in config_prompts)
+    prompt_file = config.get("prompt_file")
+    if prompt_file:
+        with open(prompt_file, "r", encoding="utf-8") as f:
             prompts.extend([line.strip() for line in f if line.strip()])
 
     if not prompts:
-        # Default sample prompts
-        prompts = [
-            "Transfer the hairstyle from Image2 to Image1 while preserving facial features, expressions, and background."
-        ]
-        print("No prompts provided, using default hairstyle transfer prompts:")
-        for i, p in enumerate(prompts):
-            print(f"  {i + 1}. {p}")
+        raise ValueError("CONFIG['prompts'] 或 CONFIG['prompt_file'] 至少配置一个")
+
+    return prompts
+
+
+def main() -> None:
+    prompts = load_prompts(CONFIG)
 
     print(f"Using {len(prompts)} prompts for embedding generation")
 
-    # Generate and save embeddings
     generate_and_save_embeddings(
         prompts=prompts,
-        pretrained_model_path=args.pretrained_model_path,
-        output_dir=args.output_dir,
-        device=args.device,
-        revision=args.revision,
-        variant=args.variant,
+        pretrained_model_path=CONFIG["pretrained_model_path"],
+        output_dir=CONFIG["output_dir"],
+        device=CONFIG["device"],
+        revision=CONFIG["revision"],
+        variant=CONFIG["variant"],
     )
 
 

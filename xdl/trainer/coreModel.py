@@ -150,6 +150,22 @@ class ValueDictData:
         return self.current_values.items()
 
 
+def _format_metric_name(name: str, prefix: Optional[str] = None) -> str:
+    """生成兼容旧命名的指标名。"""
+    metric_name = str(name).strip()
+    metric_prefix = str(prefix).strip(" _/") if prefix is not None else ""
+
+    if not metric_prefix:
+        return metric_name
+    if not metric_name:
+        return metric_prefix
+    if metric_name == metric_prefix:
+        return metric_name
+    if metric_name.startswith(f"{metric_prefix}_") or metric_name.startswith(f"{metric_prefix}/"):
+        return metric_name
+    return f"{metric_prefix}_{metric_name.lstrip('_/')}"
+
+
 class CoreModel(Module):
     """
     用户继承此类并实现:
@@ -183,6 +199,7 @@ class CoreModel(Module):
         self._total_train_steps = 0
         self._total_valid_steps = 0
         self._total_test_steps = 0
+        self._gradient_accumulation_steps = 1
 
         # 可重置计数器(按epoch/阶段重置)
         self._train_steps_epoch = 0
@@ -237,18 +254,20 @@ class CoreModel(Module):
         示例(手动优化模式):
             def training_step(self, batch, batch_idx):
                 x, y = batch
-                # 手动前向和反向传播
-                opt = self.optimizers
-                opt.zero_grad()
+                optimizer = self.optimizers[0]
+                if self.is_accumulation_start:
+                    optimizer.zero_grad()
                 logits = self.model(x)
                 loss = self.loss_fn(logits, y)
-                self.manual_backward(loss)
-                self.clip_gradients(gradient_clip_val=1.0)
-                opt.step()
+                self.manual_backward(loss / self.accumulation_steps)
+                if self.is_accumulation_boundary:
+                    self.clip_gradients(self.model, gradient_clip_val=1.0)
+                    optimizer.step()
 
                 # 每步调用调度器
                 sch = self.lr_schedulers()
-                sch.step()
+                if self.is_accumulation_boundary:
+                    sch.step()
 
                 self.log('train_loss', loss.item())
 
@@ -597,7 +616,7 @@ class CoreModel(Module):
 
     # ========== 日志记录方法 ==========
 
-    def log(self, name: str, value: Union[float, int], prefix: Optional[str] = None):
+    def log(self, name: str, value: Union[float, int], prefix: Optional[str] = None) -> None:
         """
         在 Component 内记录指标
 
@@ -607,47 +626,47 @@ class CoreModel(Module):
         Args:
             name: 指标名称 (例如: 'loss', 'accuracy', 'val_loss')
             value: 指标值
-            step: 步骤数 (可选, 默认使用 self.global_step)
-            epoch: 周期数 (可选, 默认使用 self.current_epoch)
-            prefix: 前缀 (可选, 例如: 'train', 'val')
+            prefix: 前缀 (可选, 例如: 'train', 'val'); 默认生成
+                `train_loss` 这类旧版兼容键名
 
         使用示例:
             def training_step(self, batch, batch_idx):
                 # ... 计算损失和指标 ...
-                self.log('train_loss', loss.item())
-                self.log('train_accuracy', accuracy.item())
+                self.log('loss', loss.item(), prefix='train')
+                self.log('accuracy', accuracy.item(), prefix='train')
 
             def validation_step(self, batch, batch_idx):
                 # ... 计算验证指标 ...
-                self.log('val_accuracy', val_accuracy.item())
+                self.log('accuracy', val_accuracy.item(), prefix='val')
         """
         # 确保值是数值类型
         if isinstance(value, torch.Tensor):
             value = value.item()
 
         value = float(value)
+        metric_name = _format_metric_name(name, prefix)
 
         # 使用统一的指标存储系统记录指标
-        self._step_metrics.log(name, value)
+        self._step_metrics.log(metric_name, value)
 
-    def log_metrics(self, metrics: Dict[str, Union[float, int]], prefix: Optional[str] = None):
+    def log_metrics(
+        self, metrics: Dict[str, Union[float, int]], prefix: Optional[str] = None
+    ) -> None:
         """
         批量记录指标
 
         Args:
             metrics: 指标字典 {'metric_name': value, ...}
-            step: 步骤数 (可选)
-            epoch: 周期数 (可选)
             prefix: 前缀 (可选)
 
         使用示例:
             def training_step(self, batch, batch_idx):
                 # ... 计算 ...
                 self.log_metrics({
-                    'train/loss': loss.item(),
-                    'train/accuracy': accuracy.item(),
+                    'loss': loss.item(),
+                    'accuracy': accuracy.item(),
                     'learning_rate': current_lr
-                })
+                }, prefix='train')
         """
         for name, value in metrics.items():
             self.log(name, value, prefix)
@@ -723,9 +742,12 @@ class CoreModel(Module):
         示例:
             def training_step(self, batch, batch_idx):
                 loss = self.compute_loss(batch)
-                self.manual_backward(loss)
-                self.optimizer_step()
-                self.zero_grad()
+                optimizer = self.optimizers[0]
+                if self.is_accumulation_start:
+                    optimizer.zero_grad()
+                self.manual_backward(loss / self.accumulation_steps)
+                if self.is_accumulation_boundary:
+                    optimizer.step()
         """
         if self._accelerator:
             # 使用 Accelerate 的分布式反向传播
@@ -921,6 +943,10 @@ class CoreModel(Module):
 
     # ========== 步骤计数器访问方法 ==========
 
+    def _set_gradient_accumulation_steps(self, steps: int) -> None:
+        """由 Trainer 注入梯度累积窗口大小。"""
+        self._gradient_accumulation_steps = max(1, int(steps or 1))
+
     @property
     def total_train_steps(self) -> int:
         return self._total_train_steps
@@ -944,6 +970,48 @@ class CoreModel(Module):
     @property
     def test_steps_epoch(self) -> int:
         return self._test_steps_epoch
+
+    @property
+    def accumulation_steps(self) -> int:
+        """当前梯度累积窗口大小。"""
+        steps = getattr(
+            self,
+            "gradient_accumulation_steps",
+            self._gradient_accumulation_steps,
+        ) or self._gradient_accumulation_steps
+        return max(1, int(steps or 1))
+
+    @property
+    def micro_step(self) -> int:
+        """全局 micro-batch 训练步数；训练步开始前置递增。"""
+        return self._total_train_steps
+
+    @property
+    def micro_step_in_accumulation(self) -> int:
+        """当前累积窗口内的 1-based micro step；未开始训练时为 0。"""
+        if self.micro_step <= 0:
+            return 0
+        return ((self.micro_step - 1) % self.accumulation_steps) + 1
+
+    @property
+    def optimizer_step(self) -> int:
+        """按完整累积窗口推导出的优化器更新计数。"""
+        return self.micro_step // self.accumulation_steps
+
+    @property
+    def is_accumulation_start(self) -> bool:
+        """当前 micro step 是否为一个累积窗口的起点。"""
+        return self.micro_step > 0 and self.micro_step_in_accumulation == 1
+
+    @property
+    def is_accumulation_boundary(self) -> bool:
+        """当前 micro step 是否到达完整累积窗口边界。"""
+        return self.micro_step > 0 and self.micro_step % self.accumulation_steps == 0
+
+    @property
+    def should_optimizer_step(self) -> bool:
+        """是否应在当前 micro step 执行 optimizer.step()。"""
+        return self.is_accumulation_boundary
 
     # ========== 兼容性别名(指向我们的计数器) ==========
 

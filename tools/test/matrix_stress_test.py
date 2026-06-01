@@ -1,9 +1,25 @@
-import torch
+"""矩阵乘法压测工具。
+
+直接修改 `CONFIG` 后运行，不使用命令行参数解析库。
+"""
+
+from __future__ import annotations
+
 import time
-import argparse
+from typing import Dict, Optional
+
+import torch
 
 
-def get_device(device_name=None):
+CONFIG = {
+    "device": None,
+    "size": 8192,
+    "duration": 30,
+    "dtype": "float32",
+}
+
+
+def get_device(device_name: Optional[str] = None) -> torch.device:
     if device_name:
         return torch.device(device_name)
     if torch.cuda.is_available():
@@ -13,10 +29,15 @@ def get_device(device_name=None):
     return torch.device("cpu")
 
 
-def stress_test(device_name=None, size=8192, duration=30, dtype="float32"):
+def stress_test(
+    device_name: Optional[str] = None,
+    size: int = 8192,
+    duration: int = 30,
+    dtype: str = "float32",
+) -> None:
     device = get_device(device_name)
 
-    dtype_map = {
+    dtype_map: Dict[str, torch.dtype] = {
         "float32": torch.float32,
         "float16": torch.float16,
         "bfloat16": torch.bfloat16,
@@ -88,30 +109,9 @@ def stress_test(device_name=None, size=8192, duration=30, dtype="float32"):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Matrix Multiplication Stress Test")
-    parser.add_argument(
-        "--device", type=str, help="Device to use (e.g., cuda, cpu, mps)"
+    stress_test(
+        device_name=CONFIG["device"],
+        size=CONFIG["size"],
+        duration=CONFIG["duration"],
+        dtype=CONFIG["dtype"],
     )
-    parser.add_argument(
-        "--size",
-        type=int,
-        default=8192,
-        help="Size of the square matrices (default: 8192)",
-    )
-    parser.add_argument(
-        "--duration",
-        type=int,
-        default=30,
-        help="Test duration in seconds (default: 30)",
-    )
-    parser.add_argument(
-        "--dtype",
-        type=str,
-        default="float32",
-        choices=["float32", "float16", "bfloat16", "float64"],
-        help="Data type (default: float32)",
-    )
-
-    args = parser.parse_args()
-
-    stress_test(args.device, args.size, args.duration, args.dtype)

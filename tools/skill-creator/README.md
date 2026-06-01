@@ -4,33 +4,20 @@
 
 ## 快速开始
 
-### 方式一：使用命令行工具
+当前仓库约束是不使用 `argparse`。`create_skill.py` 使用文件顶部的
+`CONFIG` 作为显式配置；需要快速配置时优先运行交互式脚本。
+
+### 方式一：使用配置脚本
 
 ```bash
-cd /root/workspace/xdl
-
-# 创建基础 Skill
-python tools/skill-creator/create_skill.py --name my-skill --description "My awesome skill"
-
-# 创建带工具定义的 Skill
-python tools/skill-creator/create_skill.py \
-  --name my-skill \
-  --description "My awesome skill with tools" \
-  --tool "tool1=First tool description" \
-  --tool "tool2=Second tool description"
-
-# 指定作者和许可证
-python tools/skill-creator/create_skill.py \
-  --name my-skill \
-  --description "..." \
-  --author "Your Name" \
-  --license "MIT"
+python tools/skill-creator/create_skill.py
 ```
+
+运行前修改 `tools/skill-creator/create_skill.py` 顶部的 `CONFIG`。
 
 ### 方式二：使用交互式模式
 
 ```bash
-cd /root/workspace/xdl
 python tools/skill-creator/interactive.py
 ```
 
@@ -57,13 +44,7 @@ project/
 ### 1. 创建带工具的 Skill
 
 ```bash
-python tools/skill-creator/create_skill.py \
-  --name image-processor \
-  --description "图像处理工具集 - 支持缩放、裁剪、格式转换" \
-  --author "Your Name" \
-  --tool "resize=调整图片尺寸" \
-  --tool "crop=裁剪图片" \
-  --tool "convert=转换图片格式"
+python tools/skill-creator/interactive.py
 ```
 
 ### 2. 实现工具逻辑
@@ -337,28 +318,17 @@ if __name__ == "__main__":
 }
 ```
 
-## 命令行参数
+## 配置项
 
 ```
-usage: create_skill.py [-h] --name NAME --description DESCRIPTION
-                       [--author AUTHOR] [--license LICENSE] [--output OUTPUT]
-                       [--tool NAME=DESCRIPTION ...]
-
-为 OpenCode 创建新的 MCP Skill
-
-可选参数:
-  -h, --help            显示帮助信息
-  --name NAME, -n NAME  Skill 名称（使用 kebab-case，如 my-skill）
-  --description DESCRIPTION, -d DESCRIPTION
-                        Skill 描述
-  --author AUTHOR, -a AUTHOR
-                        作者名（默认：XDL Team）
-  --license LICENSE, -l LICENSE
-                        许可证类型（默认：MIT）
-  --output OUTPUT, -o OUTPUT
-                        输出目录（默认：当前目录）
-  --tool NAME=DESCRIPTION, -t NAME=DESCRIPTION
-                        添加工具定义（格式：name=description），可重复使用
+CONFIG = {
+    "name": "my-skill",
+    "description": "My awesome skill",
+    "author": "XDL Team",
+    "license": "MIT",
+    "output": ".",
+    "tools": ["resize=调整图片尺寸"],
+}
 ```
 
 ## 最佳实践
@@ -425,7 +395,7 @@ async def your_tool(args: dict) -> dict:
 **解决**:
 ```bash
 # 手动测试 MCP 服务器
-cd /root/workspace/xdl/my_skill
+cd my_skill
 python -m my_skill.mcp_server
 
 # 检查依赖

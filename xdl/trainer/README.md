@@ -34,6 +34,23 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 - `self.clip_gradients(...)`
 - `optimizer.step()`
 
+手动梯度累积优先使用公开 helper，而不是直接取模私有字段：
+
+- `accumulation_steps`
+- `micro_step`
+- `micro_step_in_accumulation`
+- `optimizer_step`
+- `is_accumulation_start`
+- `is_accumulation_boundary`
+- `should_optimizer_step`
+
+指标记录支持兼容命名：
+
+- `self.log("train_loss", value)` 保持旧行为。
+- `self.log("loss", value, prefix="train")` 记录为 `train_loss`。
+- `self.log_metrics({"loss": value}, prefix="val")` 记录为 `val_loss`。
+- 已有 `train_loss` / `train/loss` 这类键不会重复加前缀。
+
 ### `Trainer`
 
 承载训练循环编排。负责：
@@ -41,6 +58,7 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 - `model.setup("fit")`
 - 设备与 accelerate 初始化
 - epoch / step 循环
+- `Tensor / dict / list / tuple / dataclass` batch 递归迁移
 - callback 调度
 - 验证与推理采样周期
 

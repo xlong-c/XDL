@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
-"""
-Skill Creator for OpenCode
+"""Skill Creator for OpenCode.
+
 为 OpenCode 创建新的 MCP Skill 工具
+直接修改 `CONFIG` 后运行，不使用命令行参数解析库。
 """
 
-import argparse
+from __future__ import annotations
+
 import json
-import os
-import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
+
+
+CONFIG: Dict[str, Any] = {
+    "name": "my-skill",
+    "description": "My awesome skill",
+    "author": "XDL Team",
+    "license": "MIT",
+    "output": ".",
+    "tools": [],
+}
 
 
 def create_opencode_config(
@@ -283,86 +293,34 @@ env/
     return skills_dir
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="为 OpenCode 创建新的 MCP Skill",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-示例:
-  # 创建基础 Skill
-  python create_skill.py --name my-skill --description "My awesome skill"
-  
-  # 创建带工具定义的 Skill
-  python create_skill.py --name my-skill --description "..." \\
-    --tool name=tool1 desc="Tool description" \\
-    --tool name=tool2 desc="Another tool"
-  
-  # 指定输出目录
-  python create_skill.py --name my-skill --description "..." --output /path/to/project
-        """
-    )
-    
-    parser.add_argument(
-        "--name", "-n",
-        required=True,
-        help="Skill 名称（使用 kebab-case，如 my-skill）"
-    )
-    
-    parser.add_argument(
-        "--description", "-d",
-        required=True,
-        help="Skill 描述"
-    )
-    
-    parser.add_argument(
-        "--author", "-a",
-        default="XDL Team",
-        help="作者名（默认：XDL Team）"
-    )
-    
-    parser.add_argument(
-        "--license", "-l",
-        default="MIT",
-        help="许可证类型（默认：MIT）"
-    )
-    
-    parser.add_argument(
-        "--output", "-o",
-        default=".",
-        help="输出目录（默认：当前目录）"
-    )
-    
-    parser.add_argument(
-        "--tool", "-t",
-        action="append",
-        dest="tools",
-        metavar="NAME=DESCRIPTION",
-        help="添加工具定义（格式：name=description），可重复使用"
-    )
-    
-    args = parser.parse_args()
-    
+def build_tools(tool_defs: List[str]) -> List[dict]:
     tools = []
-    if args.tools:
-        for tool_def in args.tools:
-            if "=" in tool_def:
-                name, desc = tool_def.split("=", 1)
-                tools.append({
+    for tool_def in tool_defs:
+        if "=" in tool_def:
+            name, desc = tool_def.split("=", 1)
+            tools.append(
+                {
                     "name": name.strip(),
                     "description": desc.strip(),
                     "inputSchema": {
                         "type": "object",
                         "properties": {},
-                        "required": []
-                    }
-                })
-    
+                        "required": [],
+                    },
+                }
+            )
+    return tools
+
+
+def main(config: Dict[str, Any] = CONFIG) -> None:
+    tools = build_tools(config.get("tools") or [])
+
     create_skill_structure(
-        skill_name=args.name,
-        description=args.description,
-        author=args.author,
-        license_type=args.license,
-        output_dir=args.output,
+        skill_name=config["name"],
+        description=config["description"],
+        author=config["author"],
+        license_type=config["license"],
+        output_dir=config["output"],
         tools=tools if tools else None,
     )
 

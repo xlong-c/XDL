@@ -87,6 +87,22 @@ XDL 当前采用手动优化模式。也就是说，训练步里需要自行处�
 - `self.manual_backward(loss)`
 - `self.clip_gradients(...)`
 - `optimizer.step()`
+- `self.log("loss", loss, prefix="train")`
+
+`CoreModel` 会维护训练步计数。新代码优先使用公开属性而不是私有字段：
+
+- `micro_step`：全局 micro-batch 步数，进入 `training_step()` 前已递增。
+- `accumulation_steps`：当前梯度累积窗口大小，来自 `Trainer(gradient_accumulation_steps=...)` 或模型侧兼容字段。
+- `micro_step_in_accumulation`：当前累积窗口内的 1-based 位置。
+- `optimizer_step`：按完整累积窗口推导出的优化器更新次数。
+- `is_accumulation_start` / `is_accumulation_boundary` / `should_optimizer_step`：手动累积时判断 `zero_grad()` 与 `optimizer.step()` 的 helper。
+
+日志命名保持旧风格兼容：
+
+- `self.log("train_loss", value)` 继续记录 `train_loss`。
+- `self.log("loss", value, prefix="train")` 也记录为 `train_loss`。
+- `self.log_metrics({"loss": value}, prefix="val")` 记录为 `val_loss`。
+- 已经带 `train_` 或 `train/` 前缀的键不会被重复加前缀。
 
 ### `Trainer`
 
@@ -99,6 +115,8 @@ XDL 当前采用手动优化模式。也就是说，训练步里需要自行处�
 - 推理采样周期
 
 `Trainer.fit()` 在进入训练循环前会先调用 `model.setup("fit")`。重型模块、外部 pipeline、LoRA 之类惰性初始化逻辑应优先放到这里。
+
+训练、验证、测试 batch 会递归迁移常见容器里的 tensor，支持 `Tensor / dict / list / tuple / dataclass`。第三方自定义对象仍应在 `training_step()` / `validation_step()` 中显式处理设备。
 
 ## 4. 两条推荐使用路径
 

@@ -1,10 +1,23 @@
-import os
-import sys
+"""MP4 随机抽帧工具。
+
+直接修改 `CONFIG` 后运行，不使用命令行参数解析库。
+"""
+
+from __future__ import annotations
+
 import cv2
-import argparse
+import os
 import random
 from pathlib import Path
-from typing import List
+from typing import Dict, List
+
+
+CONFIG = {
+    "input_dir": "",
+    "output_dir": "",
+    "num_frames": 10,
+    "dry_run": True,
+}
 
 
 def find_mp4_files(directory: str) -> List[str]:
@@ -89,49 +102,46 @@ def extract_random_frames(video_path: str, output_dir: str, num_frames: int) -> 
         return 0
 
 
-def main():
-    parser = argparse.ArgumentParser(description='从MP4视频中随机抽取帧并保存为图片')
-    parser.add_argument('input_dir', help='要搜索MP4文件的输入目录')
-    parser.add_argument('output_dir', help='输出目录,将在此创建对应视频名的文件夹')
-    parser.add_argument('-n', '--num_frames', type=int, default=10, 
-                       help='从每个视频中抽取的帧数量 (默认: 10)')
-    parser.add_argument('--dry-run', action='store_true',
-                       help='只显示将要处理的操作,不实际执行')
-    
-    args = parser.parse_args()
-    
+def main(config: Dict[str, object] = CONFIG) -> None:
+    input_dir = str(config["input_dir"])
+    output_dir = str(config["output_dir"])
+    num_frames = int(config["num_frames"])
+    dry_run = bool(config["dry_run"])
+
+    if not input_dir or not output_dir:
+        raise ValueError("请先配置 CONFIG['input_dir'] 和 CONFIG['output_dir']")
+
     # 检查输入目录是否存在
-    if not os.path.isdir(args.input_dir):
-        print(f"错误: 输入目录不存在: {args.input_dir}")
-        sys.exit(1)
+    if not os.path.isdir(input_dir):
+        raise FileNotFoundError(f"输入目录不存在: {input_dir}")
     
     # 查找所有MP4文件
-    print(f"正在搜索目录: {args.input_dir}")
-    mp4_files = find_mp4_files(args.input_dir)
+    print(f"正在搜索目录: {input_dir}")
+    mp4_files = find_mp4_files(input_dir)
     
     if not mp4_files:
         print("未找到任何MP4文件")
-        sys.exit(0)
+        return
     
     print(f"找到 {len(mp4_files)} 个MP4文件:")
     for file in mp4_files:
         print(f"  - {file}")
     
-    if args.dry_run:
+    if dry_run:
         print("\nDry run模式: 只显示操作,不实际执行")
-        print(f"将在 {args.output_dir} 下为每个视频创建文件夹")
-        print(f"每个视频将抽取 {args.num_frames} 帧")
-        sys.exit(0)
+        print(f"将在 {output_dir} 下为每个视频创建文件夹")
+        print(f"每个视频将抽取 {num_frames} 帧")
+        return
     
     # 创建输出目录(如果不存在)
-    os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
     total_saved = 0
     total_processed = 0
     
     for video_path in mp4_files:
         video_name = Path(video_path).stem
-        video_output_dir = os.path.join(args.output_dir, video_name)
+        video_output_dir = os.path.join(output_dir, video_name)
         
         # 为每个视频创建单独的文件夹
         os.makedirs(video_output_dir, exist_ok=True)
@@ -140,7 +150,7 @@ def main():
         print(f"输出目录: {video_output_dir}")
         
         # 抽取帧
-        saved = extract_random_frames(video_path, video_output_dir, args.num_frames)
+        saved = extract_random_frames(video_path, video_output_dir, num_frames)
         
         total_processed += 1
         total_saved += saved
@@ -150,7 +160,7 @@ def main():
     print("处理完成!")
     print(f"总共处理了 {total_processed} 个视频")
     print(f"总共保存了 {total_saved} 张图片")
-    print(f"输出目录: {args.output_dir}")
+    print(f"输出目录: {output_dir}")
 
 
 if __name__ == "__main__":

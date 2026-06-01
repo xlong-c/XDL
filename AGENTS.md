@@ -41,16 +41,39 @@ xdl/
 2. **YAML 配置（推荐）**：`setup = setup_from_yaml('config/xxx.yaml')` → 返回 `TrainSetup` dataclass，一行拿到 model/optimizer/train_loader 等全部组件
 3. **DeepSpeed 分布式**：`deepspeed train_script.py --deepspeed config/deepspeed_config.json`
 
+## 核心文档入口
+
+以下文档是 XDL 的核心规范，不是普通参考链接。改动框架源码、训练入口、配置系统、公开 API、打包安装、文档索引或模块边界前，必须先阅读与改动范围对应的文档，并遵循其中的约束；如果实现行为发生变化，必须同步更新相关文档。阶段性研究资料仍放在 `research/`，不能替代这些长期文档。
+
+必读规则：
+
+- 改动公开 API、导出符号、兼容策略或 Stable / Provisional / Internal 边界时，必须先读并遵循 [docs/API.md](docs/API.md)，行为变化必须同步更新它。
+- 改动训练生命周期、`CoreModel`、`Trainer`、回调调用顺序、手动优化、batch 迁移或日志行为时，必须先读并遵循 [docs/XDL.md](docs/XDL.md) 和 [xdl/trainer/README.md](xdl/trainer/README.md)。
+- 改动 YAML 配置、schema、`target + params` 组织方式或 `setup_from_yaml` 构建行为时，必须先读并遵循 [docs/CONFIG.md](docs/CONFIG.md)。
+- 改动安装、依赖、wheel 分发、可运行入口或环境验证时，必须先读并遵循 [docs/INSTALL.md](docs/INSTALL.md) 和 [xdl/USAGE.md](xdl/USAGE.md)。
+- 改动子模块职责、目录边界或把逻辑在 `xdl/`、`tools/`、`examples/`、`train/` 等目录之间迁移时，必须先读并遵循 [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md)。
+- 改动文档结构、文档索引或长期文档边界时，必须先读并遵循 [docs/README.md](docs/README.md)。
+
+- [docs/README.md](docs/README.md) — 文档索引、推荐阅读顺序和各文档边界
+- [docs/INSTALL.md](docs/INSTALL.md) — 安装、环境验证和当前可运行入口
+- [docs/XDL.md](docs/XDL.md) — 框架定位、核心分层、训练入口、`CoreModel` / `Trainer` 生命周期
+- [xdl/USAGE.md](xdl/USAGE.md) — 随 wheel 分发的单文件用法摘要，安装后可通过 `xdl-usage` 查看
+- [docs/CONFIG.md](docs/CONFIG.md) — YAML 配置系统、schema v1、`target + params` 组织方式
+- [docs/API.md](docs/API.md) — Stable / Provisional / Internal API 边界和兼容策略
+- [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md) — 各源码子模块职责速查与边界
+- [docs/xdl-optimization-plan.md](docs/xdl-optimization-plan.md) — 当前仍有效的框架后续优化方向
+- [xdl/trainer/README.md](xdl/trainer/README.md) — 训练器子模块说明，含手动优化、梯度累积 helper、日志命名和 batch 迁移行为
+
 ## XDL 训练脚本接入备忘
 
 编写新的训练入口时，优先先看 `train_VAE.py`、`train_TwinFlow.py`、`examples/*finetune.py` 和 `xdl/trainer/{trainer.py,coreModel.py}`。这几个文件能最快说明 XDL 的真实生命周期。
 
 - `Trainer.fit()` 会先调用 `model.setup("fit")`，再执行 Trainer 的设备/优化器 setup；大模型、diffusers pipeline、PEFT LoRA 等重组件适合在 `CoreModel.setup()` 中懒加载。
-- `CoreModel.training_step()` 是**手动优化模式**，Trainer 不会自动 `zero_grad/backward/step`。训练步里需要自行调用 `optimizer.zero_grad()`、`self.manual_backward(loss)`、`self.clip_gradients(...)`、`optimizer.step()`，并用 `self.log()` 记录指标。
+- `CoreModel.training_step()` 是**手动优化模式**，Trainer 不会自动 `zero_grad/backward/step`。训练步里需要自行调用 `optimizer.zero_grad()`、`self.manual_backward(loss)`、`self.clip_gradients(...)`、`optimizer.step()`，并用 `self.log()` 记录指标；新代码可用 `self.log("loss", loss, prefix="train")` 生成 `train_loss`。
 - `configure_optimizers()` 在 `setup()` 之后由 Trainer 调用；如果优化器依赖懒加载出来的模块，必须确保这些模块已经在 `setup()` 中初始化。
 - 标准非 Accelerate 路径下，Trainer 只会把 `CoreModel.__dict__` 中的 `nn.Module` 属性迁移到设备；`diffusers.Pipeline` 不是 `nn.Module`，需要把底层 `vae/text_encoder/transformer` 注册成模块属性，或在模型钩子中显式 `pipe.to(device)`。
-- Trainer 对 batch 的自动设备迁移只处理顶层 iterable 里的 tensor；字典、嵌套 list/dict、第三方 dataset 返回的复杂结构，建议在 `training_step()` 内显式 `.to(self.device)`。
-- `on_train_step_start()` 会在 `training_step()` 前递增 `_total_train_steps`；自己实现梯度累积时要注意这个计数已经是当前 step。Trainer 构造参数里的 `gradient_accumulation_steps` 不会替代手动优化逻辑。
+- Trainer 对 batch 的自动设备迁移已递归支持 `Tensor / dict / list / tuple / dataclass`；第三方自定义对象仍建议在 `training_step()` 内显式 `.to(self.device)`。
+- `on_train_step_start()` 会在 `training_step()` 前递增 `_total_train_steps`；新代码优先使用 `micro_step`、`accumulation_steps`、`is_accumulation_start`、`is_accumulation_boundary`、`should_optimizer_step` 等 helper。Trainer 构造参数里的 `gradient_accumulation_steps` 不会替代手动优化逻辑。
 - 自定义保存优先用 Callback。XDL 的通用 `ModelCheckpoint` 会保存 `CoreModel` 的 state_dict/optimizer 状态；diffusers/PEFT LoRA 这类权重通常要写专门的 callback 调 `save_pretrained()` 或 `StableDiffusion3Pipeline.save_lora_weights()`。
 - `inference_data` 会走验证/推理周期并调用 `CoreModel.inference(data)`，适合生成式模型的采样预览；没有 val loader 时也可以只传 prompts 做周期性采样。
 - 对外部 `third_party/` 代码不要只信 README 路径，先用 `grep`/`find` 查真实文件；如果第三方目录不是 Python package，可在脚本里用受控的 `sys.path.insert()` 或 `importlib.util.spec_from_file_location()` 加载。

@@ -16,7 +16,9 @@
 
 - `Trainer.fit()` 会先调用 `model.setup("fit")`
 - `CoreModel.training_step()` 采用手动优化模式，需自行 `zero_grad/backward/step`
-- 标准路径只自动迁移 `nn.Module` 属性到设备，复杂对象需显式处理
+- `CoreModel.log(..., prefix="train")` 会生成 `train_loss` 这类兼容指标名
+- `micro_step`、`accumulation_steps`、`is_accumulation_start`、`is_accumulation_boundary`、`should_optimizer_step` 是手动梯度累积的公开 helper
+- 标准路径会迁移 `CoreModel.__dict__` 中的 `nn.Module` 属性，并递归迁移常见 batch 容器；第三方自定义对象需显式处理
 - callback 生命周期与优先级行为是这里的核心契约
 
 ## 修改约束

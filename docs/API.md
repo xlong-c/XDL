@@ -38,6 +38,10 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 - `Trainer.fit(model, train_dataloader, val_dataloader=None, inference_data=None)` 是训练主路径。
 - `CoreModel` 是用户自定义任务逻辑的基类。
 - `TrainSetupModel` 是配置流到 `CoreModel` 的适配层。
+- `CoreModel.log(name, value, prefix=None)` 和 `CoreModel.log_metrics(metrics, prefix=None)` 是指标记录入口；`prefix="train"` 会生成 `train_loss` 这类兼容键名。
+- `CoreModel.manual_backward(loss)` 是手动优化的反向传播入口。
+- `CoreModel` 的训练步语义属性 `micro_step`、`accumulation_steps`、`micro_step_in_accumulation`、`optimizer_step`、`is_accumulation_start`、`is_accumulation_boundary`、`should_optimizer_step` 可用于手动梯度累积。
+- `Trainer` 暴露同名只读属性，方便 callback 或外层逻辑读取当前 step / accumulation 状态。
 
 兼容路径：
 

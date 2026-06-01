@@ -33,6 +33,8 @@ trainer = Trainer(max_epochs=10, device="cuda")
 trainer.fit(model, train_loader, val_loader)
 ```
 
+`CoreModel.training_step()` 是手动优化模式；指标可用 `self.log("loss", value, prefix="train")` 记录为 `train_loss`，梯度累积可用 `is_accumulation_boundary` 等 helper 控制 step 时机。
+
 ### YAML 配置路径
 
 典型写法：

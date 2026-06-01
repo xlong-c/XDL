@@ -72,7 +72,7 @@ xdl/
 
 关键点：
 
-- 复杂 batch 结构要考虑 Trainer 的设备迁移限制
+- 常见容器 batch 会由 Trainer 递归迁移；第三方自定义对象需要自行处理设备
 - 可选依赖应优雅降级
 
 ## 5. `xdl/loss`
@@ -153,6 +153,8 @@ xdl/
 - 稳定公共入口是 `from xdl.trainer import CoreModel, Trainer, TrainSetupModel`
 - `Trainer.fit()` 先调用 `model.setup("fit")`
 - `CoreModel.training_step()` 是手动优化模式
+- 手动累积优先用 `micro_step` / `is_accumulation_boundary` 等公开 helper
+- 指标记录可用 `self.log("loss", value, prefix="train")` 生成 `train_loss`
 - callback 在这里被统一调度
 
 ## 11. `xdl/utils`
