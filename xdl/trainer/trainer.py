@@ -6,6 +6,7 @@
 此文件整合了所有训练器相关的类和功能
 """
 
+from dataclasses import fields, is_dataclass, replace
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -413,14 +414,13 @@ class Trainer:
                 trainer=self, core_module=model, batch=batch, batch_idx=step
             )
 
+            batch = self._transfer_to_device(batch)
+
             # 执行训练
             if self._accelerator:
                 with self._accelerator.accumulate():
                     model.training_step(batch, step)
             else:
-                if hasattr(batch, "__iter__"):
-                    batch = [x.to(self.device) if torch.is_tensor(
-                        x) else x for x in batch]
                 model.training_step(batch, step)
 
             model.on_train_batch_end()
@@ -465,12 +465,11 @@ class Trainer:
                     model.on_validation_step_start()
                     model.on_validation_batch_start()
 
+                    batch = self._transfer_to_device(batch)
+
                     if self._accelerator:
                         model.validation_step(batch, step)
                     else:
-                        if hasattr(batch, "__iter__"):
-                            batch = [x.to(self.device) if torch.is_tensor(
-                                x) else x for x in batch]
                         model.validation_step(batch, step)
 
                     model.on_validation_batch_end()
@@ -500,13 +499,30 @@ class Trainer:
         return {"epoch": self.current_epoch, "avg_metrics": avg_metrics}
 
     def _transfer_to_device(self, data: Any) -> Any:
-        """辅助方法:将采样数据递归移动到当前设备"""
+        """辅助方法:将 batch/采样数据递归移动到当前设备"""
         if torch.is_tensor(data):
             return data.to(self.device)
-        elif isinstance(data, dict):
-            return {k: self._transfer_to_device(v) for k, v in data.items()}
-        elif isinstance(data, (list, tuple)):
+        if isinstance(data, dict):
+            converted = {k: self._transfer_to_device(v) for k, v in data.items()}
+            if type(data) is dict:
+                return converted
+            try:
+                return type(data)(converted)
+            except TypeError:
+                return converted
+        if isinstance(data, list):
             return [self._transfer_to_device(v) for v in data]
+        if isinstance(data, tuple):
+            converted = tuple(self._transfer_to_device(v) for v in data)
+            if hasattr(data, "_fields"):
+                return type(data)(*converted)
+            return converted
+        if is_dataclass(data) and not isinstance(data, type):
+            converted_fields = {
+                field.name: self._transfer_to_device(getattr(data, field.name))
+                for field in fields(data)
+            }
+            return replace(data, **converted_fields)
         return data
 
     def is_main_process(self) -> bool:
@@ -714,10 +730,7 @@ class Trainer:
 
         with torch.no_grad():
             for step, batch in enumerate(test_loader):
-                # 确保batch在正确的设备上
-                if hasattr(batch, "__iter__"):
-                    batch = [x.to(self.device) if torch.is_tensor(
-                        x) else x for x in batch]
+                batch = self._transfer_to_device(batch)
 
                 model.on_test_step_start()
                 model.on_test_batch_start()
