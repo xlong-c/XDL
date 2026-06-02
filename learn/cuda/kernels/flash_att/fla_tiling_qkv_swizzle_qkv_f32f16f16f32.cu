@@ -1,5 +1,21 @@
 #include "utils.h"
 
+#include <ATen/cuda/CUDAContext.h>
+#include <ATen/cuda/CUDAEvent.h>
+#include <ATen/ops/scaled_dot_product_attention.h>
+
+#include <limits>
+#include <mutex>
+#include <unordered_map>
+
+void flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv_v2(
+    torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O,
+    int stages);
+
+void flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv_v3(
+    torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O,
+    int stages);
+
 // 这是一个基于 Tensor Core 与 MMA PTX 的 FlashAttention-2 实验实现。
 // 输入 Q/K/V 与输出 O 的形状均为：
 //   [batch_size, num_heads, seq_len, head_dim]
@@ -856,98 +872,267 @@ void launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv(
                                        QKV_seqlen, QKV_head);
 }
 
+namespace {
+
+enum class FlashAttnCandidate : uint8_t {
+  kV1 = 0,
+  kV2 = 1,
+  kV3 = 2,
+  kTorchSdpa = 3,
+};
+
+struct FlashAttnTuningKey {
+  int device_index;
+  int batch;
+  int head;
+  int seqlen;
+  int head_dim;
+  int stages;
+
+  bool operator==(const FlashAttnTuningKey &other) const {
+    return device_index == other.device_index && batch == other.batch &&
+           head == other.head && seqlen == other.seqlen &&
+           head_dim == other.head_dim && stages == other.stages;
+  }
+};
+
+struct FlashAttnTuningKeyHash {
+  size_t operator()(const FlashAttnTuningKey &key) const {
+    size_t h = static_cast<size_t>(key.device_index);
+    h = h * 1315423911u + static_cast<size_t>(key.batch);
+    h = h * 1315423911u + static_cast<size_t>(key.head);
+    h = h * 1315423911u + static_cast<size_t>(key.seqlen);
+    h = h * 1315423911u + static_cast<size_t>(key.head_dim);
+    h = h * 1315423911u + static_cast<size_t>(key.stages);
+    return h;
+  }
+};
+
+std::unordered_map<FlashAttnTuningKey, FlashAttnCandidate,
+                   FlashAttnTuningKeyHash>
+    g_flash_attn_tuning_cache;
+std::mutex g_flash_attn_tuning_mutex;
+
+bool flash_attn_candidate_supported(FlashAttnCandidate candidate, int head_dim,
+                                    int seqlen, int stages) {
+  if (stages < 1 || stages > 2) {
+    return false;
+  }
+  switch (candidate) {
+  case FlashAttnCandidate::kV1:
+    if (!(head_dim == 32 || head_dim == 64 || head_dim == 96 ||
+          head_dim == 128 || head_dim == 256 || head_dim == 512 ||
+          head_dim == 1024)) {
+      return false;
+    }
+    return seqlen % ((head_dim < 128) ? 64 : 128) == 0;
+  case FlashAttnCandidate::kV2:
+  case FlashAttnCandidate::kV3:
+    if (!(head_dim == 32 || head_dim == 64 || head_dim == 96 ||
+          head_dim == 128 || head_dim == 256)) {
+      return false;
+    }
+    return seqlen % 64 == 0;
+  case FlashAttnCandidate::kTorchSdpa:
+    return true;
+  }
+  return false;
+}
+
+template <const int kStage>
+void run_flash_attn_v1_for_head_dim(int head_dim, torch::Tensor Q,
+                                    torch::Tensor K, torch::Tensor V,
+                                    torch::Tensor O) {
+  switch (head_dim) {
+  case 32:
+    launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<32,
+                                                                        kStage>(
+        Q, K, V, O);
+    break;
+  case 64:
+    launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<64,
+                                                                        kStage>(
+        Q, K, V, O);
+    break;
+  case 96:
+    launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<96,
+                                                                        kStage>(
+        Q, K, V, O);
+    break;
+  case 128:
+    launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<128,
+                                                                         kStage>(
+        Q, K, V, O);
+    break;
+  case 256:
+    launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<256,
+                                                                         kStage>(
+        Q, K, V, O);
+    break;
+  case 512:
+    launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<512,
+                                                                         kStage>(
+        Q, K, V, O);
+    break;
+  case 1024:
+    launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<1024,
+                                                                          kStage>(
+        Q, K, V, O);
+    break;
+  default:
+    throw std::runtime_error("暂不支持该 head_dim");
+  }
+}
+
+void run_flash_attn_v1_dispatch(int head_dim, torch::Tensor Q, torch::Tensor K,
+                                torch::Tensor V, torch::Tensor O, int stages) {
+  if (stages > 1) {
+    run_flash_attn_v1_for_head_dim<2>(head_dim, Q, K, V, O);
+  } else {
+    run_flash_attn_v1_for_head_dim<1>(head_dim, Q, K, V, O);
+  }
+}
+
+void run_flash_attn_candidate_impl(FlashAttnCandidate candidate, int head_dim,
+                                   torch::Tensor Q, torch::Tensor K,
+                                   torch::Tensor V, torch::Tensor O,
+                                   int stages) {
+  switch (candidate) {
+  case FlashAttnCandidate::kV1:
+    run_flash_attn_v1_dispatch(head_dim, Q, K, V, O, stages);
+    break;
+  case FlashAttnCandidate::kV2:
+    flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv_v2(Q, K, V, O,
+                                                                     stages);
+    break;
+  case FlashAttnCandidate::kV3:
+    flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv_v3(Q, K, V, O,
+                                                                     stages);
+    break;
+  case FlashAttnCandidate::kTorchSdpa: {
+    at::Tensor out = at::scaled_dot_product_attention(
+        Q, K, V, std::nullopt, 0.0, false, std::nullopt, false);
+    O.set_(out);
+    break;
+  }
+  }
+}
+
+float benchmark_flash_attn_candidate(FlashAttnCandidate candidate, int head_dim,
+                                     torch::Tensor Q, torch::Tensor K,
+                                     torch::Tensor V, int stages,
+                                     int warmup_iters, int bench_iters) {
+  at::Tensor O = torch::empty_like(Q);
+  auto stream = at::cuda::getCurrentCUDAStream();
+  for (int i = 0; i < warmup_iters; ++i) {
+    run_flash_attn_candidate_impl(candidate, head_dim, Q, K, V, O, stages);
+  }
+
+  at::cuda::CUDAEvent start(cudaEventDefault);
+  at::cuda::CUDAEvent end(cudaEventDefault);
+  start.record(stream);
+  for (int i = 0; i < bench_iters; ++i) {
+    run_flash_attn_candidate_impl(candidate, head_dim, Q, K, V, O, stages);
+  }
+  end.record(stream);
+  end.synchronize();
+  return start.elapsed_time(end) / static_cast<float>(bench_iters);
+}
+
+FlashAttnCandidate autotune_flash_attn_candidate(torch::Tensor Q,
+                                                 torch::Tensor K,
+                                                 torch::Tensor V,
+                                                 int stages) {
+  const FlashAttnTuningKey key{
+      Q.get_device(),
+      static_cast<int>(Q.size(0)),
+      static_cast<int>(Q.size(1)),
+      static_cast<int>(Q.size(2)),
+      static_cast<int>(Q.size(3)),
+      stages,
+  };
+
+  // 无锁快路径：推理/benchmark 往往以相同形状反复调用本算子，记住上一次的决策，
+  // 避免稳态下每次都加锁查 hash 表。thread_local 保证多线程下各自安全。
+  static thread_local FlashAttnTuningKey last_key{-1, 0, 0, 0, 0, 0};
+  static thread_local FlashAttnCandidate last_candidate =
+      FlashAttnCandidate::kTorchSdpa;
+  static thread_local bool last_valid = false;
+  if (last_valid && last_key == key) {
+    return last_candidate;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(g_flash_attn_tuning_mutex);
+    auto it = g_flash_attn_tuning_cache.find(key);
+    if (it != g_flash_attn_tuning_cache.end()) {
+      last_key = key;
+      last_candidate = it->second;
+      last_valid = true;
+      return it->second;
+    }
+  }
+
+  constexpr FlashAttnCandidate kCandidates[] = {
+      FlashAttnCandidate::kV1, FlashAttnCandidate::kV2,
+      FlashAttnCandidate::kV3, FlashAttnCandidate::kTorchSdpa};
+  FlashAttnCandidate best_candidate = FlashAttnCandidate::kTorchSdpa;
+  float best_time_ms = std::numeric_limits<float>::infinity();
+  const int warmup_iters = 8;
+  const int bench_iters = 20;
+
+  // 设置 FA_AUTOTUNE_VERBOSE 环境变量可打印每个候选的实测耗时，便于排查选择结果。
+  const bool verbose = (std::getenv("FA_AUTOTUNE_VERBOSE") != nullptr);
+  for (FlashAttnCandidate candidate : kCandidates) {
+    if (!flash_attn_candidate_supported(candidate, key.head_dim, key.seqlen,
+                                        stages)) {
+      continue;
+    }
+    float elapsed_ms = benchmark_flash_attn_candidate(
+        candidate, key.head_dim, Q, K, V, stages, warmup_iters, bench_iters);
+    if (verbose) {
+      fprintf(stderr,
+              "[autotune] B=%d H=%d N=%d D=%d stage=%d cand=%d time=%.4f ms\n",
+              key.batch, key.head, key.seqlen, key.head_dim, key.stages,
+              static_cast<int>(candidate), elapsed_ms);
+    }
+    if (elapsed_ms < best_time_ms) {
+      best_time_ms = elapsed_ms;
+      best_candidate = candidate;
+    }
+  }
+  if (verbose) {
+    fprintf(stderr, "[autotune] -> best cand=%d (%.4f ms)\n",
+            static_cast<int>(best_candidate), best_time_ms);
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(g_flash_attn_tuning_mutex);
+    g_flash_attn_tuning_cache[key] = best_candidate;
+  }
+  last_key = key;
+  last_candidate = best_candidate;
+  last_valid = true;
+  return best_candidate;
+}
+
+} // namespace
+
 void flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv(
     torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O,
     int stages) {
-  CHECK_TORCH_TENSOR_DTYPE(Q, torch::kHalf) // Q: [B, H, N, D]
-  CHECK_TORCH_TENSOR_DTYPE(K, torch::kHalf) // K: [B, H, N, D]
-  CHECK_TORCH_TENSOR_DTYPE(V, torch::kHalf) // V: [B, H, N, D]
-  CHECK_TORCH_TENSOR_DTYPE(O, torch::kHalf) // O: [B, H, N, D]
-  const int d = Q.size(3);                  // head_dim
-
-  // 目前支持 stage=1 或 stage=2。
-  // stage>1 统一走双缓冲路径；否则走单缓冲路径。
-  if (stages > 1) {
-    switch (d) {
-    case 32:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<32,
-                                                                          2>(
-          Q, K, V, O);
-      break;
-    case 64:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<64,
-                                                                          2>(
-          Q, K, V, O);
-      break;
-    case 96:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<96,
-                                                                          2>(
-          Q, K, V, O);
-      break;
-    case 128:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<128,
-                                                                          2>(
-          Q, K, V, O);
-      break;
-    case 256:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<256,
-                                                                          2>(
-          Q, K, V, O);
-      break;
-    case 512:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<512,
-                                                                          2>(
-          Q, K, V, O);
-      break;
-    case 1024:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<1024,
-                                                                          2>(
-          Q, K, V, O);
-      break;
-    default:
-      throw std::runtime_error("暂不支持该 head_dim");
-      break;
-    }
-  } else {
-    switch (d) {
-    case 32:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<32,
-                                                                          1>(
-          Q, K, V, O);
-      break;
-    case 64:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<64,
-                                                                          1>(
-          Q, K, V, O);
-      break;
-    case 96:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<96,
-                                                                          1>(
-          Q, K, V, O);
-      break;
-    case 128:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<128,
-                                                                          1>(
-          Q, K, V, O);
-      break;
-    case 256:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<256,
-                                                                          1>(
-          Q, K, V, O);
-      break;
-    case 512:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<512,
-                                                                          1>(
-          Q, K, V, O);
-      break;
-    case 1024:
-      launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv<1024,
-                                                                          1>(
-          Q, K, V, O);
-      break;
-    default:
-      throw std::runtime_error("暂不支持该 head_dim");
-      break;
-    }
+  // 轻量 dtype 校验：直接比较 scalar_type，避免构造 TensorOptions 的额外开销。
+  // 本算子在推理/benchmark 中会被高频调用，热路径上的每一点 CPU 开销都值得省。
+  if (Q.scalar_type() != torch::kHalf || K.scalar_type() != torch::kHalf ||
+      V.scalar_type() != torch::kHalf || O.scalar_type() != torch::kHalf) {
+    throw std::runtime_error("Q/K/V/O must be float16 (kHalf)");
   }
+  const int d = Q.size(3); // head_dim
+  if (stages < 1 || stages > 2) {
+    throw std::runtime_error("目前仅支持 stage=1 或 stage=2");
+  }
+
+  FlashAttnCandidate candidate =
+      autotune_flash_attn_candidate(Q, K, V, stages);
+  run_flash_attn_candidate_impl(candidate, d, Q, K, V, O, stages);
 }

@@ -120,7 +120,17 @@ template <
     const int kStage,              // cp.async 流水 stage 数，当前支持 1 或 2
     const int kPadQ,               // Q 的 SMEM 行补齐大小，单位：half
     const int kPadK, const int kPadV>
-__global__ void __launch_bounds__(WARP_SIZE *kMmaTileSeqLenQ *kMmaTileSeqLenK)
+// 每个 SM 上的最小并发 block 数（occupancy 提示）。在 Ada(sm_89) 上实测：
+//   head_dim<=64  -> 4 个 block 最快（更高 occupancy 隐藏访存延迟）；
+//   head_dim==128 -> 3 个 block；
+//   head_dim>=256 -> 2 个 block（累加器寄存器多，强行提 occupancy 会触发寄存器溢出）。
+// 该值与 kHeadDim 相关，借助模板参数在编译期确定。可用 -DFA_V3_MINBLK=N 覆盖以做扫描。
+#ifndef FA_V3_MINBLK
+#define FA_V3_MINBLK (kHeadDim <= 64 ? 4 : (kHeadDim <= 128 ? 3 : 2))
+#endif
+__global__ void
+    __launch_bounds__(WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK,
+                      FA_V3_MINBLK)
     flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv_v3_kernel(
         half *Q, half *K, half *V, half *O, int QKV_seqlen, int QKV_head) {
   // 计算布局：
@@ -803,8 +813,9 @@ void launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_swizzle_qkv_v3(
   constexpr int kPadK = 0;
   constexpr int kPadV = 0;
   // MMA 累加始终使用 fp32；这里只决定 R_D 是否继续以 fp32 暂存。
-  // d 较小时保留 fp32，d 很大时改用 half 以控制寄存器压力。
-  constexpr int kOStorageAccFloat32 = (kHeadDim < 256) ? 1 : 0;
+  // Ada(sm_89) 上 d>=128 时寄存器压力明显上升，这里更早切到 half
+  // 暂存，换更高 occupancy。
+  constexpr int kOStorageAccFloat32 = (kHeadDim < 128) ? 1 : 0;
 
   // V3 让完整 Q tile 常驻 shared memory；K/V 仍按 16 列子块做 stage 缓冲。
   constexpr int Q_smem_size = Br * (kHeadDim + kPadQ);
