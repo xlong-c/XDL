@@ -10,6 +10,11 @@ from __future__ import annotations
 
 import os
 import torch
+<<<<<<<< HEAD:tools/ml/preencode_sd35.py
+========
+from diffusers import StableDiffusion3Pipeline
+
+>>>>>>>> 50e0fad (chore: reorganize and prune utility tools):tools/dataset/pre_encode_sd35.py
 from transformers import CLIPTextModelWithProjection, T5EncoderModel, T5TokenizerFast
 from transformers import CLIPTokenizer
 from pathlib import Path
@@ -455,6 +460,7 @@ def load_embeddings(embed_path, device="cuda"):
     return prompt_embeds, pooled_embeds
 
 
+<<<<<<<< HEAD:tools/ml/preencode_sd35.py
 def load_prompts(config: Dict[str, Any]) -> List[str]:
     prompts: List[str] = []
     config_prompts = config.get("prompts") or []
@@ -462,6 +468,35 @@ def load_prompts(config: Dict[str, Any]) -> List[str]:
     prompt_file = config.get("prompt_file")
     if prompt_file:
         with open(prompt_file, "r", encoding="utf-8") as f:
+========
+def main():
+    # ------------------------------------------------------------------
+    # 运行时配置：直接修改此字典，不再使用命令行参数
+    # ------------------------------------------------------------------
+    CONFIG = {
+        # 预训练 SD3.5 模型路径（本地路径或 HuggingFace Hub 标识）
+        "pretrained_model_path": "stabilityai/stable-diffusion-3.5-medium",
+        # 生成的 embedding 保存目录
+        "output_dir": "precomputed_embeds",
+        # 要编码的 prompt 列表（命令行提供时用此字段，留空则用默认 prompt）
+        "prompts": None,
+        # Prompt 文本文件路径（每行一个 prompt），与 prompts 可同时使用
+        "prompt_file": None,
+        # 编码设备："cuda" 或 "cpu"
+        "device": "cuda",
+        # 指定模型版本（通常不设）
+        "revision": None,
+        # 模型变体（如 "fp16"）
+        "variant": None,
+    }
+
+    # Get prompts from either config field or file
+    prompts = []
+    if CONFIG["prompts"]:
+        prompts.extend(CONFIG["prompts"])
+    if CONFIG["prompt_file"]:
+        with open(CONFIG["prompt_file"], "r", encoding="utf-8") as f:
+>>>>>>>> 50e0fad (chore: reorganize and prune utility tools):tools/dataset/pre_encode_sd35.py
             prompts.extend([line.strip() for line in f if line.strip()])
 
     if not prompts:

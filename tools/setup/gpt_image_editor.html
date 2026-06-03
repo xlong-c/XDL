@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPT 图像编辑器</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root{
+  --bg:#101216; --panel:#191d24; --panel2:#222730; --border:#303744;
+  --text:#e6e9ef; --muted:#98a2b3; --accent:#3b82f6; --accent2:#2563eb;
+  --good:#22c55e; --bad:#ef4444; --radius:8px;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",sans-serif;
+  display:flex;
+}
+button,input,textarea,select{
+  font:inherit;
+}
+button{
+  cursor:pointer;
+  border:none;
+}
+#sidebar{
+  width:400px;
+  min-width:360px;
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+}
+#sidebar-scroll{
+  flex:1;
+  overflow:auto;
+  padding:14px;
+}
+#main{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.card{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;
+  margin-bottom:10px;
+}
+.card-title{
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:10px;
+  text-transform:uppercase;
+  font-weight:700;
+}
+.row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+.row:last-child{margin-bottom:0}
+.label{
+  min-width:58px;
+  font-size:12px;
+  color:var(--muted);
+}
+.input,.select,.textarea{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:#141922;
+  color:var(--text);
+  padding:8px 10px;
+}
+.textarea{
+  min-height:100px;
+  resize:vertical;
+  line-height:1.5;
+}
+.btn{
+  min-height:34px;
+  padding:0 12px;
+  border-radius:6px;
+  background:#2d3440;
+  color:var(--text);
+}
+.btn:hover{background:#394150}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;
+}
+.btn-primary:hover{filter:brightness(1.05)}
+.btn-sm{
+  min-height:30px;
+  padding:0 10px;
+  font-size:12px;
+}
+.upload{
+  border:1px dashed #4b5563;
+  border-radius:8px;
+  background:#141922;
+  min-height:160px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:12px;
+  position:relative;
+  overflow:hidden;
+}
+.upload.dragover{
+  border-color:var(--accent);
+  background:rgba(59,130,246,.08);
+}
+.upload img{
+  max-width:100%;
+  max-height:144px;
+  display:none;
+  border-radius:6px;
+}
+.upload .placeholder{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.6;
+}
+#generate-btn{
+  width:100%;
+  min-height:46px;
+  font-size:15px;
+  font-weight:700;
+}
+#status{
+  margin-top:8px;
+  font-size:12px;
+  color:var(--muted);
+  min-height:18px;
+}
+#main-topbar{
+  height:48px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  padding:0 12px;
+  gap:8px;
+}
+.tab{
+  height:48px;
+  padding:0 14px;
+  background:transparent;
+  color:var(--muted);
+  border-bottom:2px solid transparent;
+}
+.tab.active{
+  color:var(--text);
+  border-bottom-color:var(--accent);
+}
+#main-body{
+  flex:1;
+  min-height:0;
+  position:relative;
+  background:#0b0d11;
+}
+#result-wrap,#history-wrap{
+  position:absolute;
+  inset:0;
+}
+#result-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:auto;
+}
+#placeholder{
+  color:var(--muted);
+  text-align:center;
+  line-height:1.8;
+  font-size:14px;
+}
+#result-canvas{
+  display:none;
+  margin:20px auto;
+  background:#fff;
+}
+#history-wrap{
+  display:none;
+  overflow:auto;
+  padding:10px;
+}
+.history-item{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:10px 12px;
+  margin-bottom:8px;
+  cursor:pointer;
+}
+.history-item.active{border-color:var(--accent)}
+.history-item .meta{
+  margin-top:4px;
+  font-size:12px;
+  color:var(--muted);
+}
+#savebar{
+  height:46px;
+  background:var(--panel);
+  border-top:1px solid var(--border);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:0 12px;
+}
+.toast{
+  position:fixed;
+  top:14px;
+  right:14px;
+  background:#1f2937;
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:8px;
+  padding:10px 14px;
+  z-index:20;
+  box-shadow:0 10px 28px rgba(0,0,0,.3);
+}
+.dialog-mask{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:30;
+}
+.dialog{
+  width:min(560px,calc(100vw - 30px));
+  max-height:calc(100vh - 40px);
+  overflow:auto;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+}
+.dialog-head{
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  font-weight:700;
+}
+.dialog-body{
+  padding:14px;
+}
+.dialog-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:12px;
+}
+@media (max-width:960px){
+  body{flex-direction:column}
+  #sidebar{
+    width:100%;
+    min-width:0;
+    height:48vh;
+    border-right:none;
+    border-bottom:1px solid var(--border);
+  }
+}
+</style>
+</head>
+<body>
+<aside id="sidebar">
+  <div id="sidebar-scroll">
+    <div class="card">
+      <div class="card-title">API 配置</div>
+      <div class="row">
+        <span class="label">Provider</span>
+        <select id="provider-select" class="select"></select>
+        <button class="btn btn-sm" onclick="addProvider()">+</button>
+        <button class="btn btn-sm" onclick="editProvider()">编辑</button>
+      </div>
+      <div class="row">
+        <span class="label">Base URL</span>
+        <input id="base-url" class="input" placeholder="https://api.example.com/v1">
+      </div>
+      <div class="row">
+        <span class="label">API Key</span>
+        <input id="api-key" class="input" type="password" placeholder="sk-...">
+        <button id="toggle-key-btn" class="btn btn-sm" onclick="toggleKey()">显示</button>
+      </div>
+      <div class="row">
+        <span class="label">Model</span>
+        <input id="model" class="input" value="gpt-image-2">
+      </div>
+      <div class="row">
+        <span class="label">尺寸</span>
+        <input id="img-size" class="input" value="1024x1024" list="size-list">
+        <datalist id="size-list">
+          <option value="1024x1024">
+          <option value="1024x1536">
+          <option value="1536x1024">
+          <option value="1792x1024">
+          <option value="1024x1792">
+        </datalist>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">图片 1</div>
+      <div class="upload" id="upload1" onclick="document.getElementById('file1').click()">
+        <div class="placeholder" id="upload1-placeholder">点击或拖拽上传主图</div>
+        <img id="upload1-preview" alt="图1预览">
+      </div>
+      <input id="file1" type="file" accept="image/*" style="display:none" onchange="handleUpload(1,this.files[0])">
+    </div>
+
+    <div class="card">
+      <div class="card-title">图片 2</div>
+      <div class="upload" id="upload2" onclick="document.getElementById('file2').click()">
+        <div class="placeholder" id="upload2-placeholder">点击或拖拽上传参考图</div>
+        <img id="upload2-preview" alt="图2预览">
+      </div>
+      <input id="file2" type="file" accept="image/*" style="display:none" onchange="handleUpload(2,this.files[0])">
+    </div>
+
+    <div class="card">
+      <div class="card-title">提示词</div>
+      <div class="row">
+        <span class="label">预设</span>
+        <select id="preset-select" class="select"></select>
+        <button class="btn btn-sm" onclick="addPreset()">+</button>
+        <button class="btn btn-sm" onclick="editPreset()">编辑</button>
+      </div>
+      <textarea id="prompt-text" class="textarea" placeholder="输入提示词..."></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn btn-sm" onclick="resetPrompt()">恢复预设</button>
+        <div style="margin-left:auto;font-size:12px;color:var(--muted)">有图走编辑，无图走文生图</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">输出</div>
+      <div class="row">
+        <span class="label">目录</span>
+        <input id="output-dir" class="input" value="./saveimages" placeholder="./saveimages">
+      </div>
+      <div class="row">
+        <span class="label">说明</span>
+        <div style="font-size:12px;color:var(--muted)">留空则不落盘，只保留浏览器下载；填写路径则由本地 FastAPI 后端保存。</div>
+      </div>
+    </div>
+
+    <button id="generate-btn" class="btn btn-primary" onclick="generate()">生成</button>
+    <div id="status">就绪</div>
+  </div>
+</aside>
+
+<main id="main">
+  <div id="main-topbar">
+    <button class="tab active" id="tab-result" onclick="switchTab('result')">结果</button>
+    <button class="tab" id="tab-history" onclick="switchTab('history')">历史</button>
+  </div>
+  <div id="main-body">
+    <div id="result-wrap">
+      <div id="placeholder">生成结果会显示在这里<br><br>编辑模式会拼接显示：图1 / 图2 / 结果</div>
+      <canvas id="result-canvas"></canvas>
+    </div>
+    <div id="history-wrap"></div>
+  </div>
+  <div id="savebar">
+    <button class="btn btn-primary btn-sm" onclick="downloadCurrent('stitched')">保存拼接图</button>
+    <button class="btn btn-sm" onclick="downloadCurrent('img1')">图1</button>
+    <button class="btn btn-sm" onclick="downloadCurrent('img2')">图2</button>
+    <button class="btn btn-sm" onclick="downloadCurrent('result')">结果图</button>
+  </div>
+</main>
+
+<div id="dialog-mask" class="dialog-mask">
+  <div class="dialog">
+    <div class="dialog-head" id="dialog-title"></div>
+    <div class="dialog-body" id="dialog-body"></div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_PROVIDERS = [
+  {name:'custom', base_url:'', api_key:'', model:'gpt-image-2'},
+  {name:'openai', base_url:'https://api.openai.com/v1', api_key:'', model:'gpt-image-1'},
+];
+
+const DEFAULT_PRESETS = [
+  {name:'换发', prefix:'hairswap', prompt:'Take the person in the first image. Replace their hair with the hairstyle and hair color of the person in the second image. Keep everything else exactly the same: face, facial features, body, clothing, and background must remain unchanged.'},
+  {name:'换装', prefix:'clothswap', prompt:'Take the person in the first image. Replace their clothing with the clothing worn by the person in the second image. Keep the person\'s face, body shape, pose, hairstyle, and background exactly the same. Only change the clothes.'},
+  {name:'背景替换', prefix:'bgswap', prompt:'Take the person in the first image and place them into the background shown in the second image. Keep the person exactly as they are. Only replace the background with the scene from the second image. Make it look natural.'},
+  {name:'风格迁移', prefix:'styletransfer', prompt:'Apply the artistic style, color palette, lighting, and visual aesthetic of the second image to the first image. Preserve content, subjects, and composition of the first image exactly.'},
+  {name:'写实照片', prefix:'realistic', prompt:'A photorealistic, high-quality photograph. Natural lighting, sharp focus, professional composition, 8K resolution, highly detailed.'},
+  {name:'动漫风格', prefix:'anime', prompt:'Anime and manga style illustration. Clean linework, vibrant colors, cel-shaded, high quality Japanese animation art style.'},
+];
+
+let config = loadConfig();
+let imageFiles = {1:null, 2:null};
+let resultState = {
+  stitched:null,
+  img1:null,
+  img2:null,
+  result:null,
+  isEdit:false,
+};
+let historySelected = -1;
+let isProcessing = false;
+
+function loadConfig(){
+  try{
+    const raw = localStorage.getItem('gpt_image_editor_config_v2');
+    if(raw){ return JSON.parse(raw); }
+  }catch(error){}
+  return {
+    providers: JSON.parse(JSON.stringify(DEFAULT_PROVIDERS)),
+    presets: JSON.parse(JSON.stringify(DEFAULT_PRESETS)),
+    selectedProvider:'custom',
+    selectedPreset:0,
+    base_url:'',
+    api_key:'',
+    model:'gpt-image-2',
+    img_size:'1024x1024',
+    outputDir:'./saveimages',
+    history:[],
+    maxHistory:40,
+  };
+}
+
+function saveConfig(){
+  config.selectedProvider = document.getElementById('provider-select').value;
+  config.selectedPreset = document.getElementById('preset-select').selectedIndex;
+  config.base_url = document.getElementById('base-url').value.trim();
+  config.api_key = document.getElementById('api-key').value.trim();
+  config.model = document.getElementById('model').value.trim();
+  config.img_size = document.getElementById('img-size').value.trim();
+  config.outputDir = document.getElementById('output-dir').value.trim();
+  localStorage.setItem('gpt_image_editor_config_v2', JSON.stringify(config));
+}
+
+function toast(message){
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 2600);
+}
+
+function setStatus(message, type=''){
+  const el = document.getElementById('status');
+  el.textContent = message;
+  el.style.color = type === 'error' ? 'var(--bad)' : type === 'success' ? 'var(--good)' : 'var(--muted)';
+}
+
+function switchTab(tab){
+  const resultTab = document.getElementById('tab-result');
+  const historyTab = document.getElementById('tab-history');
+  const resultWrap = document.getElementById('result-wrap');
+  const historyWrap = document.getElementById('history-wrap');
+  if(tab === 'result'){
+    resultTab.classList.add('active');
+    historyTab.classList.remove('active');
+    resultWrap.style.display = 'flex';
+    historyWrap.style.display = 'none';
+  }else{
+    resultTab.classList.remove('active');
+    historyTab.classList.add('active');
+    resultWrap.style.display = 'none';
+    historyWrap.style.display = 'block';
+    renderHistory();
+  }
+}
+
+function escapeHtml(text){
+  return String(text ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function refreshProviders(){
+  const sel = document.getElementById('provider-select');
+  sel.innerHTML = config.providers.map(p=>`<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`).join('');
+  if(!config.providers.some(p=>p.name===config.selectedProvider)){
+    config.selectedProvider = config.providers[0]?.name || 'custom';
+  }
+  sel.value = config.selectedProvider;
+}
+
+function refreshPresets(){
+  const sel = document.getElementById('preset-select');
+  sel.innerHTML = config.presets.map(p=>`<option>${escapeHtml(p.name)}</option>`).join('');
+  const idx = Math.max(0, Math.min(config.selectedPreset || 0, config.presets.length - 1));
+  sel.selectedIndex = idx;
+}
+
+function onProviderChange(){
+  const name = document.getElementById('provider-select').value;
+  const provider = config.providers.find(item=>item.name===name);
+  if(provider){
+    document.getElementById('base-url').value = provider.base_url || '';
+    document.getElementById('api-key').value = provider.api_key || '';
+    document.getElementById('model').value = provider.model || 'gpt-image-2';
+  }
+  saveConfig();
+}
+
+function applyPreset(){
+  const idx = document.getElementById('preset-select').selectedIndex;
+  const preset = config.presets[idx];
+  if(preset){
+    document.getElementById('prompt-text').value = preset.prompt || '';
+  }
+  saveConfig();
+}
+
+function resetPrompt(){
+  applyPreset();
+}
+
+function openDialog(title, fields, onOk){
+  const mask = document.getElementById('dialog-mask');
+  const body = document.getElementById('dialog-body');
+  document.getElementById('dialog-title').textContent = title;
+  body.innerHTML = `
+    ${fields.map(field=>`
+      <div class="row" style="display:block;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${escapeHtml(field.label)}</div>
+        ${field.textarea
+          ? `<textarea id="dlg-${field.key}" class="textarea">${escapeHtml(field.value || '')}</textarea>`
+          : `<input id="dlg-${field.key}" class="input" value="${escapeHtml(field.value || '')}" ${field.password ? 'type="password"' : ''}>`
+        }
+      </div>
+    `).join('')}
+    <div class="dialog-actions">
+      <button class="btn btn-sm" id="dlg-cancel">取消</button>
+      <button class="btn btn-primary btn-sm" id="dlg-ok">确定</button>
+    </div>
+  `;
+  mask.style.display = 'flex';
+  document.getElementById('dlg-cancel').onclick = ()=>{ mask.style.display = 'none'; };
+  document.getElementById('dlg-ok').onclick = ()=>{
+    const data = {};
+    for(const field of fields){
+      const el = document.getElementById(`dlg-${field.key}`);
+      data[field.key] = el ? el.value : '';
+    }
+    mask.style.display = 'none';
+    onOk(data);
+  };
+  mask.onclick = (event)=>{
+    if(event.target === mask){
+      mask.style.display = 'none';
+    }
+  };
+}
+
+function addProvider(){
+  openDialog('添加 Provider', [
+    {label:'名称', key:'name', value:''},
+    {label:'Base URL', key:'base_url', value:'https://api.example.com/v1'},
+    {label:'API Key', key:'api_key', value:'', password:true},
+    {label:'Model', key:'model', value:'gpt-image-2'},
+  ], (data)=>{
+    config.providers.push(data);
+    config.selectedProvider = data.name;
+    refreshProviders();
+    onProviderChange();
+    saveConfig();
+    toast('Provider 已添加');
+  });
+}
+
+function editProvider(){
+  const idx = config.providers.findIndex(item=>item.name===document.getElementById('provider-select').value);
+  if(idx < 0){
+    toast('请先选择 Provider');
+    return;
+  }
+  const provider = config.providers[idx];
+  openDialog('编辑 Provider', [
+    {label:'名称', key:'name', value:provider.name},
+    {label:'Base URL', key:'base_url', value:provider.base_url},
+    {label:'API Key', key:'api_key', value:provider.api_key, password:true},
+    {label:'Model', key:'model', value:provider.model},
+  ], (data)=>{
+    config.providers[idx] = data;
+    config.selectedProvider = data.name;
+    refreshProviders();
+    onProviderChange();
+    saveConfig();
+    toast('Provider 已更新');
+  });
+}
+
+function addPreset(){
+  openDialog('添加预设', [
+    {label:'名称', key:'name', value:''},
+    {label:'文件前缀', key:'prefix', value:'result'},
+    {label:'提示词', key:'prompt', value:'', textarea:true},
+  ], (data)=>{
+    config.presets.push(data);
+    config.selectedPreset = config.presets.length - 1;
+    refreshPresets();
+    applyPreset();
+    saveConfig();
+    toast('预设已添加');
+  });
+}
+
+function editPreset(){
+  const idx = document.getElementById('preset-select').selectedIndex;
+  if(idx < 0){
+    toast('请先选择预设');
+    return;
+  }
+  const preset = config.presets[idx];
+  openDialog('编辑预设', [
+    {label:'名称', key:'name', value:preset.name},
+    {label:'文件前缀', key:'prefix', value:preset.prefix},
+    {label:'提示词', key:'prompt', value:preset.prompt, textarea:true},
+  ], (data)=>{
+    config.presets[idx] = data;
+    refreshPresets();
+    document.getElementById('preset-select').selectedIndex = idx;
+    applyPreset();
+    saveConfig();
+    toast('预设已更新');
+  });
+}
+
+function toggleKey(){
+  const input = document.getElementById('api-key');
+  const btn = document.getElementById('toggle-key-btn');
+  if(input.type === 'password'){
+    input.type = 'text';
+    btn.textContent = '隐藏';
+  }else{
+    input.type = 'password';
+    btn.textContent = '显示';
+  }
+}
+
+function handleUpload(index, file){
+  if(!file){ return; }
+  imageFiles[index] = file;
+  const reader = new FileReader();
+  reader.onload = (event)=>{
+    const preview = document.getElementById(`upload${index}-preview`);
+    const placeholder = document.getElementById(`upload${index}-placeholder`);
+    preview.src = event.target.result;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function setupDragDrop(){
+  [1,2].forEach((index)=>{
+    const zone = document.getElementById(`upload${index}`);
+    zone.addEventListener('dragover', (event)=>{
+      event.preventDefault();
+      zone.classList.add('dragover');
+    });
+    zone.addEventListener('dragleave', (event)=>{
+      event.preventDefault();
+      zone.classList.remove('dragover');
+    });
+    zone.addEventListener('drop', (event)=>{
+      event.preventDefault();
+      zone.classList.remove('dragover');
+      const file = event.dataTransfer.files[0];
+      if(file){
+        const input = document.getElementById(`file${index}`);
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        handleUpload(index, file);
+      }
+    });
+  });
+}
+
+function parseSize(sizeText){
+  const parts = String(sizeText || '').split('x').map((v)=>Number(v));
+  return [parts[0] || 1024, parts[1] || 1024];
+}
+
+function base64ToDataUrl(b64){
+  return `data:image/png;base64,${b64}`;
+}
+
+function loadImage(source){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.onerror = reject;
+    img.src = source;
+  });
+}
+
+async function imageFileToElement(file){
+  if(!file){ return null; }
+  return loadImage(URL.createObjectURL(file));
+}
+
+async function drawCanvasFromParts(parts, size){
+  const [targetW, targetH] = parseSize(size);
+  const validParts = parts.filter(Boolean);
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW * Math.max(1, validParts.length);
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f3f4f6';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let offsetX = 0;
+  for(const img of validParts){
+    ctx.drawImage(img, offsetX, 0, targetW, targetH);
+    offsetX += targetW;
+  }
+  return canvas;
+}
+
+function showCanvas(sourceCanvas){
+  const canvas = document.getElementById('result-canvas');
+  const placeholder = document.getElementById('placeholder');
+  placeholder.style.display = 'none';
+  canvas.style.display = 'block';
+
+  const wrap = document.getElementById('result-wrap');
+  const maxW = Math.max(200, wrap.clientWidth - 40);
+  const maxH = Math.max(200, wrap.clientHeight - 40);
+  const ratio = Math.min(maxW / sourceCanvas.width, maxH / sourceCanvas.height, 1);
+  canvas.width = Math.round(sourceCanvas.width * ratio);
+  canvas.height = Math.round(sourceCanvas.height * ratio);
+  canvas.getContext('2d').drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
+  document.getElementById('savebar').style.display = 'flex';
+}
+
+function rememberHistory(entry){
+  config.history.unshift(entry);
+  if(config.history.length > config.maxHistory){
+    config.history = config.history.slice(0, config.maxHistory);
+  }
+  saveConfig();
+}
+
+function renderHistory(){
+  const wrap = document.getElementById('history-wrap');
+  if(!config.history.length){
+    wrap.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">暂无历史记录</div>';
+    return;
+  }
+  wrap.innerHTML = config.history.map((item, index)=>`
+    <div class="history-item ${historySelected === index ? 'active' : ''}" data-index="${index}">
+      <div>${escapeHtml(item.title || '未命名记录')}</div>
+      <div class="meta">${escapeHtml(item.timestamp)} | ${item.isEdit ? '编辑' : '生成'} ${item.savedMessage ? ' | ' + escapeHtml(item.savedMessage) : ''}</div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.history-item').forEach((item)=>{
+    item.onclick = async ()=>{
+      historySelected = Number(item.getAttribute('data-index'));
+      const record = config.history[historySelected];
+      if(!record){ return; }
+      const img = await loadImage(record.stitchedDataUrl || record.resultDataUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      resultState.stitched = canvas;
+      resultState.img1 = null;
+      resultState.img2 = null;
+      resultState.result = img;
+      resultState.isEdit = record.isEdit;
+      switchTab('result');
+      showCanvas(canvas);
+      setStatus(`已载入历史记录：${record.title}`);
+    };
+  });
+}
+
+function canvasToDataUrl(canvas){
+  return canvas.toDataURL('image/png');
+}
+
+function downloadCanvas(canvas, filename){
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = filename;
+  a.click();
+}
+
+async function ensureCanvas(source){
+  if(!source){ return null; }
+  if(source instanceof HTMLCanvasElement){ return source; }
+  const canvas = document.createElement('canvas');
+  canvas.width = source.naturalWidth || source.width;
+  canvas.height = source.naturalHeight || source.height;
+  canvas.getContext('2d').drawImage(source, 0, 0);
+  return canvas;
+}
+
+async function downloadCurrent(kind){
+  let target = null;
+  if(kind === 'stitched'){ target = resultState.stitched; }
+  if(kind === 'img1'){ target = resultState.img1; }
+  if(kind === 'img2'){ target = resultState.img2; }
+  if(kind === 'result'){ target = resultState.result; }
+  const canvas = await ensureCanvas(target);
+  if(!canvas){
+    toast('当前没有对应图片');
+    return;
+  }
+  downloadCanvas(canvas, `${kind}.png`);
+}
+
+async function generate(){
+  if(isProcessing){ return; }
+  const baseUrl = document.getElementById('base-url').value.trim();
+  const apiKey = document.getElementById('api-key').value.trim();
+  const model = document.getElementById('model').value.trim() || 'gpt-image-2';
+  const size = document.getElementById('img-size').value.trim() || '1024x1024';
+  const prompt = document.getElementById('prompt-text').value.trim();
+  const outputDir = document.getElementById('output-dir').value.trim();
+  const preset = config.presets[document.getElementById('preset-select').selectedIndex] || {prefix:'result', name:'未命名'};
+  const hasImg1 = !!imageFiles[1];
+  const hasImg2 = !!imageFiles[2];
+  const isEdit = hasImg1 || hasImg2;
+
+  if(!baseUrl){ toast('请输入 Base URL'); return; }
+  if(!apiKey){ toast('请输入 API Key'); return; }
+  if(!prompt){ toast('请输入提示词'); return; }
+  if(isEdit && !hasImg1){ toast('编辑模式至少需要图片 1'); return; }
+
+  saveConfig();
+  isProcessing = true;
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  setStatus(`正在通过本地 FastAPI 代理调用远端接口...`);
+
+  try{
+    const form = new FormData();
+    form.append('base_url', baseUrl);
+    form.append('api_key', apiKey);
+    form.append('model', model);
+    form.append('size', size);
+    form.append('prompt', prompt);
+    form.append('output_dir', outputDir);
+    form.append('preset_prefix', preset.prefix || 'result');
+    form.append('preset_name', preset.name || '');
+    if(imageFiles[1]){ form.append('image1', imageFiles[1]); }
+    if(imageFiles[2]){ form.append('image2', imageFiles[2]); }
+
+    const response = await fetch('/api/generate', {method:'POST', body:form});
+    const data = await response.json();
+    if(!response.ok){
+      throw new Error(data.error || `请求失败: ${response.status}`);
+    }
+
+    const resultDataUrl = base64ToDataUrl(data.result_b64);
+    const resultImg = await loadImage(resultDataUrl);
+    const img1 = await imageFileToElement(imageFiles[1]);
+    const img2 = await imageFileToElement(imageFiles[2]);
+    const stitched = await drawCanvasFromParts(isEdit ? [img1, img2, resultImg] : [resultImg], size);
+
+    resultState = {
+      stitched,
+      img1,
+      img2,
+      result:resultImg,
+      isEdit,
+    };
+    showCanvas(stitched);
+
+    const savedMessage = data.saved_files && data.saved_files.length
+      ? `已保存 ${data.saved_files.length} 个文件到 ${data.saved_dir}`
+      : '未落盘，仅保留页面结果';
+
+    rememberHistory({
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      title: `[${preset.name || '未命名'}]`,
+      isEdit,
+      savedMessage,
+      resultDataUrl,
+      stitchedDataUrl: canvasToDataUrl(stitched),
+    });
+
+    setStatus(`完成：${savedMessage}`, 'success');
+    toast('生成完成');
+  }catch(error){
+    setStatus(error.message, 'error');
+    toast(error.message);
+  }finally{
+    isProcessing = false;
+    btn.disabled = false;
+    btn.textContent = '生成';
+  }
+}
+
+function init(){
+  refreshProviders();
+  refreshPresets();
+  document.getElementById('base-url').value = config.base_url || '';
+  document.getElementById('api-key').value = config.api_key || '';
+  document.getElementById('model').value = config.model || 'gpt-image-2';
+  document.getElementById('img-size').value = config.img_size || '1024x1024';
+  document.getElementById('output-dir').value = config.outputDir || './saveimages';
+  onProviderChange();
+  if(config.presets.length){
+    document.getElementById('preset-select').selectedIndex = Math.max(0, Math.min(config.selectedPreset || 0, config.presets.length - 1));
+    applyPreset();
+  }
+
+  document.getElementById('provider-select').addEventListener('change', onProviderChange);
+  document.getElementById('preset-select').addEventListener('change', applyPreset);
+  ['base-url','api-key','model','img-size','output-dir'].forEach((id)=>{
+    document.getElementById(id).addEventListener('change', saveConfig);
+  });
+  window.addEventListener('resize', ()=>{
+    if(resultState.stitched){
+      showCanvas(resultState.stitched);
+    }
+  });
+  setupDragDrop();
+}
+
+init();
+</script>
+</body>
+</html>
