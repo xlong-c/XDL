@@ -1,4 +1,0 @@
-/root/workspace/xdl/build-linux-gcc/CMakeFiles/xdl_hgemm_mma_stage_tn_cute.dir
-/root/workspace/xdl/build-linux-gcc/CMakeFiles/xdl_hgemm_wgmma_stages.dir
-/root/workspace/xdl/build-linux-gcc/CMakeFiles/edit_cache.dir
-/root/workspace/xdl/build-linux-gcc/CMakeFiles/rebuild_cache.dir

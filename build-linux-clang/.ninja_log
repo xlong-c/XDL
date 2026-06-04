@@ -1,3 +1,0 @@
-# ninja log v7
-1	6855	1780592613320750861	CMakeFiles/xdl_hgemm_wgmma_stages.dir/learn/cuda/kernels/hgemm/hgemm_wgmma_stages.cu.o	2b481acb49aeba94
-0	9636	1780592613320750861	CMakeFiles/xdl_hgemm_mma_stage_tn_cute.dir/learn/cuda/kernels/hgemm/hgemm_mma_stage_tn_cute.cu.o	ffbda9e78b103653
