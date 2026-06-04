@@ -1,5 +1,29 @@
 cmake_minimum_required(VERSION 3.25)
 
+# WSL + CMake Tools can accidentally select a Windows kit for a Linux
+# configure. Fail early with a clear message instead of surfacing a later
+# FindThreads/CUDAToolkit error.
+function(xdl_require_linux_host_compiler compiler_var)
+  if(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    return()
+  endif()
+
+  if(NOT DEFINED ${compiler_var})
+    return()
+  endif()
+
+  set(compiler_path "${${compiler_var}}")
+  if(compiler_path MATCHES "\\.exe$")
+    message(FATAL_ERROR
+      "Detected a Windows compiler in a Linux/WSL configure: "
+      "${compiler_var}='${compiler_path}'.\n"
+      "Use a Linux host compiler such as /usr/bin/clang++ or /usr/bin/g++, "
+      "then reconfigure with a fresh build directory.")
+  endif()
+endfunction()
+
+xdl_require_linux_host_compiler(CMAKE_CXX_COMPILER)
+
 project(xdl_cuda_kernels LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -35,12 +59,6 @@ xdl_append_include_if_exists("${CMAKE_SOURCE_DIR}")
 xdl_append_include_if_exists("${XDL_CUTLASS_INCLUDE}")
 xdl_append_include_if_exists("${XDL_CONDA_PREFIX}/targets/x86_64-linux/include")
 xdl_append_include_if_exists("${XDL_CONDA_PREFIX}/targets/x86_64-linux/include/cccl")
-
-file(GLOB XDL_NVIDIA_CUDA_INCLUDES
-     "${XDL_CONDA_PREFIX}/lib/python*/site-packages/nvidia/cu*/include")
-foreach(include_dir IN LISTS XDL_NVIDIA_CUDA_INCLUDES)
-  xdl_append_include_if_exists("${include_dir}")
-endforeach()
 
 find_package(CUDAToolkit QUIET)
 if(CUDAToolkit_FOUND)

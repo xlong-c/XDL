@@ -58,7 +58,10 @@ RESAMPLE = Image.LANCZOS  # pyright: ignore[reportAttributeAccessIssue]  # Pillo
 
 def natural_sort_key(path: str) -> list[Any]:
     filename = Path(path).name.lower()
-    return [int(chunk) if chunk.isdigit() else chunk for chunk in re.split(r"(\d+)", filename)]
+    return [
+        int(chunk) if chunk.isdigit() else chunk
+        for chunk in re.split(r"(\d+)", filename)
+    ]
 
 
 def resolve_directory(path_text: str) -> Path:
@@ -79,7 +82,9 @@ def resolve_file(path_text: str) -> Path:
 
 def list_images(directory: Path) -> list[dict[str, str]]:
     entries: list[dict[str, str]] = []
-    for child in sorted(directory.iterdir(), key=lambda item: natural_sort_key(str(item))):
+    for child in sorted(
+        directory.iterdir(), key=lambda item: natural_sort_key(str(item))
+    ):
         if child.is_file() and child.suffix.lower() in VALID_EXTENSIONS:
             entries.append({"name": child.name, "path": str(child.resolve())})
     return entries
@@ -168,7 +173,9 @@ def render_thumbnail(
     with Image.open(image_path) as image:
         preview = compose_preview(image, slice_enabled, slice_indices, slice_parts)
         preview.thumbnail((target_width, target_height), RESAMPLE)
-        canvas = Image.new("RGB", (target_width, target_height), parse_hex_color(bg_color))
+        canvas = Image.new(
+            "RGB", (target_width, target_height), parse_hex_color(bg_color)
+        )
         offset_x = max(0, (target_width - preview.width) // 2)
         offset_y = max(0, (target_height - preview.height) // 2)
         canvas.paste(preview, (offset_x, offset_y))
@@ -483,7 +490,7 @@ body {{
 <body>
 <div id="toolbar">
     <input id="dir-input" class="input" placeholder="输入图片目录，例如 ./ 或 /data/images">
-    <button id="browse-btn" class="btn icon" title="系统目录选择">📁</button>
+    <button id="browse-btn" class="btn icon" title="系统目录选择">系统目录选择</button>
     <button id="open-btn" class="btn primary">打开目录</button>
     <button id="prev-btn" class="btn">上一页</button>
     <button id="next-btn" class="btn">下一页</button>
