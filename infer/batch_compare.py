@@ -11,9 +11,10 @@ import time
 from dataclasses import dataclass
 
 import torch
-import tyro
 from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor, to_pil_image
+
+from xdl.config.cli import parse_dataclass_cli
 
 
 @dataclass
@@ -88,7 +89,7 @@ MODELS = [
 
 
 def main():
-    config = tyro.cli(Config)
+    config = parse_dataclass_cli(Config)
 
     torch.set_float32_matmul_precision("high")
 

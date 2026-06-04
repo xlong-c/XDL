@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import argparse
 import math
 from typing import Optional, Tuple, TYPE_CHECKING
+
+CHECK_ONLY = False
 
 import torch
 
@@ -300,12 +301,8 @@ def demo() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--check-only", action="store_true")
-    args = parser.parse_args()
-
     error = max(check_correctness(causal=False), check_correctness(causal=True))
-    if args.check_only:
+    if CHECK_ONLY:
         print(f"max error: {error:.3e}")
         return
 

@@ -21,5 +21,5 @@ python learn/tilelang/flashatt.py
 
 ## 备注
 
-- 仓库约束下不使用 `argparse`，改参数请直接修改 `flashatt.py` 里的 `FlashAttConfig`
+- 仓库约束下不使用命令行参数解析库，改参数请直接修改 `flashatt.py` 里的 `FlashAttConfig`
 - 非方阵 causal 场景下，参考实现使用 PyTorch 的 `causal_lower_right`，与 TileLang 官方示例的掩码语义保持一致

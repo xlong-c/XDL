@@ -305,5 +305,5 @@ from xdl.callbacks import Callback
 - 不要把大模型权重加载放在模块 import 阶段。
 - 不要只把 diffusers pipeline 挂到 `self.pipe` 就指望 Trainer 迁移设备；底层 `nn.Module` 也要挂到 `self`。
 - 不要让第三方自定义 batch 对象完全依赖 Trainer 自动迁移；内置容器会递归迁移，但自定义对象需要在 `training_step()` 显式处理。
-- 新训练脚本不要引入 `argparse`；优先 YAML 配置，或用环境变量选择 YAML 文件。
+- 新训练脚本不要引入命令行参数解析库；优先 YAML 配置，或用环境变量选择 YAML 文件。
 - 只安装 wheel 时，仓库里的 `examples/`、`docs/`、`config/` 不一定存在；以本文件和包内公开 API 为准。

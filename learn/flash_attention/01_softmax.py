@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import argparse
 from typing import Optional, Tuple, TYPE_CHECKING
+
+CHECK_ONLY = False
 
 import torch
 
@@ -178,12 +179,8 @@ def demo_overflow() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--check-only", action="store_true")
-    args = parser.parse_args()
-
     error = check_correctness()
-    if args.check_only:
+    if CHECK_ONLY:
         print(f"max error: {error:.3e}")
         return
 

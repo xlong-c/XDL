@@ -9,9 +9,10 @@ import time
 from dataclasses import dataclass
 
 import torch
-import tyro
 from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor, to_pil_image
+
+from xdl.config.cli import parse_dataclass_cli
 
 from xdl.model.lowlevel import RRDBNet
 
@@ -53,7 +54,7 @@ def load_model(config: Config) -> RRDBNet:
 
 
 def main():
-    config = tyro.cli(Config)
+    config = parse_dataclass_cli(Config)
 
     model = load_model(config)
 

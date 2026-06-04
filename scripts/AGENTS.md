@@ -24,7 +24,7 @@ XDL_BUILD_CLEAN=1 python scripts/build_wheel.py
 
 ## 修改约束
 
-- Python 脚本继续遵守仓库约束：不要引入 `argparse`
+- Python 脚本继续遵守仓库约束：不要引入命令行参数解析库
 - 脚本优先可重复执行，副作用要明确
 - 涉及路径、权限、删除动作时先写清楚假设
 - 与训练/推理强耦合的逻辑应留在对应目录，不要全部堆进 `scripts/`

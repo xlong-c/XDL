@@ -20,20 +20,15 @@ FLUX.2 klein 9B 的 XDL LoRA 微调示例。
 
 最小使用示例:
 
-python examples/flux2_klein_9b_lora_finetune.py \
-  --train-manifest ./others/data/flux_train.jsonl \
-  --output-dir ./others/flux2_klein_9b_lora \
-  --device cuda \
-  --batch-size 1 \
-  --num-epochs 1 \
-  --sample-prompt "a studio fashion photo"
+1. 直接修改本文件顶部 `DEFAULT_CONFIG`
+2. 或设置环境变量 `XDL_FLUX2_KLEIN_CONFIG=/abs/path/to/config.yaml`
 """
 
 from __future__ import annotations
 
-import argparse
 import csv
 import json
+import os
 from contextlib import nullcontext
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -49,6 +44,7 @@ from diffusers.training_utils import (
 )
 from peft import LoraConfig, get_peft_model, get_peft_model_state_dict
 from PIL import Image, ImageOps
+from omegaconf import DictConfig, OmegaConf
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import functional as TF
@@ -106,124 +102,39 @@ class Flux2FinetuneConfig:
     enable_gradient_checkpointing: bool
 
 
-def parse_text_encoder_layers(raw_value: str) -> Tuple[int, ...]:
-    layers = tuple(int(part.strip()) for part in raw_value.split(",") if part.strip())
-    if not layers:
-        raise ValueError("`text_encoder_out_layers` 不能为空")
-    return layers
-
-
-def parse_args() -> Flux2FinetuneConfig:
-    parser = argparse.ArgumentParser(
-        description="使用 XDL 对 FLUX.2 klein 9B 做 transformer LoRA 微调"
-    )
-    parser.add_argument(
-        "--model-id",
-        type=str,
-        default="black-forest-labs/FLUX.2-klein-9B",
-        help=(
-            "基础模型名称。若你的环境里使用的是 base 变体, 可以改成 "
-            "`black-forest-labs/FLUX.2-klein-base-9B`。"
-        ),
-    )
-    parser.add_argument("--train-manifest", type=Path, required=True, help="训练集 manifest 路径")
-    parser.add_argument("--val-manifest", type=Path, default=None, help="验证集 manifest 路径")
-    parser.add_argument("--output-dir", type=Path, required=True, help="输出目录")
-    parser.add_argument("--image-height", type=int, default=1024, help="训练图像高度, 需能被 16 整除")
-    parser.add_argument("--image-width", type=int, default=1024, help="训练图像宽度, 需能被 16 整除")
-    parser.add_argument("--batch-size", type=int, default=1, help="batch size")
-    parser.add_argument("--num-workers", type=int, default=4, help="DataLoader worker 数")
-    parser.add_argument("--num-epochs", type=int, default=1, help="训练 epoch 数")
-    parser.add_argument("--learning-rate", type=float, default=1e-4, help="AdamW 学习率")
-    parser.add_argument("--weight-decay", type=float, default=1e-2, help="AdamW weight decay")
-    parser.add_argument("--max-grad-norm", type=float, default=1.0, help="梯度裁剪阈值")
-    parser.add_argument("--device", type=str, default="cuda", help="训练设备, 如 cuda / cuda:0 / cpu")
-    parser.add_argument(
-        "--model-dtype",
-        type=str,
-        default="auto",
-        choices=("auto", "fp32", "fp16", "bf16"),
-        help="模型加载与前向计算 dtype",
-    )
-    parser.add_argument("--max-sequence-length", type=int, default=512, help="prompt 最大 token 长度")
-    parser.add_argument(
-        "--text-encoder-out-layers",
-        type=str,
-        default="9,18,27",
-        help="Qwen3 hidden state 层号, 逗号分隔",
-    )
-    parser.add_argument("--lora-rank", type=int, default=16, help="LoRA rank")
-    parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha")
-    parser.add_argument("--lora-dropout", type=float, default=0.05, help="LoRA dropout")
-    parser.add_argument(
-        "--weighting-scheme",
-        type=str,
-        default="none",
-        choices=("none", "sigma_sqrt", "cosmap", "logit_normal", "mode"),
-        help="SD3/Flow Matching 训练的 timestep 采样与 loss weighting 策略",
-    )
-    parser.add_argument("--logit-mean", type=float, default=0.0, help="logit_normal 采样均值")
-    parser.add_argument("--logit-std", type=float, default=1.0, help="logit_normal 采样标准差")
-    parser.add_argument("--mode-scale", type=float, default=1.29, help="mode 采样缩放因子")
-    parser.add_argument("--save-every-n-epochs", type=int, default=1, help="每隔多少个 epoch 保存一次 LoRA")
-    parser.add_argument(
-        "--sample-every-n-epochs",
-        type=int,
-        default=1,
-        help="每隔多少个 epoch 跑一次验证/预览生图",
-    )
-    parser.add_argument("--sample-steps", type=int, default=20, help="预览生图步数")
-    parser.add_argument("--sample-guidance", type=float, default=4.0, help="预览生图 guidance scale")
-    parser.add_argument(
-        "--sample-prompt",
-        action="append",
-        default=[],
-        help="可重复指定, 每次验证后会用这些 prompt 生成预览图",
-    )
-    parser.add_argument("--seed", type=int, default=42, help="随机种子")
-    parser.add_argument(
-        "--enable-gradient-checkpointing",
-        action="store_true",
-        help="开启 transformer gradient checkpointing, 用更慢的速度换显存",
-    )
-
-    args = parser.parse_args()
-
-    if args.image_height % 16 != 0 or args.image_width % 16 != 0:
-        raise ValueError("`image_height` 和 `image_width` 必须都能被 16 整除")
-
-    return Flux2FinetuneConfig(
-        model_id=args.model_id,
-        train_manifest=args.train_manifest,
-        val_manifest=args.val_manifest,
-        output_dir=args.output_dir,
-        image_height=args.image_height,
-        image_width=args.image_width,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        num_epochs=args.num_epochs,
-        learning_rate=args.learning_rate,
-        weight_decay=args.weight_decay,
-        max_grad_norm=args.max_grad_norm,
-        device=args.device,
-        model_dtype=args.model_dtype,
-        max_sequence_length=args.max_sequence_length,
-        text_encoder_out_layers=parse_text_encoder_layers(args.text_encoder_out_layers),
-        lora_rank=args.lora_rank,
-        lora_alpha=args.lora_alpha,
-        lora_dropout=args.lora_dropout,
-        weighting_scheme=args.weighting_scheme,
-        logit_mean=args.logit_mean,
-        logit_std=args.logit_std,
-        mode_scale=args.mode_scale,
-        save_every_n_epochs=max(1, args.save_every_n_epochs),
-        sample_every_n_epochs=max(1, args.sample_every_n_epochs),
-        sample_steps=args.sample_steps,
-        sample_guidance=args.sample_guidance,
-        sample_prompts=tuple(args.sample_prompt),
-        seed=args.seed,
-        enable_gradient_checkpointing=args.enable_gradient_checkpointing,
-    )
+DEFAULT_CONFIG: dict[str, Any] = {
+    "model_id": "black-forest-labs/FLUX.2-klein-9B",
+    "train_manifest": "./others/data/flux_train.jsonl",
+    "val_manifest": None,
+    "output_dir": "./others/flux2_klein_9b_lora",
+    "image_height": 1024,
+    "image_width": 1024,
+    "batch_size": 1,
+    "num_workers": 4,
+    "num_epochs": 1,
+    "learning_rate": 1e-4,
+    "weight_decay": 1e-2,
+    "max_grad_norm": 1.0,
+    "device": "cuda",
+    "model_dtype": "auto",
+    "max_sequence_length": 512,
+    "text_encoder_out_layers": [9, 18, 27],
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "weighting_scheme": "none",
+    "logit_mean": 0.0,
+    "logit_std": 1.0,
+    "mode_scale": 1.29,
+    "save_every_n_epochs": 1,
+    "sample_every_n_epochs": 1,
+    "sample_steps": 20,
+    "sample_guidance": 4.0,
+    "sample_prompts": ["a studio fashion photo"],
+    "seed": 42,
+    "enable_gradient_checkpointing": False,
+}
+CONFIG_ENV_VAR = "XDL_FLUX2_KLEIN_CONFIG"
 
 
 def resolve_dtype(dtype_name: str, device: str) -> torch.dtype:
@@ -236,6 +147,75 @@ def resolve_dtype(dtype_name: str, device: str) -> torch.dtype:
     if device.startswith("cuda") and torch.cuda.is_available():
         return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     return torch.float32
+
+
+def _coerce_layers(raw_value: Any) -> Tuple[int, ...]:
+    if isinstance(raw_value, str):
+        layers = tuple(int(part.strip()) for part in raw_value.split(",") if part.strip())
+    else:
+        layers = tuple(int(part) for part in raw_value)
+    if not layers:
+        raise ValueError("`text_encoder_out_layers` 不能为空")
+    return layers
+
+
+def load_config() -> Flux2FinetuneConfig:
+    config_data: dict[str, Any] = dict(DEFAULT_CONFIG)
+    config_path = os.environ.get(CONFIG_ENV_VAR)
+    if config_path:
+        file_cfg = OmegaConf.load(config_path)
+        if not isinstance(file_cfg, DictConfig):
+            raise TypeError("配置文件顶层必须是 mapping")
+        merged = OmegaConf.merge(OmegaConf.create(config_data), file_cfg)
+        container = OmegaConf.to_container(merged, resolve=True)
+        if not isinstance(container, dict):
+            raise TypeError("解析后的配置必须是 dict")
+        config_data = container
+
+    image_height = int(config_data["image_height"])
+    image_width = int(config_data["image_width"])
+    if image_height % 16 != 0 or image_width % 16 != 0:
+        raise ValueError("`image_height` 和 `image_width` 必须都能被 16 整除")
+
+    sample_prompts_raw = config_data.get("sample_prompts", [])
+    if isinstance(sample_prompts_raw, str):
+        sample_prompts = (sample_prompts_raw,)
+    else:
+        sample_prompts = tuple(str(item) for item in sample_prompts_raw)
+
+    val_manifest_raw = config_data.get("val_manifest")
+    return Flux2FinetuneConfig(
+        model_id=str(config_data["model_id"]),
+        train_manifest=Path(str(config_data["train_manifest"])),
+        val_manifest=Path(str(val_manifest_raw)) if val_manifest_raw is not None else None,
+        output_dir=Path(str(config_data["output_dir"])),
+        image_height=image_height,
+        image_width=image_width,
+        batch_size=int(config_data["batch_size"]),
+        num_workers=int(config_data["num_workers"]),
+        num_epochs=int(config_data["num_epochs"]),
+        learning_rate=float(config_data["learning_rate"]),
+        weight_decay=float(config_data["weight_decay"]),
+        max_grad_norm=float(config_data["max_grad_norm"]),
+        device=str(config_data["device"]),
+        model_dtype=str(config_data["model_dtype"]),
+        max_sequence_length=int(config_data["max_sequence_length"]),
+        text_encoder_out_layers=_coerce_layers(config_data["text_encoder_out_layers"]),
+        lora_rank=int(config_data["lora_rank"]),
+        lora_alpha=int(config_data["lora_alpha"]),
+        lora_dropout=float(config_data["lora_dropout"]),
+        weighting_scheme=str(config_data["weighting_scheme"]),
+        logit_mean=float(config_data["logit_mean"]),
+        logit_std=float(config_data["logit_std"]),
+        mode_scale=float(config_data["mode_scale"]),
+        save_every_n_epochs=max(1, int(config_data["save_every_n_epochs"])),
+        sample_every_n_epochs=max(1, int(config_data["sample_every_n_epochs"])),
+        sample_steps=int(config_data["sample_steps"]),
+        sample_guidance=float(config_data["sample_guidance"]),
+        sample_prompts=sample_prompts,
+        seed=int(config_data["seed"]),
+        enable_gradient_checkpointing=bool(config_data["enable_gradient_checkpointing"]),
+    )
 
 
 def config_to_dict(config: Flux2FinetuneConfig) -> dict[str, Any]:
@@ -633,7 +613,7 @@ def build_dataloader(
 
 
 def main() -> None:
-    config = parse_args()
+    config = load_config()
     save_run_config(config)
     set_seed(config.seed)
 

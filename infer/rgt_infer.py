@@ -11,9 +11,10 @@ import time
 from dataclasses import dataclass
 
 import torch
-import tyro
 from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor, to_pil_image
+
+from xdl.config.cli import parse_dataclass_cli
 
 from xdl.model.lowlevel import RGT
 from xdl.utils.tiling import tile_inference
@@ -76,7 +77,7 @@ def load_model(config: Config) -> RGT:
 
 
 def main():
-    config = tyro.cli(Config)
+    config = parse_dataclass_cli(Config)
 
     print(f"设备: {config.device}  |  {config.model}  |  fp16={config.fp16}  |  tile={config.tile_size if config.tile else 0}  |  batch={config.batch_size}")
 

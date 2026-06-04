@@ -9,20 +9,24 @@
 
 - `dataset/`：数据集整理、复制、重命名、清洗及通用数据处理
 - `dataset_download/`：数据下载
-- `image/`：图像处理与检测
+- `gui/`：**带 GUI 的工具**（pywebview + FastAPI 单文件实现）。详见 [`gui/AGENTS.md`](gui/AGENTS.md)
 - `ml/`：模型侧辅助脚本
-- `setup/`：环境准备与依赖检查
 - `test/`：硬件或设备测试
 - `video/`：视频处理
+
+> 旧的 `image/`、`setup/` 目录已合并/搬空。所有带 GUI 的工具（图片对比、批量查看、GPT 图像编辑、HF 缓存管理等）现在统一在 `gui/` 下，按"一个工具一个文件"原则组织。
 
 ## 修改约束
 
 - 工具脚本优先单职责、可复用、可直接运行
-- Python 脚本继续遵守仓库约束：不用 `argparse`
+- Python 脚本继续遵守仓库约束：不用命令行参数解析库
 - 破坏性操作要显式，特别是删除、覆盖、批量重命名
 - 与框架主逻辑强相关的抽象应下沉到 `xdl/`，不要把 `tools/` 做成杂项核心层
+- **带 GUI 的工具必须放在 `gui/` 下**，遵守 [`gui/AGENTS.md`](gui/AGENTS.md) 的 pywebview + FastAPI 单文件规范
+- 不在本目录新增 `xxx_GUI.py` / `xxx_web.py` / `xxx_v2.py` 这类多版本 UI 文件
 
 ## 开发建议
 
 - 写清楚输入目录、输出目录和副作用
 - 图像/数据类工具尽量保留 dry-run 或最小验证路径
+- GUI 工具的业务函数应独立、纯 Python、可单测（不直接耦合 webview 框架）

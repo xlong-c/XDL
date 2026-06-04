@@ -1,40 +1,59 @@
 #!/usr/bin/env python3
-"""批量图片查看器 — FastAPI + HTML 版本。
+"""批量图片查看器 — pywebview + FastAPI 单文件版。
 
 用法:
-  python tools/image/batch_viewer_GUI.py
+    python tools/gui/batch_viewer.py
 
 环境变量:
-  XDL_WEB_HOST=127.0.0.1
-  XDL_BATCH_VIEWER_PORT=8011
-  XDL_NO_BROWSER=1
+    XDL_BATCH_VIEWER_PORT=8768   端口（默认 8768）
+    XDL_BATCH_VIEWER_HOST=127.0.0.1  监听地址（默认 127.0.0.1，不绑 0.0.0.0）
 
 功能:
-  - 按目录批量浏览图片
-  - 支持切片拼接预览
-  - 支持选择并删除图片
-  - 支持分页、缩放、跳转
+    - 按目录批量浏览图片（自然排序: a1 < a2 < a10）
+    - 支持切片拼接预览（如横向 4 段, 取第 2、3 段拼成缩略图）
+    - 支持选择并删除图片（破坏性操作, 前端有 confirm）
+    - 分页、缩放、跳转、键盘快捷键
+    - 缩略图懒加载, 避免一次拉满内存
+
+与原 FastAPI+HTML 版本的差异:
+    - 启动方式从 uvicorn.run 改为 pywebview 原生窗口（无浏览器 tab）
+    - 目录输入旁加 "📁 浏览..." 按钮, 走 pywebview.js_api 调系统目录选择器
+    - PIL 缩略图/读图改用 asyncio.to_thread, 避免阻塞事件循环
 """
 
 from __future__ import annotations
 
+import asyncio
 import io
 import os
 import re
 import threading
-import webbrowser
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
+import uvicorn
+import webview
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from PIL import Image
 
-app = FastAPI(title="批量图片查看器")
+# ============================================================
+# CONFIG
+# ============================================================
+
+HOST = os.environ.get("XDL_BATCH_VIEWER_HOST", "127.0.0.1")
+PORT = int(os.environ.get("XDL_BATCH_VIEWER_PORT", "8768") or "8768")
+TITLE = "批量图片查看器"
 
 VALID_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
 RESAMPLE = getattr(Image, "Resampling", Image).LANCZOS
+
+
+# ============================================================
+# 业务函数（纯 Python, 可单测）
+# ============================================================
 
 
 def natural_sort_key(path: str) -> list[Any]:
@@ -160,21 +179,45 @@ def render_thumbnail(
     return buf
 
 
-def env_int(name: str, default: int) -> int:
-    value = os.environ.get(name, "").strip()
-    try:
-        return int(value)
-    except ValueError:
-        return default
+def read_image_bytes(image_path: Path) -> io.BytesIO:
+    with Image.open(image_path) as image:
+        buf = io.BytesIO()
+        image.convert("RGB").save(buf, format="PNG")
+        buf.seek(0)
+    return buf
+
+
+def delete_images(paths: list[str]) -> dict[str, Any]:
+    deleted_paths: list[str] = []
+    failed: list[dict[str, str]] = []
+    for raw_path in paths:
+        try:
+            path = resolve_file(str(raw_path))
+            path.unlink()
+            deleted_paths.append(str(path))
+        except Exception as exc:  # noqa: BLE001
+            failed.append({"path": str(raw_path), "error": str(exc)})
+    return {
+        "deleted_count": len(deleted_paths),
+        "deleted_paths": deleted_paths,
+        "failed": failed,
+    }
+
+
+# ============================================================
+# FastAPI app + 路由
+# ============================================================
+
+app = FastAPI(title=TITLE)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
-    return HTML_PAGE
+    return HTML
 
 
 @app.get("/api/config")
-async def get_config() -> dict[str, Any]:
+async def api_config() -> dict[str, Any]:
     return {
         "default_dir": str(Path.cwd()),
         "default_cols": 2,
@@ -189,14 +232,15 @@ async def get_config() -> dict[str, Any]:
 
 
 @app.post("/api/list-dir")
-async def api_list_dir(data: dict[str, Any]) -> dict[str, Any]:
+async def api_list_dir(data: dict[str, Any]):
     directory = resolve_directory(str(data.get("path", ".")))
     if not directory.exists():
         return JSONResponse({"error": f"目录不存在: {directory}"}, status_code=404)
     if not directory.is_dir():
         return JSONResponse({"error": f"不是目录: {directory}"}, status_code=400)
 
-    images = list_images(directory)
+    # list_images 可能很慢（千张图目录的 stat 调用）, 放线程里不阻塞事件循环
+    images = await asyncio.to_thread(list_images, directory)
     return {
         "directory": str(directory),
         "images": images,
@@ -220,7 +264,9 @@ async def api_thumb(
 
     indices = parse_slice_indices(slice_indices, slice_parts)
     try:
-        buf = render_thumbnail(
+        # PIL 解码 + 缩放走线程, 避免阻塞事件循环
+        buf = await asyncio.to_thread(
+            render_thumbnail,
             image_path=image_path,
             width=width,
             height=height,
@@ -229,7 +275,7 @@ async def api_thumb(
             slice_parts=slice_parts,
             bg_color=bg_color,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": str(exc)}, status_code=400)
     return StreamingResponse(buf, media_type="image/png")
 
@@ -241,11 +287,8 @@ async def api_image(path: str = Query(...)):
         return JSONResponse({"error": "image not found"}, status_code=404)
 
     try:
-        with Image.open(image_path) as image:
-            buf = io.BytesIO()
-            image.convert("RGB").save(buf, format="PNG")
-            buf.seek(0)
-    except Exception as exc:
+        buf = await asyncio.to_thread(read_image_bytes, image_path)
+    except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": str(exc)}, status_code=400)
     return StreamingResponse(buf, media_type="image/png")
 
@@ -255,95 +298,87 @@ async def api_delete(data: dict[str, Any]):
     raw_paths = data.get("paths")
     if not isinstance(raw_paths, list):
         return JSONResponse({"error": "paths must be a list"}, status_code=400)
-
-    deleted_paths: list[str] = []
-    failed: list[dict[str, str]] = []
-    for raw_path in raw_paths:
-        try:
-            path = resolve_file(str(raw_path))
-            path.unlink()
-            deleted_paths.append(str(path))
-        except Exception as exc:
-            failed.append({"path": str(raw_path), "error": str(exc)})
-
-    return {
-        "deleted_count": len(deleted_paths),
-        "deleted_paths": deleted_paths,
-        "failed": failed,
-    }
+    # 删除通常很快, 但批量千张时仍可能阻塞
+    result = await asyncio.to_thread(delete_images, [str(p) for p in raw_paths])
+    return result
 
 
-HTML_PAGE = r"""<!DOCTYPE html>
+# ============================================================
+# HTML（f-string 内嵌, CSS/JS 主体沿用原版, 加了 📁 浏览按钮）
+# ============================================================
+
+HTML = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>批量图片查看器</title>
+<title>{TITLE}</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+html, body {{ height: 100%; }}
+body {{
     background: #1e1e1e;
     color: #d0d0d0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-}
-#toolbar {
+}}
+#toolbar {{
     background: #2a2a2a;
     border-bottom: 1px solid #3a3a3a;
     padding: 10px 12px;
     display: grid;
-    grid-template-columns: minmax(260px, 1.6fr) repeat(9, minmax(72px, auto)) minmax(90px, 0.8fr);
+    grid-template-columns: minmax(260px, 1.6fr) auto repeat(9, minmax(72px, auto)) minmax(90px, 0.8fr);
     gap: 8px;
     align-items: center;
-}
-.input, .btn, .check {
+}}
+.input, .btn, .check {{
     min-height: 34px;
     border-radius: 6px;
     border: 1px solid #4a4a4a;
     background: #343434;
     color: #e0e0e0;
     font-size: 13px;
-}
-.input {
+}}
+.input {{
     padding: 0 10px;
     width: 100%;
-}
-.btn {
+}}
+.btn {{
     padding: 0 12px;
     cursor: pointer;
     transition: background 0.15s ease;
-}
-.btn:hover { background: #444444; }
-.btn.primary { background: #007acc; border-color: #007acc; color: #fff; }
-.btn.primary:hover { background: #1390ea; }
-.check {
+}}
+.btn:hover {{ background: #444444; }}
+.btn.primary {{ background: #007acc; border-color: #007acc; color: #fff; }}
+.btn.primary:hover {{ background: #1390ea; }}
+.btn.icon {{ padding: 0 10px; min-width: 34px; justify-content: center; }}
+.check {{
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 0 10px;
     white-space: nowrap;
-}
-.check input { accent-color: #007acc; }
-.field {
+}}
+.check input {{ accent-color: #007acc; }}
+.field {{
     display: flex;
     align-items: center;
     gap: 6px;
     white-space: nowrap;
-}
-.field label {
+}}
+.field label {{
     color: #8e8e8e;
     font-size: 12px;
-}
-#content {
+}}
+#content {{
     min-height: 0;
     flex: 1;
     display: flex;
     flex-direction: column;
-}
-#statusbar {
+}}
+#statusbar {{
     background: #252525;
     border-bottom: 1px solid #343434;
     padding: 8px 12px;
@@ -352,43 +387,43 @@ body {
     align-items: center;
     white-space: nowrap;
     overflow: hidden;
-}
-#status { color: #88c0ff; font-size: 13px; }
-#meta {
+}}
+#status {{ color: #88c0ff; font-size: 13px; }}
+#meta {{
     margin-left: auto;
     color: #8a8a8a;
     font-size: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-#grid-wrap {
+}}
+#grid-wrap {{
     flex: 1;
     min-height: 0;
     overflow: auto;
     padding: 10px;
     background: #111111;
-}
-#grid {
+}}
+#grid {{
     display: grid;
     align-content: start;
-}
-.tile {
+}}
+.tile {{
     position: relative;
     border: 1px solid #2f2f2f;
     background: #000;
     overflow: hidden;
     cursor: pointer;
     user-select: none;
-}
-.tile:hover { border-color: #4d4d4d; }
-.tile.selected { border-color: #d33f3f; box-shadow: inset 0 0 0 1px #d33f3f; }
-.tile img {
+}}
+.tile:hover {{ border-color: #4d4d4d; }}
+.tile.selected {{ border-color: #d33f3f; box-shadow: inset 0 0 0 1px #d33f3f; }}
+.tile img {{
     width: 100%;
     height: 100%;
     display: block;
     object-fit: cover;
-}
-.tile .name {
+}}
+.tile .name {{
     position: absolute;
     left: 0;
     right: 0;
@@ -399,8 +434,8 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-.tile .badge {
+}}
+.tile .badge {{
     position: absolute;
     top: 8px;
     left: 8px;
@@ -409,16 +444,16 @@ body {
     background: rgba(0, 0, 0, 0.72);
     font-size: 11px;
     color: #fff;
-}
-.tile .cross {
+}}
+.tile .cross {{
     position: absolute;
     inset: 0;
     pointer-events: none;
     display: none;
-}
-.tile.selected .cross { display: block; }
+}}
+.tile.selected .cross {{ display: block; }}
 .tile .cross::before,
-.tile .cross::after {
+.tile .cross::after {{
     content: "";
     position: absolute;
     left: 50%;
@@ -427,27 +462,28 @@ body {
     height: 3px;
     background: rgba(255, 64, 64, 0.9);
     transform-origin: center center;
-}
-.tile .cross::before { transform: translate(-50%, -50%) rotate(30deg); }
-.tile .cross::after { transform: translate(-50%, -50%) rotate(-30deg); }
-#empty {
+}}
+.tile .cross::before {{ transform: translate(-50%, -50%) rotate(30deg); }}
+.tile .cross::after {{ transform: translate(-50%, -50%) rotate(-30deg); }}
+#empty {{
     display: none;
     height: 100%;
     align-items: center;
     justify-content: center;
     color: #7a7a7a;
     font-size: 14px;
-}
-@media (max-width: 1280px) {
-    #toolbar {
+}}
+@media (max-width: 1280px) {{
+    #toolbar {{
         grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
+    }}
+}}
 </style>
 </head>
 <body>
 <div id="toolbar">
     <input id="dir-input" class="input" placeholder="输入图片目录，例如 ./ 或 /data/images">
+    <button id="browse-btn" class="btn icon" title="系统目录选择">📁</button>
     <button id="open-btn" class="btn primary">打开目录</button>
     <button id="prev-btn" class="btn">上一页</button>
     <button id="next-btn" class="btn">下一页</button>
@@ -474,7 +510,7 @@ body {
 </div>
 
 <script>
-const state = {
+const state = {{
     folder: '.',
     images: [],
     selected: new Set(),
@@ -487,7 +523,7 @@ const state = {
     bgColor: '#000000',
     padX: 0,
     padY: 0,
-};
+}};
 
 const gridWrapEl = document.getElementById('grid-wrap');
 const gridEl = document.getElementById('grid');
@@ -495,49 +531,49 @@ const emptyEl = document.getElementById('empty');
 const statusEl = document.getElementById('status');
 const metaEl = document.getElementById('meta');
 
-function setStatus(text, isError = false) {
+function setStatus(text, isError = false) {{
     statusEl.textContent = text;
     statusEl.style.color = isError ? '#ff7b72' : '#88c0ff';
-}
+}}
 
-function parseRatio(value) {
+function parseRatio(value) {{
     const raw = String(value || '').trim();
-    if (raw.includes('/')) {
+    if (raw.includes('/')) {{
         const parts = raw.split('/');
         const left = Number(parts[0]);
         const right = Number(parts[1]);
-        if (left > 0 && right > 0) {
+        if (left > 0 && right > 0) {{
             return left / right;
-        }
-    }
+        }}
+    }}
     const number = Number(raw);
     return number > 0 ? number : 4;
-}
+}}
 
-function normalizeSliceIndices() {
+function normalizeSliceIndices() {{
     const sliceParts = Math.max(1, Number(document.getElementById('parts-input').value) || 4);
     const raw = document.getElementById('slice-input').value;
     const values = raw.split(',').map((item) => Number(item.trim())).filter((item) => Number.isInteger(item) && item >= 1 && item <= sliceParts);
     const unique = [...new Set(values)];
-    if (!unique.length) {
+    if (!unique.length) {{
         unique.push(1);
-    }
+    }}
     state.sliceParts = sliceParts;
     state.sliceIndices = unique.join(',');
     document.getElementById('slice-input').value = state.sliceIndices;
     document.getElementById('parts-input').value = String(state.sliceParts);
     return unique;
-}
+}}
 
-function getEffectiveCols() {
+function getEffectiveCols() {{
     const indices = normalizeSliceIndices();
-    if (!state.sliceEnabled) {
+    if (!state.sliceEnabled) {{
         return Math.max(1, state.cols);
-    }
+    }}
     return Math.max(1, Math.floor((state.cols * state.sliceParts) / Math.max(1, indices.length)));
-}
+}}
 
-function estimateRows() {
+function estimateRows() {{
     const effectiveCols = getEffectiveCols();
     const ratio = parseRatio(state.ratioText);
     const availableWidth = Math.max(320, gridWrapEl.clientWidth - 20);
@@ -545,54 +581,71 @@ function estimateRows() {
     const cellWidth = Math.max(60, (availableWidth - (effectiveCols - 1) * state.padX) / effectiveCols);
     const cellHeight = Math.max(36, cellWidth / ratio);
     return Math.max(1, Math.floor((availableHeight + state.padY) / (cellHeight + state.padY)));
-}
+}}
 
-function getPageSize() {
+function getPageSize() {{
     return getEffectiveCols() * estimateRows();
-}
+}}
 
-function syncStateFromInputs() {
+function syncStateFromInputs() {{
     state.folder = document.getElementById('dir-input').value.trim() || '.';
     state.sliceEnabled = document.getElementById('slice-enabled').checked;
     state.ratioText = document.getElementById('ratio-input').value.trim() || '4/1';
     state.bgColor = document.getElementById('bg-input').value.trim() || '#000000';
-}
+}}
 
-async function postJSON(url, payload) {
-    const response = await fetch(url, {
+async function postJSON(url, payload) {{
+    const response = await fetch(url, {{
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {{'Content-Type': 'application/json'}},
         body: JSON.stringify(payload),
-    });
+    }});
     const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.error || `请求失败: ${response.status}`);
-    }
+    if (!response.ok) {{
+        throw new Error(data.error || `请求失败: ${{response.status}}`);
+    }}
     return data;
-}
+}}
 
-async function openDirectory() {
+async function openDirectory() {{
     syncStateFromInputs();
-    setStatus(`正在读取目录: ${state.folder}`);
-    try {
-        const data = await postJSON('/api/list-dir', {path: state.folder});
+    setStatus(`正在读取目录: ${{state.folder}}`);
+    try {{
+        const data = await postJSON('/api/list-dir', {{path: state.folder}});
         state.folder = data.directory;
         state.images = data.images;
         state.selected.clear();
         state.pageStart = 0;
         document.getElementById('dir-input').value = data.directory;
         render();
-        if (state.images.length) {
-            setStatus(`已加载 ${state.images.length} 张图片`);
-        } else {
+        if (state.images.length) {{
+            setStatus(`已加载 ${{state.images.length}} 张图片`);
+        }} else {{
             setStatus('目录中没有找到图片');
-        }
-    } catch (error) {
+        }}
+    }} catch (error) {{
         setStatus(error.message, true);
-    }
-}
+    }}
+}}
 
-function render() {
+async function pickDirectory() {{
+    // pywebview 6.x: window.create_file_dialog 返回 tuple; 不存在时直接降级手输
+    if (typeof pywebview === 'undefined' || !pywebview.api || !pywebview.api.pick_directory) {{
+        setStatus('系统目录选择不可用, 请直接输入路径', true);
+        return;
+    }}
+    try {{
+        const path = await pywebview.api.pick_directory();
+        if (path) {{
+            document.getElementById('dir-input').value = path;
+            await openDirectory();
+        }}
+    }} catch (error) {{
+        setStatus('选择目录失败: ' + error.message, true);
+    }}
+}}
+
+function render() {{
     syncStateFromInputs();
     normalizeSliceIndices();
 
@@ -601,35 +654,35 @@ function render() {
     const rows = estimateRows();
     const pageSize = effectiveCols * rows;
     const total = state.images.length;
-    if (state.pageStart >= total && total > 0) {
+    if (state.pageStart >= total && total > 0) {{
         state.pageStart = Math.max(0, Math.floor((total - 1) / pageSize) * pageSize);
-    }
+    }}
     const pageImages = state.images.slice(state.pageStart, state.pageStart + pageSize);
     emptyEl.style.display = pageImages.length ? 'none' : 'flex';
     gridEl.innerHTML = '';
-    gridEl.style.gridTemplateColumns = `repeat(${effectiveCols}, minmax(0, 1fr))`;
-    gridEl.style.gap = `${state.padY}px ${state.padX}px`;
+    gridEl.style.gridTemplateColumns = `repeat(${{effectiveCols}}, minmax(0, 1fr))`;
+    gridEl.style.gap = `${{state.padY}}px ${{state.padX}}px`;
 
     const availableWidth = Math.max(320, gridWrapEl.clientWidth - 20);
     const cellWidth = Math.max(60, Math.floor((availableWidth - (effectiveCols - 1) * state.padX) / effectiveCols));
     const cellHeight = Math.max(36, Math.floor(cellWidth / ratio));
 
-    for (let index = 0; index < pageImages.length; index += 1) {
+    for (let index = 0; index < pageImages.length; index += 1) {{
         const image = pageImages[index];
         const tile = document.createElement('div');
         tile.className = 'tile';
-        if (state.selected.has(image.path)) {
+        if (state.selected.has(image.path)) {{
             tile.classList.add('selected');
-        }
+        }}
         tile.style.aspectRatio = String(ratio);
         tile.title = image.path;
 
         const badge = document.createElement('div');
         badge.className = 'badge';
-        badge.textContent = `#${state.pageStart + index + 1}`;
+        badge.textContent = `#${{state.pageStart + index + 1}}`;
 
         const img = document.createElement('img');
-        const params = new URLSearchParams({
+        const params = new URLSearchParams({{
             path: image.path,
             width: String(cellWidth),
             height: String(cellHeight),
@@ -637,8 +690,8 @@ function render() {
             slice_indices: state.sliceIndices,
             slice_parts: String(state.sliceParts),
             bg_color: state.bgColor,
-        });
-        img.src = `/api/thumb?${params.toString()}`;
+        }});
+        img.src = `/api/thumb?${{params.toString()}}`;
         img.loading = 'lazy';
         img.alt = image.name;
 
@@ -654,99 +707,100 @@ function render() {
         tile.appendChild(cross);
         tile.appendChild(name);
 
-        tile.addEventListener('click', () => {
-            if (state.selected.has(image.path)) {
+        tile.addEventListener('click', () => {{
+            if (state.selected.has(image.path)) {{
                 state.selected.delete(image.path);
-            } else {
+            }} else {{
                 state.selected.add(image.path);
-            }
+            }}
             tile.classList.toggle('selected');
             updateMeta(effectiveCols, rows);
-        });
+        }});
 
-        tile.addEventListener('dblclick', () => {
-            const url = `/api/image?path=${encodeURIComponent(image.path)}`;
+        tile.addEventListener('dblclick', () => {{
+            const url = `/api/image?path=${{encodeURIComponent(image.path)}}`;
             window.open(url, '_blank');
-        });
+        }});
 
         gridEl.appendChild(tile);
-    }
+    }}
 
     updateMeta(effectiveCols, rows);
-}
+}}
 
-function updateMeta(effectiveCols, rows) {
+function updateMeta(effectiveCols, rows) {{
     const total = state.images.length;
     const pageSize = Math.max(1, effectiveCols * rows);
     const start = total ? state.pageStart + 1 : 0;
     const end = Math.min(total, state.pageStart + pageSize);
-    const sliceText = state.sliceEnabled ? `切片 ${state.sliceIndices}/${state.sliceParts}` : '原图';
-    metaEl.textContent = `${start}-${end} / ${total} | 列 ${effectiveCols} | 行 ${rows} | ${sliceText} | 已选 ${state.selected.size}`;
-}
+    const sliceText = state.sliceEnabled ? `切片 ${{state.sliceIndices}}/${{state.sliceParts}}` : '原图';
+    metaEl.textContent = `${{start}}-${{end}} / ${{total}} | 列 ${{effectiveCols}} | 行 ${{rows}} | ${{sliceText}} | 已选 ${{state.selected.size}}`;
+}}
 
-function prevPage() {
+function prevPage() {{
     const step = getPageSize();
     state.pageStart = Math.max(0, state.pageStart - step);
     render();
-}
+}}
 
-function nextPage() {
+function nextPage() {{
     const step = getPageSize();
-    if (state.pageStart + step < state.images.length) {
+    if (state.pageStart + step < state.images.length) {{
         state.pageStart += step;
         render();
-    }
-}
+    }}
+}}
 
-function jumpToIndex() {
+function jumpToIndex() {{
     const value = Number(document.getElementById('jump-input').value);
-    if (!Number.isInteger(value) || value < 1 || value > state.images.length) {
-        setStatus(`请输入 1 到 ${state.images.length || 1} 之间的索引`, true);
+    if (!Number.isInteger(value) || value < 1 || value > state.images.length) {{
+        setStatus(`请输入 1 到 ${{state.images.length || 1}} 之间的索引`, true);
         return;
-    }
+    }}
     const pageSize = getPageSize();
     state.pageStart = Math.floor((value - 1) / pageSize) * pageSize;
     render();
-}
+}}
 
-function zoomIn() {
+function zoomIn() {{
     state.cols = Math.max(1, state.cols - 1);
     render();
-}
+}}
 
-function zoomOut() {
+function zoomOut() {{
     state.cols = Math.min(20, state.cols + 1);
     render();
-}
+}}
 
-async function deleteSelected() {
-    if (!state.selected.size) {
+async function deleteSelected() {{
+    if (!state.selected.size) {{
         setStatus('还没有选中任何图片', true);
         return;
-    }
+    }}
     const count = state.selected.size;
-    if (!window.confirm(`确定删除选中的 ${count} 张图片吗？此操作不可撤销。`)) {
+    if (!window.confirm(`确定删除选中的 ${{count}} 张图片吗？此操作不可撤销。`)) {{
         return;
-    }
-    try {
-        const result = await postJSON('/api/delete', {paths: [...state.selected]});
+    }}
+    try {{
+        const result = await postJSON('/api/delete', {{paths: [...state.selected]}});
         const deleted = new Set(result.deleted_paths);
         state.images = state.images.filter((item) => !deleted.has(item.path));
         state.selected.clear();
         const failedCount = result.failed.length;
         render();
-        if (failedCount) {
-            setStatus(`已删除 ${result.deleted_count} 张，失败 ${failedCount} 张`, true);
-        } else {
-            setStatus(`已删除 ${result.deleted_count} 张图片`);
-        }
-    } catch (error) {
+        if (failedCount) {{
+            setStatus(`已删除 ${{result.deleted_count}} 张，失败 ${{failedCount}} 张`, true);
+        }} else {{
+            setStatus(`已删除 ${{result.deleted_count}} 张图片`);
+        }}
+    }} catch (error) {{
         setStatus(error.message, true);
-    }
-}
+    }}
+}}
 
-function bindInputEvents() {
+function bindInputEvents() {{
     document.getElementById('open-btn').addEventListener('click', openDirectory);
+    document.getElementById('browse-btn').addEventListener('click', pickDirectory);
     document.getElementById('prev-btn').addEventListener('click', prevPage);
     document.getElementById('next-btn').addEventListener('click', nextPage);
     document.getElementById('jump-btn').addEventListener('click', jumpToIndex);
@@ -754,47 +808,47 @@ function bindInputEvents() {
     document.getElementById('zoom-out-btn').addEventListener('click', zoomOut);
     document.getElementById('delete-btn').addEventListener('click', deleteSelected);
 
-    document.getElementById('dir-input').addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
+    document.getElementById('dir-input').addEventListener('keydown', (event) => {{
+        if (event.key === 'Enter') {{
             openDirectory();
-        }
-    });
-    document.getElementById('jump-input').addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
+        }}
+    }});
+    document.getElementById('jump-input').addEventListener('keydown', (event) => {{
+        if (event.key === 'Enter') {{
             jumpToIndex();
-        }
-    });
+        }}
+    }});
 
-    ['slice-enabled', 'slice-input', 'parts-input', 'ratio-input', 'bg-input'].forEach((id) => {
+    ['slice-enabled', 'slice-input', 'parts-input', 'ratio-input', 'bg-input'].forEach((id) => {{
         document.getElementById(id).addEventListener('change', render);
-    });
+    }});
 
-    window.addEventListener('keydown', (event) => {
+    window.addEventListener('keydown', (event) => {{
         const activeTag = document.activeElement ? document.activeElement.tagName : '';
-        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {{
             return;
-        }
-        if (event.key === 'ArrowLeft') {
+        }}
+        if (event.key === 'ArrowLeft') {{
             prevPage();
-        } else if (event.key === 'ArrowRight') {
+        }} else if (event.key === 'ArrowRight') {{
             nextPage();
-        } else if (event.key === 'ArrowUp') {
+        }} else if (event.key === 'ArrowUp') {{
             zoomIn();
-        } else if (event.key === 'ArrowDown') {
+        }} else if (event.key === 'ArrowDown') {{
             zoomOut();
-        } else if (event.key === 'Delete') {
+        }} else if (event.key === 'Delete') {{
             deleteSelected();
-        }
-    });
+        }}
+    }});
 
     let resizeTimer = null;
-    window.addEventListener('resize', () => {
+    window.addEventListener('resize', () => {{
         window.clearTimeout(resizeTimer);
         resizeTimer = window.setTimeout(() => render(), 80);
-    });
-}
+    }});
+}}
 
-async function init() {
+async function init() {{
     bindInputEvents();
     const config = await fetch('/api/config').then((response) => response.json());
     document.getElementById('dir-input').value = config.default_dir;
@@ -806,7 +860,7 @@ async function init() {
     state.folder = config.default_dir;
     state.cols = config.default_cols;
     await openDirectory();
-}
+}}
 
 init();
 </script>
@@ -815,27 +869,71 @@ init();
 """
 
 
+# ============================================================
+# pywebview API class
+# ============================================================
+
+
+class API:
+    """暴露给前端的 pywebview API（系统级操作）"""
+
+    def __init__(self) -> None:
+        self._window: webview.Window | None = None
+
+    def bind_window(self, window: webview.Window) -> None:
+        self._window = window
+
+    def pick_directory(self) -> str | None:
+        """系统目录选择对话框, 走 pywebview.create_file_dialog(FOLDER_DIALOG).
+        pywebview 6.x 返回 tuple[str, ...], 取第一个; 用户取消时为空 tuple.
+        """
+        if self._window is None:
+            return None
+        result = self._window.create_file_dialog(webview.FOLDER_DIALOG)
+        if not result:
+            return None
+        return result[0] if isinstance(result, (tuple, list)) else str(result)
+
+    def close_window(self) -> None:
+        if self._window is not None:
+            self._window.destroy()
+
+
+# ============================================================
+# 入口
+# ============================================================
+
+
 def main() -> None:
-    host = os.environ.get("XDL_WEB_HOST", "127.0.0.1")
-    port = env_int("XDL_BATCH_VIEWER_PORT", 8011)
-    no_browser = os.environ.get("XDL_NO_BROWSER", "").strip() == "1"
-    url = f"http://{host}:{port}"
+    url = f"http://{HOST}:{PORT}"
 
-    def open_browser() -> None:
-        import time
+    # 1) 启动 FastAPI（后台线程）
+    config = uvicorn.Config(app, host=HOST, port=PORT, log_level="warning")
+    server = uvicorn.Server(config)
 
-        time.sleep(1.2)
-        webbrowser.open(url)
+    def _run_server() -> None:
+        server.run()
 
-    if not no_browser:
-        threading.Thread(target=open_browser, daemon=True).start()
+    threading.Thread(target=_run_server, daemon=True).start()
 
-    print(f"批量图片查看器启动: {url}")
-    print("按 Ctrl+C 停止")
+    # 2) 等服务器起来
+    time.sleep(1.0)
 
-    import uvicorn
-
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    # 3) 打开 pywebview 窗口
+    print(f"{TITLE} 启动: {url}")
+    print("按 Ctrl+C 或关闭窗口停止")
+    api = API()
+    window = webview.create_window(
+        title=TITLE,
+        url=url,
+        width=1400,
+        height=900,
+        min_size=(960, 600),
+        js_api=api,
+        text_select=True,
+    )
+    api.bind_window(window)
+    webview.start()
 
 
 if __name__ == "__main__":

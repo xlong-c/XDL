@@ -2,7 +2,7 @@
 """项目依赖静态扫描与配置校验工具。
 
 本脚本会扫描仓库中的 Python import，引导你检查依赖声明是否正确。
-直接在 main() 中修改配置后执行即可，不使用 argparse。
+直接在 main() 中修改配置后执行即可，不使用命令行参数解析库。
 
 1. scan-imports-and-check-config
    作用:

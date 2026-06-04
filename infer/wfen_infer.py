@@ -12,9 +12,10 @@ import time
 from dataclasses import dataclass
 
 import torch
-import tyro
 from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor, to_pil_image
+
+from xdl.config.cli import parse_dataclass_cli
 
 from xdl.model.lowlevel.wfen_arch import WFEN
 from xdl.utils.tiling import tile_inference
@@ -54,7 +55,7 @@ def load_model(config: Config) -> WFEN:
 
 
 def main():
-    config = tyro.cli(Config)
+    config = parse_dataclass_cli(Config)
 
     model = load_model(config)
 

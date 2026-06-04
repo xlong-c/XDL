@@ -1,7 +1,6 @@
 import torch
 import os
 import time
-import argparse
 from diffusers import StableDiffusion3Pipeline, SD3Transformer2DModel
 from transformers import T5EncoderModel
 from torchao.quantization import quantize_, int8_weight_only, int4_weight_only
@@ -23,6 +22,9 @@ if hasattr(inductor_config, "fx_graph_cache"):
 DEFAULT_MODEL_ID = "stabilityai/stable-diffusion-3.5-medium"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SAVE_DIR = "others/checkpoints/sd35_quantized"
+QUANTIZATION_TYPE = "int8_wo"
+RUN_INFERENCE_TEST = False
+RUN_BENCHMARK = False
 
 def get_quant_strategy(q_type):
     if q_type == "int8_wo":
@@ -191,12 +193,9 @@ def run_quantization(model_id, q_type, do_inference, do_benchmark=False):
     print(f"Save complete. Files located in {SAVE_DIR}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SD3.5 Medium Quantization Script")
-    parser.add_argument("--model_id", type=str, default=DEFAULT_MODEL_ID, help="HuggingFace model ID")
-    parser.add_argument("--type", type=str, default="int8_wo", choices=["int8_wo", "int4_wo", "fp8"], help="Quantization type")
-    parser.add_argument("--infer", action="store_true", help="Run inference test after quantization")
-    parser.add_argument("--benchmark", action="store_true", help="Run speed benchmark comparison")
-    
-    args = parser.parse_args()
-    
-    run_quantization(args.model_id, args.type, args.infer, args.benchmark)
+    run_quantization(
+        DEFAULT_MODEL_ID,
+        QUANTIZATION_TYPE,
+        RUN_INFERENCE_TEST,
+        RUN_BENCHMARK,
+    )

@@ -9,7 +9,8 @@ PyTorch 深度学习框架，组件注册系统 + 回调生命周期。Python 3.
 - 多文件重构或架构级变更时，先进入规划模式（EnterPlanMode）制定方案
 - 不确定文件位置或调用关系时，优先搜索而非猜测
 - 涉及第三方库用法、API 变更、最佳实践等外部知识时，先用 WebSearch 查最新文档
-- **脚本参数**：Python 脚本不要使用命令行参数解析库（如 `argparse`/`args`），优先使用 YAML 配置或代码内显式配置
+- **脚本参数**：Python 脚本不要使用命令行参数解析库，优先使用 YAML 配置或代码内显式配置
+- **配置规范**：新增或重构 YAML/层级配置解析时，优先使用 `OmegaConf` 统一处理加载、合并、插值、resolver 和 `DictConfig`/`ListConfig` 到普通容器的转换；不要在训练入口或工具脚本里散落 `yaml.safe_load` + 手写合并逻辑，除非只是兼容旧路径或读写极小的固定结构文件
 
 ## 架构
 
@@ -77,7 +78,7 @@ xdl/
 - 自定义保存优先用 Callback。XDL 的通用 `ModelCheckpoint` 会保存 `CoreModel` 的 state_dict/optimizer 状态；diffusers/PEFT LoRA 这类权重通常要写专门的 callback 调 `save_pretrained()` 或 `StableDiffusion3Pipeline.save_lora_weights()`。
 - `inference_data` 会走验证/推理周期并调用 `CoreModel.inference(data)`，适合生成式模型的采样预览；没有 val loader 时也可以只传 prompts 做周期性采样。
 - 对外部 `third_party/` 代码不要只信 README 路径，先用 `grep`/`find` 查真实文件；如果第三方目录不是 Python package，可在脚本里用受控的 `sys.path.insert()` 或 `importlib.util.spec_from_file_location()` 加载。
-- 训练脚本参数继续遵守本仓库约束：不要引入 `argparse`，优先 YAML 配置；需要切换配置时可用环境变量指向 YAML。
+- 训练脚本参数继续遵守本仓库约束：不要引入命令行参数解析库，优先 YAML 配置；复杂配置加载、合并和插值优先走 `OmegaConf` 或 `xdl.config` 主链路，需要切换配置时可用环境变量指向 YAML。
 
 ## 命令
 

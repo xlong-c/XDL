@@ -14,7 +14,7 @@
 
 - 编写新训练入口前，先看根目录 `train_VAE.py`、`train_TwinFlow.py` 和 `xdl/trainer/`
 - 遵守 XDL 手动优化与 `CoreModel.setup()` 生命周期约束
-- 参数管理优先 YAML 或代码内显式配置，不引入 `argparse`
+- 参数管理优先 YAML 或代码内显式配置，不引入命令行参数解析库；复杂 YAML 加载、合并、插值优先使用 `OmegaConf` 或 `xdl.config` 主链路
 - 复杂保存、采样、可视化逻辑优先通过 callback 集成
 
 ## 验证建议

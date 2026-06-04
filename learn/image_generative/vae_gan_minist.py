@@ -31,6 +31,7 @@ NOISE_DIM = LATENT_DIM  # GAN噪声维度
 # 动画参数
 ANIMATION_INTERVAL = 300  # 帧间隔（ms）
 FIG_SIZE = (12, 6)        # 画布大小
+MODEL_TO_RUN = "vae"      # 可选: "vae" / "gan" / "both"
 
 # ====================== 2. 加载MNIST数据集 ======================
 # 数据预处理：转为张量 + 归一化到[0,1]（适配sigmoid输出）
@@ -365,24 +366,19 @@ def create_mnist_animation(vae_samples=None, gan_samples=None):
 
 # ====================== 7. 主程序入口 ======================
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description='VAE vs GAN on MNIST')
-    parser.add_argument('--model', type=str, default='vae',
-                        choices=['vae', 'gan', 'both'],
-                        help='选择训练的模型：vae（仅VAE）, gan（仅GAN）, both（两者都训练）')
-    args = parser.parse_args()
+    if MODEL_TO_RUN not in {"vae", "gan", "both"}:
+        raise ValueError("MODEL_TO_RUN 必须是 'vae'、'gan' 或 'both'")
 
     vae_samples = None
     gan_samples = None
-    
-    if args.model in ['vae', 'both']:
+
+    if MODEL_TO_RUN in ['vae', 'both']:
         print("=" * 60)
         print("开始训练VAE...")
         print("=" * 60)
         vae_samples = train_vae_only()
 
-    if args.model in ['gan', 'both']:
+    if MODEL_TO_RUN in ['gan', 'both']:
         print("\n" + "=" * 60)
         print("开始训练GAN...")
         print("=" * 60)
