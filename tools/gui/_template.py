@@ -66,7 +66,7 @@ async def index() -> str:
 
 # ── 业务 API ──
 @app.get("/api/run")
-async def run(name: str = "world") -> dict[str, str]:
+async def run(name: str = "world") -> dict[str, Any]:
     """同步业务调用: 前端 fetch, 后端直接返回结果。"""
     return {"ok": True, "result": do_thing(name)}
 
@@ -229,7 +229,7 @@ class API:
         """弹原生文件选择对话框, 返回选中路径或 None。"""
         assert self._window is not None
         result = self._window.create_file_dialog(
-            webview.OPEN_DIALOG,
+            webview.OPEN_DIALOG,  # pyright: ignore[reportArgumentType]  # pywebview stub 标注为 Proxy
             file_types=("图片 (*.png;*.jpg;*.jpeg)", "全部 (*.*)"),
         )
         return result[0] if result else None
@@ -278,6 +278,7 @@ def main() -> None:
         width=CONFIG["width"],
         height=CONFIG["height"],
     )
+    assert window is not None  # create_window 可能返回 None（stub 标注）
     api.bind_window(window)
     webview.start()
 

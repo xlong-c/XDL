@@ -39,7 +39,7 @@ import uvicorn
 import webview
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from PIL import Image, ImageDraw
+from PIL import Image
 
 # ════════════════════════════════════════════════════════════════
 #  1. CONFIG（不引入命令行参数解析库）
@@ -198,7 +198,7 @@ class State:
         }
 
     @staticmethod
-    def _img_info(img: Image.Image | None, path: str | None = None) -> dict | None:
+    def _img_info(img: Image.Image | None, path: str | None = None) -> dict[str, Any] | None:
         if img is None:
             return None
         return {"w": img.size[0], "h": img.size[1], "path": path}
@@ -787,6 +787,7 @@ def main() -> None:
         width=CONFIG["width"],
         height=CONFIG["height"],
     )
+    assert window is not None  # stub 标注可能为 None
     api.bind_window(window)
     webview.start()
 

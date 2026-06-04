@@ -48,7 +48,7 @@ PORT = int(os.environ.get("XDL_BATCH_VIEWER_PORT", "8768") or "8768")
 TITLE = "批量图片查看器"
 
 VALID_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
-RESAMPLE = getattr(Image, "Resampling", Image).LANCZOS
+RESAMPLE = Image.LANCZOS  # pyright: ignore[reportAttributeAccessIssue]  # Pillow stub 移除了旧名
 
 
 # ============================================================
@@ -115,7 +115,7 @@ def normalize_hex_color(color: str) -> str:
 
 def parse_hex_color(color: str) -> tuple[int, int, int]:
     value = normalize_hex_color(color)
-    return tuple(int(value[i : i + 2], 16) for i in (1, 3, 5))
+    return (int(value[1:3], 16), int(value[3:5], 16), int(value[5:7], 16))
 
 
 def compose_preview(
@@ -889,7 +889,7 @@ class API:
         """
         if self._window is None:
             return None
-        result = self._window.create_file_dialog(webview.FOLDER_DIALOG)
+        result = self._window.create_file_dialog(webview.FOLDER_DIALOG)  # pyright: ignore[reportArgumentType]
         if not result:
             return None
         return result[0] if isinstance(result, (tuple, list)) else str(result)
@@ -932,6 +932,7 @@ def main() -> None:
         js_api=api,
         text_select=True,
     )
+    assert window is not None  # stub 标注可能为 None
     api.bind_window(window)
     webview.start()
 

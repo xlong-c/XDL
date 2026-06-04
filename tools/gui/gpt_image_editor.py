@@ -577,13 +577,13 @@ def _run_generate(task_id: str, params: dict[str, Any]) -> None:
 
         # 拼预览
         if is_edit:
-            stitch_parts = [
+            stitch_parts: list[bytes | None] = [
                 imgs[0]["png_bytes"],
                 imgs[1]["png_bytes"] if len(imgs) > 1 else None,
                 result_bytes,
             ]
         else:
-            stitch_parts = [result_bytes]
+            stitch_parts: list[bytes | None] = [result_bytes]
         stitched = stitch_preview(stitch_parts, params["size"])
 
         bundle = {
@@ -1290,6 +1290,7 @@ def main() -> None:
         width=CONFIG["width"],
         height=CONFIG["height"],
     )
+    assert window is not None  # stub 标注可能为 None
     api.bind_window(window)
     webview.start()
 
