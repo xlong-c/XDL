@@ -1,0 +1,14 @@
+[
+{
+  "directory": "/root/workspace/xdl/build-linux-clang",
+  "command": "/usr/local/cuda/bin/nvcc -forward-unknown-to-host-compiler -I/root/workspace/xdl -I/root/workspace/xdl/third_party/cutlass/include -I/usr/local/cuda/targets/x86_64-linux/include -std=c++20 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\" -Xcompiler=-fPIC -O3 -arch=sm_90a --expt-relaxed-constexpr -x cu -c /root/workspace/xdl/learn/cuda/kernels/hgemm/hgemm_mma_stage_tn_cute.cu -o CMakeFiles/xdl_hgemm_mma_stage_tn_cute.dir/learn/cuda/kernels/hgemm/hgemm_mma_stage_tn_cute.cu.o",
+  "file": "/root/workspace/xdl/learn/cuda/kernels/hgemm/hgemm_mma_stage_tn_cute.cu",
+  "output": "CMakeFiles/xdl_hgemm_mma_stage_tn_cute.dir/learn/cuda/kernels/hgemm/hgemm_mma_stage_tn_cute.cu.o"
+},
+{
+  "directory": "/root/workspace/xdl/build-linux-clang",
+  "command": "/usr/local/cuda/bin/nvcc -forward-unknown-to-host-compiler -I/root/workspace/xdl -I/root/workspace/xdl/third_party/cutlass/include -I/usr/local/cuda/targets/x86_64-linux/include -std=c++20 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\" -Xcompiler=-fPIC -O3 -arch=sm_90a --expt-relaxed-constexpr -x cu -c /root/workspace/xdl/learn/cuda/kernels/hgemm/hgemm_wgmma_stages.cu -o CMakeFiles/xdl_hgemm_wgmma_stages.dir/learn/cuda/kernels/hgemm/hgemm_wgmma_stages.cu.o",
+  "file": "/root/workspace/xdl/learn/cuda/kernels/hgemm/hgemm_wgmma_stages.cu",
+  "output": "CMakeFiles/xdl_hgemm_wgmma_stages.dir/learn/cuda/kernels/hgemm/hgemm_wgmma_stages.cu.o"
+}
+]
