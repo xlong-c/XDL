@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Hugging Face 缓存管理工具 — pywebview + FastAPI 单文件版。
+"""Hugging Face 缓存管理工具 - pywebview + FastAPI 单文件版.
 
 用法:
     python tools/gui/hf_manager.py
 
 环境变量:
-    XDL_HF_MANAGER_PORT=8767   端口（默认 8767）
-    HF_HUB_CACHE / HF_HOME     缓存根目录（标准 HF 环境变量）
+    XDL_HF_MANAGER_PORT=8767   端口(默认 8767)
+    HF_HUB_CACHE / HF_HOME     缓存根目录(标准 HF 环境变量)
     HF_TOKEN                   Token 显示时会自动遮蔽中间
 
 行为说明:
-    - 监听 127.0.0.1（不绑 0.0.0.0，避免无意暴露在容器/SSH 转发里）
-    - 业务函数全部独立、可单测：collect_summary / build_env_instructions / scan_cache_manual
-    - 删除操作走后台 task，前端 setInterval 轮询进度
-    - 剪贴板走浏览器原生 navigator.clipboard.writeText，pywebview 内置 webkit2gtk / WebView2 都支持
+    - 监听 127.0.0.1(不绑 0.0.0.0,避免无意暴露在容器/SSH 转发里)
+    - 业务函数全部独立,可单测:collect_summary / build_env_instructions / scan_cache_manual
+    - 删除操作走后台 task,前端 setInterval 轮询进度
+    - 剪贴板走浏览器原生 navigator.clipboard.writeText,pywebview 内置 webkit2gtk / WebView2 都支持
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ REPO_TYPE_LABELS = {
 
 
 # ============================================================
-# 业务函数（纯 Python，可单测）
+# 业务函数(纯 Python,可单测)
 # ============================================================
 
 
@@ -101,12 +101,12 @@ def format_size(size_bytes: float) -> str:
 
 def format_time(timestamp: float) -> str:
     if timestamp <= 0:
-        return "—"
+        return "-"
     return time.strftime("%Y-%m-%d %H:%M", time.localtime(timestamp))
 
 
 def get_dir_size(path: Path, follow_symlinks: bool = True) -> int:
-    """递归计算目录大小。follow_symlinks=False 时跳过符号链接（得到真实磁盘占用）。"""
+    """递归计算目录大小.follow_symlinks=False 时跳过符号链接(得到真实磁盘占用)."""
     total = 0
     try:
         for dirpath, _, filenames in os.walk(path):
@@ -142,7 +142,7 @@ def get_dir_mtime(path: Path) -> float:
 
 
 def get_hf_cache_dir() -> Path:
-    """返回默认缓存目录（向后兼容，单目录场景仍用此函数）。"""
+    """返回默认缓存目录(向后兼容,单目录场景仍用此函数)."""
     for key in ("HF_HUB_CACHE", "HF_HOME"):
         value = os.environ.get(key)
         if value:
@@ -151,10 +151,10 @@ def get_hf_cache_dir() -> Path:
 
 
 def get_hf_cache_dirs() -> list[Path]:
-    """返回所有要扫描的缓存目录。
+    """返回所有要扫描的缓存目录.
 
-    读取 XDL_HF_CACHE_DIRS 环境变量（逗号分隔绝对路径），
-    未设置时退回默认单目录。
+    读取 XDL_HF_CACHE_DIRS 环境变量(逗号分隔绝对路径),
+    未设置时退回默认单目录.
     """
     dirs_env = os.environ.get("XDL_HF_CACHE_DIRS", "").strip()
     if dirs_env:
@@ -230,19 +230,19 @@ def scan_cache_manual(cache_dir: Path) -> list[dict[str, Any]]:
 
 
 def scan_cache_file_types(cache_dir: Path) -> dict[str, int]:
-    """统计缓存目录中各文件后缀的总大小。
+    """统计缓存目录中各文件后缀的总大小.
 
-    跳过 blobs/ 子目录 — 其中是 SHA256 哈希命名的无扩展名原始数据，
-    与 snapshots/ 下的有扩展名文件通过硬链接共享同一物理存储，
-    纳入统计会导致两倍虚高。用户应看 snapshots/ 层的文件类型分布。
+    跳过 blobs/ 子目录 - 其中是 SHA256 哈希命名的无扩展名原始数据,
+    与 snapshots/ 下的有扩展名文件通过硬链接共享同一物理存储,
+    纳入统计会导致两倍虚高.用户应看 snapshots/ 层的文件类型分布.
     """
     extensions: dict[str, int] = defaultdict(int)
     try:
         for dirpath, _, filenames in os.walk(cache_dir):
-            # 跳过 blob 存储目录（内部 SHA256 哈希文件，无扩展名）
+            # 跳过 blob 存储目录(内部 SHA256 哈希文件,无扩展名)
             parts = dirpath.split(os.sep)
             if "blobs" in parts:
-                # 但仍单独统计 .incomplete 未完成下载（浪费的空间）
+                # 但仍单独统计 .incomplete 未完成下载(浪费的空间)
                 for filename in filenames:
                     if filename.endswith(".incomplete"):
                         try:
@@ -264,18 +264,18 @@ def scan_cache_file_types(cache_dir: Path) -> dict[str, int]:
 
 
 def get_repo_list(cache_dir: Path) -> list[dict[str, Any]]:
-    """扫描缓存目录中的仓库列表。
+    """扫描缓存目录中的仓库列表.
 
-    优先使用 huggingface_hub.scan_cache_dir，失败时回退到手动扫描。
-    注意：部分版本的 scan_cache_dir 接受缓存根目录，部分版本只接受 hub/ 子目录；
-    这里统一尝试二者，避免因版本差异静默返回 0。
+    优先使用 huggingface_hub.scan_cache_dir,失败时回退到手动扫描.
+    注意:部分版本的 scan_cache_dir 接受缓存根目录,部分版本只接受 hub/ 子目录;
+    这里统一尝试二者,避免因版本差异静默返回 0.
     """
     if not cache_dir.exists():
         return []
     try:
         from huggingface_hub import scan_cache_dir as hf_scan
 
-        # 兼容不同版本的 API：优先传 hub/ 子目录（新版本行为），
+        # 兼容不同版本的 API:优先传 hub/ 子目录(新版本行为),
         # 如果不存在则传缓存根目录
         hub_dir = cache_dir / "hub"
         for candidate in (hub_dir, cache_dir):
@@ -300,7 +300,7 @@ def get_repo_list(cache_dir: Path) -> list[dict[str, Any]]:
             except Exception:
                 continue
 
-        # 如果 hf_scan 没找到仓库，回退手动扫描
+        # 如果 hf_scan 没找到仓库,回退手动扫描
         return scan_cache_manual(cache_dir)
     except Exception:
         return scan_cache_manual(cache_dir)
@@ -336,15 +336,15 @@ def collect_summary() -> dict[str, Any]:
 
     for cache_dir in cache_dirs:
         repos = get_repo_list(cache_dir)
-        # 标记来源目录，前端展示用
+        # 标记来源目录,前端展示用
         for r in repos:
             r["cache_root"] = str(cache_dir)
         all_repos.extend(repos)
 
-        # 仓库数据大小（来自 scan_cache_dir，去重后的实际模型数据）
+        # 仓库数据大小(来自 scan_cache_dir,去重后的实际模型数据)
         dir_repo_size = sum(r["size"] for r in repos)
 
-        # hub/ 目录物理占用（不跟随符号链接，真实磁盘占用）
+        # hub/ 目录物理占用(不跟随符号链接,真实磁盘占用)
         hub_path = cache_dir / "hub"
         raw_hub_size = get_dir_size(hub_path, follow_symlinks=False) if hub_path.exists() else 0
 
@@ -411,7 +411,7 @@ def collect_summary() -> dict[str, Any]:
             "modified_text": format_time(repo["last_modified"]),
         }
 
-    # 按类型统计（跨所有目录合并）
+    # 按类型统计(跨所有目录合并)
     type_counts: dict[str, dict[str, Any]] = {}
     for repo in all_repos:
         tp = repo["type"]
@@ -447,7 +447,7 @@ def collect_summary() -> dict[str, Any]:
 
 
 def delete_repo(path_str: str) -> dict[str, Any]:
-    """删除一个仓库缓存目录。破坏性操作，调用方必须二次确认。"""
+    """删除一个仓库缓存目录.破坏性操作,调用方必须二次确认."""
     p = Path(path_str)
     if not p.exists():
         return {"ok": False, "error": f"路径不存在: {path_str}"}
@@ -461,7 +461,7 @@ def delete_repo(path_str: str) -> dict[str, Any]:
 
 
 def find_incomplete_files() -> dict[str, Any]:
-    """扫描所有缓存目录，列出所有 .incomplete 残留文件。"""
+    """扫描所有缓存目录,列出所有 .incomplete 残留文件."""
     cache_dirs = get_hf_cache_dirs()
     files: list[dict[str, Any]] = []
     total_size = 0
@@ -496,7 +496,7 @@ def find_incomplete_files() -> dict[str, Any]:
 
 
 def clean_incomplete_files() -> dict[str, Any]:
-    """删除所有缓存目录中的 .incomplete 残留文件。"""
+    """删除所有缓存目录中的 .incomplete 残留文件."""
     cache_dirs = get_hf_cache_dirs()
     deleted = 0
     freed_size = 0
@@ -526,7 +526,7 @@ def clean_incomplete_files() -> dict[str, Any]:
 
 
 def download_model(repo_id: str) -> dict[str, Any]:
-    """从 Hugging Face 下载模型到默认缓存目录。"""
+    """从 Hugging Face 下载模型到默认缓存目录."""
     from huggingface_hub import snapshot_download
 
     cache_dirs = get_hf_cache_dirs()
@@ -551,7 +551,7 @@ def download_model(repo_id: str) -> dict[str, Any]:
 
 
 # ============================================================
-# 长任务管理（参考 gpt_image_editor.py 的 TASKS 模式）
+# 长任务管理(参考 gpt_image_editor.py 的 TASKS 模式)
 # ============================================================
 
 TASKS: dict[str, dict[str, Any]] = {}
@@ -570,7 +570,7 @@ def start_task(target, *args, **kwargs) -> str:
     def _runner() -> None:
         try:
             TASKS[task_id]["progress"] = 0.3
-            TASKS[task_id]["message"] = "执行中…"
+            TASKS[task_id]["message"] = "执行中..."
             result = target(*args, **kwargs)
             TASKS[task_id]["status"] = "done"
             TASKS[task_id]["progress"] = 1.0
@@ -650,13 +650,13 @@ async def api_download(payload: dict[str, Any]) -> dict[str, Any]:
     if not repo_id:
         return {"ok": False, "error": "缺少 repo_id 字段"}
     if "/" not in repo_id:
-        return {"ok": False, "error": "仓库格式无效，应为 org/repo_name"}
+        return {"ok": False, "error": "仓库格式无效,应为 org/repo_name"}
     task_id = start_task(download_model, repo_id)
     return {"ok": True, "task_id": task_id}
 
 
 # ============================================================
-# HTML（f-string 内嵌）
+# HTML(f-string 内嵌)
 # ============================================================
 
 HTML = f"""<!doctype html>
@@ -807,7 +807,7 @@ HTML = f"""<!doctype html>
 
 <header>
   <div class="title">☁ Hugging Face Manager</div>
-  <input id="search" class="search" type="text" placeholder="搜索模型或数据集…">
+  <input id="search" class="search" type="text" placeholder="搜索模型或数据集...">
   <button id="btn-refresh">刷新</button>
   <button id="btn-env">环境配置</button>
   <button id="btn-copy-env" class="flat">复制环境变量</button>
@@ -817,7 +817,7 @@ HTML = f"""<!doctype html>
   <div class="spacer"></div>
   <button id="btn-clean-incomplete" class="flat" style="color: var(--warning);">清理未完成</button>
   <button id="btn-download" class="primary">下载模型</button>
-  <div id="progress" class="progress"><span class="dot"></span><span id="progress-msg">扫描中…</span></div>
+  <div id="progress" class="progress"><span class="dot"></span><span id="progress-msg">扫描中...</span></div>
 </header>
 
 <main>
@@ -835,13 +835,13 @@ HTML = f"""<!doctype html>
       <div id="file-types"></div>
     </div>
     <div class="card">
-      <h3>已缓存仓库 <span style="color: var(--text-dim); font-weight: 400; font-size: 11px;">— 单击选中，表格联动</span></h3>
+      <h3>已缓存仓库 <span style="color: var(--text-dim); font-weight: 400; font-size: 11px;">- 单击选中,表格联动</span></h3>
       <div class="repo-list" id="repo-list"></div>
     </div>
   </div>
   <div class="col-right">
     <div class="card" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-      <h3>缓存列表 <span style="color: var(--text-dim); font-weight: 400; font-size: 11px;">— 单击选中，双击查看详情，点击表头排序</span></h3>
+      <h3>缓存列表 <span style="color: var(--text-dim); font-weight: 400; font-size: 11px;">- 单击选中,双击查看详情,点击表头排序</span></h3>
       <div class="filter-bar" id="filter-bar">
         <span class="filter-chip active" data-type="">全部 <span class="count" id="filter-count-all">0</span></span>
         <span class="filter-chip" data-type="model">模型 <span class="count" id="filter-count-model">0</span></span>
@@ -939,7 +939,7 @@ HTML = f"""<!doctype html>
       <input id="download-repo-id" type="text" placeholder="例如: openbmb/MiniCPM5-1B">
     </div>
     <div id="download-hint" style="font-size: 11px; color: var(--text-dim); margin-bottom: 8px;">
-      模型将下载到默认缓存目录，使用镜像请在环境变量中设置 HF_ENDPOINT。
+      模型将下载到默认缓存目录,使用镜像请在环境变量中设置 HF_ENDPOINT.
     </div>
     <div class="actions">
       <button onclick="closeModal('modal-download')">取消</button>
@@ -953,7 +953,7 @@ HTML = f"""<!doctype html>
   <div class="modal" style="min-width: 440px;">
     <h2 style="color: var(--warning);">清理未完成下载</h2>
     <div id="clean-incomplete-body">
-      <div class="empty">正在扫描…</div>
+      <div class="empty">正在扫描...</div>
     </div>
     <div class="actions">
       <button onclick="closeModal('modal-clean-incomplete')">取消</button>
@@ -1029,7 +1029,7 @@ function fmtSize(bytes) {{
 }}
 
 function fmtTime(ts) {{
-  if (!ts) return "—";
+  if (!ts) return "-";
   const d = new Date(ts * 1000);
   const pad = (n) => String(n).padStart(2, "0");
   return `${{d.getFullYear()}}-${{pad(d.getMonth()+1)}}-${{pad(d.getDate())}} ${{pad(d.getHours())}}:${{pad(d.getMinutes())}}`;
@@ -1040,7 +1040,7 @@ async function copyToClipboard(text) {{
     await navigator.clipboard.writeText(text);
     return true;
   }} catch (e) {{
-    // 兜底：选中文本让用户 Ctrl+C
+    // 兜底:选中文本让用户 Ctrl+C
     const ta = document.createElement("textarea");
     ta.value = text;
     document.body.appendChild(ta);
@@ -1092,7 +1092,7 @@ function renderOverview() {{
         </div>`;
       }}
     }}
-    html += '<div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">snapshots/ 为符号链接，不占额外磁盘空间</div>';
+    html += '<div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">snapshots/ 为符号链接,不占额外磁盘空间</div>';
     html += '</div>';
   }}
   el.innerHTML = html;
@@ -1256,7 +1256,7 @@ function escAttr(s) {{
 }}
 
 function shortPath(p) {{
-  // 提取路径最后两段，便于紧凑展示
+  // 提取路径最后两段,便于紧凑展示
   if (!p) return "";
   const parts = p.replace(/[\\\\/]+$/, '').split(/[\\\\/]/);
   if (parts.length <= 2) return p;
@@ -1264,8 +1264,8 @@ function shortPath(p) {{
 }}
 
 async function refresh() {{
-  setStatus("正在扫描缓存…");
-  setProgress(true, "扫描中…");
+  setStatus("正在扫描缓存...");
+  setProgress(true, "扫描中...");
   $("btn-refresh").disabled = true;
   try {{
     const resp = await fetch("/api/summary");
@@ -1277,9 +1277,9 @@ async function refresh() {{
       state.selectedPath = null;
     }}
     renderAll();
-    const note = data.cache_exists ? "" : "（缓存目录不存在）";
-    setStatus(`扫描完成，共 ${{data.repo_count}} 个缓存项，总大小 ${{data.repo_total_size_text}}${{note}}`);
-    if (data.repo_count) showToast(`扫描完成，共 ${{data.repo_count}} 个缓存项`, "success");
+    const note = data.cache_exists ? "" : "(缓存目录不存在)";
+    setStatus(`扫描完成,共 ${{data.repo_count}} 个缓存项,总大小 ${{data.repo_total_size_text}}${{note}}`);
+    if (data.repo_count) showToast(`扫描完成,共 ${{data.repo_count}} 个缓存项`, "success");
   }} catch (e) {{
     setStatus("扫描失败: " + e.message);
     showToast("扫描失败: " + e.message, "error");
@@ -1327,7 +1327,7 @@ function confirmDelete() {{
   if (!repo) {{ showToast("找不到选中的缓存项", "warning"); return; }}
   state.pendingDelete = repo;
   $("delete-body").innerHTML = `
-    <p style="color: var(--warning);">确定要删除以下缓存吗？此操作不可撤销。</p>
+    <p style="color: var(--warning);">确定要删除以下缓存吗?此操作不可撤销.</p>
     <div class="kv"><span class="k">名称</span><span class="v">${{escHtml(repo.name)}}</span></div>
     <div class="kv"><span class="k">大小</span><span class="v">${{escHtml(repo.size_text)}}</span></div>
     <div class="kv"><span class="k">路径</span><span class="v path" style="word-break: break-all; white-space: normal;">${{escHtml(repo.path)}}</span></div>
@@ -1339,8 +1339,8 @@ async function doDelete() {{
   if (!state.pendingDelete) return;
   const path = state.pendingDelete.path;
   closeModal("modal-delete");
-  setStatus(`正在删除 ${{path}}…`);
-  setProgress(true, "删除中…");
+  setStatus(`正在删除 ${{path}}...`);
+  setProgress(true, "删除中...");
   try {{
     const resp = await fetch("/api/delete", {{
       method: "POST",
@@ -1389,7 +1389,7 @@ async function pollTask(taskId) {{
           state.pollInterval = null;
           resolve();
         }} else {{
-          setProgress(true, info.message || "执行中…");
+          setProgress(true, info.message || "执行中...");
         }}
       }} catch (e) {{
         clearInterval(state.pollInterval);
@@ -1475,16 +1475,16 @@ async function copyPath(p) {{
 
 async function scanIncomplete() {{
   const body = $("clean-incomplete-body");
-  body.innerHTML = '<div class="empty">正在扫描…</div>';
+  body.innerHTML = '<div class="empty">正在扫描...</div>';
   $("btn-confirm-clean").style.display = "none";
   $("btn-rescan-incomplete").style.display = "none";
   try {{
     const resp = await fetch("/api/incomplete-files");
     const data = await resp.json();
     if (!data.files.length) {{
-      body.innerHTML = '<div class="empty" style="color: var(--positive);">✓ 没有未完成的下载，缓存很干净！</div>';
+      body.innerHTML = '<div class="empty" style="color: var(--positive);">✓ 没有未完成的下载,缓存很干净!</div>';
     }} else {{
-      let html = `<p style="margin: 0 0 8px 0;">发现 <b>${{data.count}}</b> 个未完成下载，共 <b>${{escHtml(data.total_size_text)}}</b>，可以安全清理：</p>`;
+      let html = `<p style="margin: 0 0 8px 0;">发现 <b>${{data.count}}</b> 个未完成下载,共 <b>${{escHtml(data.total_size_text)}}</b>,可以安全清理:</p>`;
       html += '<div style="max-height: 200px; overflow: auto; font-size: 11px; font-family: ui-monospace, monospace; background: var(--bg-3); padding: 8px; border-radius: 3px;">';
       for (const f of data.files) {{
         html += `<div style="padding: 2px 0; border-bottom: 1px solid var(--line);">${{escHtml(f.rel_path)}} <span style="color: var(--warning); float: right;">${{escHtml(f.size_text)}}</span></div>`;
@@ -1502,12 +1502,12 @@ async function scanIncomplete() {{
 
 async function doCleanIncomplete() {{
   $("btn-confirm-clean").disabled = true;
-  $("btn-confirm-clean").textContent = "清理中…";
+  $("btn-confirm-clean").textContent = "清理中...";
   try {{
     const resp = await fetch("/api/clean-incomplete", {{ method: "POST", headers: {{ "Content-Type": "application/json" }}, body: "{{}}" }});
     const data = await resp.json();
     if (!data.ok) throw new Error(data.error || "请求失败");
-    setProgress(true, "清理中…");
+    setProgress(true, "清理中...");
     await pollTask(data.task_id);
     closeModal("modal-clean-incomplete");
   }} catch (e) {{
@@ -1533,10 +1533,10 @@ function openDownloadDialog() {{
 async function doDownload() {{
   const repoId = $("download-repo-id").value.trim();
   if (!repoId) {{ showToast("请输入仓库 ID", "warning"); return; }}
-  if (repoId.indexOf("/") === -1) {{ showToast('仓库格式无效，应为 org/repo_name', "warning"); return; }}
+  if (repoId.indexOf("/") === -1) {{ showToast('仓库格式无效,应为 org/repo_name', "warning"); return; }}
   closeModal("modal-download");
-  setStatus(`正在下载 ${{repoId}}…`);
-  setProgress(true, "下载 " + repoId + " …");
+  setStatus(`正在下载 ${{repoId}}...`);
+  setProgress(true, "下载 " + repoId + " ...");
   $("btn-download").disabled = true;
   try {{
     const resp = await fetch("/api/download", {{
@@ -1665,7 +1665,7 @@ refresh();
 
 
 class API:
-    """暴露给前端的 pywebview API（仅放系统能力，剪贴板走 JS 即可）"""
+    """暴露给前端的 pywebview API(仅放系统能力,剪贴板走 JS 即可)"""
 
     def close_window(self) -> None:
         webview.windows[0].destroy()
@@ -1679,7 +1679,7 @@ class API:
 def main() -> None:
     url = f"http://{HOST}:{PORT}"
 
-    # 1) 启动 FastAPI（后台线程）
+    # 1) 启动 FastAPI(后台线程)
     config = uvicorn.Config(app, host=HOST, port=PORT, log_level="warning")
     server = uvicorn.Server(config)
 

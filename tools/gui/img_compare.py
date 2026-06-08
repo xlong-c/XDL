@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""图片对比器 — pywebview + FastAPI 单文件版。
+"""图片对比器 - pywebview + FastAPI 单文件版.
 
-按 tools/gui/AGENTS.md 规范组织。功能与原 Flet 版一致:
+按 tools/gui/AGENTS.md 规范组织.功能与原 Flet 版一致:
   - 双图对比: 加载两张图, 拖拽分界线对比
   - 拼合图拆分: 加载拼合图, 切分 N 块, 选任意两块对比
   - 鼠标 / 滚轮 / 方向键 / 快捷键 全部支持
@@ -42,7 +42,7 @@ from fastapi.responses import HTMLResponse
 from PIL import Image
 
 # ════════════════════════════════════════════════════════════════
-#  1. CONFIG（不引入命令行参数解析库）
+#  1. CONFIG(不引入命令行参数解析库)
 # ════════════════════════════════════════════════════════════════
 
 CONFIG: dict[str, Any] = {
@@ -56,17 +56,17 @@ CONFIG: dict[str, Any] = {
 }
 
 # ════════════════════════════════════════════════════════════════
-#  2. 业务函数（无 UI 依赖，可独立单测）
+#  2. 业务函数(无 UI 依赖,可独立单测)
 # ════════════════════════════════════════════════════════════════
 
 
 def load_pil(path: str) -> Image.Image:
-    """打开图片为 RGB。"""
+    """打开图片为 RGB."""
     return Image.open(path).convert("RGB")
 
 
 def pil_to_data_uri(img: Image.Image, fmt: str = "PNG") -> str:
-    """PIL Image → base64 data URI。"""
+    """PIL Image → base64 data URI."""
     buf = io.BytesIO()
     img.save(buf, format=fmt)
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
@@ -74,7 +74,7 @@ def pil_to_data_uri(img: Image.Image, fmt: str = "PNG") -> str:
 
 
 def split_image_horizontal(img: Image.Image, cols: int) -> list[Image.Image]:
-    """横向等分切分图片为 N 块, 最后一块吃到剩余像素。"""
+    """横向等分切分图片为 N 块, 最后一块吃到剩余像素."""
     cols = max(2, int(cols))
     src_w, src_h = img.size
     slice_w = src_w // cols
@@ -87,15 +87,15 @@ def split_image_horizontal(img: Image.Image, cols: int) -> list[Image.Image]:
 
 
 # ════════════════════════════════════════════════════════════════
-#  3. STATE（Python 端的"业务真相"）
+#  3. STATE(Python 端的"业务真相")
 #
-#  显示状态（分界线比例、画布尺寸、拖拽标志）放前端 JS,
-#  业务数据（图片路径、模式、块索引）放这里。
+#  显示状态(分界线比例,画布尺寸,拖拽标志)放前端 JS,
+#  业务数据(图片路径,模式,块索引)放这里.
 # ════════════════════════════════════════════════════════════════
 
 
 class State:
-    """集中管理业务数据, 路由都从这里读/写。"""
+    """集中管理业务数据, 路由都从这里读/写."""
 
     def __init__(self) -> None:
         # 双图模式
@@ -156,7 +156,7 @@ class State:
         return self.snapshot()
 
     def select_block(self, idx: int) -> dict[str, Any]:
-        """点击 / 数字键: 复刻 Flet 版 _on_block_click 行为。"""
+        """点击 / 数字键: 复刻 Flet 版 _on_block_click 行为."""
         if not self.slices:
             return self.snapshot()
         if idx == self.idx_left:
@@ -220,19 +220,19 @@ async def index() -> str:
 
 @app.get("/api/state")
 async def get_state() -> dict[str, Any]:
-    """前端启动时 / 模式切换后拉状态。"""
+    """前端启动时 / 模式切换后拉状态."""
     return STATE.snapshot()
 
 
 @app.get("/api/load_image")
 async def load_image(side: int, path: str) -> dict[str, Any]:
-    """双图模式加载图片。side=1 / 2"""
+    """双图模式加载图片.side=1 / 2"""
     return STATE.load_image(side, path)
 
 
 @app.get("/api/load_grid")
 async def load_grid(path: str) -> dict[str, Any]:
-    """拼合图模式加载图片。"""
+    """拼合图模式加载图片."""
     return STATE.load_grid(path)
 
 
@@ -330,7 +330,7 @@ HTML = """
   <div id="info"></div>
 
   <script>
-    // ── 前端"显示状态"（业务数据从后端 STATE 拉） ──
+    // ── 前端"显示状态"(业务数据从后端 STATE 拉) ──
     const view = {{
       divider_x: 0.5,
       horizontal: false,
@@ -340,14 +340,14 @@ HTML = """
       canvas_h: 0,
     }};
 
-    // 业务数据缓存（从后端拉）
+    // 业务数据缓存(从后端拉)
     let data = {{
       mode: 'single', cols: 5,
       img1: null, img2: null, source: null,
       slices: [], slices_uri: [], idx_left: 0, idx_right: 1,
     }};
 
-    // 图片对象缓存（用于 canvas drawImage, 异步加载）
+    // 图片对象缓存(用于 canvas drawImage, 异步加载)
     const imgCache = {{}};
 
     // ── 工具函数 ──
@@ -505,7 +505,7 @@ HTML = """
         const im = await loadImg(rightUri);
         ctx.drawImage(im, geom.draw_x, geom.draw_y, geom.draw_w, geom.draw_h);
       }}
-      // 2. 画左图（裁到分界线）
+      // 2. 画左图(裁到分界线)
       if (leftUri) {{
         const im = await loadImg(leftUri);
         ctx.save();
@@ -700,12 +700,12 @@ HTML = """
 
 
 # ════════════════════════════════════════════════════════════════
-#  6. pywebview js_api（系统级操作）
+#  6. pywebview js_api(系统级操作)
 # ════════════════════════════════════════════════════════════════
 
 
 class API:
-    """前端通过 pywebview.api.xxx() 调这里, 只放系统集成。"""
+    """前端通过 pywebview.api.xxx() 调这里, 只放系统集成."""
 
     def __init__(self) -> None:
         self._window: webview.Window | None = None
@@ -714,7 +714,7 @@ class API:
         self._window = window
 
     def pick_image(self) -> str | None:
-        """弹原生文件选择对话框, 返回选中路径或 None。"""
+        """弹原生文件选择对话框, 返回选中路径或 None."""
         assert self._window is not None
         result = self._window.create_file_dialog(
             webview.FileDialog.OPEN,
@@ -723,7 +723,7 @@ class API:
         return result[0] if result else None
 
     def save_snapshot(self, base64_data: str) -> str | None:
-        """弹保存对话框, 写盘, 返回写入路径或 None。"""
+        """弹保存对话框, 写盘, 返回写入路径或 None."""
         assert self._window is not None
         result = self._window.create_file_dialog(
             webview.FileDialog.SAVE,
@@ -744,7 +744,7 @@ class API:
         return path
 
     def close_window(self) -> None:
-        """Esc / Q 退出。"""
+        """Esc / Q 退出."""
         if self._window is not None:
             self._window.destroy()
 

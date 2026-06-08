@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""GPT 图像编辑器 — pywebview + FastAPI 单文件版。
+"""GPT 图像编辑器 - pywebview + FastAPI 单文件版.
 
-按 tools/gui/AGENTS.md 规范组织。功能与原 NiceGUI 版一致:
+按 tools/gui/AGENTS.md 规范组织.功能与原 NiceGUI 版一致:
   - 配置 OpenAI 兼容图像 API (providers, base_url, api_key, model, size)
   - 6 个内置预设 (换发/换装/背景替换/风格迁移/写实照片/动漫)
   - 文生图 (无图片) / 图像编辑 (1-2 张图)
@@ -88,7 +88,7 @@ SIZE_OPTIONS: list[str] = [
 ]
 
 # ════════════════════════════════════════════════════════════════
-#  2. 业务函数（无 UI 依赖，可独立单测）
+#  2. 业务函数(无 UI 依赖,可独立单测)
 # ════════════════════════════════════════════════════════════════
 
 
@@ -236,7 +236,7 @@ def stitch_preview(parts: list[bytes | None], size: str) -> bytes:
 
 
 # ════════════════════════════════════════════════════════════════
-#  3. STATE + 持久化（替换 NiceGUI 的 app.storage.user）
+#  3. STATE + 持久化(替换 NiceGUI 的 app.storage.user)
 # ════════════════════════════════════════════════════════════════
 
 
@@ -295,7 +295,7 @@ class ImagePayload:
 
 
 class State:
-    """集中管理运行期状态。config 持久化, 业务数据走内存。"""
+    """集中管理运行期状态.config 持久化, 业务数据走内存."""
 
     def __init__(self) -> None:
         self.config: dict[str, Any] = load_config()
@@ -596,7 +596,7 @@ def _run_generate(task_id: str, params: dict[str, Any]) -> None:
             "saved_dir": saved_dir,
             "title": f"[{params.get('preset_name', '未命名')}]",
             "status_message": (f"完成: 已保存 {len(saved_files)} 个文件到 {saved_dir}"
-                                if saved_files else "完成: 未落盘，仅保留页面结果"),
+                                if saved_files else "完成: 未落盘,仅保留页面结果"),
         }
         STATE.current_result = bundle
 
@@ -872,7 +872,7 @@ HTML = """
       ps.appendChild(o);
     }});
     ps.value = cfg.selected_provider || cfg.providers[0].name;
-    // base_url / api_key / model: 跟随 provider, 优先用 cfg 当前值（用户可能手动改过）
+    // base_url / api_key / model: 跟随 provider, 优先用 cfg 当前值(用户可能手动改过)
     document.getElementById('base-url').value = cfg.base_url || '';
     document.getElementById('api-key').value = cfg.api_key || '';
     document.getElementById('model').value = cfg.model || 'gpt-image-2';
@@ -1211,7 +1211,7 @@ HTML = """
 
 
 # ════════════════════════════════════════════════════════════════
-#  6. pywebview js_api（系统级操作）
+#  6. pywebview js_api(系统级操作)
 # ════════════════════════════════════════════════════════════════
 
 
@@ -1223,7 +1223,7 @@ class API:
         self._window = window
 
     def pick_image(self) -> str | None:
-        """弹原生文件选择对话框, 返回选中路径或 None。"""
+        """弹原生文件选择对话框, 返回选中路径或 None."""
         assert self._window is not None
         result = self._window.create_file_dialog(
             webview.FileDialog.OPEN,
@@ -1232,7 +1232,7 @@ class API:
         return result[0] if result else None
 
     def save_image(self, base64_data: str, suggested_name: str) -> str | None:
-        """弹保存对话框, 写盘, 返回写入路径或 None。"""
+        """弹保存对话框, 写盘, 返回写入路径或 None."""
         assert self._window is not None
         result = self._window.create_file_dialog(
             webview.FileDialog.SAVE,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""pywebview + FastAPI 单文件 GUI 模板 — 双击即跑。
+"""pywebview + FastAPI 单文件 GUI 模板 - 双击即跑.
 
-按 tools/gui/AGENTS.md 规范组织。新建 GUI 工具时，复制本文件再改业务。
+按 tools/gui/AGENTS.md 规范组织.新建 GUI 工具时,复制本文件再改业务.
 
 运行:
     python tools/gui/_template.py
@@ -30,7 +30,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
 # ════════════════════════════════════════════════════════════════
-#  1. CONFIG（不引入命令行参数解析库，直接改这里）
+#  1. CONFIG(不引入命令行参数解析库,直接改这里)
 # ════════════════════════════════════════════════════════════════
 
 CONFIG: dict[str, Any] = {
@@ -42,17 +42,17 @@ CONFIG: dict[str, Any] = {
 }
 
 # ════════════════════════════════════════════════════════════════
-#  2. 业务函数（无 UI 依赖，可独立单测）
+#  2. 业务函数(无 UI 依赖,可独立单测)
 # ════════════════════════════════════════════════════════════════
 
 
 def do_thing(name: str) -> str:
-    """示例: 纯业务逻辑, 返回字符串。"""
+    """示例: 纯业务逻辑, 返回字符串."""
     return f"已处理: {name}"
 
 
 # ════════════════════════════════════════════════════════════════
-#  3. FastAPI app + 路由（业务数据走这里）
+#  3. FastAPI app + 路由(业务数据走这里)
 # ════════════════════════════════════════════════════════════════
 
 app = FastAPI(title=CONFIG["title"])
@@ -67,7 +67,7 @@ async def index() -> str:
 # ── 业务 API ──
 @app.get("/api/run")
 async def run(name: str = "world") -> dict[str, Any]:
-    """同步业务调用: 前端 fetch, 后端直接返回结果。"""
+    """同步业务调用: 前端 fetch, 后端直接返回结果."""
     return {"ok": True, "result": do_thing(name)}
 
 
@@ -77,7 +77,7 @@ TASKS: dict[str, dict[str, Any]] = {}
 
 @app.post("/api/long/start")
 async def long_start() -> dict[str, str]:
-    """启动长任务, 返回 task_id, 前端轮询 /api/long/status。"""
+    """启动长任务, 返回 task_id, 前端轮询 /api/long/status."""
     tid = uuid.uuid4().hex
 
     def run() -> None:
@@ -94,12 +94,12 @@ async def long_start() -> dict[str, str]:
 
 @app.get("/api/long/status")
 async def long_status(task_id: str) -> dict[str, Any]:
-    """前端轮询长任务状态。"""
+    """前端轮询长任务状态."""
     return TASKS.get(task_id, {"done": True, "error": "unknown task"})
 
 
 # ════════════════════════════════════════════════════════════════
-#  4. HTML 模板（f-string, 可引用 CONFIG / Python 变量）
+#  4. HTML 模板(f-string, 可引用 CONFIG / Python 变量)
 # ════════════════════════════════════════════════════════════════
 
 HTML = """
@@ -210,14 +210,14 @@ HTML = """
 
 
 # ════════════════════════════════════════════════════════════════
-#  5. pywebview js_api class（仅系统级操作）
+#  5. pywebview js_api class(仅系统级操作)
 #
-#  业务数据走 FastAPI HTTP, 这里只放系统集成（对话框、消息框等）。
+#  业务数据走 FastAPI HTTP, 这里只放系统集成(对话框,消息框等).
 # ════════════════════════════════════════════════════════════════
 
 
 class API:
-    """前端通过 pywebview.api.xxx() 调这里。"""
+    """前端通过 pywebview.api.xxx() 调这里."""
 
     def __init__(self) -> None:
         self._window: webview.Window | None = None
@@ -226,7 +226,7 @@ class API:
         self._window = window
 
     def pick_file(self) -> str | None:
-        """弹原生文件选择对话框, 返回选中路径或 None。"""
+        """弹原生文件选择对话框, 返回选中路径或 None."""
         assert self._window is not None
         result = self._window.create_file_dialog(
             webview.OPEN_DIALOG,  # pyright: ignore[reportArgumentType]  # pywebview stub 标注为 Proxy
@@ -241,7 +241,7 @@ class API:
 
 
 def _run_server() -> None:
-    """后台线程跑 uvicorn。"""
+    """后台线程跑 uvicorn."""
     config = uvicorn.Config(
         app,
         host=CONFIG["host"],
@@ -252,7 +252,7 @@ def _run_server() -> None:
 
 
 def _wait_server_ready(timeout: float = 10.0) -> None:
-    """轮询 / 直到 FastAPI 起来, 或超时。"""
+    """轮询 / 直到 FastAPI 起来, 或超时."""
     url = f"http://{CONFIG['host']}:{CONFIG['port']}/"
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -278,7 +278,7 @@ def main() -> None:
         width=CONFIG["width"],
         height=CONFIG["height"],
     )
-    assert window is not None  # create_window 可能返回 None（stub 标注）
+    assert window is not None  # create_window 可能返回 None(stub 标注)
     api.bind_window(window)
     webview.start()
 

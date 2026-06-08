@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-"""批量图片查看器 — pywebview + FastAPI 单文件版。
+"""批量图片查看器 - pywebview + FastAPI 单文件版.
 
 用法:
     python tools/gui/batch_viewer.py
 
 环境变量:
-    XDL_BATCH_VIEWER_PORT=8768   端口（默认 8768）
-    XDL_BATCH_VIEWER_HOST=127.0.0.1  监听地址（默认 127.0.0.1，不绑 0.0.0.0）
+    XDL_BATCH_VIEWER_PORT=8768   端口(默认 8768)
+    XDL_BATCH_VIEWER_HOST=127.0.0.1  监听地址(默认 127.0.0.1,不绑 0.0.0.0)
 
 功能:
-    - 按目录批量浏览图片（自然排序: a1 < a2 < a10）
-    - 支持切片拼接预览（如横向 4 段, 取第 2、3 段拼成缩略图）
-    - 支持选择并删除图片（破坏性操作, 前端有 confirm）
-    - 分页、缩放、跳转、键盘快捷键
+    - 按目录批量浏览图片(自然排序: a1 < a2 < a10)
+    - 支持切片拼接预览(如横向 4 段, 取第 2,3 段拼成缩略图)
+    - 支持选择并删除图片(破坏性操作, 前端有 confirm)
+    - 分页,缩放,跳转,键盘快捷键
     - 缩略图懒加载, 避免一次拉满内存
 
 与原 FastAPI+HTML 版本的差异:
-    - 启动方式从 uvicorn.run 改为 pywebview 原生窗口（无浏览器 tab）
+    - 启动方式从 uvicorn.run 改为 pywebview 原生窗口(无浏览器 tab)
     - 目录输入旁加 "📁 浏览..." 按钮, 走 pywebview.js_api 调系统目录选择器
     - PIL 缩略图/读图改用 asyncio.to_thread, 避免阻塞事件循环
 """
-
+# {"_type":"newapi_channel_conn","key":"sk-","url":"https://api.dxmcs.xin"}
 from __future__ import annotations
 
 import asyncio
@@ -29,6 +29,7 @@ import os
 import re
 import threading
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -36,7 +37,7 @@ from urllib.parse import unquote
 import uvicorn
 import webview
 from fastapi import FastAPI, Query
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from PIL import Image
 
 # ============================================================
@@ -49,10 +50,11 @@ TITLE = "批量图片查看器"
 
 VALID_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
 RESAMPLE = Image.LANCZOS  # pyright: ignore[reportAttributeAccessIssue]  # Pillow stub 移除了旧名
+THUMB_CACHE_SIZE = 512
 
 
 # ============================================================
-# 业务函数（纯 Python, 可单测）
+# 业务函数(纯 Python, 可单测)
 # ============================================================
 
 
@@ -159,6 +161,21 @@ def compose_preview(
     return merged
 
 
+def resize_to_fit(
+    image: Image.Image, target_width: int, target_height: int
+) -> Image.Image:
+    width, height = image.size
+    if width <= 0 or height <= 0:
+        return image
+
+    scale = min(target_width / width, target_height / height)
+    resized_width = max(1, int(round(width * scale)))
+    resized_height = max(1, int(round(height * scale)))
+    if resized_width == width and resized_height == height:
+        return image
+    return image.resize((resized_width, resized_height), RESAMPLE)
+
+
 def render_thumbnail(
     image_path: Path,
     width: int,
@@ -172,7 +189,7 @@ def render_thumbnail(
     target_height = max(1, height)
     with Image.open(image_path) as image:
         preview = compose_preview(image, slice_enabled, slice_indices, slice_parts)
-        preview.thumbnail((target_width, target_height), RESAMPLE)
+        preview = resize_to_fit(preview, target_width, target_height)
         canvas = Image.new(
             "RGB", (target_width, target_height), parse_hex_color(bg_color)
         )
@@ -186,12 +203,36 @@ def render_thumbnail(
     return buf
 
 
-def read_image_bytes(image_path: Path) -> io.BytesIO:
+@lru_cache(maxsize=THUMB_CACHE_SIZE)
+def render_thumbnail_cached(
+    path_text: str,
+    mtime_ns: int,
+    file_size: int,
+    width: int,
+    height: int,
+    slice_enabled: bool,
+    slice_indices_text: str,
+    slice_parts: int,
+    bg_color: str,
+) -> bytes:
+    image_path = Path(path_text)
+    slice_indices = parse_slice_indices(slice_indices_text, slice_parts)
+    return render_thumbnail(
+        image_path=image_path,
+        width=width,
+        height=height,
+        slice_enabled=slice_enabled,
+        slice_indices=slice_indices,
+        slice_parts=slice_parts,
+        bg_color=bg_color,
+    ).getvalue()
+
+
+def read_image_bytes(image_path: Path) -> bytes:
     with Image.open(image_path) as image:
         buf = io.BytesIO()
         image.convert("RGB").save(buf, format="PNG")
-        buf.seek(0)
-    return buf
+    return buf.getvalue()
 
 
 def delete_images(paths: list[str]) -> dict[str, Any]:
@@ -246,7 +287,7 @@ async def api_list_dir(data: dict[str, Any]):
     if not directory.is_dir():
         return JSONResponse({"error": f"不是目录: {directory}"}, status_code=400)
 
-    # list_images 可能很慢（千张图目录的 stat 调用）, 放线程里不阻塞事件循环
+    # list_images 可能很慢(千张图目录的 stat 调用), 放线程里不阻塞事件循环
     images = await asyncio.to_thread(list_images, directory)
     return {
         "directory": str(directory),
@@ -269,22 +310,27 @@ async def api_thumb(
     if not image_path.exists() or not image_path.is_file():
         return JSONResponse({"error": "image not found"}, status_code=404)
 
-    indices = parse_slice_indices(slice_indices, slice_parts)
+    image_stat = await asyncio.to_thread(image_path.stat)
+    normalized_indices = ",".join(
+        str(index) for index in parse_slice_indices(slice_indices, slice_parts)
+    )
+    normalized_bg_color = normalize_hex_color(bg_color)
     try:
-        # PIL 解码 + 缩放走线程, 避免阻塞事件循环
-        buf = await asyncio.to_thread(
-            render_thumbnail,
-            image_path=image_path,
+        thumbnail_bytes = await asyncio.to_thread(
+            render_thumbnail_cached,
+            path_text=str(image_path),
+            mtime_ns=image_stat.st_mtime_ns,
+            file_size=image_stat.st_size,
             width=width,
             height=height,
             slice_enabled=slice_enabled,
-            slice_indices=indices,
+            slice_indices_text=normalized_indices,
             slice_parts=slice_parts,
-            bg_color=bg_color,
+            bg_color=normalized_bg_color,
         )
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": str(exc)}, status_code=400)
-    return StreamingResponse(buf, media_type="image/png")
+    return Response(content=thumbnail_bytes, media_type="image/png")
 
 
 @app.get("/api/image", response_model=None)
@@ -294,10 +340,10 @@ async def api_image(path: str = Query(...)):
         return JSONResponse({"error": "image not found"}, status_code=404)
 
     try:
-        buf = await asyncio.to_thread(read_image_bytes, image_path)
+        image_bytes = await asyncio.to_thread(read_image_bytes, image_path)
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": str(exc)}, status_code=400)
-    return StreamingResponse(buf, media_type="image/png")
+    return Response(content=image_bytes, media_type="image/png")
 
 
 @app.post("/api/delete", response_model=None)
@@ -311,7 +357,7 @@ async def api_delete(data: dict[str, Any]):
 
 
 # ============================================================
-# HTML（f-string 内嵌, CSS/JS 主体沿用原版, 加了 📁 浏览按钮）
+# HTML(f-string 内嵌, CSS/JS 主体沿用原版, 加了 📁 浏览按钮)
 # ============================================================
 
 HTML = f"""<!DOCTYPE html>
@@ -424,7 +470,8 @@ body {{
 }}
 .tile:hover {{ border-color: #4d4d4d; }}
 .tile.selected {{ border-color: #d33f3f; box-shadow: inset 0 0 0 1px #d33f3f; }}
-.tile img {{
+.tile img,
+.tile canvas {{
     width: 100%;
     height: 100%;
     display: block;
@@ -489,7 +536,7 @@ body {{
 </head>
 <body>
 <div id="toolbar">
-    <input id="dir-input" class="input" placeholder="输入图片目录，例如 ./ 或 /data/images">
+    <input id="dir-input" class="input" placeholder="输入图片目录,例如 ./ 或 /data/images">
     <button id="browse-btn" class="btn icon" title="系统目录选择">系统目录选择</button>
     <button id="open-btn" class="btn primary">打开目录</button>
     <button id="prev-btn" class="btn">上一页</button>
@@ -511,7 +558,7 @@ body {{
         <div id="meta"></div>
     </div>
     <div id="grid-wrap">
-        <div id="empty">当前目录没有可显示的图片。</div>
+        <div id="empty">当前目录没有可显示的图片.</div>
         <div id="grid"></div>
     </div>
 </div>
@@ -521,7 +568,11 @@ const state = {{
     folder: '.',
     images: [],
     selected: new Set(),
+    prefetchedThumbs: new Map(),
+    thumbImageCache: new Map(),
+    thumbLoadPromises: new Map(),
     pageStart: 0,
+    renderToken: 0,
     cols: 2,
     sliceEnabled: true,
     sliceIndices: '2,3',
@@ -537,6 +588,7 @@ const gridEl = document.getElementById('grid');
 const emptyEl = document.getElementById('empty');
 const statusEl = document.getElementById('status');
 const metaEl = document.getElementById('meta');
+const PREFETCH_LIMIT = 256;
 
 function setStatus(text, isError = false) {{
     statusEl.textContent = text;
@@ -570,6 +622,94 @@ function normalizeSliceIndices() {{
     document.getElementById('slice-input').value = state.sliceIndices;
     document.getElementById('parts-input').value = String(state.sliceParts);
     return unique;
+}}
+
+function quantizeThumbSize(value) {{
+    return Math.max(1, Math.round(value / 32) * 32);
+}}
+
+function buildThumbUrl(imagePath, width, height) {{
+    const params = new URLSearchParams({{
+        path: imagePath,
+        width: String(width),
+        height: String(height),
+        slice_enabled: String(state.sliceEnabled),
+        slice_indices: state.sliceIndices,
+        slice_parts: String(state.sliceParts),
+        bg_color: state.bgColor,
+    }});
+    return `/api/thumb?${{params.toString()}}`;
+}}
+
+function rememberPrefetchedThumb(url) {{
+    if (state.prefetchedThumbs.has(url)) {{
+        state.prefetchedThumbs.delete(url);
+    }}
+    state.prefetchedThumbs.set(url, Date.now());
+    while (state.prefetchedThumbs.size > PREFETCH_LIMIT) {{
+        const oldestKey = state.prefetchedThumbs.keys().next().value;
+        if (!oldestKey) {{
+            break;
+        }}
+        state.prefetchedThumbs.delete(oldestKey);
+        state.thumbImageCache.delete(oldestKey);
+        state.thumbLoadPromises.delete(oldestKey);
+    }}
+}}
+
+function ensureThumbReady(url) {{
+    if (state.thumbLoadPromises.has(url)) {{
+        return state.thumbLoadPromises.get(url);
+    }}
+    const promise = new Promise((resolve) => {{
+        const img = new Image();
+        let settled = false;
+        img.decoding = 'async';
+        img.loading = 'eager';
+        const settle = (value) => {{
+            if (settled) {{
+                return;
+            }}
+            settled = true;
+            resolve(value);
+        }};
+        const finish = () => {{
+            if (typeof img.decode === 'function') {{
+                img.decode().catch(() => null).finally(() => {{
+                    state.thumbImageCache.set(url, img);
+                    settle(img);
+                }});
+                return;
+            }}
+            state.thumbImageCache.set(url, img);
+            settle(img);
+        }};
+        img.onload = finish;
+        img.onerror = () => settle(null);
+        img.src = url;
+        if (img.complete && img.naturalWidth > 0) {{
+            finish();
+        }} else if (img.complete) {{
+            settle(null);
+        }}
+    }});
+    state.thumbLoadPromises.set(url, promise);
+    rememberPrefetchedThumb(url);
+    return promise;
+}}
+
+function prefetchThumb(url) {{
+    void ensureThumbReady(url);
+}}
+
+function prefetchPage(pageStart, pageSize, thumbWidth, thumbHeight) {{
+    if (pageStart < 0 || pageStart >= state.images.length || pageSize <= 0) {{
+        return;
+    }}
+    const pageImages = state.images.slice(pageStart, pageStart + pageSize);
+    for (const image of pageImages) {{
+        prefetchThumb(buildThumbUrl(image.path, thumbWidth, thumbHeight));
+    }}
 }}
 
 function getEffectiveCols() {{
@@ -652,7 +792,9 @@ async function pickDirectory() {{
     }}
 }}
 
-function render() {{
+async function render() {{
+    const renderToken = state.renderToken + 1;
+    state.renderToken = renderToken;
     syncStateFromInputs();
     normalizeSliceIndices();
 
@@ -665,17 +807,38 @@ function render() {{
         state.pageStart = Math.max(0, Math.floor((total - 1) / pageSize) * pageSize);
     }}
     const pageImages = state.images.slice(state.pageStart, state.pageStart + pageSize);
-    emptyEl.style.display = pageImages.length ? 'none' : 'flex';
-    gridEl.innerHTML = '';
-    gridEl.style.gridTemplateColumns = `repeat(${{effectiveCols}}, minmax(0, 1fr))`;
-    gridEl.style.gap = `${{state.padY}}px ${{state.padX}}px`;
-
     const availableWidth = Math.max(320, gridWrapEl.clientWidth - 20);
     const cellWidth = Math.max(60, Math.floor((availableWidth - (effectiveCols - 1) * state.padX) / effectiveCols));
     const cellHeight = Math.max(36, Math.floor(cellWidth / ratio));
+    const thumbWidth = quantizeThumbSize(cellWidth);
+    const thumbHeight = quantizeThumbSize(cellHeight);
+    const pageThumbs = pageImages.map((image) => ({{
+        image,
+        url: buildThumbUrl(image.path, thumbWidth, thumbHeight),
+    }}));
 
-    for (let index = 0; index < pageImages.length; index += 1) {{
-        const image = pageImages[index];
+    if (!pageThumbs.length) {{
+        emptyEl.style.display = 'flex';
+        gridEl.innerHTML = '';
+        updateMeta(effectiveCols, rows);
+        return;
+    }}
+
+    const loadedImages = await Promise.all(
+        pageThumbs.map((item) => ensureThumbReady(item.url))
+    );
+    if (renderToken !== state.renderToken) {{
+        return;
+    }}
+
+    emptyEl.style.display = 'none';
+    gridEl.innerHTML = '';
+    gridEl.style.gridTemplateColumns = `repeat(${{effectiveCols}}, minmax(0, 1fr))`;
+    gridEl.style.gap = `${{state.padY}}px ${{state.padX}}px`;
+    const fragment = document.createDocumentFragment();
+
+    for (let index = 0; index < pageThumbs.length; index += 1) {{
+        const {{ image, url }} = pageThumbs[index];
         const tile = document.createElement('div');
         tile.className = 'tile';
         if (state.selected.has(image.path)) {{
@@ -688,19 +851,15 @@ function render() {{
         badge.className = 'badge';
         badge.textContent = `#${{state.pageStart + index + 1}}`;
 
-        const img = document.createElement('img');
-        const params = new URLSearchParams({{
-            path: image.path,
-            width: String(cellWidth),
-            height: String(cellHeight),
-            slice_enabled: String(state.sliceEnabled),
-            slice_indices: state.sliceIndices,
-            slice_parts: String(state.sliceParts),
-            bg_color: state.bgColor,
-        }});
-        img.src = `/api/thumb?${{params.toString()}}`;
-        img.loading = 'lazy';
-        img.alt = image.name;
+        const canvas = document.createElement('canvas');
+        canvas.width = thumbWidth;
+        canvas.height = thumbHeight;
+        canvas.title = image.name;
+        const context = canvas.getContext('2d');
+        const loadedImage = loadedImages[index] || state.thumbImageCache.get(url);
+        if (context && loadedImage) {{
+            context.drawImage(loadedImage, 0, 0, thumbWidth, thumbHeight);
+        }}
 
         const cross = document.createElement('div');
         cross.className = 'cross';
@@ -709,7 +868,7 @@ function render() {{
         name.className = 'name';
         name.textContent = image.name;
 
-        tile.appendChild(img);
+        tile.appendChild(canvas);
         tile.appendChild(badge);
         tile.appendChild(cross);
         tile.appendChild(name);
@@ -729,9 +888,12 @@ function render() {{
             window.open(url, '_blank');
         }});
 
-        gridEl.appendChild(tile);
+        fragment.appendChild(tile);
     }}
 
+    gridEl.appendChild(fragment);
+    prefetchPage(state.pageStart + pageSize, pageSize, thumbWidth, thumbHeight);
+    prefetchPage(state.pageStart - pageSize, pageSize, thumbWidth, thumbHeight);
     updateMeta(effectiveCols, rows);
 }}
 
@@ -785,7 +947,7 @@ async function deleteSelected() {{
         return;
     }}
     const count = state.selected.size;
-    if (!window.confirm(`确定删除选中的 ${{count}} 张图片吗？此操作不可撤销。`)) {{
+    if (!window.confirm(`确定删除选中的 ${{count}} 张图片吗?此操作不可撤销.`)) {{
         return;
     }}
     try {{
@@ -796,7 +958,7 @@ async function deleteSelected() {{
         const failedCount = result.failed.length;
         render();
         if (failedCount) {{
-            setStatus(`已删除 ${{result.deleted_count}} 张，失败 ${{failedCount}} 张`, true);
+            setStatus(`已删除 ${{result.deleted_count}} 张,失败 ${{failedCount}} 张`, true);
         }} else {{
             setStatus(`已删除 ${{result.deleted_count}} 张图片`);
         }}
@@ -882,7 +1044,7 @@ init();
 
 
 class API:
-    """暴露给前端的 pywebview API（系统级操作）"""
+    """暴露给前端的 pywebview API(系统级操作)"""
 
     def __init__(self) -> None:
         self._window: webview.Window | None = None
@@ -914,7 +1076,7 @@ class API:
 def main() -> None:
     url = f"http://{HOST}:{PORT}"
 
-    # 1) 启动 FastAPI（后台线程）
+    # 1) 启动 FastAPI(后台线程)
     config = uvicorn.Config(app, host=HOST, port=PORT, log_level="warning")
     server = uvicorn.Server(config)
 
