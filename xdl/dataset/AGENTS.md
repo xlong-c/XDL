@@ -11,6 +11,8 @@
 - `basic.py`：基础或合成数据集
 - `hairdata*.py`：毛发相关数据集
 - `hair_transforms.py`：相关 transform
+- `manifest_image_edit.py`: 通用多图 image edit manifest 数据集和 paired transform
+- `templates.py`: 通用 manifest, image folder, image-text 数据集模板
 - `collate.py`：批处理拼接逻辑
 
 ## 修改约束

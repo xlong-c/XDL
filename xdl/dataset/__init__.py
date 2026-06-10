@@ -4,7 +4,7 @@
 注意：部分数据集依赖可选三方库，导入失败时不会阻断整个框架。
 """
 
-from xdl.utils.registry import register_dataset
+from xdl.utils.registry import register_collate, register_dataset, register_transform
 
 _import_errors = {}
 GridImageCsvDataset = None
@@ -13,8 +13,26 @@ Hair10HairDataset = None
 
 from . import collate  # 注册 PadCollate / DictCollate
 from .basic import SyntheticClassificationDataset
+from .manifest_image_edit import (
+    ManifestImageEditCollate,
+    ManifestImageEditDataset,
+    PairedImageTransform,
+)
+from .templates import (
+    ImageFolderClassificationDataset,
+    ManifestClassificationDataset,
+    ManifestImageTextDataset,
+    ManifestRecordDataset,
+)
 
 register_dataset("SyntheticClassificationDataset")(SyntheticClassificationDataset)
+register_dataset("ManifestImageEditDataset")(ManifestImageEditDataset)
+register_dataset("ManifestRecordDataset")(ManifestRecordDataset)
+register_dataset("ImageFolderClassificationDataset")(ImageFolderClassificationDataset)
+register_dataset("ManifestClassificationDataset")(ManifestClassificationDataset)
+register_dataset("ManifestImageTextDataset")(ManifestImageTextDataset)
+register_transform("PairedImageTransform")(PairedImageTransform)
+register_collate("ManifestImageEditCollate")(ManifestImageEditCollate)
 
 # 视觉数据集
 from .vision_datasets import CIFAR10Dataset, MNISTDataset
@@ -47,6 +65,13 @@ except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
 
 __all__ = [
     "SyntheticClassificationDataset",
+    "ManifestImageEditDataset",
+    "PairedImageTransform",
+    "ManifestImageEditCollate",
+    "ManifestRecordDataset",
+    "ImageFolderClassificationDataset",
+    "ManifestClassificationDataset",
+    "ManifestImageTextDataset",
     "GridImageCsvDataset",
     "GridImageDirDataset",
     "Hair10HairDataset",
