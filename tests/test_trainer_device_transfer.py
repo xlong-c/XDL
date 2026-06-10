@@ -1,8 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
+import pytest
 import torch
 
+from xdl.callbacks import Callback, ModelCheckpoint
 from xdl.trainer import CoreModel, Trainer
 
 
@@ -86,6 +88,105 @@ class LegacyAccumulationRecordingModel(AccumulationRecordingModel):
     def __init__(self, gradient_accumulation_steps: int) -> None:
         super().__init__()
         self.gradient_accumulation_steps = gradient_accumulation_steps
+
+
+class LifecycleRecordingCallback(Callback):
+    def __init__(self, events: List[str]) -> None:
+        super().__init__()
+        self.events = events
+
+    def setup(self, trainer: Trainer, core_module: CoreModel, stage: str) -> None:
+        del trainer, core_module
+        self.events.append(f"setup:{stage}")
+
+    def on_fit_start(self, trainer: Trainer, core_module: CoreModel) -> None:
+        del trainer, core_module
+        self.events.append("fit_start")
+
+    def on_train_start(self, trainer: Trainer, core_module: CoreModel) -> None:
+        del trainer, core_module
+        self.events.append("train_start")
+
+    def on_train_end(self, trainer: Trainer, core_module: CoreModel) -> None:
+        del trainer, core_module
+        self.events.append("train_end")
+
+    def on_fit_end(self, trainer: Trainer, core_module: CoreModel) -> None:
+        del trainer, core_module
+        self.events.append("fit_end")
+
+    def teardown(self, trainer: Trainer, core_module: CoreModel, stage: str) -> None:
+        del trainer, core_module
+        self.events.append(f"teardown:{stage}")
+
+
+class ManualOptimizationModel(CoreModel):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = torch.nn.Linear(1, 1, bias=False)
+        self.step_flags: List[bool] = []
+
+    def on_train_start(self) -> None:
+        pass
+
+    def configure_optimizers(self) -> torch.optim.Optimizer:
+        return torch.optim.SGD(self.net.parameters(), lr=0.1)
+
+    def training_step(self, batch: torch.Tensor, batch_idx: int) -> None:
+        del batch_idx
+        loss = self.net(batch).sum()
+        self.step_flags.append(
+            self.manual_optimization_step(
+                loss,
+                model=self.net,
+                max_grad_norm=1.0,
+            )
+        )
+
+    def validation_step(self, batch: Any, batch_idx: int) -> None:
+        pass
+
+
+class FakePipeline:
+    def __init__(self) -> None:
+        self.devices: List[torch.device] = []
+
+    def to(self, device: torch.device) -> "FakePipeline":
+        self.devices.append(torch.device(device))
+        return self
+
+
+class DeviceObjectModel(RecordingModel):
+    def __init__(self) -> None:
+        super().__init__()
+        self.pipeline = FakePipeline()
+        self.after_device_setup_called = False
+
+    def configure_device_objects(self) -> Dict[str, Any]:
+        return {"pipeline": self.pipeline}
+
+    def on_after_device_setup(self) -> None:
+        self.after_device_setup_called = True
+
+
+class StatefulCallback(Callback):
+    @property
+    def state_key(self) -> str:
+        return "stateful_callback"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.value = 0
+
+    def on_train_end(self, trainer: Trainer, core_module: CoreModel) -> None:
+        del trainer, core_module
+        self.value = 7
+
+    def state_dict(self) -> Dict[str, Any]:
+        return {"value": self.value}
+
+    def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+        self.value = int(state_dict["value"])
 
 
 def assert_nested_batch_on_meta(batch: Any, marker: Any) -> None:
@@ -179,3 +280,104 @@ def test_accumulation_helpers_respect_legacy_model_attribute() -> None:
         (2, 2, 1, False, True, True),
         (3, 1, 1, True, False, False),
     ]
+
+
+def test_trainer_invokes_fit_lifecycle_callbacks_in_order() -> None:
+    events: List[str] = []
+    callback = LifecycleRecordingCallback(events)
+    trainer = Trainer(max_epochs=1, device="cpu", callbacks=[callback])
+    model = RecordingModel()
+
+    trainer.fit(model=model, train_dataloader=[0])
+
+    assert events == [
+        "setup:fit",
+        "fit_start",
+        "train_start",
+        "train_end",
+        "fit_end",
+        "teardown:fit",
+    ]
+
+
+def test_float_val_check_interval_preserves_total_train_steps() -> None:
+    model = RecordingModel()
+    trainer = Trainer(max_epochs=2, device="cpu")
+
+    trainer.fit(
+        model=model,
+        train_dataloader=[0, 1],
+        val_dataloader=[2],
+        val_check_interval=0.1,
+    )
+
+    assert len(model.train_batches) == 4
+    assert len(model.validation_batches) == 4
+    assert model.total_train_steps == 4
+
+
+def test_invalid_val_check_interval_is_rejected() -> None:
+    model = RecordingModel()
+    trainer = Trainer(max_epochs=1, device="cpu")
+
+    with pytest.raises(ValueError):
+        trainer.fit(model=model, train_dataloader=[0, 1], val_check_interval=0.0)
+
+
+def test_manual_optimization_step_handles_accumulation_boundaries() -> None:
+    model = ManualOptimizationModel()
+    trainer = Trainer(
+        max_epochs=1,
+        device="cpu",
+        gradient_accumulation_steps=2,
+    )
+
+    trainer.fit(
+        model=model,
+        train_dataloader=[
+            torch.ones(1, 1),
+            torch.ones(1, 1),
+            torch.ones(1, 1),
+        ],
+    )
+
+    assert model.step_flags == [False, True, False]
+
+
+def test_configure_device_objects_moves_extra_objects_and_calls_hook() -> None:
+    model = DeviceObjectModel()
+    trainer = Trainer(max_epochs=1, device="meta")
+
+    trainer.fit(model=model, train_dataloader=[build_nested_batch(object())])
+
+    assert model.pipeline.devices == [torch.device("meta")]
+    assert model.after_device_setup_called is True
+
+
+def test_trainer_load_checkpoint_restores_callback_state(tmp_path) -> None:
+    stateful = StatefulCallback()
+    checkpoint = ModelCheckpoint(
+        dirpath=str(tmp_path),
+        monitor=None,
+        save_top_k=-1,
+        save_last=True,
+        every_n_epochs=None,
+        verbose=False,
+    )
+    trainer = Trainer(
+        max_epochs=1,
+        device="cpu",
+        callbacks=[stateful, checkpoint],
+    )
+    model = ManualOptimizationModel()
+
+    trainer.fit(model=model, train_dataloader=[torch.ones(1, 1), torch.ones(1, 1)])
+
+    assert checkpoint.last_model_path is not None
+
+    restored_callback = StatefulCallback()
+    restore_trainer = Trainer(device="cpu", callbacks=[restored_callback])
+    restored_model = ManualOptimizationModel()
+    restore_trainer.load_checkpoint(restored_model, checkpoint.last_model_path)
+
+    assert restored_callback.value == 7

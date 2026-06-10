@@ -550,6 +550,19 @@ class CoreModel(Module):
         """设备变更钩子"""
         pass
 
+    def configure_device_objects(self) -> Mapping[str, Any]:
+        """声明需要 Trainer 额外迁移到训练设备的对象.
+
+        返回值应为属性名到对象的映射. 对象如果提供 ``to(device)``
+        方法会在标准设备路径中被调用; Accelerate 路径中 ``nn.Module``
+        会进入 ``accelerator.prepare``, 其他对象会走 ``to(device)``.
+        """
+        return {}
+
+    def on_after_device_setup(self) -> None:
+        """Trainer 完成设备设置后调用的钩子."""
+        pass
+
     # ========== 预测相关方法 ==========
 
     def predict_step(self, batch):
@@ -756,6 +769,57 @@ class CoreModel(Module):
             # 使用 PyTorch 原生反向传播
             loss.backward()
 
+    def manual_optimization_step(
+        self,
+        loss: torch.Tensor,
+        optimizer: Optional[Optimizer] = None,
+        model: Optional[Module] = None,
+        max_grad_norm: Optional[float] = None,
+        zero_grad_kwargs: Optional[Dict[str, Any]] = None,
+        clip_grad_algorithm: str = "norm",
+    ) -> bool:
+        """执行一轮手动优化模板, 并处理梯度累积边界.
+
+        Args:
+            loss: 未缩放的 loss.
+            optimizer: 要 step 的优化器; 默认使用第一个 optimizer.
+            model: 梯度裁剪目标; 默认使用当前 CoreModel.
+            max_grad_norm: 不为 None 时在 step 前裁剪梯度.
+            zero_grad_kwargs: 传给 ``optimizer.zero_grad`` 的参数.
+            clip_grad_algorithm: ``norm`` 或 ``value``.
+
+        Returns:
+            bool: 当前 micro step 是否执行了 ``optimizer.step()``.
+        """
+        if optimizer is None:
+            optimizers = self.optimizers
+            if not optimizers:
+                raise RuntimeError("manual_optimization_step requires an optimizer")
+            optimizer = optimizers[0]
+
+        clip_target = model if model is not None else self
+        zero_kwargs = {"set_to_none": True}
+        if zero_grad_kwargs:
+            zero_kwargs.update(zero_grad_kwargs)
+
+        if self.is_accumulation_start:
+            optimizer.zero_grad(**zero_kwargs)
+
+        self.manual_backward(loss / self.accumulation_steps)
+
+        if not self.should_optimizer_step:
+            return False
+
+        if max_grad_norm is not None:
+            self.clip_gradients(
+                clip_target,
+                gradient_clip_val=max_grad_norm,
+                gradient_clip_algorithm=clip_grad_algorithm,
+            )
+        optimizer.step()
+        optimizer.zero_grad(**zero_kwargs)
+        return True
+
     # ========== Checkpoint 管理方法 ==========
 
     def _get_checkpoint_values(
@@ -778,6 +842,7 @@ class CoreModel(Module):
         save_optimizer: bool = True,
         save_scheduler: bool = True,
         include_components: Optional[List[str]] = None,
+        callback_states: Optional[Dict[str, Any]] = None,
     ) -> str:
         """保存检查点"""
         if not self.is_main_process():
@@ -793,7 +858,11 @@ class CoreModel(Module):
             return str(save_dir)
 
         ckpt = self._prepare_checkpoint_data(
-            save_optimizer, save_scheduler, include_components)
+            save_optimizer,
+            save_scheduler,
+            include_components,
+            callback_states=callback_states,
+        )
         save_checkpoint_to_dir(save_dir, ckpt, format)
         return str(save_dir)
 
@@ -802,6 +871,7 @@ class CoreModel(Module):
         save_optimizer: bool = True,
         save_scheduler: bool = True,
         include_components: Optional[List[str]] = None,
+        callback_states: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """收集所有组件的状态数据"""
         # 搜集所有 nn.Module 属性 (包括未注册的)
@@ -832,16 +902,24 @@ class CoreModel(Module):
             }
             if save_scheduler
             else None,
+            "callback_states": callback_states or {},
         }
 
-    def load_checkpoint(self, checkpoint_path: str, map_location: str = "cpu", format: str = "pt"):
+    def load_checkpoint(
+        self,
+        checkpoint_path: str,
+        map_location: str = "cpu",
+        format: str = "pt",
+    ) -> Dict[str, Any]:
         """加载检查点"""
         ckpt_path = Path(checkpoint_path)
         if format == "accelerator" and self._accelerator:
             self._accelerator.load_state(str(ckpt_path))
+            return {}
         else:
-            self._restore_from_checkpoint(
-                detect_and_load_checkpoint(ckpt_path, map_location))
+            checkpoint = detect_and_load_checkpoint(ckpt_path, map_location)
+            self._restore_from_checkpoint(checkpoint)
+            return checkpoint
 
     def _restore_from_checkpoint(self, ckpt: Dict[str, Any]) -> None:
         """执行状态恢复"""

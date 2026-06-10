@@ -6,8 +6,10 @@
 此文件整合了所有训练器相关的类和功能
 """
 
+import math
 from dataclasses import fields, is_dataclass, replace
-from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 import torch
 
@@ -119,17 +121,26 @@ class Trainer:
         trainer = cls(
             max_epochs=setup.num_epochs,
             device=setup.device,
+            precision=setup.precision
+            if setup.precision not in (None, "", "32", "fp32", "float32")
+            else None,
+            gradient_accumulation_steps=setup.gradient_accumulation_steps,
+            grad_clip_max_norm=setup.grad_clip_max_norm,
+            grad_clip_norm_type=setup.grad_clip_norm_type,
+            callbacks=list(getattr(setup, "callbacks", [])),
             accelerate_config=setup.accelerate_config,
         )
 
         log_cfg = setup.logging_config
         ckpt_cfg = setup.checkpoint_config
+        checkpoint_dir = ckpt_cfg.get("dirpath") or log_cfg.get(
+            "output_dir",
+            "./others/checkpoints",
+        )
 
         trainer.setup_logger(
             log_dir=log_cfg.get("log_dir", "./others/logs"),
-            checkpoint_dir=ckpt_cfg.get(
-                "dirpath", log_cfg.get("output_dir", "./others/checkpoints")
-            ),
+            checkpoint_dir=checkpoint_dir,
             monitor=ckpt_cfg.get("monitor", "val_loss"),
             mode=ckpt_cfg.get("mode", "min"),
             save_top_k=ckpt_cfg.get("save_top_k", 1),
@@ -362,20 +373,17 @@ class Trainer:
             else:
                 print("[Trainer] 未启用任何回调")
 
-        # 计算验证步数间隔
         original_steps_per_epoch = len(train_dataloader)
-        if isinstance(val_check_interval, int):
-            val_step_interval = val_check_interval
-        elif isinstance(val_check_interval, float):
-            val_step_interval = int(
-                original_steps_per_epoch * val_check_interval)
-        else:
-            val_step_interval = original_steps_per_epoch
+        val_step_interval = self._resolve_val_step_interval(
+            val_check_interval,
+            original_steps_per_epoch,
+        )
+        self._target_total_train_steps = self.max_epochs * original_steps_per_epoch
 
         # 如果验证间隔不是原始的 epoch 长度, 则启用虚拟 epoch 模式
         if val_step_interval != original_steps_per_epoch:
-            total_steps = self.max_epochs * original_steps_per_epoch
-            self.max_epochs = total_steps // val_step_interval
+            total_steps = self._target_total_train_steps
+            self.max_epochs = math.ceil(total_steps / val_step_interval)
             self._virtual_steps_per_epoch = val_step_interval
             self.state.max_epochs = self.max_epochs
         else:
@@ -387,6 +395,7 @@ class Trainer:
 
         # 执行回调的 setup
         self.callback_list.setup(trainer=self, core_module=model, stage="fit")
+        self.callback_list.fit_start(trainer=self, core_module=model)
 
         # 阶段4：训练开始
         self.callback_list.train_start(trainer=self, core_module=model)
@@ -424,8 +433,28 @@ class Trainer:
         model.on_train_end()
         if self._accelerator:
             self._accelerator.end_training()
+        self.callback_list.fit_end(trainer=self, core_module=model)
         self.callback_list.teardown(
             trainer=self, core_module=model, stage="fit")
+
+    @staticmethod
+    def _resolve_val_step_interval(
+        val_check_interval: Union[int, float],
+        original_steps_per_epoch: int,
+    ) -> int:
+        if original_steps_per_epoch <= 0:
+            raise ValueError("train_dataloader must contain at least one batch")
+        if isinstance(val_check_interval, bool):
+            raise TypeError("val_check_interval must be an int >= 1 or a float in (0, 1]")
+        if isinstance(val_check_interval, int):
+            if val_check_interval < 1:
+                raise ValueError("integer val_check_interval must be >= 1")
+            return val_check_interval
+        if isinstance(val_check_interval, float):
+            if not 0.0 < val_check_interval <= 1.0:
+                raise ValueError("float val_check_interval must be in (0, 1]")
+            return max(1, math.ceil(original_steps_per_epoch * val_check_interval))
+        raise TypeError("val_check_interval must be an int >= 1 or a float in (0, 1]")
 
     def _train_epoch(self) -> Dict[str, Any]:
         """训练一个 (虚拟) epoch"""
@@ -440,6 +469,12 @@ class Trainer:
         model.on_train_epoch_start()
 
         num_steps = self.steps_per_epoch
+        target_total_steps = getattr(self, "_target_total_train_steps", None)
+        if target_total_steps is not None:
+            remaining_steps = target_total_steps - self.state.global_step
+            if remaining_steps <= 0:
+                return {"epoch": self.current_epoch, "steps": 0, "avg_metrics": {}}
+            num_steps = min(num_steps, remaining_steps)
         for step in range(num_steps):
             batch = next(self._train_iterator)
 
@@ -580,6 +615,30 @@ class Trainer:
         # 默认情况下, 认为是主进程
         return True
 
+    def load_checkpoint(
+        self,
+        model: CoreModel,
+        checkpoint_path: Union[str, Path],
+        map_location: Union[str, torch.device] = "cpu",
+        format: str = "pt",
+    ) -> Dict[str, Any]:
+        """加载模型 checkpoint, 并恢复 callback state."""
+        self._model = model
+        checkpoint = model.load_checkpoint(
+            str(checkpoint_path),
+            map_location=str(map_location),
+            format=format,
+        )
+        callback_states = checkpoint.get("callback_states", {}) if checkpoint else {}
+        if callback_states:
+            self.callback_list.load_state(callback_states)
+        self.callback_list.load_checkpoint(
+            trainer=self,
+            core_module=model,
+            checkpoint=checkpoint,
+        )
+        return checkpoint
+
     def _configure_optimizers(self):
         """从 model 获取优化器配置"""
         if self._model is None or not hasattr(self._model, "configure_optimizers"):
@@ -615,6 +674,29 @@ class Trainer:
         if hasattr(model, "_set_gradient_accumulation_steps"):
             model._set_gradient_accumulation_steps(self.gradient_accumulation_steps)
 
+    def _configured_device_objects(self) -> Dict[str, Any]:
+        """读取模型声明的额外设备迁移对象."""
+        if self._model is None or not hasattr(self._model, "configure_device_objects"):
+            return {}
+
+        objects = self._model.configure_device_objects()
+        if objects is None:
+            return {}
+        if not isinstance(objects, Mapping):
+            raise TypeError("configure_device_objects() must return a mapping")
+        return {str(name): value for name, value in objects.items() if value is not None}
+
+    def _move_device_object(self, obj: Any) -> Any:
+        """将非 accelerate.prepare 对象迁移到当前设备."""
+        if hasattr(obj, "to"):
+            moved = obj.to(self.device)
+            return moved if moved is not None else obj
+        return obj
+
+    def _assign_model_attribute(self, name: str, value: Any) -> None:
+        if self._model is not None:
+            setattr(self._model, name, value)
+
     def _setup(self):
         """初始化设备和其他组件"""
         if getattr(self, "_is_setup", False):
@@ -626,6 +708,9 @@ class Trainer:
         else:
             # 设置默认设备(不使用 Accelerate)
             self._setup_standard()
+
+        if self._model is not None and hasattr(self._model, "on_after_device_setup"):
+            self._model.on_after_device_setup()
 
         # 配置优化器
         self._configure_optimizers()
@@ -677,12 +762,23 @@ class Trainer:
 
         # 准备模型和数据
         prepare_list = []
+        module_names = []
+        extra_prepare_names = []
+        extra_move_items = []
 
         # 添加模型(所有 nn.Module 属性)
         if hasattr(self._model, "__dict__"):
             for name, value in self._model.__dict__.items():
                 if isinstance(value, torch.nn.Module):
                     prepare_list.append(value)
+                    module_names.append(name)
+
+        for name, value in self._configured_device_objects().items():
+            if isinstance(value, torch.nn.Module):
+                prepare_list.append(value)
+                extra_prepare_names.append(name)
+            else:
+                extra_move_items.append((name, value))
 
         # 添加数据加载器
         if self._train_dataloader is not None:
@@ -696,11 +792,15 @@ class Trainer:
 
             # 重新分配准备好的对象
             idx = 0
-            if hasattr(self._model, "__dict__"):
-                for name, value in self._model.__dict__.items():
-                    if isinstance(value, torch.nn.Module) and idx < len(prepared_items):
-                        setattr(self._model, name, prepared_items[idx])
-                        idx += 1
+            for name in module_names:
+                if idx < len(prepared_items):
+                    self._assign_model_attribute(name, prepared_items[idx])
+                    idx += 1
+
+            for name in extra_prepare_names:
+                if idx < len(prepared_items):
+                    self._assign_model_attribute(name, prepared_items[idx])
+                    idx += 1
 
             if self._train_dataloader is not None and idx < len(prepared_items):
                 self._train_dataloader = prepared_items[idx]
@@ -708,6 +808,9 @@ class Trainer:
 
             if self._val_dataloader is not None and idx < len(prepared_items):
                 self._val_dataloader = prepared_items[idx]
+
+        for name, value in extra_move_items:
+            self._assign_model_attribute(name, self._move_device_object(value))
 
         # 设置模型的 accelerator 引用
         if self.accelerate_config and self._accelerator and self._model:
@@ -725,6 +828,10 @@ class Trainer:
                     prepare_list.append(value)
                     # 设置 device
                     value.to(self._device)
+
+        for name, value in self._configured_device_objects().items():
+            moved = self._move_device_object(value)
+            self._assign_model_attribute(name, moved)
 
         # 添加 dataloaders
         if self._train_dataloader is not None:
