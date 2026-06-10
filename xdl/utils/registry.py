@@ -108,7 +108,7 @@ _BOOTSTRAPPING_MODULES: Set[str] = set()
 def _bootstrap_modules_for_registry(registry: Registry) -> List[str]:
     if registry is MODEL_REGISTRY:
         return ["xdl.model"]
-    if registry is DATASET_REGISTRY or registry is COLLATE_REGISTRY:
+    if registry in (DATASET_REGISTRY, COLLATE_REGISTRY, TRANSFORM_REGISTRY):
         return ["xdl.dataset"]
     if registry is OPTIMIZER_REGISTRY:
         return ["xdl.optimizer"]
