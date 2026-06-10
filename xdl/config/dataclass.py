@@ -37,8 +37,8 @@ class TrainSetup:
     # 核心组件
     model: torch.nn.Module
     train_loader: DataLoader
-    optimizer: torch.optim.Optimizer
-    loss_fn: torch.nn.Module
+    optimizer: Optional[torch.optim.Optimizer] = None
+    loss_fn: Optional[torch.nn.Module] = None
 
     # 可选组件
     val_loader: Optional[DataLoader] = None
@@ -47,6 +47,7 @@ class TrainSetup:
 
     # 指标
     metrics: List[Any] = field(default_factory=list)
+    callbacks: List[Any] = field(default_factory=list)
     
     # 完整配置（用于调试或自定义逻辑）
     full_config: Dict[str, Any] = field(default_factory=dict)
@@ -61,6 +62,11 @@ class TrainSetup:
     device: str = "cuda"
     num_epochs: int = 100
     batch_size: int = 128
+    precision: Optional[str] = None
+    gradient_accumulation_steps: int = 1
+    grad_clip_max_norm: Optional[float] = None
+    grad_clip_norm_type: float = 2.0
+    trainer_config: Dict[str, Any] = field(default_factory=dict)
     
     def create_model(self):
         """将外部组件包装为 CoreModel 子类，直接对接 Trainer.fit()。
@@ -69,8 +75,16 @@ class TrainSetup:
             TrainSetupModel: 包装后的 CoreModel 实例，内部已配置好
                 optimizer / loss_fn / scheduler / metrics。
         """
+        from xdl.trainer.coreModel import CoreModel
         from xdl.trainer.trainSetupModel import TrainSetupModel
 
+        if isinstance(self.model, CoreModel):
+            return self.model
+        if self.optimizer is None or self.loss_fn is None:
+            raise RuntimeError(
+                "TrainSetup.create_model() requires optimizer and loss_fn for "
+                "plain torch.nn.Module models. Use task.target for CoreModel tasks."
+            )
         return TrainSetupModel(
             model=self.model,
             optimizer=self.optimizer,

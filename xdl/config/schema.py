@@ -35,6 +35,7 @@ class TrainerConfig:
     precision: str = "32"
     gradient_accumulation_steps: int = 1
     grad_clip_max_norm: Optional[float] = None
+    grad_clip_norm_type: float = 2.0
 
 
 @dataclass
@@ -46,6 +47,15 @@ class ComponentConfig:
     target_modules: Optional[List[str]] = None
     param_groups: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     weight: Optional[float] = None
+
+
+@dataclass
+class XDLContextConfig:
+    """配置加载上下文, 由 resolver 注入."""
+
+    config_path: str = ""
+    config_dir: str = "."
+    project_root: str = "."
 
 
 @dataclass
@@ -120,6 +130,8 @@ class ConfigSchemaV1:
     config_version: int = CONFIG_SCHEMA_VERSION
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     trainer: TrainerConfig = field(default_factory=TrainerConfig)
+    xdl: XDLContextConfig = field(default_factory=XDLContextConfig)
+    task: Optional[ComponentConfig] = None
     model: Optional[ComponentConfig] = None
 
     train_transforms: Any = None
@@ -136,6 +148,7 @@ class ConfigSchemaV1:
     optimization: Optional[OptimizationConfig] = None
     loss: List[ComponentConfig] = field(default_factory=list)
     metrics: List[ComponentConfig] = field(default_factory=list)
+    callbacks: List[ComponentConfig] = field(default_factory=list)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     accelerate: Optional[AccelerateConfig] = None
@@ -162,6 +175,7 @@ __all__ = [
     "CONFIG_SCHEMA_VERSION",
     "RuntimeConfig",
     "TrainerConfig",
+    "XDLContextConfig",
     "ComponentConfig",
     "TransformPipelineConfig",
     "DatasetConfig",
