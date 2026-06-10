@@ -13,6 +13,13 @@ Hair10HairDataset = None
 
 from . import collate  # 注册 PadCollate / DictCollate
 from .basic import SyntheticClassificationDataset
+from .manifest_dense import (
+    DetectionCollate,
+    ImageBoxesTransform,
+    ImageMaskTransform,
+    ManifestDetectionDataset,
+    ManifestSegmentationDataset,
+)
 from .manifest_image_edit import (
     ManifestImageEditCollate,
     ManifestImageEditDataset,
@@ -22,6 +29,8 @@ from .templates import (
     ImageFolderClassificationDataset,
     ManifestClassificationDataset,
     ManifestImageTextDataset,
+    ManifestPairDataset,
+    ManifestRegressionDataset,
     ManifestRecordDataset,
 )
 
@@ -30,9 +39,16 @@ register_dataset("ManifestImageEditDataset")(ManifestImageEditDataset)
 register_dataset("ManifestRecordDataset")(ManifestRecordDataset)
 register_dataset("ImageFolderClassificationDataset")(ImageFolderClassificationDataset)
 register_dataset("ManifestClassificationDataset")(ManifestClassificationDataset)
+register_dataset("ManifestRegressionDataset")(ManifestRegressionDataset)
+register_dataset("ManifestSegmentationDataset")(ManifestSegmentationDataset)
+register_dataset("ManifestDetectionDataset")(ManifestDetectionDataset)
 register_dataset("ManifestImageTextDataset")(ManifestImageTextDataset)
+register_dataset("ManifestPairDataset")(ManifestPairDataset)
 register_transform("PairedImageTransform")(PairedImageTransform)
+register_transform("ImageMaskTransform")(ImageMaskTransform)
+register_transform("ImageBoxesTransform")(ImageBoxesTransform)
 register_collate("ManifestImageEditCollate")(ManifestImageEditCollate)
+register_collate("DetectionCollate")(DetectionCollate)
 
 # 视觉数据集
 from .vision_datasets import CIFAR10Dataset, MNISTDataset
@@ -71,10 +87,17 @@ __all__ = [
     "ManifestRecordDataset",
     "ImageFolderClassificationDataset",
     "ManifestClassificationDataset",
+    "ManifestRegressionDataset",
+    "ManifestSegmentationDataset",
+    "ManifestDetectionDataset",
     "ManifestImageTextDataset",
+    "ManifestPairDataset",
     "GridImageCsvDataset",
     "GridImageDirDataset",
     "Hair10HairDataset",
     "CIFAR10Dataset",
     "MNISTDataset",
+    "ImageMaskTransform",
+    "ImageBoxesTransform",
+    "DetectionCollate",
 ]

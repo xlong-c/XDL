@@ -11,9 +11,34 @@
 - `basic.py`：基础或合成数据集
 - `hairdata*.py`：毛发相关数据集
 - `hair_transforms.py`：相关 transform
+- `_manifest.py`：manifest 读盘与路径解析公共 helper
 - `manifest_image_edit.py`: 通用多图 image edit manifest 数据集和 paired transform
-- `templates.py`: 通用 manifest, image folder, image-text 数据集模板
-- `collate.py`：批处理拼接逻辑
+- `manifest_dense.py`: 分割, 检测数据集模板, 以及 image-mask / image-boxes transform
+- `templates.py`: 通用 manifest, image folder, classification, regression, image-text, pair 数据集模板
+- `collate.py`：通用批处理拼接逻辑
+
+## 推荐模板
+
+- `ManifestRecordDataset`：最通用的 manifest dict 读取模板
+- `ImageFolderClassificationDataset`：最短路径的目录分类模板
+- `ManifestClassificationDataset`：真实项目更常见的 manifest 分类模板
+- `ManifestRegressionDataset`：分数, 年龄, 质量估计等回归模板
+- `ManifestSegmentationDataset`：`image + mask` dense prediction 模板
+- `ManifestDetectionDataset`：`image + boxes + labels` 检测模板
+- `ManifestImageTextDataset`：图文配对模板
+- `ManifestPairDataset`：siamese / contrastive / retrieval pair 模板
+- `ManifestImageEditDataset`：source/target/reference/mask 编辑模板
+
+## 推荐字段名
+
+- 分类: `image`, `label`
+- 回归: `image`, `target`
+- 分割: `image`, `mask`
+- 检测: `image`, `boxes`, `labels`
+- 图文: `image`, `text` 或 `prompt` / `caption`
+- Pair: `image_a`, `image_b`, 可选 `label`, `text_a`, `text_b`
+- 编辑: `source_image`, `target_image`, 可选 `reference_image`, `edit_mask`, `prompt`
+- 通用样本标识: `sample_id` 或 `id`
 
 ## 修改约束
 

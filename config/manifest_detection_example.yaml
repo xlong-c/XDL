@@ -1,0 +1,73 @@
+# Manifest detection example (schema v1)
+
+config_version: 1
+
+runtime:
+  device: "cpu"
+  experiment_name: "manifest_detection_example"
+  output_dir: ${xdl.abspath:${xdl.config_dir},../others}
+
+trainer:
+  max_epochs: 1
+  batch_size: 2
+
+task:
+  target: "xdl.trainer.example_tasks:TinyDetectionTask"
+  params:
+    in_channels: 3
+    num_classes: 3
+    lr: 0.001
+
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 0
+  pin_memory: false
+
+train_dataset:
+  target: "registry:ManifestDetectionDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},../examples/assets/manifest_detection/train.jsonl}
+    transform:
+      target: "registry:ImageBoxesTransform"
+      params:
+        height: 16
+        width: 16
+        random_flip: true
+
+val_dataset:
+  target: "registry:ManifestDetectionDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},../examples/assets/manifest_detection/val.jsonl}
+    transform:
+      target: "registry:ImageBoxesTransform"
+      params:
+        height: 16
+        width: 16
+
+train_dataloader:
+  dataset: ${train_dataset}
+  collate_fn:
+    target: "registry:DetectionCollate"
+  params:
+    shuffle: true
+    drop_last: false
+
+val_dataloader:
+  dataset: ${val_dataset}
+  collate_fn:
+    target: "registry:DetectionCollate"
+  params:
+    shuffle: false
+    drop_last: false
+
+logging:
+  enable_console: false
+  enable_tensorboard: false
+
+checkpoint:
+  dirpath: ${xdl.abspath:${xdl.config_dir},../others/manifest_detection_example}
+  save_last: false
+  save_top_k: 1
+  monitor: "val_loss"
+  mode: "min"
+  every_n_epochs: 1

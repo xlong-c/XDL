@@ -10,6 +10,10 @@
 
 - `vgg_cifar100.yaml`：基础分类训练示例
 - `unified_logger_example.yaml`：日志与回调配置示例
+- `manifest_segmentation_example.yaml`：manifest 分割数据链路与 `task` 示例
+- `manifest_detection_example.yaml`：manifest 检测数据链路与 `DetectionCollate` 示例
+- `manifest_regression_example.yaml`：manifest 回归数据链路与 `task` 示例
+- `manifest_pair_example.yaml`：manifest pair 数据链路与 `DictCollate` 示例
 - `deepspeed_*.json`：不同 ZeRO 策略模板
 
 ## 修改约束

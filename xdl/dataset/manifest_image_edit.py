@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import csv
-import json
 import random
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -14,68 +12,13 @@ from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
 
+from ._manifest import load_manifest_records, resolve_path
+
 
 IMAGE_KEYS: Tuple[str, ...] = ("source_image", "target_image", "reference_image")
 REQUIRED_IMAGE_KEYS: Tuple[str, ...] = ("source_image", "target_image")
 MASK_KEYS: Tuple[str, ...] = ("edit_mask", "mask", "mask_image")
 PROMPT_KEYS: Tuple[str, ...] = ("prompt", "text", "caption")
-
-
-def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
-    records: List[Dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        item = json.loads(stripped)
-        if not isinstance(item, dict):
-            raise TypeError(f"JSONL record must be a mapping: {path}")
-        records.append(dict(item))
-    return records
-
-
-def _read_json(path: Path) -> List[Dict[str, Any]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if isinstance(payload, list):
-        records = payload
-    elif isinstance(payload, dict) and isinstance(payload.get("records"), list):
-        records = payload["records"]
-    elif isinstance(payload, dict):
-        records = [payload]
-    else:
-        raise TypeError(f"JSON manifest must be a list or mapping: {path}")
-
-    if not all(isinstance(item, dict) for item in records):
-        raise TypeError(f"JSON manifest records must be mappings: {path}")
-    return [dict(item) for item in records]
-
-
-def _read_csv(path: Path) -> List[Dict[str, Any]]:
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        return [dict(row) for row in csv.DictReader(handle)]
-
-
-def load_manifest_records(path: Union[str, Path]) -> List[Dict[str, Any]]:
-    """Load records from a jsonl, json, or csv manifest."""
-
-    manifest_path = Path(path)
-    suffix = manifest_path.suffix.lower()
-    if suffix == ".jsonl":
-        return _read_jsonl(manifest_path)
-    if suffix == ".json":
-        return _read_json(manifest_path)
-    if suffix == ".csv":
-        return _read_csv(manifest_path)
-    raise ValueError(f"Unsupported manifest format: {manifest_path}")
-
-
-def _resolve_path(value: Any, base_dir: Path) -> Path:
-    path = Path(str(value)).expanduser()
-    if not path.is_absolute():
-        path = base_dir / path
-    return path
-
-
 def _to_image_tensor(image: Image.Image, *, normalize: bool) -> torch.Tensor:
     array = np.array(image, dtype=np.float32, copy=True)
     if array.ndim == 2:
@@ -231,14 +174,14 @@ class ManifestImageEditDataset(Dataset[Dict[str, Any]]):
                 if key in self.required_image_keys:
                     raise KeyError(f"Manifest record requires image key '{key}'")
                 continue
-            images[key] = Image.open(_resolve_path(value, self.base_dir)).convert("RGB")
+            images[key] = Image.open(resolve_path(value, self.base_dir)).convert("RGB")
         return images
 
     def _load_masks(self, record: Mapping[str, Any]) -> Dict[str, Image.Image]:
         for key in self.mask_keys:
             value = record.get(key)
             if value not in (None, ""):
-                return {key: Image.open(_resolve_path(value, self.base_dir)).convert("L")}
+                return {key: Image.open(resolve_path(value, self.base_dir)).convert("L")}
         return {}
 
     def _prompt(self, record: Mapping[str, Any]) -> str:

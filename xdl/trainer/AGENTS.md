@@ -11,6 +11,7 @@
 - `coreModel.py`：`CoreModel` 基类
 - `trainer_state.py`：状态管理
 - `trainSetupModel.py`：把外部组件包装成可训练模型
+- `example_tasks.py`：官方配置样例使用的轻量 `CoreModel` task 集合
 
 ## 核心约束
 

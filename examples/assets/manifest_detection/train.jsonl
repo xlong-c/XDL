@@ -1,0 +1,2 @@
+{"image": "images/train_a.png", "boxes": [[2, 2, 10, 10]], "labels": [1], "sample_id": "det-train-a"}
+{"image": "images/train_b.png", "boxes": [[4, 1, 12, 9], [1, 8, 6, 14]], "labels": [2, 1], "sample_id": "det-train-b"}

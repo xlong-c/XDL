@@ -383,3 +383,61 @@ def test_official_vgg_config_matches_schema_and_model_definition() -> None:
         }
     )
     assert type(model).__name__ == "VGG"
+
+
+def test_official_manifest_segmentation_example_builds_and_trains() -> None:
+    setup = setup_from_yaml("config/manifest_segmentation_example.yaml", device="cpu")
+
+    assert isinstance(setup.model, CoreModel)
+    assert setup.optimizer is None
+    assert setup.loss_fn is None
+    assert setup.train_loader is not None
+    batch = next(iter(setup.train_loader))
+    assert set(batch.keys()) >= {"image", "mask", "sample_id"}
+
+    trainer = Trainer.from_setup(setup)
+    trainer.fit(setup.create_model(), setup.train_loader, setup.val_loader)
+
+
+def test_official_manifest_detection_example_builds_and_trains() -> None:
+    setup = setup_from_yaml("config/manifest_detection_example.yaml", device="cpu")
+
+    assert isinstance(setup.model, CoreModel)
+    assert setup.optimizer is None
+    assert setup.loss_fn is None
+    assert setup.train_loader is not None
+    batch = next(iter(setup.train_loader))
+    assert set(batch.keys()) >= {"image", "boxes", "labels", "sample_id"}
+    assert isinstance(batch["boxes"], list)
+    assert isinstance(batch["labels"], list)
+
+    trainer = Trainer.from_setup(setup)
+    trainer.fit(setup.create_model(), setup.train_loader, setup.val_loader)
+
+
+def test_official_manifest_regression_example_builds_and_trains() -> None:
+    setup = setup_from_yaml("config/manifest_regression_example.yaml", device="cpu")
+
+    assert isinstance(setup.model, CoreModel)
+    assert setup.optimizer is None
+    assert setup.loss_fn is None
+    assert setup.train_loader is not None
+    batch = next(iter(setup.train_loader))
+    assert len(batch) == 2
+
+    trainer = Trainer.from_setup(setup)
+    trainer.fit(setup.create_model(), setup.train_loader, setup.val_loader)
+
+
+def test_official_manifest_pair_example_builds_and_trains() -> None:
+    setup = setup_from_yaml("config/manifest_pair_example.yaml", device="cpu")
+
+    assert isinstance(setup.model, CoreModel)
+    assert setup.optimizer is None
+    assert setup.loss_fn is None
+    assert setup.train_loader is not None
+    batch = next(iter(setup.train_loader))
+    assert set(batch.keys()) >= {"image_a", "image_b", "label", "sample_id"}
+
+    trainer = Trainer.from_setup(setup)
+    trainer.fit(setup.create_model(), setup.train_loader, setup.val_loader)

@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 from PIL import Image
 from torch.utils.data import Dataset
 
-from .manifest_image_edit import load_manifest_records
+from ._manifest import load_manifest_records, resolve_path
 
 PathLike = Union[str, Path]
 Record = Dict[str, Any]
@@ -32,15 +32,6 @@ def _normalize_extensions(extensions: Optional[Sequence[str]]) -> Tuple[str, ...
         item.lower() if str(item).startswith(".") else f".{str(item).lower()}"
         for item in values
     )
-
-
-def _resolve_path(value: Any, base_dir: Path) -> Path:
-    path = Path(str(value)).expanduser()
-    if not path.is_absolute():
-        path = base_dir / path
-    return path
-
-
 def _load_image(path: Path, image_mode: str) -> Image.Image:
     return Image.open(path).convert(image_mode)
 
@@ -211,9 +202,57 @@ class ManifestClassificationDataset(Dataset[Tuple[Any, Any]]):
         if self.label_key not in record:
             raise KeyError(f"Manifest record requires label key '{self.label_key}'")
 
-        image_path = _resolve_path(record[self.image_key], self.base_dir)
+        image_path = resolve_path(record[self.image_key], self.base_dir)
         image = _load_image(image_path, self.image_mode)
         target = _target_from_label(record[self.label_key], self.class_to_idx)
+        image = _apply_optional(self.transform, image)
+        target = _apply_optional(self.target_transform, target)
+        return image, target
+
+
+class ManifestRegressionDataset(Dataset[Tuple[Any, Any]]):
+    """Regression dataset backed by a JSONL/JSON/CSV manifest."""
+
+    def __init__(
+        self,
+        manifest_path: PathLike,
+        image_key: str = "image",
+        target_key: str = "target",
+        base_dir: Optional[PathLike] = None,
+        transform: Transform = None,
+        target_transform: Transform = None,
+        image_mode: str = "RGB",
+        dtype: Callable[[Any], Any] = float,
+    ) -> None:
+        self.manifest_path = Path(manifest_path).expanduser().resolve()
+        self.base_dir = (
+            Path(base_dir).expanduser().resolve()
+            if base_dir is not None
+            else self.manifest_path.parent
+        )
+        self.image_key = image_key
+        self.target_key = target_key
+        self.transform = transform
+        self.target_transform = target_transform
+        self.image_mode = image_mode
+        self.dtype = dtype
+        self.records = load_manifest_records(self.manifest_path)
+        if not self.records:
+            raise ValueError(f"Manifest is empty: {self.manifest_path}")
+
+    def __len__(self) -> int:
+        return len(self.records)
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        record = self.records[index]
+        if self.image_key not in record:
+            raise KeyError(f"Manifest record requires image key '{self.image_key}'")
+        if self.target_key not in record:
+            raise KeyError(f"Manifest record requires target key '{self.target_key}'")
+
+        image_path = resolve_path(record[self.image_key], self.base_dir)
+        image = _load_image(image_path, self.image_mode)
+        target = self.dtype(record[self.target_key])
         image = _apply_optional(self.transform, image)
         target = _apply_optional(self.target_transform, target)
         return image, target
@@ -259,7 +298,7 @@ class ManifestImageTextDataset(Dataset[Record]):
         if self.image_key not in record:
             raise KeyError(f"Manifest record requires image key '{self.image_key}'")
 
-        image_path = _resolve_path(record[self.image_key], self.base_dir)
+        image_path = resolve_path(record[self.image_key], self.base_dir)
         image = _apply_optional(self.transform, _load_image(image_path, self.image_mode))
         text = self._select_text(record)
         text_value = (
@@ -289,4 +328,98 @@ class ManifestImageTextDataset(Dataset[Record]):
                 return str(record[key])
         if image_path.name:
             return image_path.stem
+        return str(index)
+
+
+class ManifestPairDataset(Dataset[Record]):
+    """Pair dataset for contrastive, siamese, or retrieval-style tasks."""
+
+    def __init__(
+        self,
+        manifest_path: PathLike,
+        image_a_key: str = "image_a",
+        image_b_key: str = "image_b",
+        label_key: Optional[str] = "label",
+        text_a_key: Optional[str] = None,
+        text_b_key: Optional[str] = None,
+        base_dir: Optional[PathLike] = None,
+        transform: Transform = None,
+        target_transform: Transform = None,
+        text_transform: Optional[Callable[[str], Any]] = None,
+        image_mode: str = "RGB",
+        include_paths: bool = False,
+    ) -> None:
+        self.manifest_path = Path(manifest_path).expanduser().resolve()
+        self.base_dir = (
+            Path(base_dir).expanduser().resolve()
+            if base_dir is not None
+            else self.manifest_path.parent
+        )
+        self.image_a_key = image_a_key
+        self.image_b_key = image_b_key
+        self.label_key = label_key
+        self.text_a_key = text_a_key
+        self.text_b_key = text_b_key
+        self.transform = transform
+        self.target_transform = target_transform
+        self.text_transform = text_transform
+        self.image_mode = image_mode
+        self.include_paths = bool(include_paths)
+        self.records = load_manifest_records(self.manifest_path)
+        if not self.records:
+            raise ValueError(f"Manifest is empty: {self.manifest_path}")
+
+    def __len__(self) -> int:
+        return len(self.records)
+
+    def __getitem__(self, index: int) -> Record:
+        record = self.records[index]
+        if self.image_a_key not in record:
+            raise KeyError(f"Manifest record requires image key '{self.image_a_key}'")
+        if self.image_b_key not in record:
+            raise KeyError(f"Manifest record requires image key '{self.image_b_key}'")
+
+        image_a_path = resolve_path(record[self.image_a_key], self.base_dir)
+        image_b_path = resolve_path(record[self.image_b_key], self.base_dir)
+        sample: Record = {
+            "image_a": _apply_optional(
+                self.transform,
+                _load_image(image_a_path, self.image_mode),
+            ),
+            "image_b": _apply_optional(
+                self.transform,
+                _load_image(image_b_path, self.image_mode),
+            ),
+        }
+        if self.label_key is not None and self.label_key in record:
+            target = record[self.label_key]
+            sample["label"] = _apply_optional(self.target_transform, target)
+        if self.text_a_key is not None and record.get(self.text_a_key) not in (None, ""):
+            sample["text_a"] = self._transform_text(record[self.text_a_key])
+        if self.text_b_key is not None and record.get(self.text_b_key) not in (None, ""):
+            sample["text_b"] = self._transform_text(record[self.text_b_key])
+        sample["sample_id"] = self._sample_id(record, image_a_path, image_b_path, index)
+        if self.include_paths:
+            sample["image_a_path"] = str(image_a_path)
+            sample["image_b_path"] = str(image_b_path)
+        return sample
+
+    def _transform_text(self, value: Any) -> Any:
+        text = str(value)
+        if self.text_transform is not None:
+            return self.text_transform(text)
+        return text
+
+    def _sample_id(
+        self,
+        record: Mapping[str, Any],
+        image_a_path: Path,
+        image_b_path: Path,
+        index: int,
+    ) -> str:
+        for key in ("sample_id", "id"):
+            if record.get(key) not in (None, ""):
+                return str(record[key])
+        if image_a_path.name and image_b_path.name:
+            return f"{image_a_path.stem}-{image_b_path.stem}"
         return str(index)

@@ -71,11 +71,19 @@ class TestGlobalRegistries:
     def test_dataset_registry_has_builtin(self):
         available = DATASET_REGISTRY.list_available()
         assert "SyntheticClassificationDataset" in available
+        for name in (
+            "ManifestRegressionDataset",
+            "ManifestSegmentationDataset",
+            "ManifestDetectionDataset",
+            "ManifestPairDataset",
+        ):
+            assert name in available, f"Missing {name}"
 
     def test_collate_registry_has_builtin(self):
         available = COLLATE_REGISTRY.list_available()
         assert "PadCollate" in available
         assert "DictCollate" in available
+        assert "DetectionCollate" in available
 
     def test_scheduler_registry_empty_by_default(self):
         # scheduler 没有预注册 PyTorch 原生类

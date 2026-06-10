@@ -187,9 +187,108 @@ train_dataloader:
 
 - `registry:ImageFolderClassificationDataset`: 读取 `root/class_name/image` 分类目录.
 - `registry:ManifestClassificationDataset`: 从 JSONL/JSON/CSV manifest 读取 `image + label`.
+- `registry:ManifestRegressionDataset`: 从 manifest 读取 `image + target`, 适合分数、年龄、质量估计等回归任务.
+- `registry:ManifestSegmentationDataset`: 从 manifest 读取 `image + mask`, 适合语义分割和其他 dense label 任务.
+- `registry:ManifestDetectionDataset`: 从 manifest 读取 `image + boxes + labels`, 适合目标检测和变长 target 任务.
 - `registry:ManifestImageTextDataset`: 从 manifest 读取 `image + text/prompt/caption`, 适合图文微调.
+- `registry:ManifestPairDataset`: 从 manifest 读取 `image_a + image_b`, 可选 `label` / `text_a` / `text_b`, 适合 siamese、对比学习、检索 pair.
 - `registry:ManifestImageEditDataset`: 从 manifest 读取 source/target/reference/mask 多图编辑样本.
 - `registry:ManifestRecordDataset`: 直接返回 manifest 里的 dict 记录.
+
+### Manifest 模板字段约定
+
+这些模板优先复用一组固定字段名, 这样 YAML 和下游 `CoreModel` 更容易保持一致:
+
+- 分类: `image`, `label`
+- 回归: `image`, `target`
+- 分割: `image`, `mask`
+- 检测: `image`, `boxes`, `labels`
+- 图文: `image`, `text` 或 `prompt` / `caption`
+- Pair: `image_a`, `image_b`, 可选 `label`, `text_a`, `text_b`
+- Image edit: `source_image`, `target_image`, 可选 `reference_image`, `edit_mask`, `prompt`
+- 通用样本标识: `sample_id` 或 `id`
+
+如果 manifest 使用不同字段名, 优先通过 dataset 参数显式映射, 不要在训练入口里写额外字段迁移逻辑.
+
+### Manifest 样例
+
+分类:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestClassificationDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_cls.jsonl}
+    transform: ${train_transforms}
+```
+
+分割:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestSegmentationDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_seg.jsonl}
+    transform:
+      target: "registry:ImageMaskTransform"
+      params:
+        height: 512
+        width: 512
+        random_flip: true
+```
+
+检测:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestDetectionDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_det.jsonl}
+    transform:
+      target: "registry:ImageBoxesTransform"
+      params:
+        height: 640
+        width: 640
+
+train_dataloader:
+  dataset: ${train_dataset}
+  collate_fn:
+    target: "registry:DetectionCollate"
+  params:
+    batch_size: 4
+    shuffle: true
+```
+
+image-text:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestImageTextDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_it.jsonl}
+    transform: ${train_transforms}
+    text_keys: ["prompt", "caption", "text"]
+```
+
+image edit:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestImageEditDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_edit.jsonl}
+    height: 512
+    width: 512
+    random_flip: true
+
+train_dataloader:
+  dataset: ${train_dataset}
+  collate_fn:
+    target: "registry:ManifestImageEditCollate"
+  params:
+    batch_size: 2
+    shuffle: true
+```
 
 ## 7. loss 和 metrics 的写法
 
@@ -258,6 +357,13 @@ task:
 ## 8. 一个最小可运行示例
 
 仓库里的 [config/unified_logger_example.yaml](../config/unified_logger_example.yaml) 是当前最合适的主路径样例。
+
+如果想看 manifest 数据模板的完整官方样例, 参考:
+
+- [config/manifest_segmentation_example.yaml](../config/manifest_segmentation_example.yaml)
+- [config/manifest_detection_example.yaml](../config/manifest_detection_example.yaml)
+- [config/manifest_regression_example.yaml](../config/manifest_regression_example.yaml)
+- [config/manifest_pair_example.yaml](../config/manifest_pair_example.yaml)
 
 最小消费方式：
 

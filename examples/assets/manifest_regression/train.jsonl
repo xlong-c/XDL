@@ -1,0 +1,3 @@
+{"image": "images/train_dark.png", "target": 0.1, "sample_id": "reg-train-dark"}
+{"image": "images/train_mid.png", "target": 0.5, "sample_id": "reg-train-mid"}
+{"image": "images/train_bright.png", "target": 0.9, "sample_id": "reg-train-bright"}
