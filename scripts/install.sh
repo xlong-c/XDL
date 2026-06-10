@@ -25,12 +25,16 @@ error() {
 
 # 检查 Python 环境
 if ! command -v python3 &> /dev/null; then
-    error "Python 3 未安装，请先安装 Python 3.8+"
+    error "Python 3 未安装, 请先安装 Python 3.12+"
     exit 1
 fi
 
 PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 log "检测到 Python 版本: $PYTHON_VERSION"
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)' &> /dev/null; then
+    error "检测到 Python 版本: $PYTHON_VERSION. XDL 需要 Python 3.12+"
+    exit 1
+fi
 
 # 安装选项
 MODE=${1:-"base"}

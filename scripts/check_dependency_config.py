@@ -181,13 +181,9 @@ Requirement = load_requirement_type()
 
 
 def path_is_relative_to(path: Path, base: Path) -> bool:
-    """兼容 Python 3.8 的相对路径判断。"""
+    """判断 path 是否位于 base 下."""
 
-    try:
-        path.relative_to(base)
-        return True
-    except ValueError:
-        return False
+    return path.is_relative_to(base)
 
 
 def ensure_directory(path: Path) -> None:

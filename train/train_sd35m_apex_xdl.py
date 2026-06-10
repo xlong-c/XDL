@@ -15,14 +15,13 @@ import os
 import random
 import sys
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import MethodType
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type
 
 import numpy as np
 import torch
-import yaml
 from diffusers import SD3Transformer2DModel, StableDiffusion3Pipeline
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from peft import LoraConfig, get_peft_model, get_peft_model_state_dict
@@ -32,9 +31,11 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.utils import save_image
 
-from xdl.callbacks import Callback
+from xdl.callbacks import Callback, SaveTrainableStateCallback
+from xdl.config import load_structured_dataclass_config
 from xdl.trainer.coreModel import CoreModel
 from xdl.trainer.trainer import Trainer
+from xdl.utils import save_yaml
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,15 @@ IMAGE_EXTENSIONS: Tuple[str, ...] = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
 class RuntimeConfig:
     config_path: Path
     raw: Dict[str, Any]
+
+
+@dataclass
+class SD35APEXConfig:
+    model: Dict[str, Any] = field(default_factory=dict)
+    data: Dict[str, Any] = field(default_factory=dict)
+    method: Dict[str, Any] = field(default_factory=dict)
+    sample: Dict[str, Any] = field(default_factory=dict)
+    train: Dict[str, Any] = field(default_factory=dict)
 
 
 class ImageTextPairDataset(Dataset[List[Dict[str, Any]]]):
@@ -566,30 +576,18 @@ class SD35APEXCoreModel(CoreModel):
 
     def training_step(self, batch: Any, batch_idx: int) -> None:
         loss = self._compute_apex_loss(batch)
-        scaled_loss = loss / self.gradient_accumulation_steps
-        is_first_micro_step = (self._total_train_steps - 1) % self.gradient_accumulation_steps == 0
-        should_step = self._total_train_steps % self.gradient_accumulation_steps == 0
-
         optimizer = self.optimizers[0]
-        if is_first_micro_step:
-            optimizer.zero_grad(set_to_none=True)
-        self.manual_backward(scaled_loss)
-
-        grad_norm = 0.0
-        if should_step:
-            if self.max_grad_norm > 0:
-                grad_norm_tensor = torch.nn.utils.clip_grad_norm_(
-                    [param for group in optimizer.param_groups for param in group["params"]],
-                    self.max_grad_norm,
-                )
-                grad_norm = float(grad_norm_tensor.detach().cpu())
-            optimizer.step()
-            optimizer.zero_grad(set_to_none=True)
+        should_step = self.manual_optimization_step(
+            loss,
+            optimizer=optimizer,
+            model=self.sd_model.transformer if self.sd_model is not None else self,
+            max_grad_norm=self.max_grad_norm if self.max_grad_norm > 0 else None,
+        )
 
         self.log("train_loss", loss.detach())
         self.log("lr", self.get_lr())
         if should_step:
-            self.log("grad_norm", grad_norm)
+            self.log("optimizer_step", self.optimizer_step)
 
     def validation_step(self, batch: Any, batch_idx: int) -> None:
         loss = self._compute_apex_loss(batch)
@@ -631,7 +629,7 @@ class SD35APEXCoreModel(CoreModel):
                 latents,
                 c=[prompt_embeds, pooled_prompt_embeds],
                 e=[neg_prompt_embeds, neg_pooled_prompt_embeds],
-                step=self._total_train_steps - 1,
+                step=self.micro_step - 1,
                 v=v,
             )
         if not torch.is_tensor(loss):
@@ -669,7 +667,7 @@ class SD35APEXCoreModel(CoreModel):
             sampling_kwargs=sampling_kwargs,
             return_traj=bool(self.sample_cfg.get("return_traj", False)),
         )
-        save_path = sample_dir / f"epoch_{self.current_epoch:04d}_step_{self._total_train_steps:07d}.png"
+        save_path = sample_dir / f"epoch_{self.current_epoch:04d}_step_{self.total_train_steps:07d}.png"
         save_image((images.clamp(-1, 1) + 1.0) / 2.0, save_path, nrow=max(1, len(prompts)))
 
     def on_train_start(self) -> None:
@@ -950,17 +948,8 @@ def load_runtime_config() -> RuntimeConfig:
     config_path = Path(raw_path).expanduser().resolve()
     if not config_path.exists():
         raise FileNotFoundError(f"配置文件不存在: {config_path}")
-    with config_path.open("r", encoding="utf-8") as file_obj:
-        raw = yaml.safe_load(file_obj) or {}
-    if not isinstance(raw, dict):
-        raise TypeError("YAML 顶层必须是 dict")
-    return RuntimeConfig(config_path=config_path, raw=raw)
-
-
-def save_yaml(data: Dict[str, Any], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as file_obj:
-        yaml.safe_dump(data, file_obj, allow_unicode=True, sort_keys=False)
+    config = load_structured_dataclass_config(SD35APEXConfig, config_path)
+    return RuntimeConfig(config_path=config_path, raw=asdict(config))
 
 
 def set_seed(seed: int) -> None:
@@ -993,8 +982,9 @@ def main() -> None:
 
     train_loader = build_dataloader(config)
     output_dir = Path(train_cfg.get("output_dir", "./outputs/sd35m_apex_lora"))
-    checkpoint_callback = SD35LoRACheckpointCallback(
-        output_dir=output_dir,
+    checkpoint_callback = SaveTrainableStateCallback(
+        dirpath=output_dir / "adapters",
+        method_name="save_lora_adapter",
         every_n_epochs=int(train_cfg.get("save_every_n_epochs", 1)),
         every_n_train_steps=train_cfg.get("save_every_n_train_steps"),
     )
