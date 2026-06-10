@@ -26,7 +26,6 @@ setup = setup_from_yaml("config/unified_logger_example.yaml", device="cpu")
 
 ```text
 YAML
-  -> _load_raw_yaml()
   -> load_config_with_schema()
   -> to_plain_dict()
   -> build_model / build_dataset / build_dataloader
@@ -47,6 +46,7 @@ YAML
 - `logging_config`
 - `checkpoint_config`
 - `accelerate_config`
+- `trainer_config` 以及 `precision` / `gradient_accumulation_steps` 等常用 trainer 字段
 
 如果要直接交给 `Trainer.fit()`，可以继续：
 
@@ -80,6 +80,7 @@ model = setup.create_model()
 - `runtime`
 - `trainer`
 - `model`
+- `task`
 - `train_transforms` / `val_transforms` / `test_transforms`
 - `train_dataset` / `val_dataset` / `test_dataset`
 - `dataloader_defaults`
@@ -87,18 +88,22 @@ model = setup.create_model()
 - `optimization`
 - `loss`
 - `metrics`
+- `callbacks`
 - `logging`
 - `checkpoint`
 - `accelerate`
 - `deepspeed`
+- `xdl`
 
 其中最常用的几块是：
 
 - `runtime`：设备、实验名、输出目录
 - `trainer`：epoch、batch size、precision、梯度累积
 - `model`：模型组件
+- `task`: 可选的 `CoreModel` 任务组件, 适合大模型或手写训练逻辑
 - `optimization`：优化器和调度器
 - `loss` / `metrics`：训练目标和评估指标
+- `callbacks`: 用 import path 配置化构建 callback
 
 ## 5. 统一组件写法
 
@@ -124,6 +129,20 @@ model:
 - `torchvision.transforms:...`
 
 `builder.py` 会先解析 `target`，再实例化组件。
+
+内置上下文字段由配置加载器注入:
+
+```yaml
+runtime:
+  output_dir: ${xdl.abspath:${xdl.config_dir},outputs}
+```
+
+可用字段:
+
+- `${xdl.config_path}`: 当前 YAML 文件的绝对路径
+- `${xdl.config_dir}`: 当前 YAML 文件所在目录
+- `${xdl.project_root}`: 调用 `setup_from_yaml()` 时的当前工作目录
+- `${xdl.join_path:...}` / `${xdl.abspath:...}`: 路径拼接和绝对路径 resolver
 
 ## 6. transform、dataset、dataloader 的关系
 
@@ -164,6 +183,14 @@ train_dataloader:
 - `trainer.batch_size` 可作为默认 batch size 来源
 - `collate_fn` 支持 `None`、可调用对象或 `target + params`
 
+常用内置 dataset 模板:
+
+- `registry:ImageFolderClassificationDataset`: 读取 `root/class_name/image` 分类目录.
+- `registry:ManifestClassificationDataset`: 从 JSONL/JSON/CSV manifest 读取 `image + label`.
+- `registry:ManifestImageTextDataset`: 从 manifest 读取 `image + text/prompt/caption`, 适合图文微调.
+- `registry:ManifestImageEditDataset`: 从 manifest 读取 source/target/reference/mask 多图编辑样本.
+- `registry:ManifestRecordDataset`: 直接返回 manifest 里的 dict 记录.
+
 ## 7. loss 和 metrics 的写法
 
 ### 单个 loss
@@ -199,6 +226,35 @@ metrics:
 
 `build_metrics()` 返回指标实例列表。
 
+### callbacks
+
+Callback 暂不新增 registry 类型, 使用 import path 构建:
+
+```yaml
+callbacks:
+  - target: "xdl.callbacks:SaveTrainableStateCallback"
+    params:
+      dirpath: ${xdl.abspath:${xdl.config_dir},adapters}
+      every_n_epochs: 1
+```
+
+`Trainer.from_setup(setup)` 会把这些 callback 加入训练器。
+
+### CoreModel task
+
+标准监督任务继续使用 `model + optimization + loss`. 如果任务本身继承
+`CoreModel` 并在 `configure_optimizers()` 中构建优化器, 可以改用:
+
+```yaml
+task:
+  target: "my_project.tasks:MyTask"
+  params:
+    lr: 0.0001
+```
+
+此时 `optimizer` 和 `loss` 可以省略, `setup.create_model()` 会直接返回该
+`CoreModel` 实例。
+
 ## 8. 一个最小可运行示例
 
 仓库里的 [config/unified_logger_example.yaml](../config/unified_logger_example.yaml) 是当前最合适的主路径样例。
@@ -226,6 +282,17 @@ print(len(setup.train_loader.dataset))
 - 新装配流程：改 `setup.py`
 
 不要把所有变化都堆到 `setup_from_yaml()`。
+
+训练入口里的轻量 dataclass 配置推荐使用:
+
+```python
+from xdl.config import load_structured_dataclass_config
+
+config = load_structured_dataclass_config(MyConfig, "train.yaml")
+```
+
+该工具遵循 `structured dataclass 默认值 -> YAML 覆盖 -> overrides 覆盖`
+的顺序, 并统一走 OmegaConf resolver 和插值解析。
 
 ## 10. 当前边界
 

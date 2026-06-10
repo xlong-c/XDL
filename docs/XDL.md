@@ -89,6 +89,9 @@ XDL 当前采用手动优化模式。也就是说，训练步里需要自行处�
 - `optimizer.step()`
 - `self.log("loss", loss, prefix="train")`
 
+简单场景可以使用 `self.manual_optimization_step(loss, ...)` 执行
+`zero_grad -> backward(loss / accumulation_steps) -> clip -> step` 模板.
+
 `CoreModel` 会维护训练步计数。新代码优先使用公开属性而不是私有字段：
 
 - `micro_step`：全局 micro-batch 步数，进入 `training_step()` 前已递增。
@@ -118,6 +121,8 @@ XDL 当前采用手动优化模式。也就是说，训练步里需要自行处�
 `Trainer.fit()` 在进入训练循环前会先调用 `model.setup("fit")`。重型模块、外部 pipeline、LoRA 之类惰性初始化逻辑应优先放到这里。
 
 训练、验证、测试 batch 会递归迁移常见容器里的 tensor，支持 `Tensor / dict / list / tuple / dataclass`。第三方自定义对象仍应在 `training_step()` / `validation_step()` 中显式处理设备。
+
+外部 pipeline 或非 `nn.Module` 重组件可通过 `CoreModel.configure_device_objects()` 声明给 Trainer 迁移, 并在 `on_after_device_setup()` 中做任务侧收尾。
 
 ## 4. 两条推荐使用路径
 

@@ -17,7 +17,7 @@ XDL API 分为三类：
 ### 配置入口
 
 ```python
-from xdl.config import setup_from_yaml, TrainSetup
+from xdl.config import setup_from_yaml, TrainSetup, load_structured_dataclass_config
 ```
 
 承诺：
@@ -25,6 +25,7 @@ from xdl.config import setup_from_yaml, TrainSetup
 - `setup_from_yaml(config_path, device=None)` 是 YAML 配置主入口。
 - 返回值是 `TrainSetup`。
 - `TrainSetup.create_model()` 返回可交给 `Trainer.fit()` 的 `CoreModel` 包装对象。
+- `load_structured_dataclass_config(ConfigType, config_path, overrides=None)` 是训练入口可复用的轻量 dataclass 配置加载工具。
 
 ### 训练入口
 
@@ -40,8 +41,11 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 - `TrainSetupModel` 是配置流到 `CoreModel` 的适配层。
 - `CoreModel.log(name, value, prefix=None)` 和 `CoreModel.log_metrics(metrics, prefix=None)` 是指标记录入口；`value` 支持 Python 数值或单元素 `torch.Tensor`，内部记录为 `float`；`prefix="train"` 会生成 `train_loss` 这类兼容键名。
 - `CoreModel.manual_backward(loss)` 是手动优化的反向传播入口。
+- `CoreModel.manual_optimization_step(loss, optimizer=None, model=None, max_grad_norm=None)` 是手动优化和梯度累积的薄模板, 返回当前 micro step 是否执行了 `optimizer.step()`。
 - `CoreModel` 的训练步语义属性 `micro_step`、`accumulation_steps`、`micro_step_in_accumulation`、`optimizer_step`、`is_accumulation_start`、`is_accumulation_boundary`、`should_optimizer_step` 可用于手动梯度累积。
+- `CoreModel.configure_device_objects()` 和 `CoreModel.on_after_device_setup()` 可用于声明并处理第三方 pipeline 等额外设备迁移对象。
 - `Trainer` 暴露同名只读属性，方便 callback 或外层逻辑读取当前 step / accumulation 状态。
+- `Trainer.load_checkpoint(model, checkpoint_path, map_location="cpu", format="pt")` 会恢复模型状态和 checkpoint 中的 callback state。
 
 兼容路径：
 
@@ -67,7 +71,12 @@ from xdl.callbacks import Callback
 常用内置回调也可从 `xdl.callbacks` 导入，例如：
 
 ```python
-from xdl.callbacks import ModelCheckpoint, TqdmCallback, TensorBoardCallback
+from xdl.callbacks import (
+    ModelCheckpoint,
+    PreviewCallback,
+    SaveTrainableStateCallback,
+    TqdmCallback,
+)
 ```
 
 内置回调的类名导出会尽量保持兼容；具体构造参数如果调整，应通过文档和测试说明迁移方式。

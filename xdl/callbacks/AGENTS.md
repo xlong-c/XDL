@@ -23,8 +23,10 @@
 - `lambda_callback.py`：轻量钩子封装
 - `logging_callback.py`：通用日志回调
 - `sampling_animation_callback.py`：采样动画
+- `save_trainable_state.py`: 任务可训练状态保存
+- `preview.py`: 任务预览采样触发
 
-当前 `xdl.callbacks.__all__` 导出 **16** 个名称。
+当前 `xdl.callbacks.__all__` 导出 **18** 个名称。
 
 ## 核心约束
 
@@ -42,7 +44,12 @@
 ## 使用方式
 
 ```python
-from xdl.callbacks import TqdmCallback, ModelCheckpoint, TensorBoardCallback
+from xdl.callbacks import (
+    ModelCheckpoint,
+    SaveTrainableStateCallback,
+    TensorBoardCallback,
+    TqdmCallback,
+)
 from xdl.trainer import Trainer
 
 trainer = Trainer(

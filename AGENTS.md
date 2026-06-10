@@ -1,6 +1,6 @@
 # XDL — 模块化深度学习框架
 
-PyTorch 深度学习框架，组件注册系统 + 回调生命周期。Python 3.8+, PyTorch 1.12+, CUDA 可选。
+PyTorch 深度学习框架, 组件注册系统 + 回调生命周期. Python 3.12+, PyTorch 1.12+, CUDA 可选.
 
 ## 行为准则
 

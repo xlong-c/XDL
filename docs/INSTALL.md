@@ -4,7 +4,7 @@
 
 ## 1. 环境要求
 
-- Python `>=3.8`
+- Python `>=3.12`
 - PyTorch `>=1.12`
 - Linux / macOS / Windows 均可，当前仓库主要在 Linux 环境下维护
 - GPU 不是必需；如果要跑 CUDA 训练，先按本机 CUDA 版本安装对应 PyTorch wheel

@@ -90,16 +90,14 @@ def training_step(self, batch: Any, batch_idx: int) -> None:
     x, y = batch
     optimizer = self.optimizers[0]
 
-    if self.is_accumulation_start:
-        optimizer.zero_grad(set_to_none=True)
-
     logits = self.net(x)
     loss = self.loss_fn(logits, y)
-    self.manual_backward(loss / self.accumulation_steps)
-
-    if self.should_optimizer_step:
-        self.clip_gradients(self.net, gradient_clip_val=1.0)
-        optimizer.step()
+    self.manual_optimization_step(
+        loss,
+        optimizer=optimizer,
+        model=self.net,
+        max_grad_norm=1.0,
+    )
 
     self.log("loss", loss.detach(), prefix="train")
 ```
@@ -154,8 +152,10 @@ class LargeModelFinetune(CoreModel):
 大模型注意事项：
 
 - 标准非 Accelerate 路径只会迁移 `CoreModel.__dict__` 中的 `nn.Module` 属性；普通 pipeline 不是 `nn.Module`。
+- 普通 pipeline 可通过 `configure_device_objects()` 返回 `{属性名: 对象}` 让 Trainer 调用 `.to(device)`.
 - Trainer 会递归迁移 batch 里的 `Tensor / dict / list / tuple / dataclass`；第三方自定义对象仍建议在 `training_step()` 内显式 `.to(self.device)`。
 - `Trainer` 构造参数里的 `gradient_accumulation_steps` 不会替代手动优化逻辑；自己实现累积时用 `self.accumulation_steps`、`self.is_accumulation_start`、`self.is_accumulation_boundary` 控制 backward/step。
+- 使用 Accelerate 时仍保持手动优化语义, 避免在任务代码里再写一套与 Trainer 不一致的私有 step 计数.
 - `on_train_step_start()` 会在 `training_step()` 前递增 `_total_train_steps`；新代码优先读 `self.micro_step`，不要直接依赖私有字段。
 - diffusers/PEFT LoRA 权重保存优先写专用 callback，调用 `save_pretrained()` 或框架自己的保存 API。
 
@@ -222,6 +222,11 @@ metrics:
   - target: "registry:Accuracy"
     params:
       num_classes: 10
+
+callbacks:
+  - target: "xdl.callbacks:SaveTrainableStateCallback"
+    params:
+      dirpath: "./outputs/adapters"
 ```
 
 YAML 规则：
@@ -230,6 +235,8 @@ YAML 规则：
 - `registry:Name` 表示从 XDL registry 查找。
 - `torch.optim:AdamW` 这类格式表示 `module:name` 动态导入。
 - `setup_from_yaml()` 返回 `TrainSetup`，包含 `model / optimizer / train_loader / val_loader / loss_fn / metrics / scheduler`。
+- YAML 中可用 `${xdl.config_dir}`, `${xdl.project_root}`, `${xdl.join_path:...}` 和 `${xdl.abspath:...}` 组织路径.
+- `callbacks` 使用 import path 构建, 会被 `Trainer.from_setup(setup)` 自动附加。
 - `setup.create_model()` 会包装成 `TrainSetupModel`，直接适配 `Trainer.fit()`。
 
 ## 注册自定义组件
@@ -285,7 +292,7 @@ class SaveLoraCallback(Callback):
         pass
 ```
 
-普通 `ModelCheckpoint` 保存 `CoreModel` 的 state_dict 和 optimizer 状态；第三方格式权重通常写专用 callback。
+普通 `ModelCheckpoint` 保存 `CoreModel` 的 state_dict, optimizer 状态和 callback state; 第三方格式权重通常用 `SaveTrainableStateCallback` 调用任务模型自己的保存方法.
 
 ## 公共 API 边界
 
