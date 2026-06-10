@@ -38,7 +38,7 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 - `Trainer.fit(model, train_dataloader, val_dataloader=None, inference_data=None)` 是训练主路径。
 - `CoreModel` 是用户自定义任务逻辑的基类。
 - `TrainSetupModel` 是配置流到 `CoreModel` 的适配层。
-- `CoreModel.log(name, value, prefix=None)` 和 `CoreModel.log_metrics(metrics, prefix=None)` 是指标记录入口；`prefix="train"` 会生成 `train_loss` 这类兼容键名。
+- `CoreModel.log(name, value, prefix=None)` 和 `CoreModel.log_metrics(metrics, prefix=None)` 是指标记录入口；`value` 支持 Python 数值或单元素 `torch.Tensor`，内部记录为 `float`；`prefix="train"` 会生成 `train_loss` 这类兼容键名。
 - `CoreModel.manual_backward(loss)` 是手动优化的反向传播入口。
 - `CoreModel` 的训练步语义属性 `micro_step`、`accumulation_steps`、`micro_step_in_accumulation`、`optimizer_step`、`is_accumulation_start`、`is_accumulation_boundary`、`should_optimizer_step` 可用于手动梯度累积。
 - `Trainer` 暴露同名只读属性，方便 callback 或外层逻辑读取当前 step / accumulation 状态。
@@ -93,6 +93,18 @@ from xdl.utils.registry import (
 - `Registry` 提供注册、查找、列举能力。
 - `register_*("Name")(ClassOrFunction)` 是自定义组件接入方式。
 - 支持的注册类型保持为：MODEL、DATASET、OPTIMIZER、SCHEDULER、LOSS、METRIC、TRANSFORM、COLLATE。
+
+### 常用工具入口
+
+```python
+from xdl.utils import resolve_dtype, save_yaml, seed_everything
+```
+
+承诺：
+
+- `resolve_dtype(dtype_name, device_name)` 将 `fp32`、`fp16`、`bf16`、`auto` 等常见字符串解析为 `torch.dtype`。
+- `seed_everything(seed)` 设置 Python `random` 和 PyTorch 随机种子；CUDA 可用时也会设置 CUDA 随机种子。
+- `save_yaml(payload, path)` 将包含 `Path`、`tuple`、`list` 和嵌套 mapping 的配置快照保存为 YAML。
 
 ### 安装后用法入口
 

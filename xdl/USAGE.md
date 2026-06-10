@@ -79,7 +79,7 @@ trainer.fit(model, train_loader)
 - `Trainer.fit()` 会先调用 `model.setup("fit")`，再做设备、优化器和 callback setup。
 - `configure_optimizers()` 在 `setup()` 之后被调用；依赖懒加载模块的优化器要在这里创建。
 - Trainer 不会自动优化；`training_step()` 内要自己完成优化流程。
-- 记录指标用 `self.log("name", value)`，callback 和进度条会读取这些指标；`self.log("loss", value, prefix="train")` 会生成兼容旧脚本的 `train_loss` 键。
+- 记录指标用 `self.log("name", value)`，`value` 支持 Python 数值或单元素 `torch.Tensor`，callback 和进度条会读取这些指标；`self.log("loss", value, prefix="train")` 会生成兼容旧脚本的 `train_loss` 键。
 - 需要梯度裁剪时，在 `training_step()` 中调用 `self.clip_gradients(...)`。
 - 手动梯度累积可以用 `self.accumulation_steps`、`self.is_accumulation_start`、`self.is_accumulation_boundary`、`self.should_optimizer_step`，这些 helper 基于 Trainer 的 `gradient_accumulation_steps`。
 

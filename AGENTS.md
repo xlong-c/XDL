@@ -11,6 +11,7 @@ PyTorch 深度学习框架，组件注册系统 + 回调生命周期。Python 3.
 - 涉及第三方库用法、API 变更、最佳实践等外部知识时，先用 WebSearch 查最新文档
 - **脚本参数**：Python 脚本不要使用命令行参数解析库，优先使用 YAML 配置或代码内显式配置
 - **配置规范**：新增或重构 YAML/层级配置解析时，优先使用 `OmegaConf` 统一处理加载、合并、插值、resolver 和 `DictConfig`/`ListConfig` 到普通容器的转换；不要在训练入口或工具脚本里散落 `yaml.safe_load` + 手写合并逻辑，除非只是兼容旧路径或读写极小的固定结构文件
+- **结构化配置加载规则**: 训练入口或研究脚本里的轻量 `load_config` 优先遵循 `dataclass/structured config` 定义默认值和 schema, 再由 YAML 直接覆盖的顺序. 除非有明确兼容需求, 不要在 `load_config` 中额外做路径重写, 字符串 `"null"` 兼容, 旧字段迁移, clamp/奇偶修正, 或 list/tuple 强转. 需要约束时优先让 schema/OmegaConf 报错, 或在业务使用处显式校验
 - **半角符号**：文档或者注释之类使用点,括号,引号,冒号等一律写半角,不要混入全角符号
 
 ## 架构

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import torch
 from accelerate import Accelerator
@@ -16,6 +16,8 @@ from xdl.utils.checkpoint import (
     save_checkpoint as save_checkpoint_to_dir,
 )
 from xdl.utils.tools import print_model_parameters
+
+MetricValue = Union[float, int, torch.Tensor]
 
 
 @dataclass
@@ -616,7 +618,7 @@ class CoreModel(Module):
 
     # ========== 日志记录方法 ==========
 
-    def log(self, name: str, value: Union[float, int], prefix: Optional[str] = None) -> None:
+    def log(self, name: str, value: MetricValue, prefix: Optional[str] = None) -> None:
         """
         在 Component 内记录指标
 
@@ -625,15 +627,15 @@ class CoreModel(Module):
 
         Args:
             name: 指标名称 (例如: 'loss', 'accuracy', 'val_loss')
-            value: 指标值
+            value: 指标值, 支持 Python 数值或单元素 Tensor
             prefix: 前缀 (可选, 例如: 'train', 'val'); 默认生成
                 `train_loss` 这类旧版兼容键名
 
         使用示例:
             def training_step(self, batch, batch_idx):
                 # ... 计算损失和指标 ...
-                self.log('loss', loss.item(), prefix='train')
-                self.log('accuracy', accuracy.item(), prefix='train')
+                self.log('loss', loss.detach(), prefix='train')
+                self.log('accuracy', accuracy.detach(), prefix='train')
 
             def validation_step(self, batch, batch_idx):
                 # ... 计算验证指标 ...
@@ -649,22 +651,20 @@ class CoreModel(Module):
         # 使用统一的指标存储系统记录指标
         self._step_metrics.log(metric_name, value)
 
-    def log_metrics(
-        self, metrics: Dict[str, Union[float, int]], prefix: Optional[str] = None
-    ) -> None:
+    def log_metrics(self, metrics: Mapping[str, MetricValue], prefix: Optional[str] = None) -> None:
         """
         批量记录指标
 
         Args:
-            metrics: 指标字典 {'metric_name': value, ...}
+            metrics: 指标字典 {'metric_name': value, ...}, value 支持 Python 数值或单元素 Tensor
             prefix: 前缀 (可选)
 
         使用示例:
             def training_step(self, batch, batch_idx):
                 # ... 计算 ...
                 self.log_metrics({
-                    'loss': loss.item(),
-                    'accuracy': accuracy.item(),
+                    'loss': loss.detach(),
+                    'accuracy': accuracy.detach(),
                     'learning_rate': current_lr
                 }, prefix='train')
         """

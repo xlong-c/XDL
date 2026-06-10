@@ -1,5 +1,11 @@
+import random
+from pathlib import Path
+from typing import Any, Mapping
+
 import torch
+import yaml
 from torch import nn
+
 
 def path_win2wsl(win_path: str) -> str:
     if not win_path:
@@ -10,6 +16,54 @@ def path_win2wsl(win_path: str) -> str:
         rest = win_path[2:].replace("\\", "/")
         return f"/mnt/{drive}{rest}"
     return win_path
+
+
+def resolve_dtype(dtype_name: str, device_name: str) -> torch.dtype:
+    """Resolve a common dtype name into a torch dtype."""
+
+    name = dtype_name.lower()
+    if name in ("auto", "default"):
+        return torch.bfloat16 if device_name.startswith("cuda") else torch.float32
+    mapping = {
+        "fp32": torch.float32,
+        "float32": torch.float32,
+        "fp16": torch.float16,
+        "float16": torch.float16,
+        "bf16": torch.bfloat16,
+        "bfloat16": torch.bfloat16,
+    }
+    if name not in mapping:
+        raise ValueError(f"不支持的 dtype: {dtype_name}")
+    return mapping[name]
+
+
+def seed_everything(seed: int) -> None:
+    """Seed Python random and torch RNGs."""
+
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def save_yaml(payload: Mapping[str, Any], path: Path) -> None:
+    """Save a nested mapping to YAML after converting Paths and tuples."""
+
+    def to_plain(value: Any) -> Any:
+        if isinstance(value, Path):
+            return str(value)
+        if isinstance(value, Mapping):
+            return {str(key): to_plain(item) for key, item in value.items()}
+        if isinstance(value, tuple):
+            return [to_plain(item) for item in value]
+        if isinstance(value, list):
+            return [to_plain(item) for item in value]
+        return value
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(to_plain(payload), handle, sort_keys=False, allow_unicode=False)
+
 
 def count_trainable_parameters(model: nn.Module) -> int:
     """
@@ -70,7 +124,7 @@ def format_number(num: int) -> str:
         return str(num)
 
 
-def print_model_parameters(obj: nn.Module):
+def print_model_parameters(obj: nn.Module) -> None:
     """
     打印对象(通常是CoreModel或nn.Module)中包含的所有模型组件的参数统计信息
 
@@ -158,7 +212,7 @@ def print_model_parameters(obj: nn.Module):
     print()
 
 
-def enable_tensor_debug_info():
+def enable_tensor_debug_info() -> None:
     """
     Enable debug info for torch.Tensor.__repr__
     """
@@ -167,7 +221,7 @@ def enable_tensor_debug_info():
 
     _original_repr = torch.Tensor.__repr__
 
-    def _new_repr(self):
+    def _new_repr(self: torch.Tensor) -> str:
         return f"[Shape:{tuple(self.shape)} Device:{self.device} Grad:{self.requires_grad}]\n{_original_repr(self)}"
 
     torch.Tensor.__repr__ = _new_repr

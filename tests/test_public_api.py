@@ -72,3 +72,11 @@ def test_stable_registry_api_imports() -> None:
     assert register_metric is not None
     assert register_transform is not None
     assert register_collate is not None
+
+
+def test_stable_utils_api_imports() -> None:
+    from xdl.utils import resolve_dtype, save_yaml, seed_everything
+
+    assert resolve_dtype is not None
+    assert save_yaml is not None
+    assert seed_everything is not None

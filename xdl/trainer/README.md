@@ -49,6 +49,7 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 - `self.log("train_loss", value)` 保持旧行为。
 - `self.log("loss", value, prefix="train")` 记录为 `train_loss`。
 - `self.log_metrics({"loss": value}, prefix="val")` 记录为 `val_loss`。
+- `value` 支持 Python 数值或单元素 `torch.Tensor`，内部记录为 `float`。
 - 已有 `train_loss` / `train/loss` 这类键不会重复加前缀。
 
 ### `Trainer`

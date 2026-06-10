@@ -120,6 +120,17 @@ pytest tests/config -q
 
 如果你改动了 registry、dataset、loss、metric，也应额外跑对应子目录测试。
 
+### 跑开发检查
+
+开发环境使用 Ruff 负责格式化、import 排序和基础 lint, 使用 Pyright/Pylance 负责类型检查:
+
+```bash
+ruff check xdl tests config examples infer train research/diffusion-models-survey-2025/sana_hair_lora
+pyright
+```
+
+需要统一格式时, 再按目录运行 `ruff format <paths>`。
+
 ## 5. 当前可直接运行的入口
 
 仓库里当前清晰可见的训练入口主要有：

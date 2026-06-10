@@ -1,0 +1,24 @@
+{
+    "typeCheckingMode": "basic",
+    "pythonVersion": "3.12",
+    "include": [
+        "xdl",
+        "tests",
+        "config",
+        "examples",
+        "infer",
+        "train",
+        "research/diffusion-models-survey-2025/sana_hair_lora"
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "**/.mypy_cache",
+        "**/.pytest_cache",
+        "**/.ruff_cache",
+        "**/.venv",
+        "data",
+        "downloads",
+        "learn",
+        "third_party"
+    ]
+}

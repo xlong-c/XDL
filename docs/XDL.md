@@ -102,6 +102,7 @@ XDL 当前采用手动优化模式。也就是说，训练步里需要自行处�
 - `self.log("train_loss", value)` 继续记录 `train_loss`。
 - `self.log("loss", value, prefix="train")` 也记录为 `train_loss`。
 - `self.log_metrics({"loss": value}, prefix="val")` 记录为 `val_loss`。
+- `value` 支持 Python 数值或单元素 `torch.Tensor`，内部记录为 `float`。
 - 已经带 `train_` 或 `train/` 前缀的键不会被重复加前缀。
 
 ### `Trainer`
