@@ -251,7 +251,13 @@ class Callback:
     def on_save_checkpoint(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         pass
 
-    def on_load_checkpoint(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_load_checkpoint(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        checkpoint: Any = None,
+    ) -> None:
+        del checkpoint
         pass
 
     # ========================================

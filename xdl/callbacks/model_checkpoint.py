@@ -166,6 +166,9 @@ class ModelCheckpoint(Callback):
             save_optimizer=self.save_optimizer,
             save_scheduler=self.save_scheduler,
             include_components=self.include_components,
+            callback_states=trainer.callback_list.save_state()
+            if hasattr(trainer, "callback_list")
+            else {},
         )
 
         if not actual_path:

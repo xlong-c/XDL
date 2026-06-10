@@ -5,6 +5,7 @@
 参考 PyTorch Lightning 的 callback 管理机制, 提供错误隔离、执行统计和状态管理功能。
 """
 
+import inspect
 import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -51,15 +52,20 @@ class CallbackList:
             for callback in callbacks:
                 self.add_callback(callback)
 
-    def add_callback(self, callback: "Callback", priority: int = 999) -> None:
+    def add_callback(self, callback: "Callback", priority: Optional[int] = None) -> None:
         """添加回调
 
         Args:
             callback: 回调对象
-            priority: 优先级, 数字越小优先级越高
+            priority: 优先级, 数字越小优先级越高. 未指定时读取 callback.priority.
         """
+        resolved_priority = (
+            int(priority)
+            if priority is not None
+            else int(getattr(callback, "priority", 999))
+        )
         self._callback_metadata[callback] = {
-            "priority": priority,
+            "priority": resolved_priority,
             "name": callback.__class__.__name__,
         }
         self.callbacks.append(callback)
@@ -167,7 +173,8 @@ class CallbackList:
         state = {}
         for callback in self.callbacks:
             if hasattr(callback, "state_dict"):
-                state[callback.__class__.__name__] = callback.state_dict()
+                state_key = getattr(callback, "state_key", callback.__class__.__name__)
+                state[state_key] = callback.state_dict()
         return state
 
     def load_state(self, state: Dict[str, Any]):
@@ -177,9 +184,9 @@ class CallbackList:
             state: 回调状态字典
         """
         for callback in self.callbacks:
-            callback_name = callback.__class__.__name__
-            if callback_name in state and hasattr(callback, "load_state_dict"):
-                callback.load_state_dict(state[callback_name])
+            state_key = getattr(callback, "state_key", callback.__class__.__name__)
+            if state_key in state and hasattr(callback, "load_state_dict"):
+                callback.load_state_dict(state[state_key])
 
     def __len__(self) -> int:
         """获取回调数量
@@ -459,7 +466,43 @@ class CallbackList:
         self, trainer: "Trainer", core_module: "CoreModel", checkpoint: Any
     ) -> None:
         """加载检查点回调"""
-        self.invoke_callbacks("on_load_checkpoint", trainer, core_module, checkpoint=checkpoint)
+        for callback in self.callbacks:
+            if not hasattr(callback, "on_load_checkpoint"):
+                continue
+
+            callback_name = callback.__class__.__name__
+            method = getattr(callback, "on_load_checkpoint")
+            start_time = time.time()
+            try:
+                signature = inspect.signature(method)
+                has_var_keyword = any(
+                    parameter.kind == inspect.Parameter.VAR_KEYWORD
+                    for parameter in signature.parameters.values()
+                )
+                if "checkpoint" in signature.parameters or has_var_keyword:
+                    method(trainer, core_module, checkpoint=checkpoint)
+                else:
+                    method(trainer, core_module)
+
+                execution_time = time.time() - start_time
+                self._record_execution_stats(
+                    callback_name,
+                    "on_load_checkpoint",
+                    execution_time,
+                    success=True,
+                )
+            except Exception as e:
+                execution_time = time.time() - start_time
+                self._record_execution_stats(
+                    callback_name,
+                    "on_load_checkpoint",
+                    execution_time,
+                    success=False,
+                    error=e,
+                )
+                self._handle_callback_error(callback, "on_load_checkpoint", e)
+                if self.fast_fail:
+                    raise
 
     # ========================================
     # 错误处理和性能监控辅助方法
