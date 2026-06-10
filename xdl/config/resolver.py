@@ -23,6 +23,12 @@ def register_default_resolvers() -> None:
             lambda *parts: str(Path(*[str(part) for part in parts])),
         )
 
+    if not OmegaConf.has_resolver("xdl.abspath"):
+        OmegaConf.register_new_resolver(
+            "xdl.abspath",
+            lambda *parts: str(Path(*[str(part) for part in parts]).expanduser().resolve()),
+        )
+
 
 def _ensure_mapping_config(cfg: Union[DictConfig, ListConfig]) -> DictConfig:
     if isinstance(cfg, ListConfig):
@@ -30,16 +36,54 @@ def _ensure_mapping_config(cfg: Union[DictConfig, ListConfig]) -> DictConfig:
     return cfg
 
 
+def _context_for_path(config_path: Optional[Path]) -> Dict[str, str]:
+    cwd = Path.cwd().resolve()
+    if config_path is None:
+        return {
+            "config_path": "",
+            "config_dir": str(cwd),
+            "project_root": str(cwd),
+        }
+
+    resolved = config_path.expanduser().resolve()
+    return {
+        "config_path": str(resolved),
+        "config_dir": str(resolved.parent),
+        "project_root": str(cwd),
+    }
+
+
+def _inject_xdl_context(
+    cfg: DictConfig,
+    *,
+    config_path: Optional[Path],
+) -> DictConfig:
+    data = OmegaConf.to_container(cfg, resolve=False, enum_to_str=True)
+    if not isinstance(data, dict):
+        raise ConfigValidationError("Top-level config must be a mapping")
+
+    context = _context_for_path(config_path)
+    existing = data.get("xdl")
+    if isinstance(existing, Mapping):
+        data["xdl"] = {**context, **dict(existing)}
+    else:
+        data["xdl"] = context
+    return _ensure_mapping_config(OmegaConf.create(data))
+
+
 def _to_dict_config(config: ConfigInput) -> DictConfig:
     if isinstance(config, DictConfig):
-        return config
+        return _inject_xdl_context(config, config_path=None)
 
     if isinstance(config, (str, Path)):
         config_path = Path(config)
         if not config_path.exists():
             raise ConfigValidationError("Config file not found", field_path=str(config_path))
         try:
-            return _ensure_mapping_config(OmegaConf.load(config_path))
+            return _inject_xdl_context(
+                _ensure_mapping_config(OmegaConf.load(config_path)),
+                config_path=config_path,
+            )
         except OmegaConfBaseException as exc:
             raise ConfigValidationError(
                 f"Failed to load config file: {exc}",
@@ -48,7 +92,10 @@ def _to_dict_config(config: ConfigInput) -> DictConfig:
 
     if isinstance(config, Mapping):
         try:
-            return _ensure_mapping_config(OmegaConf.create(dict(config)))
+            return _inject_xdl_context(
+                _ensure_mapping_config(OmegaConf.create(dict(config))),
+                config_path=None,
+            )
         except OmegaConfBaseException as exc:
             raise ConfigValidationError(f"Failed to create config from mapping: {exc}") from exc
 

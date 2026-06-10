@@ -26,6 +26,7 @@ REGISTRY_IMPORTS = {
     "metric": "xdl.metric",
     "optimizer": "xdl.optimizer",
     "scheduler": "xdl.scheduler",
+    "transform": "xdl.dataset",
 }
 
 TRANSFORM_CONFIG_META_KEYS = {
@@ -41,6 +42,8 @@ COMPONENT_ALLOWED_EXTRA_KEYS = {
     "loss": {"weight"},
     "metric": set(),
     "transform": set(),
+    "callback": set(),
+    "task": set(),
 }
 DISALLOWED_TRANSFORM_INLINE_KEYS = {"combination_strategy", "items"}
 
@@ -265,6 +268,12 @@ def build_model(config: Dict[str, Any]) -> torch.nn.Module:
     return _build_component(config, kind="model")
 
 
+def build_task(config: Dict[str, Any]) -> Any:
+    """从配置构建 CoreModel 任务对象."""
+
+    return _build_component(config, kind="task")
+
+
 def build_transform(config: Any) -> Any:
     """从配置构建 transform，支持紧凑 list / string 写法。"""
 
@@ -478,6 +487,21 @@ def build_collate_fn(config: Any) -> Optional[Any]:
     if isinstance(config, Mapping) and "target" in config:
         return _build_component(dict(config), kind="collate")
     raise ConfigValidationError(f"Invalid collate_fn config: {config}")
+
+
+def build_callback(config: Dict[str, Any]) -> Any:
+    """从配置构建 callback."""
+
+    return _build_component(config, kind="callback")
+
+
+def build_callbacks(config: Any) -> List[Any]:
+    """从配置构建 callback 列表."""
+
+    if not config:
+        return []
+    callback_items = [config] if isinstance(config, Mapping) else list(config)
+    return [build_callback(dict(item)) for item in callback_items]
 
 
 def build_metrics(config: List[Dict[str, Any]]) -> List[Any]:

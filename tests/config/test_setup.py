@@ -1,8 +1,11 @@
 from textwrap import dedent
 
+from xdl.callbacks import Timer
 from xdl.config import load_config_with_schema, setup_from_yaml
 from xdl.config.builder import build_model
 from xdl.config.errors import ConfigValidationError
+from xdl.trainer import CoreModel
+from xdl.trainer import Trainer
 
 
 def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
@@ -18,6 +21,10 @@ def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
             trainer:
               max_epochs: 3
               batch_size: 2
+              precision: bf16
+              gradient_accumulation_steps: 3
+              grad_clip_max_norm: 0.5
+              grad_clip_norm_type: 1.0
             model:
               target: torch.nn:Linear
               params:
@@ -66,6 +73,9 @@ def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
               - target: registry:Accuracy
                 params:
                   num_classes: 2
+            logging:
+              enable_tensorboard: false
+              enable_console: false
             """
         ),
         encoding="utf-8",
@@ -80,12 +90,246 @@ def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
     assert setup.num_epochs == 3
     assert setup.batch_size == 2
     assert setup.device == "cpu"
+    assert setup.precision == "bf16"
+    assert setup.gradient_accumulation_steps == 3
+    assert setup.grad_clip_max_norm == 0.5
+    assert setup.grad_clip_norm_type == 1.0
+    assert setup.trainer_config["gradient_accumulation_steps"] == 3
     assert setup.train_loader is not None
     assert setup.train_loader.batch_size == 2
     assert setup.train_loader.num_workers == 2
     assert setup.train_loader.pin_memory is False
     assert setup.val_loader is not None
     assert setup.val_loader.batch_size == 4
+
+    trainer = Trainer.from_setup(setup)
+    assert trainer.precision == "bf16"
+    assert trainer.gradient_accumulation_steps == 3
+    assert trainer.grad_clip_max_norm == 0.5
+    assert trainer.grad_clip_norm_type == 1.0
+
+
+def test_setup_from_yaml_resolves_omegaconf_resolvers(tmp_path) -> None:
+    config_path = tmp_path / "resolver_schema.yaml"
+    config_path.write_text(
+        dedent(
+            """
+            config_version: 1
+            runtime:
+              device: cpu
+              output_dir: ${xdl.join_path:./tmp,outputs}
+            trainer:
+              max_epochs: 1
+              batch_size: 1
+            model:
+              target: torch.nn:Linear
+              params:
+                in_features: 1
+                out_features: 1
+            train_dataset:
+              target: registry:SyntheticClassificationDataset
+              params:
+                num_samples: 1
+                input_shape: [1]
+                num_classes: 1
+                seed: 42
+            train_dataloader:
+              dataset: ${train_dataset}
+              params:
+                shuffle: false
+            optimization:
+              optimizer:
+                target: torch.optim:SGD
+                params:
+                  lr: 0.01
+            loss:
+              - target: torch.nn:MSELoss
+                params: {}
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    setup = setup_from_yaml(config_path, device="cpu")
+
+    assert setup.full_config["runtime"]["output_dir"] == "tmp/outputs"
+
+
+def test_setup_from_yaml_injects_config_relative_context(tmp_path, monkeypatch) -> None:
+    config_dir = tmp_path / "configs"
+    config_dir.mkdir()
+    other_cwd = tmp_path / "other"
+    other_cwd.mkdir()
+    config_path = config_dir / "context_schema.yaml"
+    config_path.write_text(
+        dedent(
+            """
+            config_version: 1
+            runtime:
+              device: cpu
+              output_dir: ${xdl.abspath:${xdl.config_dir},outputs}
+            trainer:
+              max_epochs: 1
+              batch_size: 1
+            model:
+              target: torch.nn:Linear
+              params:
+                in_features: 1
+                out_features: 1
+            train_dataset:
+              target: registry:SyntheticClassificationDataset
+              params:
+                num_samples: 1
+                input_shape: [1]
+                num_classes: 1
+                seed: 42
+            train_dataloader:
+              dataset: ${train_dataset}
+              params:
+                shuffle: false
+            optimization:
+              optimizer:
+                target: torch.optim:SGD
+                params:
+                  lr: 0.01
+            loss:
+              - target: torch.nn:MSELoss
+                params: {}
+            """
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(other_cwd)
+
+    setup = setup_from_yaml(config_path, device="cpu")
+
+    assert setup.full_config["xdl"]["config_dir"] == str(config_dir.resolve())
+    assert setup.full_config["runtime"]["output_dir"] == str(
+        (config_dir / "outputs").resolve()
+    )
+
+
+def test_setup_from_yaml_builds_callbacks_and_trainer_consumes_them(tmp_path) -> None:
+    config_path = tmp_path / "callbacks_schema.yaml"
+    config_path.write_text(
+        dedent(
+            """
+            config_version: 1
+            runtime:
+              device: cpu
+            trainer:
+              max_epochs: 1
+              batch_size: 1
+            model:
+              target: torch.nn:Linear
+              params:
+                in_features: 1
+                out_features: 1
+            train_dataset:
+              target: registry:SyntheticClassificationDataset
+              params:
+                num_samples: 1
+                input_shape: [1]
+                num_classes: 1
+                seed: 42
+            train_dataloader:
+              dataset: ${train_dataset}
+              params:
+                shuffle: false
+            optimization:
+              optimizer:
+                target: torch.optim:SGD
+                params:
+                  lr: 0.01
+            loss:
+              - target: torch.nn:MSELoss
+                params: {}
+            callbacks:
+              - target: xdl.callbacks:Timer
+                params: {}
+            logging:
+              enable_tensorboard: false
+              enable_console: false
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    setup = setup_from_yaml(config_path, device="cpu")
+    trainer = Trainer.from_setup(setup)
+
+    assert any(isinstance(callback, Timer) for callback in setup.callbacks)
+    assert any(isinstance(callback, Timer) for callback in trainer.callbacks)
+
+
+def test_setup_from_yaml_builds_coremodel_task_without_optimizer_or_loss(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    module_path = tmp_path / "dummy_task_module.py"
+    module_path.write_text(
+        dedent(
+            """
+            from typing import Any
+
+            from xdl.trainer import CoreModel
+
+
+            class DummyTask(CoreModel):
+                def __init__(self, scale: float = 1.0) -> None:
+                    super().__init__()
+                    self.scale = scale
+
+                def configure_optimizers(self) -> None:
+                    return None
+
+                def training_step(self, batch: Any, batch_idx: int) -> None:
+                    pass
+
+                def validation_step(self, batch: Any, batch_idx: int) -> None:
+                    pass
+            """
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    config_path = tmp_path / "task_schema.yaml"
+    config_path.write_text(
+        dedent(
+            """
+            config_version: 1
+            runtime:
+              device: cpu
+            trainer:
+              max_epochs: 1
+              batch_size: 1
+            task:
+              target: dummy_task_module:DummyTask
+              params:
+                scale: 2.5
+            train_dataset:
+              target: registry:SyntheticClassificationDataset
+              params:
+                num_samples: 1
+                input_shape: [1]
+                num_classes: 1
+                seed: 42
+            train_dataloader:
+              dataset: ${train_dataset}
+              params:
+                shuffle: false
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    setup = setup_from_yaml(config_path, device="cpu")
+
+    assert isinstance(setup.model, CoreModel)
+    assert setup.model.scale == 2.5
+    assert setup.optimizer is None
+    assert setup.loss_fn is None
+    assert setup.create_model() is setup.model
 
 
 def test_setup_from_yaml_rejects_unsupported_top_level_layout(tmp_path) -> None:

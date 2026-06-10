@@ -38,6 +38,7 @@ from .schema import (
 
 # 高层入口：从 YAML 一次性完成配置解析和组件构建。
 from .setup import setup_from_yaml
+from .structured import load_structured_dataclass_config
 
 # 对外暴露的稳定公共 API，避免把内部实现细节直接泄漏给调用方。
 __all__ = [
@@ -64,6 +65,7 @@ __all__ = [
     "resolve_config",
     "to_plain_dict",
     "load_config_with_schema",
+    "load_structured_dataclass_config",
     "setup_from_yaml",
     "TrainSetup",
 ]

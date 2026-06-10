@@ -17,10 +17,10 @@ from typing import Any, Dict, Optional, Union
 from collections.abc import Mapping
 
 import torch
-import yaml
 from torch.utils.data import DataLoader
 
 from .builder import (
+    build_callbacks,
     build_collate_fn,
     build_dataloader,
     build_dataset,
@@ -29,19 +29,13 @@ from .builder import (
     build_model,
     build_optimizer,
     build_scheduler,
+    build_task,
     build_transform,
 )
 from .dataclass import TrainSetup
 from .errors import ConfigValidationError
 from .resolver import load_config_with_schema, to_plain_dict
 from .schema import CONFIG_SCHEMA_VERSION
-
-def _load_raw_yaml(config_path: Path) -> Dict[str, Any]:
-    with open(config_path, "r", encoding="utf-8") as file:
-        data = yaml.safe_load(file)
-    if not isinstance(data, dict):
-        raise ConfigValidationError("Top-level config must be a mapping", field_path=str(config_path))
-    return data
 
 
 def _resolve_transform_value(
@@ -147,22 +141,26 @@ def setup_from_yaml(
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
 
-    raw_config = _load_raw_yaml(path)
+    merged_config = load_config_with_schema(path, resolve=True)
+    resolved_config = to_plain_dict(merged_config, resolve=False)
 
-    declared_version = raw_config.get("config_version")
+    declared_version = resolved_config.get("config_version")
     if declared_version is not None and declared_version != CONFIG_SCHEMA_VERSION:
         raise ConfigValidationError(
             f"Unsupported config version {declared_version}. "
             f"Expected {CONFIG_SCHEMA_VERSION}."
         )
 
-    merged_config = load_config_with_schema(raw_config, resolve=True)
-    resolved_config = to_plain_dict(merged_config, resolve=False)
-
+    task_config = resolved_config.get("task")
     model_config = resolved_config.get("model")
-    if not isinstance(model_config, dict) or not model_config:
+    if task_config:
+        if not isinstance(task_config, dict):
+            raise ConfigValidationError("task config must be a mapping")
+        model = build_task(task_config)
+    elif not isinstance(model_config, dict) or not model_config:
         raise ConfigValidationError("model config cannot be empty")
-    model = build_model(model_config)
+    else:
+        model = build_model(model_config)
 
     transform_config = _collect_configs(resolved_config, (
         ("train_transforms", "train"),
@@ -181,6 +179,8 @@ def setup_from_yaml(
     ))
     dataloader_defaults = _collect_dataloader_defaults(resolved_config)
     trainer_config = resolved_config.get("trainer", {})
+    if not isinstance(trainer_config, dict):
+        raise ConfigValidationError("trainer config must be a mapping")
     trainer_batch_size = trainer_config.get("batch_size")
 
     built_transforms: Dict[str, Any] = {}
@@ -214,18 +214,24 @@ def setup_from_yaml(
 
     optimization_config = resolved_config.get("optimization") or {}
     optimizer_config = optimization_config.get("optimizer")
-    if not optimizer_config:
+    if not optimizer_config and not task_config:
         raise ConfigValidationError("optimizer config cannot be empty")
-    optimizer = build_optimizer(model, optimizer_config)
+    optimizer = build_optimizer(model, optimizer_config) if optimizer_config else None
 
     scheduler_config = optimization_config.get("scheduler") or {}
-    scheduler = build_scheduler(optimizer, scheduler_config)
+    scheduler = build_scheduler(optimizer, scheduler_config) if optimizer is not None else None
 
     loss_config = resolved_config.get("loss", [])
-    loss_fn = build_loss(loss_config)
+    if loss_config:
+        loss_fn = build_loss(loss_config)
+    elif task_config:
+        loss_fn = None
+    else:
+        raise ConfigValidationError("loss config cannot be empty")
 
     metrics_config = resolved_config.get("metrics", [])
     metrics = build_metrics(metrics_config)
+    callbacks = build_callbacks(resolved_config.get("callbacks", []))
 
     runtime_config = resolved_config.get("runtime", {})
     runtime_device = runtime_config.get("device", "cuda" if torch.cuda.is_available() else "cpu")
@@ -257,6 +263,7 @@ def setup_from_yaml(
     train_loader = built_dataloaders.get("train")
     if train_loader is None:
         raise ConfigValidationError("train_dataloader config is required")
+    raw_grad_clip_max_norm = trainer_config.get("grad_clip_max_norm")
 
     return TrainSetup(
         model=model,
@@ -267,10 +274,20 @@ def setup_from_yaml(
         test_loader=built_dataloaders.get("test"),
         scheduler=scheduler,
         metrics=metrics,
+        callbacks=callbacks,
         full_config=resolved_config,
         device=selected_device,
         num_epochs=int(trainer_config.get("max_epochs", 100)),
         batch_size=int(selected_batch_size),
+        precision=trainer_config.get("precision"),
+        gradient_accumulation_steps=int(
+            trainer_config.get("gradient_accumulation_steps", 1)
+        ),
+        grad_clip_max_norm=float(raw_grad_clip_max_norm)
+        if raw_grad_clip_max_norm is not None
+        else None,
+        grad_clip_norm_type=float(trainer_config.get("grad_clip_norm_type", 2.0)),
+        trainer_config=dict(trainer_config),
         logging_config=logging_config,
         checkpoint_config=checkpoint_config,
         accelerate_config=accelerate_config,
