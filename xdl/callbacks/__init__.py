@@ -8,7 +8,9 @@ from .learning_rate_monitor import LearningRateMonitor
 from .logging_callback import LoggingCallback, SystemStatsCallback
 from .model_checkpoint import ModelCheckpoint
 from .model_summary import ModelSummary
+from .preview import PreviewCallback
 from .sampling_animation_callback import SamplingAnimationCallback
+from .save_trainable_state import SaveTrainableStateCallback
 from .tensorboard_callback import TensorBoardCallback
 from .timer import Timer
 from .tqdm_callback import TqdmCallback
@@ -23,7 +25,9 @@ __all__ = [
     "LearningRateMonitor",
     "ModelCheckpoint",
     "ModelSummary",
+    "PreviewCallback",
     "SamplingAnimationCallback",
+    "SaveTrainableStateCallback",
     "ConsoleCallback",
     "LoggingCallback",
     "SystemStatsCallback",
