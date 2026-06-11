@@ -12,6 +12,7 @@ from xdl.dataset import (
     ImageFolderClassificationDataset,
     ImageTextSidecarDataset,
     ManifestClassificationDataset,
+    ManifestDatasetBase,
     ManifestImageTextDataset,
     ManifestMultiLabelClassificationDataset,
     ManifestPairDataset,
@@ -49,6 +50,33 @@ def test_manifest_record_dataset_loads_jsonl_and_repeat(tmp_path) -> None:
     assert len(dataset) == 4
     assert dataset[0] == {"id": "a", "value": 1}
     assert dataset[2] == {"id": "a", "value": 1}
+
+
+def test_manifest_dataset_base_supports_thin_custom_adapters(tmp_path) -> None:
+    _save_rgb(tmp_path / "sample.png", (255, 0, 0))
+    manifest_path = tmp_path / "records.jsonl"
+    manifest_path.write_text(
+        json.dumps({"image": "sample.png", "sample_id": "thin-1"}) + "\n",
+        encoding="utf-8",
+    )
+
+    class TinyManifestAdapter(ManifestDatasetBase):
+        def __getitem__(self, index: int) -> dict[str, str]:
+            base_index, record = self._record_at(index)
+            image_path = self._resolve_record_path(record, "image")
+            return {
+                "sample_id": self._sample_id_from_path(record, image_path, base_index),
+                "image_path": str(image_path),
+            }
+
+    dataset = TinyManifestAdapter(manifest_path)
+    sample = dataset[0]
+
+    assert len(dataset) == 1
+    assert sample == {
+        "sample_id": "thin-1",
+        "image_path": str((tmp_path / "sample.png").resolve()),
+    }
 
 
 def test_image_folder_classification_dataset_discovers_class_dirs(tmp_path) -> None:

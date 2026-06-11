@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
-from PIL import Image
 from torch.utils.data import Dataset
 
 from ._manifest import (
@@ -18,20 +17,20 @@ from ._manifest import (
     require_record_keys,
     resolve_record_path,
 )
+from ._paths import (
+    collect_image_paths,
+    collect_sidecar_samples,
+    load_image,
+    normalize_extension,
+    normalize_extensions,
+    path_sample_id,
+    sidecar_path_for_image,
+)
 
 PathLike = Union[str, Path]
 Record = Dict[str, Any]
 Transform = Optional[Callable[[Any], Any]]
 
-DEFAULT_IMAGE_EXTENSIONS: Tuple[str, ...] = (
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".webp",
-    ".bmp",
-    ".tif",
-    ".tiff",
-)
 DEFAULT_TEXT_KEYS: Tuple[str, ...] = ("text", "prompt", "caption")
 DEFAULT_TARGET_TEXT_KEYS: Tuple[str, ...] = (
     "target_text",
@@ -41,61 +40,8 @@ DEFAULT_TARGET_TEXT_KEYS: Tuple[str, ...] = (
 )
 
 
-def _normalize_extensions(extensions: Optional[Sequence[str]]) -> Tuple[str, ...]:
-    values = extensions or DEFAULT_IMAGE_EXTENSIONS
-    return tuple(
-        item.lower() if str(item).startswith(".") else f".{str(item).lower()}"
-        for item in values
-    )
-
-
-def _load_image(path: Path, image_mode: str) -> Image.Image:
-    return Image.open(path).convert(image_mode)
-
-
 def _apply_optional(transform: Transform, value: Any) -> Any:
     return transform(value) if transform is not None else value
-
-
-def _normalize_extension(extension: str) -> str:
-    return extension.lower() if extension.startswith(".") else f".{extension.lower()}"
-
-
-def _collect_image_paths(
-    root: Path,
-    *,
-    extensions: Sequence[str],
-    recursive: bool,
-) -> List[Path]:
-    if not root.is_dir():
-        raise ValueError(f"Image root is not a directory: {root}")
-
-    iterator = root.rglob("*") if recursive else root.iterdir()
-    return [
-        path
-        for path in sorted(iterator)
-        if path.is_file() and path.suffix.lower() in extensions
-    ]
-
-
-def _path_sample_id(
-    path: Path,
-    *,
-    root: Path,
-    index: int,
-    sample_id_from: str,
-) -> str:
-    if sample_id_from == "stem":
-        return path.stem
-    if sample_id_from == "name":
-        return path.name
-    if sample_id_from == "relative_path":
-        return path.relative_to(root).as_posix()
-    if sample_id_from == "index":
-        return str(index)
-    raise ValueError(
-        "sample_id_from must be one of: 'stem', 'name', 'relative_path', 'index'"
-    )
 
 
 def _is_int_like(value: Any) -> bool:
@@ -173,6 +119,7 @@ class ManifestDatasetBase(Dataset[Any]):
         return len(self.records) * self.repeat
 
     def _record_at(self, index: int) -> tuple[int, Record]:
+        # repeat 只扩展逻辑长度, 实际 record 仍回到原始 manifest 下标.
         base_index = index % len(self.records)
         return base_index, self.records[base_index]
 
@@ -238,7 +185,7 @@ class ImageFolderClassificationDataset(Dataset[Tuple[Any, Any]]):
         self.root = Path(root).expanduser().resolve()
         self.transform = transform
         self.target_transform = target_transform
-        self.extensions = _normalize_extensions(extensions)
+        self.extensions = normalize_extensions(extensions)
         self.image_mode = image_mode
 
         if class_to_idx is None:
@@ -274,7 +221,7 @@ class ImageFolderClassificationDataset(Dataset[Tuple[Any, Any]]):
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         image_path, target = self.samples[index]
-        image = _load_image(image_path, self.image_mode)
+        image = load_image(image_path, self.image_mode)
         image = _apply_optional(self.transform, image)
         target = _apply_optional(self.target_transform, target)
         return image, target
@@ -296,13 +243,13 @@ class ImageFolderDataset(Dataset[Record]):
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         self.transform = transform
-        self.extensions = _normalize_extensions(extensions)
+        self.extensions = normalize_extensions(extensions)
         self.image_mode = image_mode
         self.recursive = bool(recursive)
         self.include_paths = bool(include_paths)
         self.sample_id_from = sample_id_from
         self.repeat = max(1, int(repeat))
-        self.image_paths = _collect_image_paths(
+        self.image_paths = collect_image_paths(
             self.root,
             extensions=self.extensions,
             recursive=self.recursive,
@@ -319,9 +266,9 @@ class ImageFolderDataset(Dataset[Record]):
         sample: Record = {
             "image": _apply_optional(
                 self.transform,
-                _load_image(image_path, self.image_mode),
+                load_image(image_path, self.image_mode),
             ),
-            "sample_id": _path_sample_id(
+            "sample_id": path_sample_id(
                 image_path,
                 root=self.root,
                 index=base_index,
@@ -374,7 +321,7 @@ class ManifestClassificationDataset(ManifestDatasetBase):
         require_record_keys(record, (self.image_key, self.label_key))
 
         image_path = self._resolve_record_path(record, self.image_key)
-        image = _load_image(image_path, self.image_mode)
+        image = load_image(image_path, self.image_mode)
         target = _target_from_label(record[self.label_key], self.class_to_idx)
         image = _apply_optional(self.transform, image)
         target = _apply_optional(self.target_transform, target)
@@ -409,7 +356,7 @@ class ManifestRegressionDataset(ManifestDatasetBase):
         require_record_keys(record, (self.image_key, self.target_key))
 
         image_path = self._resolve_record_path(record, self.image_key)
-        image = _load_image(image_path, self.image_mode)
+        image = load_image(image_path, self.image_mode)
         target = self.dtype(record[self.target_key])
         image = _apply_optional(self.transform, image)
         target = _apply_optional(self.target_transform, target)
@@ -447,6 +394,7 @@ class ManifestMultiLabelClassificationDataset(ManifestDatasetBase):
             self._coerce_labels(record.get(self.labels_key))
             for record in self.records
         ]
+        # 多标签模板需要先扫描一次 manifest, 才能从字符串 label 推断 class_to_idx.
         flat_labels = [item for labels in label_lists for item in labels]
         self.class_to_idx = _build_label_mapping(flat_labels, class_to_idx) if flat_labels else None
         if self.class_to_idx is not None:
@@ -477,7 +425,7 @@ class ManifestMultiLabelClassificationDataset(ManifestDatasetBase):
         require_record_keys(record, (self.image_key, self.labels_key))
 
         image_path = self._resolve_record_path(record, self.image_key)
-        image = _load_image(image_path, self.image_mode)
+        image = load_image(image_path, self.image_mode)
         labels = self._coerce_labels(record[self.labels_key])
         target = torch.zeros(self.num_classes, dtype=self.dtype)
         for label in labels:
@@ -528,7 +476,7 @@ class ManifestImageTextDataset(ManifestDatasetBase):
     def __getitem__(self, index: int) -> Record:
         base_index, record = self._record_at(index)
         image_path = self._resolve_record_path(record, self.image_key)
-        image = _apply_optional(self.transform, _load_image(image_path, self.image_mode))
+        image = _apply_optional(self.transform, load_image(image_path, self.image_mode))
         text = self._select_text(record)
         text_value = self.text_transform(text) if self.text_transform is not None else text
         sample: Record = {
@@ -586,10 +534,10 @@ class ImageTextSidecarDataset(Dataset[Record]):
             if text_root is not None
             else None
         )
-        self.text_extension = _normalize_extension(text_extension)
+        self.text_extension = normalize_extension(text_extension)
         self.transform = transform
         self.text_transform = text_transform
-        self.extensions = _normalize_extensions(extensions)
+        self.extensions = normalize_extensions(extensions)
         self.image_mode = image_mode
         self.recursive = bool(recursive)
         self.include_paths = bool(include_paths)
@@ -598,37 +546,30 @@ class ImageTextSidecarDataset(Dataset[Record]):
         self.sample_id_from = sample_id_from
         self.repeat = max(1, int(repeat))
 
-        image_paths = _collect_image_paths(
+        image_paths = collect_image_paths(
             self.image_root,
             extensions=self.extensions,
             recursive=self.recursive,
         )
-        self.samples = self._collect_samples(image_paths)
+        # image_root/text_root 可以分目录, collect_sidecar_samples 会按相对路径保持层级对齐.
+        self.samples = collect_sidecar_samples(
+            image_paths,
+            image_root=self.image_root,
+            sidecar_root=self.text_root,
+            sidecar_extension=self.text_extension,
+            missing=self.missing_text,
+            sidecar_name="text",
+        )
         if not self.samples:
             raise ValueError(f"No image/text sidecar samples found under: {self.image_root}")
 
-    def _collect_samples(self, image_paths: Sequence[Path]) -> List[Tuple[Path, Path]]:
-        samples: List[Tuple[Path, Path]] = []
-        missing: List[Path] = []
-        for image_path in image_paths:
-            text_path = self._text_path_for_image(image_path)
-            if text_path.is_file():
-                samples.append((image_path, text_path))
-                continue
-            if self.missing_text == "skip":
-                continue
-            missing.append(text_path)
-
-        if missing:
-            preview = ", ".join(str(path) for path in missing[:3])
-            raise FileNotFoundError(f"Missing sidecar text files: {preview}")
-        return samples
-
     def _text_path_for_image(self, image_path: Path) -> Path:
-        if self.text_root is None:
-            return image_path.with_suffix(self.text_extension)
-        relative_path = image_path.relative_to(self.image_root)
-        return (self.text_root / relative_path).with_suffix(self.text_extension)
+        return sidecar_path_for_image(
+            image_path,
+            image_root=self.image_root,
+            sidecar_root=self.text_root,
+            sidecar_extension=self.text_extension,
+        )
 
     def __len__(self) -> int:
         return len(self.samples) * self.repeat
@@ -640,10 +581,10 @@ class ImageTextSidecarDataset(Dataset[Record]):
         sample: Record = {
             "image": _apply_optional(
                 self.transform,
-                _load_image(image_path, self.image_mode),
+                load_image(image_path, self.image_mode),
             ),
             "text": self.text_transform(text) if self.text_transform is not None else text,
-            "sample_id": _path_sample_id(
+            "sample_id": path_sample_id(
                 image_path,
                 root=self.image_root,
                 index=base_index,
@@ -779,11 +720,11 @@ class ManifestPairDataset(ManifestDatasetBase):
         sample: Record = {
             "image_a": _apply_optional(
                 self.transform,
-                _load_image(image_a_path, self.image_mode),
+                load_image(image_a_path, self.image_mode),
             ),
             "image_b": _apply_optional(
                 self.transform,
-                _load_image(image_b_path, self.image_mode),
+                load_image(image_b_path, self.image_mode),
             ),
         }
         if self.label_key is not None and self.label_key in record:
@@ -855,15 +796,15 @@ class ManifestTripletDataset(ManifestDatasetBase):
         sample: Record = {
             "anchor_image": _apply_optional(
                 self.transform,
-                _load_image(anchor_path, self.image_mode),
+                load_image(anchor_path, self.image_mode),
             ),
             "positive_image": _apply_optional(
                 self.transform,
-                _load_image(positive_path, self.image_mode),
+                load_image(positive_path, self.image_mode),
             ),
             "negative_image": _apply_optional(
                 self.transform,
-                _load_image(negative_path, self.image_mode),
+                load_image(negative_path, self.image_mode),
             ),
             "sample_id": self._sample_id_from_fallback(
                 record,

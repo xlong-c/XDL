@@ -3,8 +3,7 @@ import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 from torch.nn import functional as F
 
-from timm.models.layers import DropPath
-from timm.layers.weight_init import trunc_normal_
+from timm.layers import DropPath, trunc_normal_
 from einops.layers.torch import Rearrange
 from einops import rearrange
 

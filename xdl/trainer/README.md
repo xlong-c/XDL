@@ -76,6 +76,22 @@ trainer.fit(model, train_loader, val_loader)
 
 Accelerate 路径会使用 `accelerator.accumulate()` 包裹 `training_step()`; XDL 仍保持手动优化语义, 因此任务代码需要继续用 `self.accumulation_steps` / `manual_optimization_step()` 控制实际 step 时机. 不要再叠加一套与 Trainer 不一致的私有取模逻辑.
 
+传入 `precision`, `accelerate_config` 或 `fsdp` 时都会启用 Accelerate 路径. FSDP 通过 Accelerate 的 `FullyShardedDataParallelPlugin` 接入, `fsdp=1` 使用 FSDP1, `fsdp=2` 使用 FSDP2. 最小用法:
+
+```python
+trainer = Trainer(max_epochs=10, fsdp=2)
+```
+
+需要混合精度或更多 Accelerate 选项时可以继续传入 `accelerate_config`:
+
+```python
+trainer = Trainer(
+    max_epochs=10,
+    fsdp=2,
+    accelerate_config={"mixed_precision": "bf16"},
+)
+```
+
 外部大模型 pipeline 可以在 `CoreModel.configure_device_objects()` 返回 `{属性名: 对象}`. 标准路径会调用对象的 `.to(device)`, Accelerate 路径会 prepare 其中的 `nn.Module`, 其他对象同样走 `.to(device)`. 设备设置完成后会调用 `CoreModel.on_after_device_setup()`.
 
 ### `TrainSetupModel`

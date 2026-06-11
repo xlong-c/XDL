@@ -12,8 +12,9 @@
 - `hairdata*.py`：毛发相关数据集
 - `hair_transforms.py`：相关 transform
 - `_manifest.py`：manifest 读盘与路径解析公共 helper
+- `_paths.py`: 图片扫描, 扩展名归一化, basename sidecar 对齐和 path sample_id helper
 - `manifest_image_edit.py`: 通用多图 image edit manifest 数据集和 paired transform
-- `manifest_dense.py`: 分割, 检测数据集模板, 以及 image-mask / image-boxes transform
+- `manifest_dense.py`: 分割, 检测, image-mask sidecar 数据集模板, 以及 image-mask / image-boxes transform
 - `templates.py`: 通用 manifest, image folder, image-only, image-text sidecar, classification, regression, multi-label, image-text, text, pair, triplet 数据集模板
 - `collate.py`：通用批处理拼接逻辑
 
@@ -23,6 +24,7 @@
 - `ImageFolderDataset`：纯图片目录模板, 适合推理、自监督或无标签图像源
 - `ImageFolderClassificationDataset`：最短路径的目录分类模板
 - `ImageTextSidecarDataset`：`000.png` 对应 `000.txt` 的图文 sidecar 模板
+- `ImageMaskSidecarDataset`: `images/000.png` 对应 `masks/000.png` 的 image-mask sidecar 模板
 - `ManifestClassificationDataset`：真实项目更常见的 manifest 分类模板
 - `ManifestRegressionDataset`：分数, 年龄, 质量估计等回归模板
 - `ManifestMultiLabelClassificationDataset`：多标签分类模板
@@ -50,10 +52,11 @@
 - manifest 显式字段：classification / regression / segmentation / detection / image-text / image-edit
 - 多图编辑样本：`source_image + target_image + reference_image + mask`
 - `image + txt` sidecar：同目录或 image/text 分目录的 basename 对齐
+- `image + mask` sidecar: 同目录不同扩展名或 image/mask 分目录的 basename 对齐
 
 后续优先补的组织形态模板：
 
-- `images/000.png` 对应 `masks/000.png`：`ImageMaskSidecarDataset` 或更通用的 `BasenameAlignedDataset`
+- 更通用的 `BasenameAlignedDataset`, 覆盖 `image + json` / `image + label` 等 sidecar 结构
 - 标准格式适配：COCO / keypoint
 
 ## 推荐字段名

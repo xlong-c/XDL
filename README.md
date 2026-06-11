@@ -54,19 +54,26 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 - [xdl/](xdl/)：框架源码
 - [config/](config/)：YAML 配置示例
 - [examples/](examples/)：脚本级示例
-- [docs/](docs/)：长期文档
+- [docs/](docs/): 长期文档,包含 MD 工作文档和 HTML 阅读版
 - [tests/](tests/)：测试
 - [tools/](tools/)：工具脚本
 
 ## 文档入口
 
-优先阅读：
+给用户看的阅读版:
 
-1. [docs/INSTALL.md](docs/INSTALL.md)
-2. [docs/XDL.md](docs/XDL.md)
-3. [docs/CONFIG.md](docs/CONFIG.md)
-4. [docs/API.md](docs/API.md)
-5. [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md)
+1. [docs/html/index.html](docs/html/index.html)
+2. [docs/html/dataset-structure.html](docs/html/dataset-structure.html)
+
+给 Codex 和开发者改代码前看的高密度 MD:
+
+1. [docs/README.md](docs/README.md)
+2. [docs/INSTALL.md](docs/INSTALL.md)
+3. [docs/XDL.md](docs/XDL.md)
+4. [docs/CONFIG.md](docs/CONFIG.md)
+5. [docs/DATASET.md](docs/DATASET.md)
+6. [docs/API.md](docs/API.md)
+7. [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md)
 
 ## 稳定公共入口
 

@@ -19,6 +19,8 @@ IMAGE_KEYS: Tuple[str, ...] = ("source_image", "target_image", "reference_image"
 REQUIRED_IMAGE_KEYS: Tuple[str, ...] = ("source_image", "target_image")
 MASK_KEYS: Tuple[str, ...] = ("edit_mask", "mask", "mask_image")
 PROMPT_KEYS: Tuple[str, ...] = ("prompt", "text", "caption")
+
+
 def _to_image_tensor(image: Image.Image, *, normalize: bool) -> torch.Tensor:
     array = np.array(image, dtype=np.float32, copy=True)
     if array.ndim == 2:
@@ -138,6 +140,7 @@ class ManifestImageEditDataset(Dataset[Dict[str, Any]]):
         image_tensors, mask_tensors = self.transform(images, masks)
 
         source_tensor = image_tensors[self.image_keys[0]]
+        # 可选 reference 图缺失时补零, 让 batch schema 对下游模型保持固定.
         for key in self.image_keys:
             if key not in image_tensors:
                 image_tensors[key] = torch.zeros_like(source_tensor)
@@ -145,6 +148,7 @@ class ManifestImageEditDataset(Dataset[Dict[str, Any]]):
         mask_tensor = next(iter(mask_tensors.values()), None)
         has_mask = mask_tensor is not None
         if mask_tensor is None:
+            # 没有 edit mask 时返回全零 mask 和 has_mask=False, 避免下游反复判断字段是否存在.
             mask_tensor = torch.zeros(
                 (1, source_tensor.shape[-2], source_tensor.shape[-1]),
                 dtype=source_tensor.dtype,

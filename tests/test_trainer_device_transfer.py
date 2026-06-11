@@ -1,3 +1,4 @@
+import importlib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
@@ -189,6 +190,77 @@ class StatefulCallback(Callback):
         self.value = int(state_dict["value"])
 
 
+class OptimizerRecordingModel(CoreModel):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = torch.nn.Linear(1, 1)
+        self.optimizer_seen: Any = None
+
+    def on_train_start(self) -> None:
+        pass
+
+    def configure_optimizers(self) -> torch.optim.Optimizer:
+        return torch.optim.SGD(self.net.parameters(), lr=0.1)
+
+    def training_step(self, batch: torch.Tensor, batch_idx: int) -> None:
+        del batch, batch_idx
+        self.optimizer_seen = self.optimizers[0]
+
+
+class FakeFSDPPlugin:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = kwargs
+
+
+class FakeAccelerator:
+    instances: List["FakeAccelerator"] = []
+
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = kwargs
+        self.device = torch.device("cpu")
+        self.is_main_process = True
+        self.prepared_args: Tuple[Any, ...] = ()
+        self.prepared_optimizers: List[Any] = []
+        self.prepared_schedulers: List[Any] = []
+        self.ended = False
+        self.__class__.instances.append(self)
+
+    def prepare(self, *args: Any) -> Tuple[Any, ...]:
+        self.prepared_args = args
+        return args
+
+    def prepare_optimizer(self, optimizer: Any) -> Any:
+        self.prepared_optimizers.append(optimizer)
+        setattr(optimizer, "_xdl_fake_accelerator_prepared", True)
+        return optimizer
+
+    def prepare_scheduler(self, scheduler: Any) -> Any:
+        self.prepared_schedulers.append(scheduler)
+        return scheduler
+
+    def accumulate(self) -> "FakeAccelerator":
+        return self
+
+    def __enter__(self) -> None:
+        return None
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        del exc_type, exc, traceback
+
+    def backward(self, loss: torch.Tensor) -> None:
+        loss.backward()
+
+    def end_training(self) -> None:
+        self.ended = True
+
+
+def install_fake_accelerate(monkeypatch: pytest.MonkeyPatch) -> None:
+    trainer_module = importlib.import_module("xdl.trainer.trainer")
+    FakeAccelerator.instances = []
+    monkeypatch.setattr(trainer_module, "Accelerator", FakeAccelerator)
+    monkeypatch.setattr(trainer_module, "FullyShardedDataParallelPlugin", FakeFSDPPlugin)
+
+
 def assert_nested_batch_on_meta(batch: Any, marker: Any) -> None:
     assert isinstance(batch, list)
     assert batch[0].device.type == "meta"
@@ -352,6 +424,44 @@ def test_configure_device_objects_moves_extra_objects_and_calls_hook() -> None:
 
     assert model.pipeline.devices == [torch.device("meta")]
     assert model.after_device_setup_called is True
+
+
+def test_fsdp_flag_enables_accelerate_without_explicit_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_accelerate(monkeypatch)
+    model = OptimizerRecordingModel()
+    trainer = Trainer(max_epochs=1, device="cpu", fsdp=2)
+
+    trainer.fit(model=model, train_dataloader=[torch.ones(1, 1)])
+
+    accelerator = FakeAccelerator.instances[-1]
+    fsdp_plugin = accelerator.kwargs["fsdp_plugin"]
+    assert trainer.accelerator is accelerator
+    assert isinstance(fsdp_plugin, FakeFSDPPlugin)
+    assert fsdp_plugin.kwargs == {
+        "fsdp_version": 2,
+        "reshard_after_forward": True,
+    }
+    assert model._accelerator is accelerator
+    assert model.optimizer_seen is model.optimizers[0]
+    assert getattr(model.optimizers[0], "_xdl_fake_accelerator_prepared") is True
+
+
+def test_empty_accelerate_config_still_prepares_optimizer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_accelerate(monkeypatch)
+    model = OptimizerRecordingModel()
+    trainer = Trainer(max_epochs=1, device="cpu", accelerate_config={})
+
+    trainer.fit(model=model, train_dataloader=[torch.ones(1, 1)])
+
+    accelerator = FakeAccelerator.instances[-1]
+    assert trainer.accelerator is accelerator
+    assert accelerator.kwargs == {}
+    assert accelerator.prepared_optimizers == [model.optimizers[0]]
+    assert getattr(model.optimizers[0], "_xdl_fake_accelerator_prepared") is True
 
 
 def test_trainer_load_checkpoint_restores_callback_state(tmp_path) -> None:

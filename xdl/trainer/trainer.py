@@ -96,8 +96,16 @@ class Trainer:
         self._accumulated_batches = 0
 
         # 设备引用
-        self._device = None if accelerate_config is not None else self._get_device_from_spec()
+        self._device = None if self._should_use_accelerate() else self._get_device_from_spec()
         self._is_setup = False
+
+    def _should_use_accelerate(self) -> bool:
+        """判断当前配置是否需要走 Accelerate 路径."""
+        return (
+            self.accelerate_config is not None
+            or self.precision is not None
+            or self.fsdp is not None
+        )
 
     @classmethod
     def from_setup(cls, setup) -> "Trainer":
@@ -651,8 +659,7 @@ class Trainer:
 
         # 如果使用 Accelerate, 通过 Accelerator 准备优化器
         if (
-            self.accelerate_config
-            and self._accelerator
+            self._accelerator
             and self._model is not None
             and hasattr(self._model, "_optimizers")
             and self._model._optimizers
@@ -702,8 +709,8 @@ class Trainer:
         if getattr(self, "_is_setup", False):
             return
 
-        # 如果指定了精度或提供了加速器配置，则使用 Accelerate
-        if self.accelerate_config is not None or self.precision is not None:
+        # 如果指定了精度, Accelerate 配置或 FSDP, 则使用 Accelerate
+        if self._should_use_accelerate():
             self._setup_accelerator()
         else:
             # 设置默认设备(不使用 Accelerate)
@@ -740,7 +747,7 @@ class Trainer:
                     )
                 elif isinstance(config["fsdp_plugin"], dict):
                     # 如果是字典配置, 转化为插件对象并强制设置 FSDP2
-                    fsdp_dict = config["fsdp_plugin"]
+                    fsdp_dict = dict(config["fsdp_plugin"])
                     fsdp_dict["fsdp_version"] = 2
                     if "reshard_after_forward" not in fsdp_dict:
                         fsdp_dict["reshard_after_forward"] = True
@@ -813,7 +820,7 @@ class Trainer:
             self._assign_model_attribute(name, self._move_device_object(value))
 
         # 设置模型的 accelerator 引用
-        if self.accelerate_config and self._accelerator and self._model:
+        if self._accelerator and self._model:
             self._model._accelerator = self._accelerator
 
     def _setup_standard(self):

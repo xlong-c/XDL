@@ -16,6 +16,7 @@ from .basic import SyntheticClassificationDataset
 from .manifest_dense import (
     DetectionCollate,
     ImageBoxesTransform,
+    ImageMaskSidecarDataset,
     ImageMaskTransform,
     ManifestDetectionDataset,
     ManifestSegmentationDataset,
@@ -30,6 +31,7 @@ from .templates import (
     ImageFolderClassificationDataset,
     ImageTextSidecarDataset,
     ManifestClassificationDataset,
+    ManifestDatasetBase,
     ManifestImageTextDataset,
     ManifestMultiLabelClassificationDataset,
     ManifestPairDataset,
@@ -39,6 +41,7 @@ from .templates import (
     ManifestTripletDataset,
 )
 
+# 通用模板集中注册在这里, 让 YAML 可以统一使用 registry:Name 构建数据集.
 register_dataset("SyntheticClassificationDataset")(SyntheticClassificationDataset)
 register_dataset("ManifestImageEditDataset")(ManifestImageEditDataset)
 register_dataset("ManifestRecordDataset")(ManifestRecordDataset)
@@ -48,6 +51,7 @@ register_dataset("ImageTextSidecarDataset")(ImageTextSidecarDataset)
 register_dataset("ManifestClassificationDataset")(ManifestClassificationDataset)
 register_dataset("ManifestRegressionDataset")(ManifestRegressionDataset)
 register_dataset("ManifestMultiLabelClassificationDataset")(ManifestMultiLabelClassificationDataset)
+register_dataset("ImageMaskSidecarDataset")(ImageMaskSidecarDataset)
 register_dataset("ManifestSegmentationDataset")(ManifestSegmentationDataset)
 register_dataset("ManifestDetectionDataset")(ManifestDetectionDataset)
 register_dataset("ManifestImageTextDataset")(ManifestImageTextDataset)
@@ -98,6 +102,8 @@ __all__ = [
     "ImageFolderDataset",
     "ImageFolderClassificationDataset",
     "ImageTextSidecarDataset",
+    "ImageMaskSidecarDataset",
+    "ManifestDatasetBase",
     "ManifestClassificationDataset",
     "ManifestRegressionDataset",
     "ManifestMultiLabelClassificationDataset",

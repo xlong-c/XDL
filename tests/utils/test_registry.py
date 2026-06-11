@@ -76,6 +76,7 @@ class TestGlobalRegistries:
             "ImageTextSidecarDataset",
             "ManifestRegressionDataset",
             "ManifestMultiLabelClassificationDataset",
+            "ImageMaskSidecarDataset",
             "ManifestSegmentationDataset",
             "ManifestDetectionDataset",
             "ManifestTextDataset",

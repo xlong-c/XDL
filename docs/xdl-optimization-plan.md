@@ -87,6 +87,7 @@
 
 - 当前 manifest 主路径已经基本成形
 - `ImageFolderDataset` 和 `ImageTextSidecarDataset` 已覆盖纯图片目录与 `image + txt` 基础入口
+- `ImageMaskSidecarDataset` 已覆盖常见 `images/000.png` 对应 `masks/000.png` 的分割入口
 - 实际项目里经常先面对“数据怎么摆”，再决定任务类型
 
 建议把 dataset 继续按两层补齐：
@@ -114,9 +115,9 @@
 
 建议优先级：
 
-1. `ImageMaskSidecarDataset` 或更通用的 `BasenameAlignedDataset`
-   - 适合 `images/000.png` 对应 `masks/000.png`
-   - 也可复用到 `image + json` / `image + label` 这类 sidecar 结构
+1. 更通用的 `BasenameAlignedDataset`
+   - 复用当前 sidecar helper
+   - 覆盖 `image + json` / `image + label` 这类 sidecar 结构
 
 2. 标准格式适配
    - `COCODetectionDataset`

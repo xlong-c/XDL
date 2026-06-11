@@ -20,6 +20,13 @@ from ._manifest import (
     resolve_path,
     resolve_record_path,
 )
+from ._paths import (
+    collect_image_paths,
+    collect_sidecar_samples,
+    load_image,
+    normalize_extensions,
+    path_sample_id,
+)
 
 PathLike = Union[str, Path]
 Record = Dict[str, Any]
@@ -90,6 +97,7 @@ class ImageMaskTransform:
 
     def __call__(self, image: Image.Image, mask: Image.Image) -> Tuple[torch.Tensor, torch.Tensor]:
         do_flip = self.random_flip and random.random() < 0.5
+        # image 可以双线性插值, mask 必须用 nearest, 否则类别 id 会被插值污染.
         image = self._prepare_image(
             image,
             do_flip=do_flip,
@@ -181,6 +189,100 @@ class ImageBoxesTransform:
         flipped[:, 0] = width - boxes[:, 2]
         flipped[:, 2] = width - boxes[:, 0]
         return flipped
+
+
+class ImageMaskSidecarDataset(Dataset[Record]):
+    """Segmentation dataset for basename-aligned image and mask directories."""
+
+    def __init__(
+        self,
+        root: Optional[PathLike] = None,
+        image_root: Optional[PathLike] = None,
+        mask_root: Optional[PathLike] = None,
+        mask_extension: Optional[str] = None,
+        transform: Optional[
+            Callable[[Image.Image, Image.Image], Tuple[Any, Any]]
+        ] = None,
+        image_mode: str = "RGB",
+        mask_mode: str = "L",
+        extensions: Optional[Sequence[str]] = None,
+        recursive: bool = True,
+        include_paths: bool = True,
+        missing_mask: str = "error",
+        sample_id_from: str = "stem",
+        repeat: int = 1,
+    ) -> None:
+        if root is None and image_root is None:
+            raise ValueError("Either root or image_root must be provided")
+        if root is not None and image_root is not None:
+            raise ValueError("Use either root or image_root, not both")
+
+        resolved_image_root = image_root if image_root is not None else root
+        if resolved_image_root is None:
+            raise ValueError("Either root or image_root must be provided")
+
+        self.image_root = Path(resolved_image_root).expanduser().resolve()
+        self.mask_root = (
+            Path(mask_root).expanduser().resolve()
+            if mask_root is not None
+            else None
+        )
+        self.mask_extension = mask_extension
+        self.transform = transform
+        self.image_mode = image_mode
+        self.mask_mode = mask_mode
+        self.extensions = normalize_extensions(extensions)
+        self.recursive = bool(recursive)
+        self.include_paths = bool(include_paths)
+        self.missing_mask = missing_mask
+        self.sample_id_from = sample_id_from
+        self.repeat = max(1, int(repeat))
+
+        image_paths = collect_image_paths(
+            self.image_root,
+            extensions=self.extensions,
+            recursive=self.recursive,
+        )
+        # sidecar mask 与 image 使用同一相对路径, 支持 images/a.png -> masks/a.png.
+        self.samples = collect_sidecar_samples(
+            image_paths,
+            image_root=self.image_root,
+            sidecar_root=self.mask_root,
+            sidecar_extension=self.mask_extension,
+            missing=self.missing_mask,
+            sidecar_name="mask",
+        )
+        if not self.samples:
+            raise ValueError(f"No image/mask sidecar samples found under: {self.image_root}")
+
+    def __len__(self) -> int:
+        return len(self.samples) * self.repeat
+
+    def __getitem__(self, index: int) -> Record:
+        base_index = index % len(self.samples)
+        image_path, mask_path = self.samples[base_index]
+        image = load_image(image_path, self.image_mode)
+        mask = Image.open(mask_path).convert(self.mask_mode)
+        if self.transform is not None:
+            image_value, mask_value = self.transform(image, mask)
+        else:
+            image_value = image
+            mask_value = mask
+
+        sample: Record = {
+            "image": image_value,
+            "mask": mask_value,
+            "sample_id": path_sample_id(
+                image_path,
+                root=self.image_root,
+                index=base_index,
+                sample_id_from=self.sample_id_from,
+            ),
+        }
+        if self.include_paths:
+            sample["image_path"] = str(image_path)
+            sample["mask_path"] = str(mask_path)
+        return sample
 
 
 class ManifestSegmentationDataset(Dataset[Record]):
@@ -328,6 +430,7 @@ class DetectionCollate:
         for key in batch[0].keys():
             values = [item[key] for item in batch]
             if key in {"boxes", "labels"}:
+                # 检测目标数量逐图不同, 保留 list, 由 task/loss 决定后续处理方式.
                 collated[key] = values
             elif torch.is_tensor(values[0]):
                 collated[key] = default_collate(values)

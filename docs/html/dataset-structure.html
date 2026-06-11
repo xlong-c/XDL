@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XDL Dataset 模块结构说明</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #667085;
+      --line: #c5cedb;
+      --line-strong: #98a6ba;
+      --surface-soft: #f8fafc;
+      --surface-muted: #eef2f7;
+      --accent: #0f766e;
+      --accent-soft: #e6f4f1;
+      --code: #0f172a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.62;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line-strong);
+      padding: 36px min(8vw, 72px) 28px;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px min(5vw, 42px) 56px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.2;
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 34px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      font-size: 23px;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    code,
+    pre {
+      color: var(--code);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      overflow-x: auto;
+      background: var(--surface-muted);
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 13px;
+    }
+
+    .subtitle {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 16px;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .note {
+      display: inline-block;
+      margin-top: 14px;
+      border: 1px solid #b7ded8;
+      background: var(--accent-soft);
+      color: #134e4a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 22px;
+      margin: 18px 0;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--surface-soft);
+    }
+
+    .card strong {
+      color: var(--accent);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .flow span {
+      min-height: 72px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      padding: 12px;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--panel);
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: var(--surface-muted);
+      color: #344054;
+      font-weight: 700;
+    }
+
+    th + th,
+    td + td {
+      border-left: 1px solid var(--line);
+    }
+
+    tbody tr:nth-child(even) {
+      background: var(--surface-soft);
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+
+    @media (max-width: 820px) {
+      h1 {
+        font-size: 28px;
+      }
+
+      .flow {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back-link" href="index.html">返回文档阅读入口</a>
+    <h1>XDL Dataset 模块结构说明</h1>
+    <p class="subtitle">
+      本文说明 <code>xdl/dataset</code> 的通用数据集结构, 包括注册入口, manifest 模板, sidecar 模板, dense prediction 模板, image edit 模板和 collate 组件. 本文刻意排除 hair 系列特殊数据集, 因为它们属于项目私有数据形态.
+    </p>
+    <span class="note">推荐新增数据集时先复用现有模板, 只在字段语义或磁盘组织确实不匹配时新增薄 adapter.</span>
+  </header>
+
+  <main>
+    <section class="section">
+      <h2>一. 模块分层</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>注册入口</h3>
+          <p><strong>文件:</strong> <code>__init__.py</code></p>
+          <p>集中导入并注册 DATASET, TRANSFORM, COLLATE. YAML 的 <code>registry:Name</code> 最终都从这里进入.</p>
+        </div>
+        <div class="card">
+          <h3>公共 helper</h3>
+          <p><strong>文件:</strong> <code>_manifest.py</code>, <code>_paths.py</code></p>
+          <p>负责读取 manifest, 解析相对路径, 构造 sample_id, 扫描图片目录, 生成 basename sidecar 配对.</p>
+        </div>
+        <div class="card">
+          <h3>通用模板</h3>
+          <p><strong>文件:</strong> <code>templates.py</code></p>
+          <p>覆盖 image folder, classification, regression, multilabel, image-text, text, pair, triplet 和 raw record.</p>
+        </div>
+        <div class="card">
+          <h3>Dense 模板</h3>
+          <p><strong>文件:</strong> <code>manifest_dense.py</code></p>
+          <p>覆盖 image-mask, image-boxes, segmentation, detection 和对应同步 transform / detection collate.</p>
+        </div>
+        <div class="card">
+          <h3>Image edit 模板</h3>
+          <p><strong>文件:</strong> <code>manifest_image_edit.py</code></p>
+          <p>覆盖 source/target/reference/mask/prompt 多图编辑样本, 并提供专用 collate.</p>
+        </div>
+        <div class="card">
+          <h3>Collate</h3>
+          <p><strong>文件:</strong> <code>collate.py</code></p>
+          <p>提供 padding 和 dict batch 拼接逻辑. 检测和 image edit 的专用 collate 放在对应任务模块里.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>二. 数据流</h2>
+      <p>通用数据链路可以看成五步. Dataset 只关心单样本, DataLoader 和 collate 才负责 batch.</p>
+      <div class="flow" aria-label="dataset data flow">
+        <span>1. 磁盘组织<br><code>manifest</code><br><code>folder</code><br><code>sidecar</code></span>
+        <span>2. Dataset<br>读取单条样本<br>解析路径和字段</span>
+        <span>3. Transform<br>单图变换<br>或多字段同步变换</span>
+        <span>4. Collate<br>stack tensor<br>保留变长字段</span>
+        <span>5. Trainer<br>递归迁移 batch<br>进入 <code>training_step</code></span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>三. 文件职责</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>文件</th>
+            <th>核心对象</th>
+            <th>职责</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>_manifest.py</code></td>
+            <td><code>load_manifest_records</code>, <code>resolve_record_path</code>, <code>build_sample_id</code></td>
+            <td>统一 JSONL/JSON/CSV 读取, 相对路径基于 manifest 目录解析, sample_id 从显式字段或 fallback 构造.</td>
+          </tr>
+          <tr>
+            <td><code>_paths.py</code></td>
+            <td><code>collect_image_paths</code>, <code>collect_sidecar_samples</code></td>
+            <td>统一图片扩展名过滤, 递归扫描, basename sidecar 配对, 缺失 sidecar 的 error/skip 策略.</td>
+          </tr>
+          <tr>
+            <td><code>templates.py</code></td>
+            <td><code>ManifestDatasetBase</code>, <code>ImageFolderDataset</code>, <code>ManifestTextDataset</code> 等</td>
+            <td>承载大多数非 dense 通用样本语义, 是新增 manifest 数据集的首选参考文件.</td>
+          </tr>
+          <tr>
+            <td><code>manifest_dense.py</code></td>
+            <td><code>ImageMaskTransform</code>, <code>ImageBoxesTransform</code>, <code>ManifestSegmentationDataset</code>, <code>ManifestDetectionDataset</code></td>
+            <td>处理 image-mask 和 image-boxes 这类需要同步几何变换的样本.</td>
+          </tr>
+          <tr>
+            <td><code>manifest_image_edit.py</code></td>
+            <td><code>ManifestImageEditDataset</code>, <code>PairedImageTransform</code></td>
+            <td>处理 source/target/reference/mask/prompt 多图编辑训练样本.</td>
+          </tr>
+          <tr>
+            <td><code>collate.py</code></td>
+            <td><code>PadCollate</code>, <code>DictCollate</code></td>
+            <td>提供基础 batch 拼接能力, 适合变长序列和通用 dict 样本.</td>
+          </tr>
+          <tr>
+            <td><code>basic.py</code>, <code>vision_datasets.py</code></td>
+            <td><code>SyntheticClassificationDataset</code>, <code>MNISTDataset</code>, <code>CIFAR10Dataset</code></td>
+            <td>提供 smoke test 数据集和 torchvision 常见数据集封装.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>四. 模板选择表</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>数据形态</th>
+            <th>磁盘结构</th>
+            <th>推荐模板</th>
+            <th>返回结构</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>纯图片</td>
+            <td><code>images/000.png</code></td>
+            <td><code>ImageFolderDataset</code></td>
+            <td><code>{"image", "sample_id", "image_path?"}</code></td>
+          </tr>
+          <tr>
+            <td>目录分类</td>
+            <td><code>root/class_name/image</code></td>
+            <td><code>ImageFolderClassificationDataset</code></td>
+            <td><code>(image, target)</code></td>
+          </tr>
+          <tr>
+            <td>manifest 分类</td>
+            <td><code>{"image": "...", "label": "cat"}</code></td>
+            <td><code>ManifestClassificationDataset</code></td>
+            <td><code>(image, target)</code></td>
+          </tr>
+          <tr>
+            <td>回归</td>
+            <td><code>{"image": "...", "target": 0.7}</code></td>
+            <td><code>ManifestRegressionDataset</code></td>
+            <td><code>(image, target)</code></td>
+          </tr>
+          <tr>
+            <td>多标签</td>
+            <td><code>{"image": "...", "labels": ["a", "b"]}</code></td>
+            <td><code>ManifestMultiLabelClassificationDataset</code></td>
+            <td><code>(image, multi_hot_tensor)</code></td>
+          </tr>
+          <tr>
+            <td>图文配对</td>
+            <td>manifest 或 <code>000.png + 000.txt</code></td>
+            <td><code>ManifestImageTextDataset</code>, <code>ImageTextSidecarDataset</code></td>
+            <td><code>{"image", "text", "sample_id"}</code></td>
+          </tr>
+          <tr>
+            <td>分割</td>
+            <td>manifest 或 <code>images/000.png + masks/000.png</code></td>
+            <td><code>ManifestSegmentationDataset</code>, <code>ImageMaskSidecarDataset</code></td>
+            <td><code>{"image", "mask", "sample_id"}</code></td>
+          </tr>
+          <tr>
+            <td>检测</td>
+            <td><code>{"image": "...", "boxes": [[...]], "labels": [...]}</code></td>
+            <td><code>ManifestDetectionDataset</code> + <code>DetectionCollate</code></td>
+            <td><code>{"image", "boxes", "labels", "sample_id"}</code></td>
+          </tr>
+          <tr>
+            <td>文本或指令</td>
+            <td><code>{"prompt": "...", "response": "..."}</code></td>
+            <td><code>ManifestTextDataset</code></td>
+            <td><code>{"text", "target_text?", "sample_id"}</code></td>
+          </tr>
+          <tr>
+            <td>pair/triplet</td>
+            <td>manifest 明确字段</td>
+            <td><code>ManifestPairDataset</code>, <code>ManifestTripletDataset</code></td>
+            <td><code>{"image_a", "image_b"}</code> 或 <code>{"anchor_image", "positive_image", "negative_image"}</code></td>
+          </tr>
+          <tr>
+            <td>图像编辑</td>
+            <td><code>source_image + target_image + reference_image? + edit_mask?</code></td>
+            <td><code>ManifestImageEditDataset</code> + <code>ManifestImageEditCollate</code></td>
+            <td><code>{"source_image", "target_image", "reference_image", "edit_mask", "prompt"}</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>五. 新增数据集时怎么最小化代码</h2>
+      <p>优先判断问题属于哪一层. 不要为了一个字段名不同就新增完整 dataset 类.</p>
+      <ul>
+        <li>字段能用 JSONL/JSON/CSV 表达时, 优先使用 manifest 模板.</li>
+        <li>只是 manifest 字段名不同, 通过 <code>image_key</code>, <code>label_key</code>, <code>text_keys</code> 等参数映射.</li>
+        <li>只是同名文件对齐, 优先复用 sidecar helper 或现有 sidecar 模板.</li>
+        <li>只是 batch 方式不同, 新增 collate, 不要改 dataset.</li>
+        <li>只是增强不同, 新增 transform, 不要新增 dataset.</li>
+        <li>确实是新语义形态时, 继承 <code>ManifestDatasetBase</code> 写薄 adapter, 再在 <code>__init__.py</code> 注册.</li>
+      </ul>
+
+      <pre><code>class MyManifestDataset(ManifestDatasetBase):
+    def __getitem__(self, index: int) -> dict[str, Any]:
+        base_index, record = self._record_at(index)
+        image_path = self._resolve_record_path(record, "image")
+        return {
+            "image_path": str(image_path),
+            "sample_id": self._sample_id_from_path(record, image_path, base_index),
+        }</code></pre>
+    </section>
+  </main>
+</body>
+</html>

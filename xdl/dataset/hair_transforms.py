@@ -6,6 +6,10 @@
 - hairdata10hair.py (Hair10HairDataset, 三文件夹加载)
 """
 
+import os
+
+os.environ.setdefault("NO_ALBUMENTATIONS_UPDATE", "1")
+
 import albumentations as A
 import cv2
 import torchvision.transforms as transforms

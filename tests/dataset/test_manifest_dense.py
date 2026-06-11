@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader
@@ -9,6 +10,7 @@ from xdl.config.builder import build_dataset
 from xdl.dataset import (
     DetectionCollate,
     ImageBoxesTransform,
+    ImageMaskSidecarDataset,
     ImageMaskTransform,
     ManifestDetectionDataset,
     ManifestSegmentationDataset,
@@ -55,6 +57,82 @@ def test_manifest_segmentation_dataset_loads_sample_and_paths(tmp_path) -> None:
     assert sample["sample_id"] == "seg-1"
     assert sample["image_path"] == str((tmp_path / "image.png").resolve())
     assert sample["mask_path"] == str((tmp_path / "mask.png").resolve())
+
+
+def test_image_mask_sidecar_dataset_loads_split_roots_and_collates(tmp_path) -> None:
+    image_root = tmp_path / "images"
+    mask_root = tmp_path / "masks"
+    _save_rgb(image_root / "a.png", (255, 0, 0))
+    _save_rgb(image_root / "nested" / "b.jpg", (0, 255, 0))
+    _save_mask(mask_root / "a.png", 3)
+    _save_mask(mask_root / "nested" / "b.jpg", 5)
+
+    dataset = ImageMaskSidecarDataset(
+        image_root=image_root,
+        mask_root=mask_root,
+        transform=ImageMaskTransform(height=4, width=5, normalize=False),
+        sample_id_from="relative_path",
+        repeat=2,
+    )
+    sample = dataset[1]
+
+    assert len(dataset) == 4
+    assert sample["image"].shape == (3, 4, 5)
+    assert sample["mask"].shape == (4, 5)
+    assert sample["sample_id"] == "nested/b.jpg"
+    assert sample["image_path"] == str((image_root / "nested" / "b.jpg").resolve())
+    assert sample["mask_path"] == str((mask_root / "nested" / "b.jpg").resolve())
+    assert dataset[3]["sample_id"] == "nested/b.jpg"
+
+    loader = DataLoader(dataset, batch_size=2)
+    batch = next(iter(loader))
+
+    assert batch["image"].shape == (2, 3, 4, 5)
+    assert batch["mask"].shape == (2, 4, 5)
+    assert batch["sample_id"] == ["a.png", "nested/b.jpg"]
+
+
+def test_image_mask_sidecar_dataset_supports_same_dir_different_extension(
+    tmp_path,
+) -> None:
+    _save_rgb(tmp_path / "sample.jpg", (255, 0, 0))
+    _save_mask(tmp_path / "sample.png", 7)
+
+    dataset = ImageMaskSidecarDataset(
+        root=tmp_path,
+        mask_extension=".png",
+        extensions=[".jpg"],
+        transform=ImageMaskTransform(height=3, width=4),
+    )
+    sample = dataset[0]
+
+    assert sample["image"].shape == (3, 3, 4)
+    assert sample["mask"].shape == (3, 4)
+    assert sample["sample_id"] == "sample"
+    assert sample["mask_path"] == str((tmp_path / "sample.png").resolve())
+
+
+def test_image_mask_sidecar_dataset_skips_or_errors_on_missing_masks(tmp_path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+    _save_rgb(tmp_path / "b.png", (0, 255, 0))
+    _save_mask(tmp_path / "a.mask.png", 1)
+
+    dataset = ImageMaskSidecarDataset(
+        root=tmp_path,
+        mask_extension=".mask.png",
+        extensions=[".png"],
+        missing_mask="skip",
+    )
+
+    assert len(dataset) == 1
+    assert dataset[0]["sample_id"] == "a"
+
+    with pytest.raises(FileNotFoundError, match="Missing sidecar mask files"):
+        ImageMaskSidecarDataset(
+            root=tmp_path,
+            mask_extension=".missing.png",
+            extensions=[".png"],
+        )
 
 
 def test_manifest_detection_dataset_parses_json_strings_and_collates(tmp_path, monkeypatch) -> None:
@@ -137,8 +215,25 @@ def test_dense_dataset_components_are_registered_and_buildable(tmp_path) -> None
 
     assert sample["image"].shape == (3, 4, 4)
     assert sample["mask"].shape == (4, 4)
+    sidecar_dataset = build_dataset(
+        {
+            "target": "registry:ImageMaskSidecarDataset",
+            "params": {
+                "image_root": str(tmp_path),
+                "mask_root": str(tmp_path),
+                "extensions": [".png"],
+                "transform": {
+                    "target": "registry:ImageMaskTransform",
+                    "params": {"height": 4, "width": 4},
+                },
+            },
+        }
+    )
+
+    assert sidecar_dataset[0]["image"].shape == (3, 4, 4)
     assert DATASET_REGISTRY.get("ManifestSegmentationDataset") is ManifestSegmentationDataset
     assert DATASET_REGISTRY.get("ManifestDetectionDataset") is ManifestDetectionDataset
+    assert DATASET_REGISTRY.get("ImageMaskSidecarDataset") is ImageMaskSidecarDataset
     assert TRANSFORM_REGISTRY.get("ImageMaskTransform") is ImageMaskTransform
     assert TRANSFORM_REGISTRY.get("ImageBoxesTransform") is ImageBoxesTransform
     assert COLLATE_REGISTRY.get("DetectionCollate") is DetectionCollate

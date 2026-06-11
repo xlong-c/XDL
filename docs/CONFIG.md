@@ -183,6 +183,8 @@ train_dataloader:
 - `trainer.batch_size` 可作为默认 batch size 来源
 - `collate_fn` 支持 `None`、可调用对象或 `target + params`
 
+完整 dataset 模板规划, 选择表和新增 dataset 流程见 [DATASET.md](DATASET.md). 本节只保留配置系统需要知道的写法.
+
 ### 先区分两种“数据类型”
 
 规划 dataset 模板时，先区分两个维度：
@@ -263,8 +265,8 @@ texts/
 - 通过同名 stem 对齐
 - 常见于 `image + text`, `image + label`, `image + mask`
 - 仓库里 `train/train_sd35m_apex_xdl.py` 已经有 `image.with_suffix(".txt")` 的手写实现
-- 当前模板：`ImageTextSidecarDataset`
-- 后续 `image + mask` / `image + json` 仍建议继续补 basename 对齐模板
+- 当前模板: `ImageTextSidecarDataset`, `ImageMaskSidecarDataset`
+- 后续 `image + json` / `image + label` 仍建议继续补 basename 对齐模板
 
 4. 多目录对齐型
 
@@ -277,7 +279,7 @@ masks/
 
 - 本质上仍是 basename 对齐
 - 常见于分割、depth、编辑、多模态条件输入
-- 当前 `ManifestImageEditDataset` 的真实样本可以由 manifest 描述这类结构
+- 当前模板: `ImageMaskSidecarDataset`; `ManifestImageEditDataset` 的真实样本可以由 manifest 描述这类结构
 
 5. 纯图片目录
 
@@ -304,6 +306,7 @@ images/
 - `registry:ManifestClassificationDataset`: 从 JSONL/JSON/CSV manifest 读取 `image + label`.
 - `registry:ManifestRegressionDataset`: 从 manifest 读取 `image + target`, 适合分数、年龄、质量估计等回归任务.
 - `registry:ManifestMultiLabelClassificationDataset`: 从 manifest 读取 `image + labels`, 适合多标签分类.
+- `registry:ImageMaskSidecarDataset`: 从同名 mask sidecar 读取 `image + mask`, 支持同目录或 image/mask 分目录.
 - `registry:ManifestSegmentationDataset`: 从 manifest 读取 `image + mask`, 适合语义分割和其他 dense label 任务.
 - `registry:ManifestDetectionDataset`: 从 manifest 读取 `image + boxes + labels`, 适合目标检测和变长 target 任务.
 - `registry:ManifestImageTextDataset`: 从 manifest 读取 `image + text/prompt/caption`, 适合图文微调.
@@ -342,7 +345,8 @@ images/
    - 目录分类型：优先 `ImageFolderClassificationDataset`
    - manifest 明确字段：优先 manifest 系列模板
    - `000.png + 000.txt`：优先 `ImageTextSidecarDataset`
-   - `000.png + 000.json` / `images/000.png + masks/000.png`：后续走 basename 对齐模板
+   - `images/000.png + masks/000.png`: 优先 `ImageMaskSidecarDataset`
+   - `000.png + 000.json`: 后续走 basename 对齐模板或薄 manifest adapter
    - 只有图片：优先 `ImageFolderDataset`
 2. 再看样本语义形态
    - 分类 / 回归 / 多标签
@@ -373,9 +377,8 @@ images/
 - 适合 `000.png` 对应 `000.txt` / `000.json` / `000.png`
 - 适合 diffusion 微调、caption、小型多模态数据、分割 mask
 - 当前已有 `ImageTextSidecarDataset` 覆盖 `image + txt`
-- 后续建议继续补：
-  - `ImageMaskSidecarDataset`
-  - `BasenameAlignedDataset`
+- 当前已有 `ImageMaskSidecarDataset` 覆盖 `image + mask`
+- 后续建议继续补更通用的 `BasenameAlignedDataset`
 
 4. 标准格式适配路径
 
@@ -416,6 +419,22 @@ train_dataset:
   target: "registry:ManifestSegmentationDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_seg.jsonl}
+    transform:
+      target: "registry:ImageMaskTransform"
+      params:
+        height: 512
+        width: 512
+        random_flip: true
+```
+
+image-mask sidecar:
+
+```yaml
+train_dataset:
+  target: "registry:ImageMaskSidecarDataset"
+  params:
+    image_root: ${xdl.abspath:${xdl.config_dir},data/images}
+    mask_root: ${xdl.abspath:${xdl.config_dir},data/masks}
     transform:
       target: "registry:ImageMaskTransform"
       params:
