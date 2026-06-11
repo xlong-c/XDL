@@ -279,7 +279,7 @@ masks/
 
 - 本质上仍是 basename 对齐
 - 常见于分割、depth、编辑、多模态条件输入
-- 当前模板: `ImageMaskSidecarDataset`; `ManifestImageEditDataset` 的真实样本可以由 manifest 描述这类结构
+- 当前模板: `ImageMaskSidecarDataset`; `ImageEditDataset` 的真实样本可以由 manifest 描述这类结构
 
 5. 纯图片目录
 
@@ -303,19 +303,21 @@ images/
 
 - `registry:ImageFolderDataset`: 读取纯图片目录, 返回 `image + sample_id`, 可选 `image_path`.
 - `registry:ImageFolderClassificationDataset`: 读取 `root/class_name/image` 分类目录.
-- `registry:ManifestClassificationDataset`: 从 JSONL/JSON/CSV manifest 读取 `image + label`.
-- `registry:ManifestRegressionDataset`: 从 manifest 读取 `image + target`, 适合分数、年龄、质量估计等回归任务.
-- `registry:ManifestMultiLabelClassificationDataset`: 从 manifest 读取 `image + labels`, 适合多标签分类.
+- `registry:RecordClassificationDataset`: 从 JSONL/JSON/CSV manifest 读取 `image + label`.
+- `registry:RecordRegressionDataset`: 从 manifest 读取 `image + target`, 适合分数、年龄、质量估计等回归任务.
+- `registry:RecordMultiLabelClassificationDataset`: 从 manifest 读取 `image + labels`, 适合多标签分类.
 - `registry:ImageMaskSidecarDataset`: 从同名 mask sidecar 读取 `image + mask`, 支持同目录或 image/mask 分目录.
-- `registry:ManifestSegmentationDataset`: 从 manifest 读取 `image + mask`, 适合语义分割和其他 dense label 任务.
-- `registry:ManifestDetectionDataset`: 从 manifest 读取 `image + boxes + labels`, 适合目标检测和变长 target 任务.
-- `registry:ManifestImageTextDataset`: 从 manifest 读取 `image + text/prompt/caption`, 适合图文微调.
+- `registry:RecordSegmentationDataset`: 从 manifest 读取 `image + mask`, 适合语义分割和其他 dense label 任务.
+- `registry:RecordDetectionDataset`: 从 manifest 读取 `image + boxes + labels`, 适合目标检测和变长 target 任务.
+- `registry:RecordImageTextDataset`: 从 manifest 读取 `image + text/prompt/caption`, 适合图文微调.
 - `registry:ImageTextSidecarDataset`: 从同名 `.txt` sidecar 读取 `image + text`, 支持同目录或 image/text 分目录.
-- `registry:ManifestTextDataset`: 从 manifest 读取 `text/prompt/caption`, 可选 `target_text/response/completion`, 适合纯文本或指令样本.
-- `registry:ManifestPairDataset`: 从 manifest 读取 `image_a + image_b`, 可选 `label` / `text_a` / `text_b`, 适合 siamese、对比学习、检索 pair.
-- `registry:ManifestTripletDataset`: 从 manifest 读取 `anchor/positive/negative` 图像三元组, 可选各自文本字段, 适合 metric learning 和 retrieval.
-- `registry:ManifestImageEditDataset`: 从 manifest 读取 source/target/reference/mask 多图编辑样本.
-- `registry:ManifestRecordDataset`: 直接返回 manifest 里的 dict 记录.
+- `registry:RecordTextDataset`: 从 manifest 读取 `text/prompt/caption`, 可选 `target_text/response/completion`, 适合纯文本或指令样本.
+- `registry:RecordPairDataset`: 从 manifest 读取 `image_a + image_b`, 可选 `label` / `text_a` / `text_b`, 适合 siamese、对比学习、检索 pair.
+- `registry:RecordTripletDataset`: 从 manifest 读取 `anchor/positive/negative` 图像三元组, 可选各自文本字段, 适合 metric learning 和 retrieval.
+- `registry:ImageEditDataset`: 从 manifest 读取 source/target/reference/mask 多图编辑样本.
+- `registry:RecordDataset`: 直接返回 manifest 里的 dict 记录.
+
+历史 `registry:Manifest*` 名称继续可用, 但新配置优先写 `registry:Record*` 或 `registry:ImageEditDataset` / `registry:ImageEditCollate`.
 
 ### Manifest 模板字段约定
 
@@ -343,7 +345,7 @@ images/
 
 1. 先看磁盘组织形态
    - 目录分类型：优先 `ImageFolderClassificationDataset`
-   - manifest 明确字段：优先 manifest 系列模板
+   - manifest 明确字段: 优先 `Record*` 模板
    - `000.png + 000.txt`：优先 `ImageTextSidecarDataset`
    - `images/000.png + masks/000.png`: 优先 `ImageMaskSidecarDataset`
    - `000.png + 000.json`: 后续走 basename 对齐模板或薄 manifest adapter
@@ -387,7 +389,7 @@ images/
 - 后续建议逐步补：
   - `COCODetectionDataset`
   - `COCOSegmentationDataset`
-  - `ManifestKeypointDataset` 或标准 keypoint 适配模板
+  - `RecordKeypointDataset` 或标准 keypoint 适配模板
 
 ### Dataset 样例
 
@@ -406,7 +408,7 @@ train_dataset:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestClassificationDataset"
+  target: "registry:RecordClassificationDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_cls.jsonl}
     transform: ${train_transforms}
@@ -416,7 +418,7 @@ train_dataset:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestSegmentationDataset"
+  target: "registry:RecordSegmentationDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_seg.jsonl}
     transform:
@@ -447,7 +449,7 @@ train_dataset:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestDetectionDataset"
+  target: "registry:RecordDetectionDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_det.jsonl}
     transform:
@@ -469,7 +471,7 @@ image-text:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestImageTextDataset"
+  target: "registry:RecordImageTextDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_it.jsonl}
     transform: ${train_transforms}
@@ -493,7 +495,7 @@ text-only:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestTextDataset"
+  target: "registry:RecordTextDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_text.jsonl}
     text_keys: ["prompt", "text"]
@@ -504,7 +506,7 @@ triplet:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestTripletDataset"
+  target: "registry:RecordTripletDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_triplet.jsonl}
     transform: ${train_transforms}
@@ -515,7 +517,7 @@ image edit:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestImageEditDataset"
+  target: "registry:ImageEditDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_edit.jsonl}
     height: 512
@@ -525,7 +527,7 @@ train_dataset:
 train_dataloader:
   dataset: ${train_dataset}
   collate_fn:
-    target: "registry:ManifestImageEditCollate"
+    target: "registry:ImageEditCollate"
   params:
     batch_size: 2
     shuffle: true
@@ -587,7 +589,7 @@ callbacks:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestTextDataset"
+  target: "registry:RecordTextDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_text.jsonl}
     text_transform:
