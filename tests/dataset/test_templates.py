@@ -20,6 +20,14 @@ from xdl.dataset import (
     ManifestRecordDataset,
     ManifestTextDataset,
     ManifestTripletDataset,
+    RecordClassificationDataset,
+    RecordDataset,
+    RecordImageTextDataset,
+    RecordMultiLabelClassificationDataset,
+    RecordPairDataset,
+    RecordRegressionDataset,
+    RecordTextDataset,
+    RecordTripletDataset,
 )
 from xdl.utils.registry import DATASET_REGISTRY
 
@@ -409,6 +417,7 @@ def test_builder_supports_manifest_text_dataset_text_transforms(tmp_path) -> Non
 
 
 def test_dataset_templates_are_registered() -> None:
+    assert DATASET_REGISTRY.get("RecordDataset") is RecordDataset
     assert DATASET_REGISTRY.get("ManifestRecordDataset") is ManifestRecordDataset
     assert DATASET_REGISTRY.get("ImageFolderDataset") is ImageFolderDataset
     assert (
@@ -417,15 +426,36 @@ def test_dataset_templates_are_registered() -> None:
     )
     assert DATASET_REGISTRY.get("ImageTextSidecarDataset") is ImageTextSidecarDataset
     assert (
+        DATASET_REGISTRY.get("RecordClassificationDataset")
+        is RecordClassificationDataset
+    )
+    assert (
         DATASET_REGISTRY.get("ManifestClassificationDataset")
         is ManifestClassificationDataset
     )
+    assert DATASET_REGISTRY.get("RecordRegressionDataset") is RecordRegressionDataset
     assert DATASET_REGISTRY.get("ManifestRegressionDataset") is ManifestRegressionDataset
+    assert (
+        DATASET_REGISTRY.get("RecordMultiLabelClassificationDataset")
+        is RecordMultiLabelClassificationDataset
+    )
     assert (
         DATASET_REGISTRY.get("ManifestMultiLabelClassificationDataset")
         is ManifestMultiLabelClassificationDataset
     )
+    assert DATASET_REGISTRY.get("RecordImageTextDataset") is RecordImageTextDataset
     assert DATASET_REGISTRY.get("ManifestImageTextDataset") is ManifestImageTextDataset
+    assert DATASET_REGISTRY.get("RecordTextDataset") is RecordTextDataset
     assert DATASET_REGISTRY.get("ManifestTextDataset") is ManifestTextDataset
+    assert DATASET_REGISTRY.get("RecordPairDataset") is RecordPairDataset
     assert DATASET_REGISTRY.get("ManifestPairDataset") is ManifestPairDataset
+    assert DATASET_REGISTRY.get("RecordTripletDataset") is RecordTripletDataset
     assert DATASET_REGISTRY.get("ManifestTripletDataset") is ManifestTripletDataset
+    assert RecordDataset is ManifestRecordDataset
+    assert RecordClassificationDataset is ManifestClassificationDataset
+    assert RecordRegressionDataset is ManifestRegressionDataset
+    assert RecordMultiLabelClassificationDataset is ManifestMultiLabelClassificationDataset
+    assert RecordImageTextDataset is ManifestImageTextDataset
+    assert RecordTextDataset is ManifestTextDataset
+    assert RecordPairDataset is ManifestPairDataset
+    assert RecordTripletDataset is ManifestTripletDataset
