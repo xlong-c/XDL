@@ -14,6 +14,8 @@ from xdl.dataset import (
     ImageMaskTransform,
     ManifestDetectionDataset,
     ManifestSegmentationDataset,
+    RecordDetectionDataset,
+    RecordSegmentationDataset,
 )
 from xdl.utils.registry import COLLATE_REGISTRY, DATASET_REGISTRY, TRANSFORM_REGISTRY
 
@@ -231,8 +233,12 @@ def test_dense_dataset_components_are_registered_and_buildable(tmp_path) -> None
     )
 
     assert sidecar_dataset[0]["image"].shape == (3, 4, 4)
+    assert DATASET_REGISTRY.get("RecordSegmentationDataset") is RecordSegmentationDataset
     assert DATASET_REGISTRY.get("ManifestSegmentationDataset") is ManifestSegmentationDataset
+    assert DATASET_REGISTRY.get("RecordDetectionDataset") is RecordDetectionDataset
     assert DATASET_REGISTRY.get("ManifestDetectionDataset") is ManifestDetectionDataset
+    assert RecordSegmentationDataset is ManifestSegmentationDataset
+    assert RecordDetectionDataset is ManifestDetectionDataset
     assert DATASET_REGISTRY.get("ImageMaskSidecarDataset") is ImageMaskSidecarDataset
     assert TRANSFORM_REGISTRY.get("ImageMaskTransform") is ImageMaskTransform
     assert TRANSFORM_REGISTRY.get("ImageBoxesTransform") is ImageBoxesTransform
