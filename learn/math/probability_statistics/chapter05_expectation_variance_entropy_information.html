@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="概率论第五章教程: 期望, 方差, 熵与信息量 HTML 教程">
+  <title>概率论第五章教程: 期望, 方差, 熵与信息量</title>
+  <link rel="stylesheet" href="probability_statistics.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      }
+    });
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="outline.md">
+        <span class="brand-mark">P</span>
+        <span>概率统计教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="outline.md">总纲</a>
+        <a class="nav-link" href="todo.html">进度</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Chapter 05</p>
+        <h1>概率论第五章教程: 期望, 方差, 熵与信息量</h1>
+        <p class="lead">第三章和第四章告诉我们怎样描述完整分布. 但很多时候, 完整分布太细, 我们还需要少量数字来概括它: 1. 这个随机变量大致集中在哪里? 2. 它波动有多大? 3. 多个变量是同向变化还是反向变化?</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#route-panel">阅读路径</a>
+        </div>
+      </div>
+      <aside id="route-panel" class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>页面概览</strong>
+          <span class="tag">公式 + 图示 + 主线</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>63</strong></div>
+          <div class="stat-card"><span>公式</span><strong>126</strong></div>
+          <div class="stat-card"><span>配图</span><strong>4</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 先看全章主线</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 为什么需要数字特征</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 数学期望: 加权平均的长期中心</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 期望的性质: 线性是最重要的</strong><span>本节是页面阅读路径中的关键节点.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-先看全章主线">0. 先看全章主线</a>
+<a href="#02-1-为什么需要数字特征">1. 为什么需要数字特征</a>
+<a href="#03-11-完整分布当然最好-但不总是方便">1.1 完整分布当然最好, 但不总是方便</a>
+<a href="#04-12-数字特征不是分布本身">1.2 数字特征不是分布本身</a>
+<a href="#05-2-数学期望-加权平均的长期中心">2. 数学期望: 加权平均的长期中心</a>
+<a href="#06-21-从加权平均开始">2.1 从加权平均开始</a>
+<a href="#07-22-一个骰子例子">2.2 一个骰子例子</a>
+<a href="#08-23-连续型期望">2.3 连续型期望</a>
+<a href="#09-24-函数的期望">2.4 函数的期望</a>
+<a href="#10-3-期望的性质-线性是最重要的">3. 期望的性质: 线性是最重要的</a>
+<a href="#11-31-线性性质">3.1 线性性质</a>
+<a href="#12-32-常数的期望">3.2 常数的期望</a>
+<a href="#13-33-缩放和平移">3.3 缩放和平移</a>
+<a href="#14-34-乘积期望和独立性">3.4 乘积期望和独立性</a>
+<a href="#15-4-方差与标准差-波动规模">4. 方差与标准差: 波动规模</a>
+<a href="#16-41-方差定义">4.1 方差定义</a>
+<a href="#17-42-常用等价公式">4.2 常用等价公式</a>
+<a href="#18-43-标准差">4.3 标准差</a>
+<a href="#19-44-方差的缩放性质">4.4 方差的缩放性质</a>
+<a href="#20-45-方差的可加性条件">4.5 方差的可加性条件</a>
+<a href="#21-5-协方差矩阵-多维波动的形状">5. 协方差矩阵: 多维波动的形状</a>
+<a href="#22-51-协方差回顾">5.1 协方差回顾</a>
+<a href="#23-52-协方差矩阵">5.2 协方差矩阵</a>
+<a href="#24-53-几何直觉">5.3 几何直觉</a>
+<a href="#25-54-协方差矩阵的基本性质">5.4 协方差矩阵的基本性质</a>
+<a href="#26-6-矩-中心矩-偏度与峰度">6. 矩, 中心矩, 偏度与峰度</a>
+<a href="#27-61-原点矩">6.1 原点矩</a>
+<a href="#28-62-中心矩">6.2 中心矩</a>
+<a href="#29-63-偏度">6.3 偏度</a>
+<a href="#30-64-峰度">6.4 峰度</a>
+<a href="#31-65-第一遍学到什么程度">6.5 第一遍学到什么程度</a>
+<a href="#32-7-熵-分布的不确定性">7. 熵: 分布的不确定性</a>
+<a href="#33-71-离散熵定义">7.1 离散熵定义</a>
+<a href="#34-72-熵的直觉">7.2 熵的直觉</a>
+<a href="#35-73-两个极端">7.3 两个极端</a>
+<a href="#36-74-熵不是方差">7.4 熵不是方差</a>
+<a href="#37-8-交叉熵-用错误分布编码真实数据的代价">8. 交叉熵: 用错误分布编码真实数据的代价</a>
+<a href="#38-81-定义">8.1 定义</a>
+<a href="#39-82-为什么机器学习里常见交叉熵">8.2 为什么机器学习里常见交叉熵</a>
+<a href="#40-83-交叉熵不等于熵">8.3 交叉熵不等于熵</a>
+<a href="#41-9-kl-散度-分布差异的非对称度量">9. KL 散度: 分布差异的非对称度量</a>
+<a href="#42-91-定义">9.1 定义</a>
+<a href="#43-92-与交叉熵的关系">9.2 与交叉熵的关系</a>
+<a href="#44-93-kl-的两个关键性质">9.3 KL 的两个关键性质</a>
+<a href="#45-94-为什么机器学习里优化交叉熵常等价于优化-kl">9.4 为什么机器学习里优化交叉熵常等价于优化 KL</a>
+<a href="#46-10-互信息-两个变量共享多少信息">10. 互信息: 两个变量共享多少信息</a>
+<a href="#47-101-定义">10.1 定义</a>
+<a href="#48-102-直觉">10.2 直觉</a>
+<a href="#49-103-与独立性的关系">10.3 与独立性的关系</a>
+<a href="#50-104-为什么互信息重要">10.4 为什么互信息重要</a>
+<a href="#51-11-常见分布的数字特征速查">11. 常见分布的数字特征速查</a>
+<a href="#52-12-本章主线总结">12. 本章主线总结</a>
+<a href="#53-13-典型题型与实战清单">13. 典型题型与实战清单</a>
+<a href="#54-14-典型误区">14. 典型误区</a>
+<a href="#55-误区-1-把期望当成一定会出现的值">误区 1: 把期望当成一定会出现的值</a>
+<a href="#56-误区-2-只会套方差公式-不理解波动含义">误区 2: 只会套方差公式, 不理解波动含义</a>
+<a href="#57-误区-3-忘记方差对缩放是平方响应">误区 3: 忘记方差对缩放是平方响应</a>
+<a href="#58-误区-4-把交叉熵和-kl-当成完全一样">误区 4: 把交叉熵和 KL 当成完全一样</a>
+<a href="#59-误区-5-把-kl-当成对称距离">误区 5: 把 KL 当成对称距离</a>
+<a href="#60-误区-6-混淆熵和方差">误区 6: 混淆熵和方差</a>
+<a href="#61-15-和前后章节的连接点">15. 和前后章节的连接点</a>
+<a href="#62-16-和机器学习-数据分析-科研实践的连接点">16. 和机器学习, 数据分析, 科研实践的连接点</a>
+<a href="#63-17-本章收尾">17. 本章收尾</a>
+    </aside>
+    <div class="content">
+      <article class="article">
+        <div class="chapter-note">
+          <strong>HTML 阅读版</strong>
+          本页由同名 Markdown 自动转换生成, 保留原文结构, 并增强目录, 图表, 公式和重点提示的阅读体验.
+        </div>
+        <div class="source-title"><h2>概率论第五章教程: 期望, 方差, 熵与信息量</h2></div>
+<blockquote class="callout"><p>第三章和第四章告诉我们怎样描述完整分布.<br>但很多时候, 完整分布太细, 我们还需要少量数字来概括它:</p><p>1. 这个随机变量大致集中在哪里?<br>2. 它波动有多大?<br>3. 多个变量是同向变化还是反向变化?<br>4. 一个分布到底有多不确定? 两个分布相差多远?</p><p>这一章把概率论的数字特征和信息论语言连起来.</p></blockquote>
+<hr class="divider">
+<h2 id="01-0-先看全章主线">0. 先看全章主线</h2>
+<p>第五章的主线可以压成下面这张图:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A[&quot;完整分布&quot;] --&gt; B[&quot;期望&lt;br/&gt;中心位置&quot;]
+    A --&gt; C[&quot;方差和标准差&lt;br/&gt;波动规模&quot;]
+    A --&gt; D[&quot;矩, 偏度, 峰度&lt;br/&gt;形状特征&quot;]
+    C --&gt; E[&quot;协方差矩阵&lt;br/&gt;多维共同波动&quot;]
+    A --&gt; F[&quot;熵&lt;br/&gt;不确定性&quot;]
+    F --&gt; G[&quot;交叉熵&lt;br/&gt;用 q 编码来自 p 的数据&quot;]
+    G --&gt; H[&quot;KL 散度&lt;br/&gt;分布差异&quot;]
+    F --&gt; I[&quot;互信息&lt;br/&gt;变量之间共享多少信息&quot;]
+    B --&gt; J[&quot;统计学习中的损失和正则化&quot;]
+    H --&gt; J
+    I --&gt; J</pre></div>
+<p>一句话概括这一章:</p>
+<blockquote class="callout"><p>期望和方差刻画平均行为与波动规模,<br>协方差刻画共同变化,<br>熵, 交叉熵, KL 和互信息刻画不确定性与信息关系.</p></blockquote>
+<hr class="divider">
+<h2 id="02-1-为什么需要数字特征">1. 为什么需要数字特征</h2>
+<h3 id="03-11-完整分布当然最好-但不总是方便">1.1 完整分布当然最好, 但不总是方便</h3>
+<p>如果你知道一个随机变量的完整分布, 理论上可以回答很多问题.<br> 但现实分析里, 我们常常需要更压缩的描述:</p>
+<ul><li>一个模型平均误差多大?</li>
+<li>某个指标波动是否稳定?</li>
+<li>两个指标是否同涨同落?</li>
+<li>一个分类器输出的概率分布是否很不确定?</li></ul>
+<p>这些问题不一定每次都需要完整分布.<br> 一些精心设计的数字特征就很有用.</p>
+<h3 id="04-12-数字特征不是分布本身">1.2 数字特征不是分布本身</h3>
+<p>一个非常重要的提醒是:</p>
+<blockquote class="callout"><p>数字特征是对分布的压缩, 不是分布的全部.</p></blockquote>
+<p>例如两个分布可以有相同的期望, 但波动完全不同.<br> 也可以有相同的期望和方差, 但形状仍然不同.</p>
+<p>所以这一章的正确学习方式是:</p>
+<blockquote class="callout"><p>先理解每个数字在概括分布的哪一面,<br>再理解它会丢掉哪些信息.</p></blockquote>
+<hr class="divider">
+<h2 id="05-2-数学期望-加权平均的长期中心">2. 数学期望: 加权平均的长期中心</h2>
+<h3 id="06-21-从加权平均开始">2.1 从加权平均开始</h3>
+<p>期望最自然的入口不是公式, 而是加权平均.</p>
+<p>假设随机变量 $X$ 取值为 $x_1,\dots,x_n$, 对应概率为 $p_1,\dots,p_n$.<br> 那么它的期望是</p>
+<div class="math-block">$$
+E[X]=\sum_{i=1}^{n} x_i p_i
+$$</div>
+<p>也就是:</p>
+<blockquote class="callout"><p>每个可能取值乘以它出现的概率, 再全部加起来.</p></blockquote>
+<h3 id="07-22-一个骰子例子">2.2 一个骰子例子</h3>
+<p>公平骰子的点数 $X$ 满足</p>
+<div class="math-block">$$
+P(X=k)=\frac{1}{6},\quad k=1,2,\dots,6
+$$</div>
+<p>所以</p>
+<div class="math-block">$$
+E[X]=1\cdot\frac{1}{6}+2\cdot\frac{1}{6}+\cdots+6\cdot\frac{1}{6}
+=\frac{21}{6}=3.5
+$$</div>
+<p>注意, 骰子点数永远不会等于 $3.5$.<br> 这正好说明:</p>
+<blockquote class="callout"><p>期望不一定是随机变量可能取到的值.</p></blockquote>
+<p>它描述的是长期平均中心, 不是单次结果承诺.</p>
+<h3 id="08-23-连续型期望">2.3 连续型期望</h3>
+<p>若 $X$ 是连续型随机变量, 密度为 $f_X(x)$, 则</p>
+<div class="math-block">$$
+E[X]=\int_{-\infty}^{+\infty} x f_X(x)\,dx
+$$</div>
+<p>这和离散公式是同一件事:</p>
+<ul><li>离散型用求和</li>
+<li>连续型用积分</li></ul>
+<h3 id="09-24-函数的期望">2.4 函数的期望</h3>
+<p>更一般地, 若我们关心 $g(X)$, 则:</p>
+<p>离散型:</p>
+<div class="math-block">$$
+E[g(X)]=\sum_x g(x)p_X(x)
+$$</div>
+<p>连续型:</p>
+<div class="math-block">$$
+E[g(X)]=\int_{-\infty}^{+\infty} g(x)f_X(x)\,dx
+$$</div>
+<p>这条公式后面会非常常用.<br> 例如方差本质上就是 $g(X)=(X-E[X])^2$ 的期望.</p>
+<hr class="divider">
+<h2 id="10-3-期望的性质-线性是最重要的">3. 期望的性质: 线性是最重要的</h2>
+<h3 id="11-31-线性性质">3.1 线性性质</h3>
+<p>期望最重要的性质是线性:</p>
+<div class="math-block">$$
+E[aX+bY+c]=aE[X]+bE[Y]+c
+$$</div>
+<p>这条性质不要求 $X,Y$ 独立.</p>
+<p>特别地:</p>
+<div class="math-block">$$
+E[X+Y]=E[X]+E[Y]
+$$</div>
+<p>无论 $X,Y$ 是否独立都成立.</p>
+<h3 id="12-32-常数的期望">3.2 常数的期望</h3>
+<p>如果 $c$ 是常数, 则</p>
+<div class="math-block">$$
+E[c]=c
+$$</div>
+<p>这很自然, 因为一个永远等于 $c$ 的随机变量, 长期平均当然还是 $c$.</p>
+<h3 id="13-33-缩放和平移">3.3 缩放和平移</h3>
+<p>若</p>
+<div class="math-block">$$
+Y=aX+b
+$$</div>
+<p>则</p>
+<div class="math-block">$$
+E[Y]=aE[X]+b
+$$</div>
+<p>这意味着:</p>
+<ul><li>平移会把期望整体平移</li>
+<li>缩放会把期望按比例缩放</li></ul>
+<h3 id="14-34-乘积期望和独立性">3.4 乘积期望和独立性</h3>
+<p>一般来说,</p>
+<div class="math-block">$$
+E[XY]\ne E[X]E[Y]
+$$</div>
+<p>只有在 $X,Y$ 独立时, 才有</p>
+<div class="math-block">$$
+E[XY]=E[X]E[Y]
+$$</div>
+<p>这个条件很重要, 不能随便省略.</p>
+<hr class="divider">
+<h2 id="15-4-方差与标准差-波动规模">4. 方差与标准差: 波动规模</h2>
+<h3 id="16-41-方差定义">4.1 方差定义</h3>
+<p>方差定义为</p>
+<div class="math-block">$$
+\mathrm{Var}(X)=E[(X-E[X])^2]
+$$</div>
+<p>它衡量的是:</p>
+<blockquote class="callout"><p>随机变量围绕自身期望的平均平方偏离.</p></blockquote>
+<p>因为用了平方, 所以:</p>
+<ul><li>正负偏离不会相互抵消</li>
+<li>大偏离会被更重地惩罚</li></ul>
+<h3 id="17-42-常用等价公式">4.2 常用等价公式</h3>
+<p>展开平方可以得到:</p>
+<div class="math-block">$$
+\mathrm{Var}(X)=E[X^2]-(E[X])^2
+$$</div>
+<p>这条公式计算上很常用, 但理解上仍然要回到原始定义:</p>
+<blockquote class="callout"><p>方差描述的是围绕中心的波动.</p></blockquote>
+<h3 id="18-43-标准差">4.3 标准差</h3>
+<p>方差单位是原变量单位的平方.<br> 为了回到原单位, 定义标准差:</p>
+<div class="math-block">$$
+\sigma_X=\sqrt{\mathrm{Var}(X)}
+$$</div>
+<p>标准差越大, 分布越分散; 标准差越小, 分布越集中.</p>
+<figure class="figure"><img src="assets/ps_ch05_same_mean_different_variance.png" alt="相同期望不同方差图"><figcaption>相同期望不同方差图</figcaption></figure>
+<p>图中三条曲线的均值相同, 但方差不同.<br> 这说明:</p>
+<blockquote class="callout"><p>只知道期望, 并不知道波动有多大.</p></blockquote>
+<h3 id="19-44-方差的缩放性质">4.4 方差的缩放性质</h3>
+<p>若</p>
+<div class="math-block">$$
+Y=aX+b
+$$</div>
+<p>则</p>
+<div class="math-block">$$
+\mathrm{Var}(Y)=a^2\mathrm{Var}(X)
+$$</div>
+<p>注意:</p>
+<ul><li>平移 $b$ 不改变波动</li>
+<li>缩放 $a$ 会让方差乘以 $a^2$</li></ul>
+<h3 id="20-45-方差的可加性条件">4.5 方差的可加性条件</h3>
+<p>一般来说:</p>
+<div class="math-block">$$
+\mathrm{Var}(X+Y)=\mathrm{Var}(X)+\mathrm{Var}(Y)+2\mathrm{Cov}(X,Y)
+$$</div>
+<p>若 $X,Y$ 独立, 则协方差为 0, 此时:</p>
+<div class="math-block">$$
+\mathrm{Var}(X+Y)=\mathrm{Var}(X)+\mathrm{Var}(Y)
+$$</div>
+<p>这里的独立条件不能忘.</p>
+<hr class="divider">
+<h2 id="21-5-协方差矩阵-多维波动的形状">5. 协方差矩阵: 多维波动的形状</h2>
+<h3 id="22-51-协方差回顾">5.1 协方差回顾</h3>
+<p>两个随机变量的协方差为</p>
+<div class="math-block">$$
+\mathrm{Cov}(X,Y)=E[(X-E[X])(Y-E[Y])]
+$$</div>
+<p>它描述的是二者是否倾向于同向偏离自己的均值.</p>
+<h3 id="23-52-协方差矩阵">5.2 协方差矩阵</h3>
+<p>对随机向量</p>
+<div class="math-block">$$
+\mathbf{X}=(X_1,\dots,X_d)^\top
+$$</div>
+<p>其协方差矩阵定义为</p>
+<div class="math-block">$$
+\Sigma=E[(\mathbf{X}-E[\mathbf{X}])(\mathbf{X}-E[\mathbf{X}])^\top]
+$$</div>
+<p>矩阵第 $i,j$ 个元素为</p>
+<div class="math-block">$$
+\Sigma_{ij}=\mathrm{Cov}(X_i,X_j)
+$$</div>
+<p>对角线是各维方差, 非对角线是两两协方差.</p>
+<h3 id="24-53-几何直觉">5.3 几何直觉</h3>
+<p>协方差矩阵不仅是一张数字表, 它还有很强的几何含义:</p>
+<ul><li>特征向量给出主轴方向</li>
+<li>特征值给出对应方向上的波动强度</li></ul>
+<figure class="figure"><img src="assets/ps_ch05_covariance_ellipse_axes.png" alt="协方差椭圆主轴图"><figcaption>协方差椭圆主轴图</figcaption></figure>
+<p>这和线性代数中的二次型直觉是同一件事.<br> 高维正态分布, PCA, 白化, 高斯模型都会反复用到这条线.</p>
+<h3 id="25-54-协方差矩阵的基本性质">5.4 协方差矩阵的基本性质</h3>
+<p>协方差矩阵满足:</p>
+<ol><li>对称:</li></ol>
+<div class="math-block">$$
+\Sigma=\Sigma^\top
+$$</div>
+<ol><li>半正定:</li></ol>
+<div class="math-block">$$
+\mathbf{a}^\top \Sigma \mathbf{a}\ge 0
+$$</div>
+<p>原因是</p>
+<div class="math-block">$$
+\mathbf{a}^\top \Sigma \mathbf{a}
+=\mathrm{Var}(\mathbf{a}^\top \mathbf{X})
+$$</div>
+<p>而方差不可能为负.</p>
+<hr class="divider">
+<h2 id="26-6-矩-中心矩-偏度与峰度">6. 矩, 中心矩, 偏度与峰度</h2>
+<h3 id="27-61-原点矩">6.1 原点矩</h3>
+<p>随机变量的 $k$ 阶原点矩定义为</p>
+<div class="math-block">$$
+E[X^k]
+$$</div>
+<p>例如:</p>
+<ul><li>一阶原点矩就是 $E[X]$</li>
+<li>二阶原点矩 $E[X^2]$ 常用于计算方差</li></ul>
+<h3 id="28-62-中心矩">6.2 中心矩</h3>
+<p>$k$ 阶中心矩定义为</p>
+<div class="math-block">$$
+E[(X-E[X])^k]
+$$</div>
+<p>它描述的是围绕均值的形状信息.</p>
+<h3 id="29-63-偏度">6.3 偏度</h3>
+<p>偏度衡量分布的不对称程度, 常见标准化形式为</p>
+<div class="math-block">$$
+\mathrm{Skewness}
+=E\left[\left(\frac{X-\mu}{\sigma}\right)^3\right]
+$$</div>
+<p>若偏度为正, 通常表示右尾更长; 若偏度为负, 通常表示左尾更长.</p>
+<h3 id="30-64-峰度">6.4 峰度</h3>
+<p>峰度常见标准化形式为</p>
+<div class="math-block">$$
+\mathrm{Kurtosis}
+=E\left[\left(\frac{X-\mu}{\sigma}\right)^4\right]
+$$</div>
+<p>它和尾部厚度, 极端值倾向有关.<br> 实际使用时常会看 excess kurtosis, 即减去正态分布的峰度 3.</p>
+<h3 id="31-65-第一遍学到什么程度">6.5 第一遍学到什么程度</h3>
+<p>本章不要求深入各种矩估计细节.<br> 第一遍要先知道:</p>
+<ul><li>期望是一阶信息</li>
+<li>方差是二阶中心信息</li>
+<li>偏度看不对称</li>
+<li>峰度看尾部和极端值倾向</li></ul>
+<hr class="divider">
+<h2 id="32-7-熵-分布的不确定性">7. 熵: 分布的不确定性</h2>
+<h3 id="33-71-离散熵定义">7.1 离散熵定义</h3>
+<p>对离散分布 $p(x)$, Shannon entropy 定义为</p>
+<div class="math-block">$$
+H(p)=-\sum_x p(x)\log p(x)
+$$</div>
+<p>如果对数以 2 为底, 单位是 bit.<br> 如果以自然对数为底, 单位是 nat.</p>
+<h3 id="34-72-熵的直觉">7.2 熵的直觉</h3>
+<p>熵衡量的是:</p>
+<blockquote class="callout"><p>从这个分布中抽样时, 结果有多难提前猜.</p></blockquote>
+<p>如果分布非常尖锐, 大部分概率都压在一个结果上, 不确定性小, 熵低.<br> 如果分布很均匀, 每个结果都差不多可能, 不确定性大, 熵高.</p>
+<figure class="figure"><img src="assets/ps_ch05_entropy_comparison.png" alt="熵大小对比图"><figcaption>熵大小对比图</figcaption></figure>
+<h3 id="35-73-两个极端">7.3 两个极端</h3>
+<p>若某个结果概率为 1, 其他结果概率为 0, 则熵为 0.<br> 因为结果完全确定.</p>
+<p>若有 $n$ 个结果且均匀分布:</p>
+<div class="math-block">$$
+p(x)=\frac{1}{n}
+$$</div>
+<p>则熵最大:</p>
+<div class="math-block">$$
+H(p)=\log n
+$$</div>
+<h3 id="36-74-熵不是方差">7.4 熵不是方差</h3>
+<p>熵和方差都在描述某种&quot;不集中&quot;, 但它们不是一回事.</p>
+<ul><li>方差依赖数值距离</li>
+<li>熵只依赖概率分布本身</li></ul>
+<p>例如类别标签没有自然距离, 但仍然可以谈熵.</p>
+<hr class="divider">
+<h2 id="37-8-交叉熵-用错误分布编码真实数据的代价">8. 交叉熵: 用错误分布编码真实数据的代价</h2>
+<h3 id="38-81-定义">8.1 定义</h3>
+<p>给定真实分布 $p$ 和模型分布 $q$, 交叉熵定义为</p>
+<div class="math-block">$$
+H(p,q)=-\sum_x p(x)\log q(x)
+$$</div>
+<p>它衡量的是:</p>
+<blockquote class="callout"><p>数据来自 $p$, 但你用 $q$ 去编码或预测时的平均代价.</p></blockquote>
+<h3 id="39-82-为什么机器学习里常见交叉熵">8.2 为什么机器学习里常见交叉熵</h3>
+<p>分类任务里, 真实标签常写成 one-hot 分布 $p$.<br> 模型输出 softmax 概率 $q$.<br> 交叉熵损失就是</p>
+<div class="math-block">$$
+-\sum_k p_k\log q_k
+$$</div>
+<p>如果真实类别是 $y$, one-hot 情况下就变成</p>
+<div class="math-block">$$
+-\log q_y
+$$</div>
+<p>也就是:</p>
+<blockquote class="callout"><p>模型给真实类别的概率越低, 损失越大.</p></blockquote>
+<h3 id="40-83-交叉熵不等于熵">8.3 交叉熵不等于熵</h3>
+<p>熵 $H(p)$ 只看真实分布自身.<br> 交叉熵 $H(p,q)$ 同时看真实分布和模型分布.</p>
+<p>当 $q=p$ 时, 交叉熵才等于熵.</p>
+<hr class="divider">
+<h2 id="41-9-kl-散度-分布差异的非对称度量">9. KL 散度: 分布差异的非对称度量</h2>
+<h3 id="42-91-定义">9.1 定义</h3>
+<p>KL 散度定义为</p>
+<div class="math-block">$$
+D_{\mathrm{KL}}(p\|q)=\sum_x p(x)\log\frac{p(x)}{q(x)}
+$$</div>
+<p>它衡量的是:</p>
+<blockquote class="callout"><p>用 $q$ 代替 $p$ 时, 额外付出的平均信息代价.</p></blockquote>
+<h3 id="43-92-与交叉熵的关系">9.2 与交叉熵的关系</h3>
+<p>把定义展开:</p>
+<div class="math-block">$$
+D_{\mathrm{KL}}(p\|q)
+=\sum_x p(x)\log p(x)-\sum_x p(x)\log q(x)
+$$</div>
+<p>所以</p>
+<div class="math-block">$$
+H(p,q)=H(p)+D_{\mathrm{KL}}(p\|q)
+$$</div>
+<figure class="figure"><img src="assets/ps_ch05_cross_entropy_kl_relation.png" alt="交叉熵与 KL 关系图"><figcaption>交叉熵与 KL 关系图</figcaption></figure>
+<p>这张图说明:</p>
+<ul><li>$H(p)$ 是真实分布自身的不确定性</li>
+<li>$D_{\mathrm{KL}}(p\|q)$ 是模型分布 $q$ 与真实分布 $p$ 不一致带来的额外代价</li>
+<li>交叉熵是二者之和</li></ul>
+<h3 id="44-93-kl-的两个关键性质">9.3 KL 的两个关键性质</h3>
+<ol><li>非负:</li></ol>
+<div class="math-block">$$
+D_{\mathrm{KL}}(p\|q)\ge 0
+$$</div>
+<p>且当 $p=q$ 时取 0.</p>
+<ol><li>非对称:</li></ol>
+<div class="math-block">$$
+D_{\mathrm{KL}}(p\|q)\ne D_{\mathrm{KL}}(q\|p)
+$$</div>
+<p>所以 KL 不是距离, 至少不是通常意义下的度量距离.</p>
+<h3 id="45-94-为什么机器学习里优化交叉熵常等价于优化-kl">9.4 为什么机器学习里优化交叉熵常等价于优化 KL</h3>
+<p>如果训练数据分布 $p$ 固定, 那么 $H(p)$ 与模型参数无关.<br> 此时最小化</p>
+<div class="math-block">$$
+H(p,q_\theta)
+$$</div>
+<p>等价于最小化</p>
+<div class="math-block">$$
+D_{\mathrm{KL}}(p\|q_\theta)
+$$</div>
+<p>这就是交叉熵损失和分布拟合之间的核心连接.</p>
+<hr class="divider">
+<h2 id="46-10-互信息-两个变量共享多少信息">10. 互信息: 两个变量共享多少信息</h2>
+<h3 id="47-101-定义">10.1 定义</h3>
+<p>互信息定义为</p>
+<div class="math-block">$$
+I(X;Y)=D_{\mathrm{KL}}(p_{X,Y}\|p_Xp_Y)
+$$</div>
+<p>展开就是</p>
+<div class="math-block">$$
+I(X;Y)=\sum_{x,y}p(x,y)\log\frac{p(x,y)}{p_X(x)p_Y(y)}
+$$</div>
+<p>连续情形可以写成积分形式.</p>
+<h3 id="48-102-直觉">10.2 直觉</h3>
+<p>互信息衡量的是:</p>
+<blockquote class="callout"><p>知道 $Y$ 以后, 对 $X$ 的不确定性减少了多少.</p></blockquote>
+<p>也可以理解成:</p>
+<blockquote class="callout"><p>联合分布和&quot;独立情况下的乘积分布&quot;相差多远.</p></blockquote>
+<h3 id="49-103-与独立性的关系">10.3 与独立性的关系</h3>
+<p>若 $X,Y$ 独立, 则</p>
+<div class="math-block">$$
+p_{X,Y}(x,y)=p_X(x)p_Y(y)
+$$</div>
+<p>于是</p>
+<div class="math-block">$$
+I(X;Y)=0
+$$</div>
+<p>反过来, 在常见条件下, 若互信息为 0, 也意味着独立.</p>
+<h3 id="50-104-为什么互信息重要">10.4 为什么互信息重要</h3>
+<p>互信息在机器学习里很常见:</p>
+<ul><li>特征选择: 特征和标签共享多少信息</li>
+<li>表示学习: 表示是否保留了任务相关信息</li>
+<li>自监督学习: 最大化不同视图之间的信息关联</li>
+<li>信息瓶颈: 保留对标签有用的信息, 压缩无关信息</li></ul>
+<hr class="divider">
+<h2 id="51-11-常见分布的数字特征速查">11. 常见分布的数字特征速查</h2>
+<p>下面只列最常用的期望和方差:</p>
+<div class="table-wrap"><table><thead><tr><th>分布</th><th>期望</th><th>方差</th></tr></thead><tbody><tr><td>Bernoulli($p$)</td><td>$p$</td><td>$p(1-p)$</td></tr>
+<tr><td>Binomial($n,p$)</td><td>$np$</td><td>$np(1-p)$</td></tr>
+<tr><td>Poisson($\lambda$)</td><td>$\lambda$</td><td>$\lambda$</td></tr>
+<tr><td>Geometric($p$), 试验次数版本</td><td>$1/p$</td><td>$(1-p)/p^2$</td></tr>
+<tr><td>Uniform($a,b$)</td><td>$(a+b)/2$</td><td>$(b-a)^2/12$</td></tr>
+<tr><td>Exponential($\lambda$)</td><td>$1/\lambda$</td><td>$1/\lambda^2$</td></tr>
+<tr><td>Normal($\mu,\sigma^2$)</td><td>$\mu$</td><td>$\sigma^2$</td></tr></tbody></table></div>
+<p>这张表最好和第三章的场景模板一起记.<br> 不要只背数字, 要知道这些分布在描述什么.</p>
+<hr class="divider">
+<h2 id="52-12-本章主线总结">12. 本章主线总结</h2>
+<p>第五章压成最短的一条线, 就是:</p>
+<ol><li>期望是长期加权平均中心</li>
+<li>方差和标准差描述围绕中心的波动规模</li>
+<li>协方差矩阵描述多维变量的共同波动形状</li>
+<li>熵描述分布本身的不确定性</li>
+<li>交叉熵和 KL 描述用模型分布逼近真实分布的代价</li>
+<li>互信息描述两个变量共享的信息量</li></ol>
+<p>这些量一起构成后续统计推断和机器学习的基础坐标系.</p>
+<hr class="divider">
+<h2 id="53-13-典型题型与实战清单">13. 典型题型与实战清单</h2>
+<p>这一章最常见的题型, 基本都可以归到下面几类:</p>
+<ol><li><strong>计算期望</strong><ul><li>离散求和</li>
+<li>连续积分</li>
+<li>注意函数期望 $E[g(X)]$</li></ul></li></ol>
+<ol><li><strong>计算方差</strong><ul><li>原始定义</li>
+<li>或用 $E[X^2]-(E[X])^2$</li></ul></li></ol>
+<ol><li><strong>处理线性变换</strong><ul><li>期望按 $aX+b$ 线性变换</li>
+<li>方差按 $a^2$ 缩放</li></ul></li></ol>
+<ol><li><strong>协方差和相关系数</strong><ul><li>看共同变化方向</li>
+<li>不把不相关误认为独立</li></ul></li></ol>
+<ol><li><strong>信息论量</strong><ul><li>熵看自身不确定性</li>
+<li>交叉熵看预测代价</li>
+<li>KL 看额外代价</li>
+<li>互信息看变量共享信息</li></ul></li></ol>
+<p>一个实战工作流可以直接记成:</p>
+<blockquote class="callout"><p>先问中心, 再问波动, 再问关系, 最后问信息.</p></blockquote>
+<hr class="divider">
+<h2 id="54-14-典型误区">14. 典型误区</h2>
+<h3 id="55-误区-1-把期望当成一定会出现的值">误区 1: 把期望当成一定会出现的值</h3>
+<p>骰子点数的期望是 3.5, 但单次骰子不可能掷出 3.5.</p>
+<h3 id="56-误区-2-只会套方差公式-不理解波动含义">误区 2: 只会套方差公式, 不理解波动含义</h3>
+<p>方差的本质是平均平方偏离, 不是一个孤立代数公式.</p>
+<h3 id="57-误区-3-忘记方差对缩放是平方响应">误区 3: 忘记方差对缩放是平方响应</h3>
+<p>若 $Y=aX+b$, 则</p>
+<div class="math-block">$$
+\mathrm{Var}(Y)=a^2\mathrm{Var}(X)
+$$</div>
+<p>不是 $a\mathrm{Var}(X)+b$.</p>
+<h3 id="58-误区-4-把交叉熵和-kl-当成完全一样">误区 4: 把交叉熵和 KL 当成完全一样</h3>
+<p>它们关系密切, 但不是同一个量:</p>
+<div class="math-block">$$
+H(p,q)=H(p)+D_{\mathrm{KL}}(p\|q)
+$$</div>
+<p>当 $p$ 固定时, 优化交叉熵才常常等价于优化 KL.</p>
+<h3 id="59-误区-5-把-kl-当成对称距离">误区 5: 把 KL 当成对称距离</h3>
+<p>KL 是非对称的, 所以不能随便把方向反过来.</p>
+<h3 id="60-误区-6-混淆熵和方差">误区 6: 混淆熵和方差</h3>
+<p>方差依赖数值尺度.<br> 熵只看概率分布的不确定性.</p>
+<hr class="divider">
+<h2 id="61-15-和前后章节的连接点">15. 和前后章节的连接点</h2>
+<p>这一章向后连接的路线非常清楚:</p>
+<ol><li><strong>第六章极限定理</strong><ul><li>大数定律和中心极限定理都围绕期望, 方差和标准化展开</li></ul></li></ol>
+<ol><li><strong>第七章抽样分布</strong><ul><li>样本均值和样本方差本身就是统计量, 需要这些数字特征描述</li></ul></li></ol>
+<ol><li><strong>第十章回归</strong><ul><li>最小二乘, 残差方差, 协方差结构都会用到这里</li></ul></li></ol>
+<ol><li><strong>第十五章以后统计学习</strong><ul><li>损失函数, 泛化, 交叉熵, KL, 互信息都会反复出现</li></ul></li></ol>
+<p>所以第五章是从概率论走向统计学习的一座核心桥.</p>
+<hr class="divider">
+<h2 id="62-16-和机器学习-数据分析-科研实践的连接点">16. 和机器学习, 数据分析, 科研实践的连接点</h2>
+<p>如果你是为了机器学习来学这一章, 最值得提前记住的是:</p>
+<ol><li><strong>MSE</strong><ul><li>和平方误差, 方差, 高斯噪声假设相关</li></ul></li></ol>
+<ol><li><strong>Cross Entropy</strong><ul><li>分类任务最常见损失之一</li>
+<li>本质上是在惩罚模型分布和真实标签分布不匹配</li></ul></li></ol>
+<ol><li><strong>KL</strong><ul><li>VAE, 蒸馏, 分布对齐, 变分推断里高频出现</li></ul></li></ol>
+<ol><li><strong>互信息</strong><ul><li>自监督学习, 表示学习, 特征选择中常见</li></ul></li></ol>
+<ol><li><strong>协方差矩阵</strong><ul><li>PCA, 高斯模型, whitening, 二阶优化和不确定性估计都离不开</li></ul></li></ol>
+<p>这一章的工程价值可以压成一句话:</p>
+<blockquote class="callout"><p>它把分布变成一组可比较, 可优化, 可解释的数字.</p></blockquote>
+<hr class="divider">
+<h2 id="63-17-本章收尾">17. 本章收尾</h2>
+<p>如果说第三章和第四章讲的是&quot;分布怎样长&quot;, 那第五章讲的就是:</p>
+<blockquote class="callout"><p>怎样用少量数字抓住分布的中心, 波动, 形状, 不确定性和信息关系.</p></blockquote>
+<p>后面进入极限定理和数理统计以后, 你会发现很多结论的核心都绕不开期望, 方差和信息量.</p>
+      </article>
+      <nav class="chapter-nav" aria-label="前后页面">
+        <a class="prev" href="chapter04_multivariate_random_variables_transformations.html"><span>上一页</span><strong>Chapter 04: 概率论第四章教程: 多维随机变量, 条件结构与变量变换</strong></a>
+        <a class="next" href="chapter06_limit_theorems_concentration_processes.html"><span>下一页</span><strong>Chapter 06: 概率论第六章教程: 极限定理, 浓缩不等式与随机过程初步</strong></a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="footer">
+    由 build_probability_statistics_html.py 生成. 样式文件: probability_statistics.css.
+  </footer>
+</body>
+</html>

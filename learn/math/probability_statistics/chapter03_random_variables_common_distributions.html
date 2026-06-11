@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="概率论第三章教程: 随机变量与常见分布 HTML 教程">
+  <title>概率论第三章教程: 随机变量与常见分布</title>
+  <link rel="stylesheet" href="probability_statistics.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      }
+    });
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="outline.md">
+        <span class="brand-mark">P</span>
+        <span>概率统计教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="outline.md">总纲</a>
+        <a class="nav-link" href="todo.html">进度</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Chapter 03</p>
+        <h1>概率论第三章教程: 随机变量与常见分布</h1>
+        <p class="lead">前两章一直在讨论事件是否发生. 但现实问题里, 我们更常关心的其实是数值结果: 1. 一次试验得到的是多少次点击, 多少分钟等待, 多少分成绩? 2. 这些数值是离散地跳, 还是连续地变?</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#route-panel">阅读路径</a>
+        </div>
+      </div>
+      <aside id="route-panel" class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>页面概览</strong>
+          <span class="tag">公式 + 图示 + 主线</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>74</strong></div>
+          <div class="stat-card"><span>公式</span><strong>149</strong></div>
+          <div class="stat-card"><span>配图</span><strong>4</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 先看全章主线</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 从事件到数值: 为什么需要随机变量</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 离散型与连续型: 数值结果会怎样出现</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 分布函数: 先用累计概率统一描述</strong><span>本节是页面阅读路径中的关键节点.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-先看全章主线">0. 先看全章主线</a>
+<a href="#02-1-从事件到数值-为什么需要随机变量">1. 从事件到数值: 为什么需要随机变量</a>
+<a href="#03-11-事件只回答发生与否-很多问题却关心数值">1.1 事件只回答发生与否, 很多问题却关心数值</a>
+<a href="#04-12-随机变量本质上是一个映射">1.2 随机变量本质上是一个映射</a>
+<a href="#05-13-一个非常典型的例子">1.3 一个非常典型的例子</a>
+<a href="#06-14-一旦有了随机变量-事件也能重新写">1.4 一旦有了随机变量, 事件也能重新写</a>
+<a href="#07-2-离散型与连续型-数值结果会怎样出现">2. 离散型与连续型: 数值结果会怎样出现</a>
+<a href="#08-21-离散型随机变量">2.1 离散型随机变量</a>
+<a href="#09-22-连续型随机变量">2.2 连续型随机变量</a>
+<a href="#10-23-先别急着背定义-先抓住直觉区别">2.3 先别急着背定义, 先抓住直觉区别</a>
+<a href="#11-24-混合型先暂时放一边">2.4 混合型先暂时放一边</a>
+<a href="#12-3-分布函数-先用累计概率统一描述">3. 分布函数: 先用累计概率统一描述</a>
+<a href="#13-31-定义">3.1 定义</a>
+<a href="#14-32-cdf-到底在说什么">3.2 CDF 到底在说什么</a>
+<a href="#15-33-cdf-的几个基本性质">3.3 CDF 的几个基本性质</a>
+<a href="#16-34-一个离散例子">3.4 一个离散例子</a>
+<a href="#17-35-一个连续例子">3.5 一个连续例子</a>
+<a href="#18-36-cdf-和区间概率">3.6 CDF 和区间概率</a>
+<a href="#19-4-pmf-与-pdf-局部结构怎样表达">4. PMF 与 PDF: 局部结构怎样表达</a>
+<a href="#20-41-离散型的概率质量函数-pmf">4.1 离散型的概率质量函数 PMF</a>
+<a href="#21-42-连续型的概率密度函数-pdf">4.2 连续型的概率密度函数 PDF</a>
+<a href="#22-43-密度不是概率">4.3 密度不是概率</a>
+<a href="#23-44-pmf-pdf-cdf-放在一张图里看">4.4 PMF, PDF, CDF 放在一张图里看</a>
+<a href="#24-45-pmf-和-pdf-怎样连接到-cdf">4.5 PMF 和 PDF 怎样连接到 CDF</a>
+<a href="#25-5-bernoulli-与-binomial-0-1-试验和重复试验">5. Bernoulli 与 Binomial: 0-1 试验和重复试验</a>
+<a href="#26-51-bernoulli-分布">5.1 Bernoulli 分布</a>
+<a href="#27-52-binomial-分布">5.2 Binomial 分布</a>
+<a href="#28-53-bernoulli-和-binomial-的关系">5.3 Bernoulli 和 Binomial 的关系</a>
+<a href="#29-54-什么时候该想到-binomial">5.4 什么时候该想到 Binomial</a>
+<a href="#30-6-poisson-分布-稀有事件计数模板">6. Poisson 分布: 稀有事件计数模板</a>
+<a href="#31-61-它在描述什么">6.1 它在描述什么</a>
+<a href="#32-62-定义">6.2 定义</a>
+<a href="#33-63-为什么它常和-binomial-联系在一起">6.3 为什么它常和 Binomial 联系在一起</a>
+<a href="#34-64-什么时候该想到-poisson">6.4 什么时候该想到 Poisson</a>
+<a href="#35-7-geometric-与-negative-binomial-等到第几次才成功">7. Geometric 与 Negative Binomial: 等到第几次才成功</a>
+<a href="#36-71-geometric-分布">7.1 Geometric 分布</a>
+<a href="#37-72-geometric-的典型场景">7.2 Geometric 的典型场景</a>
+<a href="#38-73-negative-binomial-分布">7.3 Negative Binomial 分布</a>
+<a href="#39-74-geometric-是-negative-binomial-的特例">7.4 Geometric 是 Negative Binomial 的特例</a>
+<a href="#40-8-uniform-与-exponential-连续世界的基础模板">8. Uniform 与 Exponential: 连续世界的基础模板</a>
+<a href="#41-81-uniform-分布">8.1 Uniform 分布</a>
+<a href="#42-82-exponential-分布">8.2 Exponential 分布</a>
+<a href="#43-83-exponential-的一个特殊气质">8.3 Exponential 的一个特殊气质</a>
+<a href="#44-84-uniform-和-exponential-的风格差别">8.4 Uniform 和 Exponential 的风格差别</a>
+<a href="#45-9-gamma-与-beta-更灵活的连续模板">9. Gamma 与 Beta: 更灵活的连续模板</a>
+<a href="#46-91-gamma-分布">9.1 Gamma 分布</a>
+<a href="#47-92-beta-分布">9.2 Beta 分布</a>
+<a href="#48-93-为什么-beta-很重要">9.3 为什么 Beta 很重要</a>
+<a href="#49-94-gamma-和-beta-各自擅长什么">9.4 Gamma 和 Beta 各自擅长什么</a>
+<a href="#50-10-normal-分布-最常见也最核心的连续分布">10. Normal 分布: 最常见也最核心的连续分布</a>
+<a href="#51-101-定义">10.1 定义</a>
+<a href="#52-102-它在描述什么">10.2 它在描述什么</a>
+<a href="#53-103-参数怎样影响形状">10.3 参数怎样影响形状</a>
+<a href="#54-104-标准正态">10.4 标准正态</a>
+<a href="#55-11-常见分布之间的联系与近似">11. 常见分布之间的联系与近似</a>
+<a href="#56-111-bernoulli-是-binomial-的特例">11.1 Bernoulli 是 Binomial 的特例</a>
+<a href="#57-112-geometric-是-negative-binomial-的特例">11.2 Geometric 是 Negative Binomial 的特例</a>
+<a href="#58-113-exponential-是-gamma-的特例">11.3 Exponential 是 Gamma 的特例</a>
+<a href="#59-114-poisson-可以近似-binomial">11.4 Poisson 可以近似 Binomial</a>
+<a href="#60-115-normal-可以近似很多聚合结果">11.5 Normal 可以近似很多聚合结果</a>
+<a href="#61-116-poisson-过程和-exponential-等待时间">11.6 Poisson 过程和 Exponential 等待时间</a>
+<a href="#62-12-什么时候该想到哪种分布">12. 什么时候该想到哪种分布</a>
+<a href="#63-13-本章主线总结">13. 本章主线总结</a>
+<a href="#64-14-典型题型与实战清单">14. 典型题型与实战清单</a>
+<a href="#65-15-典型误区">15. 典型误区</a>
+<a href="#66-误区-1-把随机变量理解成随机乱变的数">误区 1: 把随机变量理解成&quot;随机乱变的数&quot;</a>
+<a href="#67-误区-2-忘记-cdf-是累计概率">误区 2: 忘记 CDF 是累计概率</a>
+<a href="#68-误区-3-把密度值当成概率">误区 3: 把密度值当成概率</a>
+<a href="#69-误区-4-不区分次数问题和等待问题">误区 4: 不区分&quot;次数问题&quot;和&quot;等待问题&quot;</a>
+<a href="#70-误区-5-背了很多分布名字-却不知道它们各自描述什么">误区 5: 背了很多分布名字, 却不知道它们各自描述什么</a>
+<a href="#71-误区-6-忽略-negative-binomial-的定义-convention">误区 6: 忽略 Negative Binomial 的定义 convention</a>
+<a href="#72-16-和前后章节的连接点">16. 和前后章节的连接点</a>
+<a href="#73-17-和机器学习-数据分析-科研实践的连接点">17. 和机器学习, 数据分析, 科研实践的连接点</a>
+<a href="#74-18-本章收尾">18. 本章收尾</a>
+    </aside>
+    <div class="content">
+      <article class="article">
+        <div class="chapter-note">
+          <strong>HTML 阅读版</strong>
+          本页由同名 Markdown 自动转换生成, 保留原文结构, 并增强目录, 图表, 公式和重点提示的阅读体验.
+        </div>
+        <div class="source-title"><h2>概率论第三章教程: 随机变量与常见分布</h2></div>
+<blockquote class="callout"><p>前两章一直在讨论事件是否发生.<br>但现实问题里, 我们更常关心的其实是数值结果:</p><p>1. 一次试验得到的是多少次点击, 多少分钟等待, 多少分成绩?<br>2. 这些数值是离散地跳, 还是连续地变?<br>3. 我们怎样用一套统一语言描述这些数值出现的规律?</p><p>这一章要做的, 就是把随机变量, 分布函数, 质量函数, 密度函数和一批最常见分布连成一条线.</p></blockquote>
+<hr class="divider">
+<h2 id="01-0-先看全章主线">0. 先看全章主线</h2>
+<p>第三章的主线可以压成下面这张图:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A[&quot;随机试验结果&lt;br/&gt;原始样本点&quot;] --&gt; B[&quot;随机变量&lt;br/&gt;把结果映射成数值&quot;]
+    B --&gt; C[&quot;分布函数 CDF&lt;br/&gt;先描述累计概率&quot;]
+    C --&gt; D[&quot;离散型&lt;br/&gt;PMF 质量函数&quot;]
+    C --&gt; E[&quot;连续型&lt;br/&gt;PDF 密度函数&quot;]
+    D --&gt; F[&quot;Bernoulli, Binomial, Poisson,&lt;br/&gt;Geometric, Negative Binomial&quot;]
+    E --&gt; G[&quot;Uniform, Exponential,&lt;br/&gt;Gamma, Beta, Normal&quot;]
+    F --&gt; H[&quot;分布之间的联系&lt;br/&gt;近似, 极限, 建模模板&quot;]
+    G --&gt; H</pre></div>
+<p>一句话概括这一章:</p>
+<blockquote class="callout"><p>随机变量把随机结果变成数值对象,<br>分布函数描述累计概率,<br>PMF 和 PDF 则分别刻画离散值和连续值的局部结构.</p></blockquote>
+<hr class="divider">
+<h2 id="02-1-从事件到数值-为什么需要随机变量">1. 从事件到数值: 为什么需要随机变量</h2>
+<h3 id="03-11-事件只回答发生与否-很多问题却关心数值">1.1 事件只回答发生与否, 很多问题却关心数值</h3>
+<p>前两章里, 我们常问:</p>
+<ul><li>&quot;事件 $A$ 会不会发生?&quot;</li>
+<li>&quot;已知 $B$ 发生, $A$ 的概率是多少?&quot;</li></ul>
+<p>但在很多现实问题里, 真正关心的是一个数:</p>
+<ul><li>两次抛硬币一共出现几个正面?</li>
+<li>一个小时内来了多少个顾客?</li>
+<li>设备还要多久发生故障?</li>
+<li>模型预测的概率值落在多少附近?</li></ul>
+<p>这时如果还只停留在事件语言, 就会很不方便.</p>
+<h3 id="04-12-随机变量本质上是一个映射">1.2 随机变量本质上是一个映射</h3>
+<p>设样本空间为 $\Omega$, 随机变量 $X$ 本质上是一个把样本点映射到实数的函数:</p>
+<div class="math-block">$$
+X: \Omega \to \mathbb{R}
+$$</div>
+<p>也就是说, 每一个原始结果 $\omega \in \Omega$ 都被赋予一个数值 $X(\omega)$.</p>
+<p>这一定义里最重要的词不是&quot;变量&quot;, 而是&quot;映射&quot;.</p>
+<blockquote class="callout"><p>随机变量首先是一条把结果翻译成数字的规则,<br>然后我们才去研究这个数字会怎样分布.</p></blockquote>
+<h3 id="05-13-一个非常典型的例子">1.3 一个非常典型的例子</h3>
+<p>做两次公平抛硬币, 样本空间为</p>
+<div class="math-block">$$
+\Omega=\{\text{HH},\text{HT},\text{TH},\text{TT}\}
+$$</div>
+<p>定义随机变量</p>
+<div class="math-block">$$
+X = \text{两次中正面的个数}
+$$</div>
+<p>则</p>
+<div class="math-block">$$
+X(\text{HH})=2,\quad
+X(\text{HT})=1,\quad
+X(\text{TH})=1,\quad
+X(\text{TT})=0
+$$</div>
+<figure class="figure"><img src="assets/ps_ch03_random_variable_mapping.png" alt="随机变量映射图"><figcaption>随机变量映射图</figcaption></figure>
+<p>这个图表达了两件事:</p>
+<ol><li>随机变量把样本空间里的不同结果压缩成数值</li>
+<li>多个样本点可能映射到同一个数值</li></ol>
+<p>所以:</p>
+<ul><li>样本点是原始结果</li>
+<li>随机变量值是经过映射后的数值结果</li></ul>
+<p>这是两层对象, 不能混在一起.</p>
+<h3 id="06-14-一旦有了随机变量-事件也能重新写">1.4 一旦有了随机变量, 事件也能重新写</h3>
+<p>比如刚才的 $X$, 事件&quot;至少出现一次正面&quot;可以写成</p>
+<div class="math-block">$$
+\{X \ge 1\}
+$$</div>
+<p>事件&quot;恰好一次正面&quot;可以写成</p>
+<div class="math-block">$$
+\{X=1\}
+$$</div>
+<p>这说明:</p>
+<blockquote class="callout"><p>随机变量不是抛开事件另起炉灶,<br>而是把事件问题重新组织成更适合数值分析的形式.</p></blockquote>
+<hr class="divider">
+<h2 id="07-2-离散型与连续型-数值结果会怎样出现">2. 离散型与连续型: 数值结果会怎样出现</h2>
+<h3 id="08-21-离散型随机变量">2.1 离散型随机变量</h3>
+<p>如果随机变量只取有限个或可数无穷多个值, 就称它是<strong>离散型随机变量</strong>.</p>
+<p>例如:</p>
+<ul><li>Bernoulli: $X \in \{0,1\}$</li>
+<li>骰子点数: $X \in \{1,2,3,4,5,6\}$</li>
+<li>抛硬币出现正面的个数: $X \in \{0,1,\dots,n\}$</li>
+<li>单位时间内到达的人数: $X \in \{0,1,2,\dots\}$</li></ul>
+<p>离散型的核心特征是:</p>
+<blockquote class="callout"><p>概率集中在一个个具体点上.</p></blockquote>
+<h3 id="09-22-连续型随机变量">2.2 连续型随机变量</h3>
+<p>如果随机变量的取值落在某些区间上, 并且概率通过积分来表达, 就称它是<strong>连续型随机变量</strong>.</p>
+<p>例如:</p>
+<ul><li>等车时间</li>
+<li>零件寿命</li>
+<li>测量误差</li>
+<li>身高, 体重, 温度等近似连续量</li></ul>
+<p>连续型的核心特征是:</p>
+<blockquote class="callout"><p>概率不是压在单个点上, 而是分布在整个区间上.</p></blockquote>
+<h3 id="10-23-先别急着背定义-先抓住直觉区别">2.3 先别急着背定义, 先抓住直觉区别</h3>
+<p>可以把两者直观地区分成:</p>
+<ul><li>离散型: &quot;数一个个格子&quot;</li>
+<li>连续型: &quot;量一段段面积&quot;</li></ul>
+<p>这也是为什么后面会分别出现:</p>
+<ul><li>概率质量函数 PMF</li>
+<li>概率密度函数 PDF</li></ul>
+<h3 id="11-24-混合型先暂时放一边">2.4 混合型先暂时放一边</h3>
+<p>现实里还可能出现既有点质量又有连续部分的分布, 比如:</p>
+<ul><li>先有一定概率直接故障</li>
+<li>否则寿命服从连续分布</li></ul>
+<p>这种叫混合型分布.<br> 本章主线先专注离散型和连续型, 混合情形不展开.</p>
+<hr class="divider">
+<h2 id="12-3-分布函数-先用累计概率统一描述">3. 分布函数: 先用累计概率统一描述</h2>
+<h3 id="13-31-定义">3.1 定义</h3>
+<p>对任意随机变量 $X$, 它的<strong>分布函数</strong>定义为</p>
+<div class="math-block">$$
+F_X(x)=P(X \le x)
+$$</div>
+<p>这就是所谓的 CDF, cumulative distribution function.</p>
+<p>这一定义非常重要, 因为:</p>
+<blockquote class="callout"><p>无论 $X$ 是离散还是连续, CDF 都可以统一定义.</p></blockquote>
+<h3 id="14-32-cdf-到底在说什么">3.2 CDF 到底在说什么</h3>
+<p>$F_X(x)$ 回答的是:</p>
+<blockquote class="callout"><p>随机变量的取值落在 $x$ 左边的概率有多大?</p></blockquote>
+<p>它不是某个点的局部信息, 而是从 $-\infty$ 一路累积到 $x$ 的总概率.</p>
+<h3 id="15-33-cdf-的几个基本性质">3.3 CDF 的几个基本性质</h3>
+<p>任意分布函数都满足:</p>
+<ol><li><strong>单调不减</strong></li></ol>
+<p>若 $x_1 &lt; x_2$, 则</p>
+<div class="math-block">$$
+F_X(x_1)\le F_X(x_2)
+$$</div>
+<ol><li><strong>右连续</strong></li></ol>
+<div class="math-block">$$
+\lim_{t \downarrow x} F_X(t)=F_X(x)
+$$</div>
+<ol><li><strong>左右极限</strong></li></ol>
+<div class="math-block">$$
+\lim_{x \to -\infty} F_X(x)=0,\quad
+\lim_{x \to +\infty} F_X(x)=1
+$$</div>
+<p>这些性质都很自然:</p>
+<ul><li>累积区间越往右, 总概率不可能减少</li>
+<li>左边完全还没覆盖到时概率应为 0</li>
+<li>右边全覆盖以后总概率应为 1</li></ul>
+<h3 id="16-34-一个离散例子">3.4 一个离散例子</h3>
+<p>还是刚才的 $X$ = 两次抛硬币中正面的个数.<br> 其分布为:</p>
+<div class="math-block">$$
+P(X=0)=\frac{1}{4},\quad
+P(X=1)=\frac{1}{2},\quad
+P(X=2)=\frac{1}{4}
+$$</div>
+<p>则分布函数为</p>
+<div class="math-block">$$
+F_X(x)=
+\begin{cases}
+0, &amp; x&lt;0 \\
+\frac{1}{4}, &amp; 0 \le x &lt; 1 \\
+\frac{3}{4}, &amp; 1 \le x &lt; 2 \\
+1, &amp; x \ge 2
+\end{cases}
+$$</div>
+<p>你会看到, 离散型的 CDF 常常是阶梯状的.</p>
+<h3 id="17-35-一个连续例子">3.5 一个连续例子</h3>
+<p>若等待时间 $T$ 服从参数为 $\lambda$ 的指数分布, 那么</p>
+<div class="math-block">$$
+F_T(x)=
+\begin{cases}
+0, &amp; x&lt;0 \\
+1-e^{-\lambda x}, &amp; x \ge 0
+\end{cases}
+$$</div>
+<p>这时 CDF 是一条平滑上升曲线.</p>
+<h3 id="18-36-cdf-和区间概率">3.6 CDF 和区间概率</h3>
+<p>一旦知道 CDF, 很多区间概率都能直接读出来:</p>
+<div class="math-block">$$
+P(a &lt; X \le b)=F_X(b)-F_X(a)
+$$</div>
+<p>这条公式对离散型和连续型都成立.<br> 所以 CDF 是最统一的总入口.</p>
+<hr class="divider">
+<h2 id="19-4-pmf-与-pdf-局部结构怎样表达">4. PMF 与 PDF: 局部结构怎样表达</h2>
+<h3 id="20-41-离散型的概率质量函数-pmf">4.1 离散型的概率质量函数 PMF</h3>
+<p>对离散型随机变量 $X$, 它的<strong>概率质量函数</strong>定义为</p>
+<div class="math-block">$$
+p_X(x)=P(X=x)
+$$</div>
+<p>或者在取值点 $x_k$ 上写成</p>
+<div class="math-block">$$
+p_k=P(X=x_k)
+$$</div>
+<p>PMF 直接告诉你:</p>
+<blockquote class="callout"><p>某个具体数值点本身就有多大概率.</p></blockquote>
+<p>并且必须满足:</p>
+<div class="math-block">$$
+p_X(x)\ge 0,\quad \sum_x p_X(x)=1
+$$</div>
+<h3 id="21-42-连续型的概率密度函数-pdf">4.2 连续型的概率密度函数 PDF</h3>
+<p>对连续型随机变量 $X$, 若存在函数 $f_X(x)$ 使得</p>
+<div class="math-block">$$
+F_X(x)=\int_{-\infty}^{x} f_X(t)\,dt
+$$</div>
+<p>则称 $f_X(x)$ 是 $X$ 的<strong>概率密度函数</strong>.</p>
+<p>这时区间概率由积分给出:</p>
+<div class="math-block">$$
+P(a \le X \le b)=\int_{a}^{b} f_X(x)\,dx
+$$</div>
+<p>并且</p>
+<div class="math-block">$$
+f_X(x)\ge 0,\quad \int_{-\infty}^{+\infty} f_X(x)\,dx=1
+$$</div>
+<h3 id="22-43-密度不是概率">4.3 密度不是概率</h3>
+<p>这是本章第一大易错点.</p>
+<p>对连续型随机变量来说:</p>
+<div class="math-block">$$
+P(X=x)=0
+$$</div>
+<p>对任意单点都成立.</p>
+<p>所以 $f_X(x)$ 不是点概率, 而是&quot;单位长度上的概率浓度&quot;.</p>
+<blockquote class="callout"><p>真正的概率来自面积, 不是来自曲线在某一点的高度.</p></blockquote>
+<h3 id="23-44-pmf-pdf-cdf-放在一张图里看">4.4 PMF, PDF, CDF 放在一张图里看</h3>
+<figure class="figure"><img src="assets/ps_ch03_cdf_pmf_pdf_alignment.png" alt="PMF, PDF 与 CDF 对齐图"><figcaption>PMF, PDF 与 CDF 对齐图</figcaption></figure>
+<p>这张图最好记住四句话:</p>
+<ol><li>PMF 看的是离散点上的概率</li>
+<li>PDF 看的是连续区间上的概率密度</li>
+<li>CDF 看的是累计到当前位置为止的总概率</li>
+<li>对连续型来说, 区间面积才是概率</li></ol>
+<h3 id="24-45-pmf-和-pdf-怎样连接到-cdf">4.5 PMF 和 PDF 怎样连接到 CDF</h3>
+<p>离散型时:</p>
+<div class="math-block">$$
+F_X(x)=\sum_{t \le x} p_X(t)
+$$</div>
+<p>连续型时:</p>
+<div class="math-block">$$
+F_X(x)=\int_{-\infty}^{x} f_X(t)\,dt
+$$</div>
+<p>如果 $F_X$ 在某点可导, 则</p>
+<div class="math-block">$$
+f_X(x)=F_X&#x27;(x)
+$$</div>
+<p>这就是三者之间最核心的联系.</p>
+<hr class="divider">
+<h2 id="25-5-bernoulli-与-binomial-0-1-试验和重复试验">5. Bernoulli 与 Binomial: 0-1 试验和重复试验</h2>
+<h3 id="26-51-bernoulli-分布">5.1 Bernoulli 分布</h3>
+<p>最简单的离散分布就是一次成功/失败试验.</p>
+<p>设</p>
+<div class="math-block">$$
+X \in \{0,1\}
+$$</div>
+<p>并且</p>
+<div class="math-block">$$
+P(X=1)=p,\quad P(X=0)=1-p
+$$</div>
+<p>则称 $X$ 服从参数为 $p$ 的 Bernoulli 分布, 记作</p>
+<div class="math-block">$$
+X \sim \mathrm{Bernoulli}(p)
+$$</div>
+<p>其 PMF 可以写成</p>
+<div class="math-block">$$
+P(X=x)=p^x(1-p)^{1-x},\quad x \in \{0,1\}
+$$</div>
+<p>它出现的场景非常多:</p>
+<ul><li>点击/未点击</li>
+<li>转化/未转化</li>
+<li>检测阳性/阴性</li>
+<li>分类正确/错误</li></ul>
+<h3 id="27-52-binomial-分布">5.2 Binomial 分布</h3>
+<p>如果做 $n$ 次相互独立的 Bernoulli 试验, 每次成功概率都为 $p$, 令</p>
+<div class="math-block">$$
+X=\text{n 次试验中的成功次数}
+$$</div>
+<p>则 $X$ 服从 Binomial 分布:</p>
+<div class="math-block">$$
+X \sim \mathrm{Binomial}(n,p)
+$$</div>
+<p>其 PMF 为</p>
+<div class="math-block">$$
+P(X=k)=\binom{n}{k}p^k(1-p)^{n-k},\quad k=0,1,\dots,n
+$$</div>
+<p>这条公式的含义很清楚:</p>
+<ul><li>$\binom{n}{k}$: 成功出现在哪 $k$ 个位置</li>
+<li>$p^k$: 那 $k$ 次成功</li>
+<li>$(1-p)^{n-k}$: 其余 $n-k$ 次失败</li></ul>
+<h3 id="28-53-bernoulli-和-binomial-的关系">5.3 Bernoulli 和 Binomial 的关系</h3>
+<p>Bernoulli 其实是 Binomial 的特例:</p>
+<div class="math-block">$$
+\mathrm{Bernoulli}(p)=\mathrm{Binomial}(1,p)
+$$</div>
+<p>所以 Binomial 本质上是把一次 0-1 试验复制了 $n$ 次.</p>
+<h3 id="29-54-什么时候该想到-binomial">5.4 什么时候该想到 Binomial</h3>
+<p>如果你看到下面这类描述, 就应该很快想到 Binomial:</p>
+<ol><li>固定做 $n$ 次试验</li>
+<li>每次只有成功/失败两种结果</li>
+<li>每次成功概率相同</li>
+<li>各次相互独立</li></ol>
+<p>例如:</p>
+<ul><li>100 个用户里有多少人点击</li>
+<li>20 个零件里有多少个合格</li>
+<li>10 道判断题里做对多少道</li></ul>
+<hr class="divider">
+<h2 id="30-6-poisson-分布-稀有事件计数模板">6. Poisson 分布: 稀有事件计数模板</h2>
+<h3 id="31-61-它在描述什么">6.1 它在描述什么</h3>
+<p>Poisson 分布通常用来描述:</p>
+<blockquote class="callout"><p>在固定时间, 固定区域, 固定体积里, 某类稀疏事件发生了多少次</p></blockquote>
+<p>例如:</p>
+<ul><li>1 分钟内来电次数</li>
+<li>1 平方厘米金属表面的缺陷数</li>
+<li>1 小时内网站异常告警数</li></ul>
+<h3 id="32-62-定义">6.2 定义</h3>
+<p>若随机变量 $X$ 满足</p>
+<div class="math-block">$$
+P(X=k)=e^{-\lambda}\frac{\lambda^k}{k!},\quad k=0,1,2,\dots
+$$</div>
+<p>则称 $X$ 服从参数为 $\lambda$ 的 Poisson 分布, 记作</p>
+<div class="math-block">$$
+X \sim \mathrm{Poisson}(\lambda)
+$$</div>
+<p>其中 $\lambda&gt;0$ 表示单位窗口内的平均事件次数.</p>
+<h3 id="33-63-为什么它常和-binomial-联系在一起">6.3 为什么它常和 Binomial 联系在一起</h3>
+<p>如果一共有很多次试验, 但每次成功概率很小, 即:</p>
+<ul><li>$n$ 很大</li>
+<li>$p$ 很小</li>
+<li>但 $np=\lambda$ 保持在中等量级</li></ul>
+<p>那么</p>
+<div class="math-block">$$
+\mathrm{Binomial}(n,p)
+$$</div>
+<p>常常可以近似成</p>
+<div class="math-block">$$
+\mathrm{Poisson}(\lambda)
+$$</div>
+<figure class="figure"><img src="assets/ps_ch03_binomial_poisson_approx.png" alt="Poisson 与 Binomial 近似图"><figcaption>Poisson 与 Binomial 近似图</figcaption></figure>
+<p>这张图体现的不是某个神秘公式, 而是一个非常实用的建模思想:</p>
+<blockquote class="callout"><p>大量试验里的少量成功, 常常会走向 Poisson 计数模型.</p></blockquote>
+<h3 id="34-64-什么时候该想到-poisson">6.4 什么时候该想到 Poisson</h3>
+<p>如果你看到:</p>
+<ul><li>单位时间内的到达数</li>
+<li>单位空间内的缺陷数</li>
+<li>某类稀有告警的发生次数</li></ul>
+<p>通常就要先问一句:</p>
+<blockquote class="callout"><p>这是不是一个 Poisson 风格的计数问题?</p></blockquote>
+<hr class="divider">
+<h2 id="35-7-geometric-与-negative-binomial-等到第几次才成功">7. Geometric 与 Negative Binomial: 等到第几次才成功</h2>
+<h3 id="36-71-geometric-分布">7.1 Geometric 分布</h3>
+<p>如果独立重复做 Bernoulli 试验, 每次成功概率为 $p$, 定义</p>
+<div class="math-block">$$
+X=\text{第一次成功所需的试验次数}
+$$</div>
+<p>则 $X$ 服从 Geometric 分布:</p>
+<div class="math-block">$$
+P(X=k)=(1-p)^{k-1}p,\quad k=1,2,3,\dots
+$$</div>
+<p>它描述的不是&quot;成功了多少次&quot;, 而是:</p>
+<blockquote class="callout"><p>要等多久, 才迎来第一次成功</p></blockquote>
+<h3 id="37-72-geometric-的典型场景">7.2 Geometric 的典型场景</h3>
+<p>例如:</p>
+<ul><li>第几次拨号才接通</li>
+<li>第几次实验才首次成功</li>
+<li>第几个用户才首次转化</li></ul>
+<h3 id="38-73-negative-binomial-分布">7.3 Negative Binomial 分布</h3>
+<p>如果不再只等第一次成功, 而是等到第 $r$ 次成功, 定义</p>
+<div class="math-block">$$
+X=\text{第 r 次成功出现时的总试验次数}
+$$</div>
+<p>则 $X$ 服从 Negative Binomial 分布:</p>
+<div class="math-block">$$
+P(X=k)=\binom{k-1}{r-1}p^r(1-p)^{k-r},\quad k=r,r+1,\dots
+$$</div>
+<p>这里要特别提醒:</p>
+<blockquote class="callout"><p>不同教材对 Negative Binomial 的定义 convention 不完全相同.</p></blockquote>
+<p>有的书定义为&quot;第 $r$ 次成功前经历的失败次数&quot;,<br> 有的书定义为&quot;直到第 $r$ 次成功所经历的总试验次数&quot;.<br> 本章统一采用第二种.</p>
+<h3 id="39-74-geometric-是-negative-binomial-的特例">7.4 Geometric 是 Negative Binomial 的特例</h3>
+<p>当 $r=1$ 时, Negative Binomial 就退化为 Geometric.</p>
+<p>所以这两者的主线完全一致:</p>
+<blockquote class="callout"><p>它们都是等待型分布, 只不过一个等第一次成功, 一个等第 $r$ 次成功.</p></blockquote>
+<hr class="divider">
+<h2 id="40-8-uniform-与-exponential-连续世界的基础模板">8. Uniform 与 Exponential: 连续世界的基础模板</h2>
+<h3 id="41-81-uniform-分布">8.1 Uniform 分布</h3>
+<p>若随机变量在区间 $[a,b]$ 上均匀分布, 即区间内每个等长小段机会相同, 则称</p>
+<div class="math-block">$$
+X \sim \mathrm{Uniform}(a,b)
+$$</div>
+<p>其 PDF 为</p>
+<div class="math-block">$$
+f_X(x)=
+\begin{cases}
+\frac{1}{b-a}, &amp; a \le x \le b \\
+0, &amp; \text{otherwise}
+\end{cases}
+$$</div>
+<p>它对应的是最朴素的连续均匀模型:</p>
+<ul><li>在一段时间里随机到达</li>
+<li>在一根线段上随机取点</li>
+<li>在某个区间里完全均匀采样</li></ul>
+<h3 id="42-82-exponential-分布">8.2 Exponential 分布</h3>
+<p>若随机变量 $T$ 的 PDF 为</p>
+<div class="math-block">$$
+f_T(t)=
+\begin{cases}
+\lambda e^{-\lambda t}, &amp; t \ge 0 \\
+0, &amp; t&lt;0
+\end{cases}
+$$</div>
+<p>则称 $T$ 服从参数为 $\lambda$ 的 Exponential 分布, 记作</p>
+<div class="math-block">$$
+T \sim \mathrm{Exponential}(\lambda)
+$$</div>
+<p>它最典型的意义是:</p>
+<blockquote class="callout"><p>等待下一次 Poisson 事件到来的时间</p></blockquote>
+<p>例如:</p>
+<ul><li>等待下一辆出租车</li>
+<li>等待下一次服务器故障</li>
+<li>等待下一位顾客进店</li></ul>
+<h3 id="43-83-exponential-的一个特殊气质">8.3 Exponential 的一个特殊气质</h3>
+<p>指数分布有一个著名性质叫<strong>无记忆性</strong>:</p>
+<div class="math-block">$$
+P(T&gt;s+t \mid T&gt;s)=P(T&gt;t)
+$$</div>
+<p>直觉上就是:</p>
+<blockquote class="callout"><p>已经等了多久, 不会改变未来还要再等多久的分布形态</p></blockquote>
+<p>这个性质非常少见, 也是 Exponential 如此重要的原因之一.</p>
+<h3 id="44-84-uniform-和-exponential-的风格差别">8.4 Uniform 和 Exponential 的风格差别</h3>
+<p>这两个分布都很基础, 但对应的是两种完全不同的建模语气:</p>
+<ul><li>Uniform: &quot;区间内完全均匀, 没有偏好&quot;</li>
+<li>Exponential: &quot;等待时间, 并且越靠近 0 密度越大&quot;</li></ul>
+<p>这类直觉比公式本身更值得留下.</p>
+<hr class="divider">
+<h2 id="45-9-gamma-与-beta-更灵活的连续模板">9. Gamma 与 Beta: 更灵活的连续模板</h2>
+<h3 id="46-91-gamma-分布">9.1 Gamma 分布</h3>
+<p>Gamma 分布常用来描述非负连续量, 尤其是累计等待时间.</p>
+<p>若 $X$ 的 PDF 为</p>
+<div class="math-block">$$
+f_X(x)=
+\begin{cases}
+\dfrac{\lambda^\alpha}{\Gamma(\alpha)}x^{\alpha-1}e^{-\lambda x}, &amp; x&gt;0 \\
+0, &amp; x \le 0
+\end{cases}
+$$</div>
+<p>其中 $\alpha&gt;0,\lambda&gt;0$, 则称</p>
+<div class="math-block">$$
+X \sim \mathrm{Gamma}(\alpha,\lambda)
+$$</div>
+<p>它可以理解成:</p>
+<blockquote class="callout"><p>等待第 $\alpha$ 个 Poisson 事件所需的时间</p></blockquote>
+<p>当 $\alpha=1$ 时, Gamma 就退化为 Exponential.</p>
+<h3 id="47-92-beta-分布">9.2 Beta 分布</h3>
+<p>Beta 分布定义在 $[0,1]$ 上, 特别适合描述概率值本身.</p>
+<p>若 $X$ 的 PDF 为</p>
+<div class="math-block">$$
+f_X(x)=
+\begin{cases}
+\dfrac{1}{B(\alpha,\beta)}x^{\alpha-1}(1-x)^{\beta-1}, &amp; 0 \le x \le 1 \\
+0, &amp; \text{otherwise}
+\end{cases}
+$$</div>
+<p>则称</p>
+<div class="math-block">$$
+X \sim \mathrm{Beta}(\alpha,\beta)
+$$</div>
+<p>其中 $\alpha,\beta&gt;0$.</p>
+<h3 id="48-93-为什么-beta-很重要">9.3 为什么 Beta 很重要</h3>
+<p>因为很多问题里的未知对象本身就是一个概率:</p>
+<ul><li>用户真实点击率</li>
+<li>模型真实准确率</li>
+<li>某药物真实有效率</li></ul>
+<p>而这些值天然落在 $[0,1]$ 上.<br> Beta 分布正好给出一族非常灵活的概率模板.</p>
+<h3 id="49-94-gamma-和-beta-各自擅长什么">9.4 Gamma 和 Beta 各自擅长什么</h3>
+<ul><li>Gamma: 非负连续量, 累计等待时间, rate/intensity 相关问题</li>
+<li>Beta: 0 到 1 之间的概率量, 比例量, 先验建模</li></ul>
+<p>后面学贝叶斯统计时, 这两个分布会再次高频出现.</p>
+<hr class="divider">
+<h2 id="50-10-normal-分布-最常见也最核心的连续分布">10. Normal 分布: 最常见也最核心的连续分布</h2>
+<h3 id="51-101-定义">10.1 定义</h3>
+<p>若随机变量 $X$ 的 PDF 为</p>
+<div class="math-block">$$
+f_X(x)=\frac{1}{\sqrt{2\pi}\sigma}
+\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right),\quad x \in \mathbb{R}
+$$</div>
+<p>则称 $X$ 服从均值为 $\mu$, 标准差为 $\sigma$ 的 Normal 分布, 记作</p>
+<div class="math-block">$$
+X \sim \mathcal{N}(\mu,\sigma^2)
+$$</div>
+<h3 id="52-102-它在描述什么">10.2 它在描述什么</h3>
+<p>Normal 分布最经典的出现背景是:</p>
+<blockquote class="callout"><p>一个结果由许多微小, 近似独立的扰动共同叠加而成</p></blockquote>
+<p>例如:</p>
+<ul><li>测量误差</li>
+<li>身高分布</li>
+<li>聚合后的噪声</li>
+<li>平均量的波动</li></ul>
+<p>它的重要性并不只是因为图像好看, 而是因为它和后面的中心极限定理深度相连.</p>
+<h3 id="53-103-参数怎样影响形状">10.3 参数怎样影响形状</h3>
+<figure class="figure"><img src="assets/ps_ch03_normal_family.png" alt="正态分布参数变化图"><figcaption>正态分布参数变化图</figcaption></figure>
+<p>这张图最该留下来的直觉是:</p>
+<ul><li>$\mu$ 控制位置, 决定曲线中心在哪</li>
+<li>$\sigma$ 控制离散程度, 决定曲线有多宽, 多扁</li></ul>
+<h3 id="54-104-标准正态">10.4 标准正态</h3>
+<p>当</p>
+<div class="math-block">$$
+\mu=0,\quad \sigma=1
+$$</div>
+<p>时, 称为<strong>标准正态分布</strong>, 记作</p>
+<div class="math-block">$$
+Z \sim \mathcal{N}(0,1)
+$$</div>
+<p>任何正态随机变量都可以标准化:</p>
+<div class="math-block">$$
+Z=\frac{X-\mu}{\sigma}
+$$</div>
+<p>这个变换会在后面:</p>
+<ul><li>查表</li>
+<li>区间估计</li>
+<li>假设检验</li>
+<li>中心极限定理</li></ul>
+<p>里反复使用.</p>
+<hr class="divider">
+<h2 id="55-11-常见分布之间的联系与近似">11. 常见分布之间的联系与近似</h2>
+<p>真正学会分布, 不是会背很多公式, 而是看见它们之间的关系.</p>
+<h3 id="56-111-bernoulli-是-binomial-的特例">11.1 Bernoulli 是 Binomial 的特例</h3>
+<div class="math-block">$$
+\mathrm{Bernoulli}(p)=\mathrm{Binomial}(1,p)
+$$</div>
+<h3 id="57-112-geometric-是-negative-binomial-的特例">11.2 Geometric 是 Negative Binomial 的特例</h3>
+<p>当 $r=1$ 时:</p>
+<div class="math-block">$$
+\mathrm{NegativeBinomial}(r,p)
+\to \mathrm{Geometric}(p)
+$$</div>
+<h3 id="58-113-exponential-是-gamma-的特例">11.3 Exponential 是 Gamma 的特例</h3>
+<p>当 $\alpha=1$ 时:</p>
+<div class="math-block">$$
+\mathrm{Gamma}(1,\lambda)=\mathrm{Exponential}(\lambda)
+$$</div>
+<h3 id="59-114-poisson-可以近似-binomial">11.4 Poisson 可以近似 Binomial</h3>
+<p>当 $n$ 大, $p$ 小, 且 $\lambda=np$ 适中时:</p>
+<div class="math-block">$$
+\mathrm{Binomial}(n,p)\approx \mathrm{Poisson}(\lambda)
+$$</div>
+<h3 id="60-115-normal-可以近似很多聚合结果">11.5 Normal 可以近似很多聚合结果</h3>
+<p>当 Binomial 的</p>
+<div class="math-block">$$
+np,\quad n(1-p)
+$$</div>
+<p>都足够大时, Binomial 常常可以进一步用 Normal 近似.</p>
+<p>后面中心极限定理会告诉你:</p>
+<blockquote class="callout"><p>为什么很多总和, 平均量和聚合误差会自然走向正态.</p></blockquote>
+<h3 id="61-116-poisson-过程和-exponential-等待时间">11.6 Poisson 过程和 Exponential 等待时间</h3>
+<p>如果事件按 Poisson 过程到来:</p>
+<ul><li>固定窗口里的事件次数服从 Poisson</li>
+<li>相邻事件之间的等待时间服从 Exponential</li>
+<li>等待第 $r$ 个事件的总时间服从 Gamma</li></ul>
+<p>这三者其实是一条连续的故事线, 不是三块互不相干的公式.</p>
+<hr class="divider">
+<h2 id="62-12-什么时候该想到哪种分布">12. 什么时候该想到哪种分布</h2>
+<p>下面这张表可以作为本章最实用的速查入口:</p>
+<div class="table-wrap"><table><thead><tr><th>场景特征</th><th>常见分布</th></tr></thead><tbody><tr><td>一次成功/失败</td><td>Bernoulli</td></tr>
+<tr><td>固定 $n$ 次试验的成功次数</td><td>Binomial</td></tr>
+<tr><td>固定窗口内稀有事件次数</td><td>Poisson</td></tr>
+<tr><td>等到第一次成功的试验次数</td><td>Geometric</td></tr>
+<tr><td>等到第 $r$ 次成功的试验次数</td><td>Negative Binomial</td></tr>
+<tr><td>区间内均匀取值</td><td>Uniform</td></tr>
+<tr><td>等待下一次事件的时间</td><td>Exponential</td></tr>
+<tr><td>等待多个事件累计到来时间</td><td>Gamma</td></tr>
+<tr><td>描述 $[0,1]$ 上的概率值</td><td>Beta</td></tr>
+<tr><td>多个小扰动叠加后的连续量</td><td>Normal</td></tr></tbody></table></div>
+<p>这张表最好不要机械记忆.<br> 真正有用的方式是:</p>
+<blockquote class="callout"><p>先识别场景类型, 再去匹配分布模板.</p></blockquote>
+<hr class="divider">
+<h2 id="63-13-本章主线总结">13. 本章主线总结</h2>
+<p>第三章压成最短的一条线, 就是:</p>
+<ol><li>随机变量是把样本结果映射成数值的函数</li>
+<li>分布函数 $F_X(x)=P(X \le x)$ 统一描述累计概率</li>
+<li>离散型用 PMF, 连续型用 PDF</li>
+<li>对连续型来说, 概率来自区间面积, 不是点高度</li>
+<li>常见分布本质上是现实随机现象反复出现的概率模板</li></ol>
+<p>如果这五句话稳住了, 后面多维分布, 期望方差, 抽样分布, 统计建模都会顺很多.</p>
+<hr class="divider">
+<h2 id="64-14-典型题型与实战清单">14. 典型题型与实战清单</h2>
+<p>这一章最常见的题型, 基本都可以归到下面几类:</p>
+<ol><li><strong>从样本空间定义随机变量</strong><ul><li>明确映射规则</li>
+<li>列出可能取值</li>
+<li>由样本点概率汇总成分布</li></ul></li></ol>
+<ol><li><strong>写 CDF</strong><ul><li>离散型常写成分段阶梯函数</li>
+<li>连续型常通过积分得到</li></ul></li></ol>
+<ol><li><strong>PMF/PDF 与区间概率</strong><ul><li>离散型: 求和</li>
+<li>连续型: 积分</li></ul></li></ol>
+<ol><li><strong>识别分布类型</strong><ul><li>0-1, 计数, 等待, 区间均匀, 非负连续, 概率值, 正态噪声</li></ul></li></ol>
+<ol><li><strong>分布之间的近似</strong><ul><li>Binomial 到 Poisson</li>
+<li>Binomial 到 Normal</li>
+<li>Poisson 过程到 Exponential/Gamma</li></ul></li></ol>
+<p>一个实战工作流可以直接记成:</p>
+<blockquote class="callout"><p>先识别&quot;数值对象是什么&quot; -&gt; 再看它是离散还是连续 -&gt; 再选分布模板</p></blockquote>
+<hr class="divider">
+<h2 id="65-15-典型误区">15. 典型误区</h2>
+<h3 id="66-误区-1-把随机变量理解成随机乱变的数">误区 1: 把随机变量理解成&quot;随机乱变的数&quot;</h3>
+<p>更准确的理解应该是:</p>
+<blockquote class="callout"><p>随机变量首先是一条映射规则.</p></blockquote>
+<h3 id="67-误区-2-忘记-cdf-是累计概率">误区 2: 忘记 CDF 是累计概率</h3>
+<p>$F_X(x)$ 不是点概率, 它是累计到 $x$ 左边为止的总概率.</p>
+<h3 id="68-误区-3-把密度值当成概率">误区 3: 把密度值当成概率</h3>
+<p>对连续型:</p>
+<div class="math-block">$$
+P(X=x)=0
+$$</div>
+<p>单点概率为 0, 只有面积才代表概率.</p>
+<h3 id="69-误区-4-不区分次数问题和等待问题">误区 4: 不区分&quot;次数问题&quot;和&quot;等待问题&quot;</h3>
+<ul><li>成功次数常想到 Binomial</li>
+<li>等待第一次或第 $r$ 次成功常想到 Geometric 或 Negative Binomial</li></ul>
+<h3 id="70-误区-5-背了很多分布名字-却不知道它们各自描述什么">误区 5: 背了很多分布名字, 却不知道它们各自描述什么</h3>
+<p>分布不是术语收藏册.<br> 真正的重点是:</p>
+<blockquote class="callout"><p>它们各自适合建模什么随机现象.</p></blockquote>
+<h3 id="71-误区-6-忽略-negative-binomial-的定义-convention">误区 6: 忽略 Negative Binomial 的定义 convention</h3>
+<p>不同资料对它的支持集和含义可能不同, 使用前一定先看清定义.</p>
+<hr class="divider">
+<h2 id="72-16-和前后章节的连接点">16. 和前后章节的连接点</h2>
+<p>这一章向后连接的路线非常清楚:</p>
+<ol><li><strong>第四章多维随机变量</strong><ul><li>会把单变量分布推广到联合分布, 边缘分布, 条件分布</li></ul></li></ol>
+<ol><li><strong>第五章期望与方差</strong><ul><li>分布一旦确定, 就可以继续压缩出中心, 波动和信息量</li></ul></li></ol>
+<ol><li><strong>第七章抽样分布</strong><ul><li>样本均值, 样本方差等统计量本质上也是随机变量</li></ul></li></ol>
+<ol><li><strong>第十二章以后贝叶斯统计</strong><ul><li>Beta, Gamma, Normal 会作为重要先验和后验家族反复出现</li></ul></li></ol>
+<p>所以第三章不是在背分布大全, 而是在为后面整套统计语言准备基本模板.</p>
+<hr class="divider">
+<h2 id="73-17-和机器学习-数据分析-科研实践的连接点">17. 和机器学习, 数据分析, 科研实践的连接点</h2>
+<p>如果你是带着机器学习目标来学这一章, 最值得提前记住的是:</p>
+<ol><li><strong>Bernoulli / Binomial</strong><ul><li>二分类标签</li>
+<li>点击/转化建模</li>
+<li>交叉熵和分类似然的基础</li></ul></li></ol>
+<ol><li><strong>Poisson</strong><ul><li>计数数据</li>
+<li>到达流量</li>
+<li>事件频次预测</li></ul></li></ol>
+<ol><li><strong>Beta</strong><ul><li>转化率, 准确率等概率值建模</li>
+<li>贝叶斯 A/B 测试的常见先验</li></ul></li></ol>
+<ol><li><strong>Normal</strong><ul><li>噪声假设</li>
+<li>最小二乘</li>
+<li>高斯模型</li>
+<li>深度学习里大量近似分析的底色</li></ul></li></ol>
+<ol><li><strong>Exponential / Gamma</strong><ul><li>生存分析</li>
+<li>等待时间建模</li>
+<li>过程到达与累计时间分析</li></ul></li></ol>
+<p>所以这章的工程价值非常直接:</p>
+<blockquote class="callout"><p>以后你看到数据类型, 就能更快联想到对应的概率模板和损失假设.</p></blockquote>
+<hr class="divider">
+<h2 id="74-18-本章收尾">18. 本章收尾</h2>
+<p>第三章真正要留下来的, 不是十几个公式, 而是一种新的观察方式:</p>
+<blockquote class="callout"><p>先把随机结果映射成数值,<br>再用分布描述这些数值怎样出现,<br>最后用常见分布模板去识别现实问题的结构.</p></blockquote>
+<p>如果这个观察方式建立起来了, 第四章进入多维随机变量时, 你就不会只看到更复杂的符号, 而会看到&quot;单变量语言如何自然升级为联合语言&quot;.</p>
+      </article>
+      <nav class="chapter-nav" aria-label="前后页面">
+        <a class="prev" href="chapter02_conditional_probability_independence_bayes.html"><span>上一页</span><strong>Chapter 02: 概率论第二章教程: 条件概率, 独立性与贝叶斯公式</strong></a>
+        <a class="next" href="chapter04_multivariate_random_variables_transformations.html"><span>下一页</span><strong>Chapter 04: 概率论第四章教程: 多维随机变量, 条件结构与变量变换</strong></a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="footer">
+    由 build_probability_statistics_html.py 生成. 样式文件: probability_statistics.css.
+  </footer>
+</body>
+</html>
