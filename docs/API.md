@@ -108,18 +108,20 @@ from xdl.utils.registry import (
 - `ImageFolderDataset`
 - `ImageFolderClassificationDataset`
 - `ImageTextSidecarDataset`
-- `ManifestRecordDataset`
-- `ManifestClassificationDataset`
-- `ManifestRegressionDataset`
-- `ManifestMultiLabelClassificationDataset`
+- `RecordDataset`
+- `RecordClassificationDataset`
+- `RecordRegressionDataset`
+- `RecordMultiLabelClassificationDataset`
 - `ImageMaskSidecarDataset`
-- `ManifestSegmentationDataset`
-- `ManifestDetectionDataset`
-- `ManifestImageTextDataset`
-- `ManifestTextDataset`
-- `ManifestPairDataset`
-- `ManifestTripletDataset`
-- `ManifestImageEditDataset`
+- `RecordSegmentationDataset`
+- `RecordDetectionDataset`
+- `RecordImageTextDataset`
+- `RecordTextDataset`
+- `RecordPairDataset`
+- `RecordTripletDataset`
+- `ImageEditDataset`
+
+兼容说明: 历史 `Manifest*` dataset 名称和 registry 键仍作为别名保留, 例如 `ManifestRegressionDataset` 等价于 `RecordRegressionDataset`, `ManifestImageEditCollate` 等价于 `ImageEditCollate`. 新代码优先使用 `Record*` / `ImageEdit*` 名称.
 
 ### 常用工具入口
 
@@ -162,8 +164,8 @@ xdl-usage
 - `xdl.config` 中的 resolver 工具，例如 `load_config_with_schema()`、`merge_with_schema()`、`resolve_config()`。
 - Accelerate、DeepSpeed、FSDP 相关配置字段和行为。
 - 具体内置模型、数据集、loss、metric、optimizer、scheduler 的注册名称和参数细节。
-- `ManifestDatasetBase` 等 dataset 扩展基类.
-- 新增 dataset 模板的字段细节与返回结构, 包括 `ImageFolderDataset`, `ImageTextSidecarDataset`, `ImageMaskSidecarDataset`, `ManifestMultiLabelClassificationDataset`, `ManifestTextDataset`, `ManifestTripletDataset`.
+- `RecordDatasetBase` 等 dataset 扩展基类.
+- 新增 dataset 模板的字段细节与返回结构, 包括 `ImageFolderDataset`, `ImageTextSidecarDataset`, `ImageMaskSidecarDataset`, `RecordMultiLabelClassificationDataset`, `RecordTextDataset`, `RecordTripletDataset`.
 - 复杂 callback 的完整构造参数，例如监控、日志、采样、设备统计类回调。
 
 使用这些 API 时，建议通过测试固定自己的项目契约。
