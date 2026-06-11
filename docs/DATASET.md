@@ -11,28 +11,30 @@
 
 XDL 的推荐顺序是:
 
-1. 能写 manifest 时, 优先使用 manifest 系列模板. 字段清晰, 可扩展, 容易跨机器复现.
+1. 能写 manifest 时, 优先使用 `Record*` 模板. 字段清晰, 可扩展, 容易跨机器复现.
 2. 数据已经是目录分类或纯图片目录时, 使用目录模板, 不强制先生成 manifest.
 3. 数据是同名文件对齐时, 使用 sidecar 模板, 例如 `images/000.png` 对应 `masks/000.png` 或 `000.txt`.
 4. 只有当字段解析, 采样逻辑或外部格式确实特殊时, 才新增薄 dataset 类.
 5. 新增模板必须通过 `xdl.dataset.__init__` 集中注册, 并至少覆盖 `__len__`, `__getitem__`, registry 构建和基本 batch 行为测试.
+
+命名约定: 新代码优先使用 `Record*` / `ImageEdit*` dataset 名称. 历史 `Manifest*` 类名和 registry 键仍保留为兼容别名, 例如 `ManifestRegressionDataset` 仍等价于 `RecordRegressionDataset`.
 
 ## 2. 样本语义形态
 
 | 语义形态 | 典型任务 | 推荐模板 |
 |---|---|---|
 | `image` | 推理, 自监督, 特征提取 | `ImageFolderDataset` |
-| `image + label` | 单标签分类 | `ImageFolderClassificationDataset`, `ManifestClassificationDataset` |
-| `image + target` | 回归, 质量估计, 年龄预测 | `ManifestRegressionDataset` |
-| `image + labels` | 多标签分类 | `ManifestMultiLabelClassificationDataset` |
-| `image + mask` | 语义分割, depth, dense label | `ManifestSegmentationDataset`, `ImageMaskSidecarDataset` |
-| `image + boxes + labels` | 目标检测 | `ManifestDetectionDataset` |
-| `image + text` | caption, diffusion 微调, 图文检索 | `ManifestImageTextDataset`, `ImageTextSidecarDataset` |
-| `text (+ target_text)` | 文本分类前处理, SFT, 指令数据 | `ManifestTextDataset` |
-| `image_a + image_b (+ label)` | pair matching, siamese, 对比学习 | `ManifestPairDataset` |
-| `anchor + positive + negative` | metric learning, retrieval | `ManifestTripletDataset` |
-| `source_image + target_image (+ reference_image + edit_mask + prompt)` | 图像编辑, 条件生成 | `ManifestImageEditDataset` |
-| 任意 dict record | 表格, 推荐, 时序窗口, 私有 schema | `ManifestRecordDataset` 或继承 `ManifestDatasetBase` |
+| `image + label` | 单标签分类 | `ImageFolderClassificationDataset`, `RecordClassificationDataset` |
+| `image + target` | 回归, 质量估计, 年龄预测 | `RecordRegressionDataset` |
+| `image + labels` | 多标签分类 | `RecordMultiLabelClassificationDataset` |
+| `image + mask` | 语义分割, depth, dense label | `RecordSegmentationDataset`, `ImageMaskSidecarDataset` |
+| `image + boxes + labels` | 目标检测 | `RecordDetectionDataset` |
+| `image + text` | caption, diffusion 微调, 图文检索 | `RecordImageTextDataset`, `ImageTextSidecarDataset` |
+| `text (+ target_text)` | 文本分类前处理, SFT, 指令数据 | `RecordTextDataset` |
+| `image_a + image_b (+ label)` | pair matching, siamese, 对比学习 | `RecordPairDataset` |
+| `anchor + positive + negative` | metric learning, retrieval | `RecordTripletDataset` |
+| `source_image + target_image (+ reference_image + edit_mask + prompt)` | 图像编辑, 条件生成 | `ImageEditDataset` |
+| 任意 dict record | 表格, 推荐, 时序窗口, 私有 schema | `RecordDataset` 或继承 `RecordDatasetBase` |
 
 ## 3. 磁盘组织形态
 
@@ -53,7 +55,7 @@ Manifest 支持 `.jsonl`, `.json`, `.csv`, 相对路径默认基于 manifest 所
 - 分布式训练前的数据快照
 - 需要固定 schema 和复现的数据
 
-新增 manifest 数据集时优先继承 `ManifestDatasetBase`, 复用:
+新增 manifest 数据集时优先继承 `RecordDatasetBase`, 复用:
 
 - `load_manifest_context()`
 - `self.records`
@@ -129,7 +131,7 @@ data/
   000.png
 ```
 
-使用 `ImageMaskSidecarDataset`, 返回 `image`, `mask`, `sample_id`, 可选路径字段. 它与 `ManifestSegmentationDataset` 返回结构一致, 因此下游 segmentation task 可以少改或不改.
+使用 `ImageMaskSidecarDataset`, 返回 `image`, `mask`, `sample_id`, 可选路径字段. 它与 `RecordSegmentationDataset` 返回结构一致, 因此下游 segmentation task 可以少改或不改.
 
 同目录 sidecar 模式建议显式设置 `extensions`, 用来只扫描 image 文件, 避免把 mask 文件再次当作 image 样本.
 
@@ -172,7 +174,7 @@ Manifest 分类:
 
 ```yaml
 train_dataset:
-  target: "registry:ManifestClassificationDataset"
+  target: "registry:RecordClassificationDataset"
   params:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_cls.jsonl}
     transform: ${train_transforms}
@@ -226,7 +228,7 @@ train_dataloader:
 
 新增数据集时按下面顺序判断:
 
-1. 字段已经能用 manifest 表达: 直接用现有 manifest 模板, 或继承 `ManifestDatasetBase` 只实现 `__getitem__`.
+1. 字段已经能用 manifest 表达: 直接用现有 manifest 模板, 或继承 `RecordDatasetBase` 只实现 `__getitem__`.
 2. 只是路径组织不同: 优先补 sidecar/目录扫描 helper, 不要复制完整 dataset 类.
 3. 只是 batch 方式不同: 新增 collate, 不要改 dataset 返回结构.
 4. 只是单样本增强不同: 新增 transform, 不要新增 dataset.
@@ -237,10 +239,10 @@ train_dataloader:
 ```python
 from typing import Any, Dict
 
-from xdl.dataset import ManifestDatasetBase
+from xdl.dataset import RecordDatasetBase
 
 
-class MyImageJsonDataset(ManifestDatasetBase):
+class MyImageJsonDataset(RecordDatasetBase):
     def __getitem__(self, index: int) -> Dict[str, Any]:
         base_index, record = self._record_at(index)
         image_path = self._resolve_record_path(record, "image")

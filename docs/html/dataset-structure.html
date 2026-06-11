@@ -17,6 +17,9 @@
       --surface-muted: #eef2f7;
       --accent: #0f766e;
       --accent-soft: #e6f4f1;
+      --code-bg: #eef8f6;
+      --code-line: #a8d8d0;
+      --code-text: #0f4f48;
       --code: #0f172a;
     }
 
@@ -73,8 +76,19 @@
 
     code,
     pre {
-      color: var(--code);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    code {
+      color: var(--code-text);
+      background: var(--code-bg);
+      border: 1px solid var(--code-line);
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-size: 0.94em;
+      font-weight: 650;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
 
     pre {
@@ -85,6 +99,17 @@
       border-radius: 8px;
       padding: 14px;
       font-size: 13px;
+      color: var(--code);
+    }
+
+    pre code {
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      font-size: inherit;
+      font-weight: inherit;
     }
 
     .subtitle {
@@ -217,9 +242,9 @@
     <a class="back-link" href="index.html">返回文档阅读入口</a>
     <h1>XDL Dataset 模块结构说明</h1>
     <p class="subtitle">
-      本文说明 <code>xdl/dataset</code> 的通用数据集结构, 包括注册入口, manifest 模板, sidecar 模板, dense prediction 模板, image edit 模板和 collate 组件. 本文刻意排除 hair 系列特殊数据集, 因为它们属于项目私有数据形态.
+      本文说明 <code>xdl/dataset</code> 的通用数据集结构, 包括注册入口, record/manifest 模板, sidecar 模板, dense prediction 模板, image edit 模板和 collate 组件. 本文刻意排除 hair 系列特殊数据集, 因为它们属于项目私有数据形态.
     </p>
-    <span class="note">推荐新增数据集时先复用现有模板, 只在字段语义或磁盘组织确实不匹配时新增薄 adapter.</span>
+    <span class="note">推荐新增数据集时先复用现有模板. 新代码优先使用 Record* / ImageEdit* 名称, 历史 Manifest* 名称继续兼容.</span>
   </header>
 
   <main>
@@ -233,7 +258,7 @@
         </div>
         <div class="card">
           <h3>公共 helper</h3>
-          <p><strong>文件:</strong> <code>_manifest.py</code>, <code>_paths.py</code></p>
+          <p><strong>文件:</strong> <code>_records.py</code>, <code>_paths.py</code></p>
           <p>负责读取 manifest, 解析相对路径, 构造 sample_id, 扫描图片目录, 生成 basename sidecar 配对.</p>
         </div>
         <div class="card">
@@ -243,12 +268,12 @@
         </div>
         <div class="card">
           <h3>Dense 模板</h3>
-          <p><strong>文件:</strong> <code>manifest_dense.py</code></p>
+          <p><strong>文件:</strong> <code>dense.py</code></p>
           <p>覆盖 image-mask, image-boxes, segmentation, detection 和对应同步 transform / detection collate.</p>
         </div>
         <div class="card">
           <h3>Image edit 模板</h3>
-          <p><strong>文件:</strong> <code>manifest_image_edit.py</code></p>
+          <p><strong>文件:</strong> <code>image_edit.py</code></p>
           <p>覆盖 source/target/reference/mask/prompt 多图编辑样本, 并提供专用 collate.</p>
         </div>
         <div class="card">
@@ -283,7 +308,7 @@
         </thead>
         <tbody>
           <tr>
-            <td><code>_manifest.py</code></td>
+            <td><code>_records.py</code></td>
             <td><code>load_manifest_records</code>, <code>resolve_record_path</code>, <code>build_sample_id</code></td>
             <td>统一 JSONL/JSON/CSV 读取, 相对路径基于 manifest 目录解析, sample_id 从显式字段或 fallback 构造.</td>
           </tr>
@@ -294,17 +319,17 @@
           </tr>
           <tr>
             <td><code>templates.py</code></td>
-            <td><code>ManifestDatasetBase</code>, <code>ImageFolderDataset</code>, <code>ManifestTextDataset</code> 等</td>
+            <td><code>RecordDatasetBase</code>, <code>ImageFolderDataset</code>, <code>RecordTextDataset</code> 等</td>
             <td>承载大多数非 dense 通用样本语义, 是新增 manifest 数据集的首选参考文件.</td>
           </tr>
           <tr>
-            <td><code>manifest_dense.py</code></td>
-            <td><code>ImageMaskTransform</code>, <code>ImageBoxesTransform</code>, <code>ManifestSegmentationDataset</code>, <code>ManifestDetectionDataset</code></td>
+            <td><code>dense.py</code></td>
+            <td><code>ImageMaskTransform</code>, <code>ImageBoxesTransform</code>, <code>RecordSegmentationDataset</code>, <code>RecordDetectionDataset</code></td>
             <td>处理 image-mask 和 image-boxes 这类需要同步几何变换的样本.</td>
           </tr>
           <tr>
-            <td><code>manifest_image_edit.py</code></td>
-            <td><code>ManifestImageEditDataset</code>, <code>PairedImageTransform</code></td>
+            <td><code>image_edit.py</code></td>
+            <td><code>ImageEditDataset</code>, <code>PairedImageTransform</code></td>
             <td>处理 source/target/reference/mask/prompt 多图编辑训练样本.</td>
           </tr>
           <tr>
@@ -348,55 +373,55 @@
           <tr>
             <td>manifest 分类</td>
             <td><code>{"image": "...", "label": "cat"}</code></td>
-            <td><code>ManifestClassificationDataset</code></td>
+            <td><code>RecordClassificationDataset</code></td>
             <td><code>(image, target)</code></td>
           </tr>
           <tr>
             <td>回归</td>
             <td><code>{"image": "...", "target": 0.7}</code></td>
-            <td><code>ManifestRegressionDataset</code></td>
+            <td><code>RecordRegressionDataset</code></td>
             <td><code>(image, target)</code></td>
           </tr>
           <tr>
             <td>多标签</td>
             <td><code>{"image": "...", "labels": ["a", "b"]}</code></td>
-            <td><code>ManifestMultiLabelClassificationDataset</code></td>
+            <td><code>RecordMultiLabelClassificationDataset</code></td>
             <td><code>(image, multi_hot_tensor)</code></td>
           </tr>
           <tr>
             <td>图文配对</td>
             <td>manifest 或 <code>000.png + 000.txt</code></td>
-            <td><code>ManifestImageTextDataset</code>, <code>ImageTextSidecarDataset</code></td>
+            <td><code>RecordImageTextDataset</code>, <code>ImageTextSidecarDataset</code></td>
             <td><code>{"image", "text", "sample_id"}</code></td>
           </tr>
           <tr>
             <td>分割</td>
             <td>manifest 或 <code>images/000.png + masks/000.png</code></td>
-            <td><code>ManifestSegmentationDataset</code>, <code>ImageMaskSidecarDataset</code></td>
+            <td><code>RecordSegmentationDataset</code>, <code>ImageMaskSidecarDataset</code></td>
             <td><code>{"image", "mask", "sample_id"}</code></td>
           </tr>
           <tr>
             <td>检测</td>
             <td><code>{"image": "...", "boxes": [[...]], "labels": [...]}</code></td>
-            <td><code>ManifestDetectionDataset</code> + <code>DetectionCollate</code></td>
+            <td><code>RecordDetectionDataset</code> + <code>DetectionCollate</code></td>
             <td><code>{"image", "boxes", "labels", "sample_id"}</code></td>
           </tr>
           <tr>
             <td>文本或指令</td>
             <td><code>{"prompt": "...", "response": "..."}</code></td>
-            <td><code>ManifestTextDataset</code></td>
+            <td><code>RecordTextDataset</code></td>
             <td><code>{"text", "target_text?", "sample_id"}</code></td>
           </tr>
           <tr>
             <td>pair/triplet</td>
             <td>manifest 明确字段</td>
-            <td><code>ManifestPairDataset</code>, <code>ManifestTripletDataset</code></td>
+            <td><code>RecordPairDataset</code>, <code>RecordTripletDataset</code></td>
             <td><code>{"image_a", "image_b"}</code> 或 <code>{"anchor_image", "positive_image", "negative_image"}</code></td>
           </tr>
           <tr>
             <td>图像编辑</td>
             <td><code>source_image + target_image + reference_image? + edit_mask?</code></td>
-            <td><code>ManifestImageEditDataset</code> + <code>ManifestImageEditCollate</code></td>
+            <td><code>ImageEditDataset</code> + <code>ImageEditCollate</code></td>
             <td><code>{"source_image", "target_image", "reference_image", "edit_mask", "prompt"}</code></td>
           </tr>
         </tbody>
@@ -412,10 +437,10 @@
         <li>只是同名文件对齐, 优先复用 sidecar helper 或现有 sidecar 模板.</li>
         <li>只是 batch 方式不同, 新增 collate, 不要改 dataset.</li>
         <li>只是增强不同, 新增 transform, 不要新增 dataset.</li>
-        <li>确实是新语义形态时, 继承 <code>ManifestDatasetBase</code> 写薄 adapter, 再在 <code>__init__.py</code> 注册.</li>
+        <li>确实是新语义形态时, 继承 <code>RecordDatasetBase</code> 写薄 adapter, 再在 <code>__init__.py</code> 注册.</li>
       </ul>
 
-      <pre><code>class MyManifestDataset(ManifestDatasetBase):
+      <pre><code>class MyRecordDataset(RecordDatasetBase):
     def __getitem__(self, index: int) -> dict[str, Any]:
         base_index, record = self._record_at(index)
         image_path = self._resolve_record_path(record, "image")
