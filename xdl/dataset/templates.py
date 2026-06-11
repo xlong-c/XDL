@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 import torch
 from torch.utils.data import Dataset
 
-from ._manifest import (
+from ._records import (
     build_sample_id,
     first_present_value,
     load_manifest_context,
@@ -96,8 +96,8 @@ def _parse_sequence_field(
     raise TypeError("Expected a sequence-like field")
 
 
-class ManifestDatasetBase(Dataset[Any]):
-    """Shared manifest dataset utilities."""
+class RecordDatasetBase(Dataset[Any]):
+    """Shared record dataset utilities."""
 
     def __init__(
         self,
@@ -150,8 +150,8 @@ class ManifestDatasetBase(Dataset[Any]):
         return resolve_record_path(record, key, self.base_dir)
 
 
-class ManifestRecordDataset(ManifestDatasetBase):
-    """Load JSONL/JSON/CSV manifest records as dictionaries."""
+class RecordDataset(RecordDatasetBase):
+    """Load JSONL/JSON/CSV records as dictionaries."""
 
     def __init__(
         self,
@@ -280,8 +280,8 @@ class ImageFolderDataset(Dataset[Record]):
         return sample
 
 
-class ManifestClassificationDataset(ManifestDatasetBase):
-    """Classification dataset backed by a JSONL/JSON/CSV manifest."""
+class RecordClassificationDataset(RecordDatasetBase):
+    """Classification dataset backed by JSONL/JSON/CSV records."""
 
     def __init__(
         self,
@@ -328,8 +328,8 @@ class ManifestClassificationDataset(ManifestDatasetBase):
         return image, target
 
 
-class ManifestRegressionDataset(ManifestDatasetBase):
-    """Regression dataset backed by a JSONL/JSON/CSV manifest."""
+class RecordRegressionDataset(RecordDatasetBase):
+    """Regression dataset backed by JSONL/JSON/CSV records."""
 
     def __init__(
         self,
@@ -363,8 +363,8 @@ class ManifestRegressionDataset(ManifestDatasetBase):
         return image, target
 
 
-class ManifestMultiLabelClassificationDataset(ManifestDatasetBase):
-    """Multi-label classification dataset backed by an image + labels manifest."""
+class RecordMultiLabelClassificationDataset(RecordDatasetBase):
+    """Multi-label classification dataset backed by image + labels records."""
 
     def __init__(
         self,
@@ -444,8 +444,8 @@ class ManifestMultiLabelClassificationDataset(ManifestDatasetBase):
         return _parse_sequence_field(value, delimiter=self.label_delimiter)
 
 
-class ManifestImageTextDataset(ManifestDatasetBase):
-    """Image-text dataset backed by a JSONL/JSON/CSV manifest."""
+class RecordImageTextDataset(RecordDatasetBase):
+    """Image-text dataset backed by JSONL/JSON/CSV records."""
 
     def __init__(
         self,
@@ -613,8 +613,8 @@ class ImageTextSidecarDataset(Dataset[Record]):
         )
 
 
-class ManifestTextDataset(ManifestDatasetBase):
-    """Text-only manifest dataset for language modeling or instruction tuning."""
+class RecordTextDataset(RecordDatasetBase):
+    """Text-only record dataset for language modeling or instruction tuning."""
 
     def __init__(
         self,
@@ -676,7 +676,7 @@ class ManifestTextDataset(ManifestDatasetBase):
         return str(value)
 
 
-class ManifestPairDataset(ManifestDatasetBase):
+class RecordPairDataset(RecordDatasetBase):
     """Pair dataset for contrastive, siamese, or retrieval-style tasks."""
 
     def __init__(
@@ -751,7 +751,7 @@ class ManifestPairDataset(ManifestDatasetBase):
         return text
 
 
-class ManifestTripletDataset(ManifestDatasetBase):
+class RecordTripletDataset(RecordDatasetBase):
     """Triplet dataset for metric learning or retrieval tasks."""
 
     def __init__(
@@ -833,3 +833,14 @@ class ManifestTripletDataset(ManifestDatasetBase):
             return
         value = str(record[input_key])
         sample[output_key] = self.text_transform(value) if self.text_transform is not None else value
+
+
+ManifestDatasetBase = RecordDatasetBase
+ManifestRecordDataset = RecordDataset
+ManifestClassificationDataset = RecordClassificationDataset
+ManifestRegressionDataset = RecordRegressionDataset
+ManifestMultiLabelClassificationDataset = RecordMultiLabelClassificationDataset
+ManifestImageTextDataset = RecordImageTextDataset
+ManifestTextDataset = RecordTextDataset
+ManifestPairDataset = RecordPairDataset
+ManifestTripletDataset = RecordTripletDataset
