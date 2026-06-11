@@ -13,15 +13,19 @@ Hair10HairDataset = None
 
 from . import collate  # 注册 PadCollate / DictCollate
 from .basic import SyntheticClassificationDataset
-from .manifest_dense import (
+from .dense import (
     DetectionCollate,
     ImageBoxesTransform,
     ImageMaskSidecarDataset,
     ImageMaskTransform,
     ManifestDetectionDataset,
     ManifestSegmentationDataset,
+    RecordDetectionDataset,
+    RecordSegmentationDataset,
 )
-from .manifest_image_edit import (
+from .image_edit import (
+    ImageEditCollate,
+    ImageEditDataset,
     ManifestImageEditCollate,
     ManifestImageEditDataset,
     PairedImageTransform,
@@ -39,29 +43,50 @@ from .templates import (
     ManifestRecordDataset,
     ManifestTextDataset,
     ManifestTripletDataset,
+    RecordClassificationDataset,
+    RecordDataset,
+    RecordDatasetBase,
+    RecordImageTextDataset,
+    RecordMultiLabelClassificationDataset,
+    RecordPairDataset,
+    RecordRegressionDataset,
+    RecordTextDataset,
+    RecordTripletDataset,
 )
 
 # 通用模板集中注册在这里, 让 YAML 可以统一使用 registry:Name 构建数据集.
 register_dataset("SyntheticClassificationDataset")(SyntheticClassificationDataset)
-register_dataset("ManifestImageEditDataset")(ManifestImageEditDataset)
-register_dataset("ManifestRecordDataset")(ManifestRecordDataset)
+register_dataset("ImageEditDataset")(ImageEditDataset)
+register_dataset("ManifestImageEditDataset")(ImageEditDataset)
+register_dataset("RecordDataset")(RecordDataset)
+register_dataset("ManifestRecordDataset")(RecordDataset)
 register_dataset("ImageFolderDataset")(ImageFolderDataset)
 register_dataset("ImageFolderClassificationDataset")(ImageFolderClassificationDataset)
 register_dataset("ImageTextSidecarDataset")(ImageTextSidecarDataset)
-register_dataset("ManifestClassificationDataset")(ManifestClassificationDataset)
-register_dataset("ManifestRegressionDataset")(ManifestRegressionDataset)
-register_dataset("ManifestMultiLabelClassificationDataset")(ManifestMultiLabelClassificationDataset)
+register_dataset("RecordClassificationDataset")(RecordClassificationDataset)
+register_dataset("ManifestClassificationDataset")(RecordClassificationDataset)
+register_dataset("RecordRegressionDataset")(RecordRegressionDataset)
+register_dataset("ManifestRegressionDataset")(RecordRegressionDataset)
+register_dataset("RecordMultiLabelClassificationDataset")(RecordMultiLabelClassificationDataset)
+register_dataset("ManifestMultiLabelClassificationDataset")(RecordMultiLabelClassificationDataset)
 register_dataset("ImageMaskSidecarDataset")(ImageMaskSidecarDataset)
-register_dataset("ManifestSegmentationDataset")(ManifestSegmentationDataset)
-register_dataset("ManifestDetectionDataset")(ManifestDetectionDataset)
-register_dataset("ManifestImageTextDataset")(ManifestImageTextDataset)
-register_dataset("ManifestTextDataset")(ManifestTextDataset)
-register_dataset("ManifestPairDataset")(ManifestPairDataset)
-register_dataset("ManifestTripletDataset")(ManifestTripletDataset)
+register_dataset("RecordSegmentationDataset")(RecordSegmentationDataset)
+register_dataset("ManifestSegmentationDataset")(RecordSegmentationDataset)
+register_dataset("RecordDetectionDataset")(RecordDetectionDataset)
+register_dataset("ManifestDetectionDataset")(RecordDetectionDataset)
+register_dataset("RecordImageTextDataset")(RecordImageTextDataset)
+register_dataset("ManifestImageTextDataset")(RecordImageTextDataset)
+register_dataset("RecordTextDataset")(RecordTextDataset)
+register_dataset("ManifestTextDataset")(RecordTextDataset)
+register_dataset("RecordPairDataset")(RecordPairDataset)
+register_dataset("ManifestPairDataset")(RecordPairDataset)
+register_dataset("RecordTripletDataset")(RecordTripletDataset)
+register_dataset("ManifestTripletDataset")(RecordTripletDataset)
 register_transform("PairedImageTransform")(PairedImageTransform)
 register_transform("ImageMaskTransform")(ImageMaskTransform)
 register_transform("ImageBoxesTransform")(ImageBoxesTransform)
-register_collate("ManifestImageEditCollate")(ManifestImageEditCollate)
+register_collate("ImageEditCollate")(ImageEditCollate)
+register_collate("ManifestImageEditCollate")(ImageEditCollate)
 register_collate("DetectionCollate")(DetectionCollate)
 
 # 视觉数据集
@@ -95,23 +120,36 @@ except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
 
 __all__ = [
     "SyntheticClassificationDataset",
+    "ImageEditDataset",
     "ManifestImageEditDataset",
     "PairedImageTransform",
+    "ImageEditCollate",
     "ManifestImageEditCollate",
+    "RecordDataset",
     "ManifestRecordDataset",
     "ImageFolderDataset",
     "ImageFolderClassificationDataset",
     "ImageTextSidecarDataset",
     "ImageMaskSidecarDataset",
+    "RecordDatasetBase",
     "ManifestDatasetBase",
+    "RecordClassificationDataset",
     "ManifestClassificationDataset",
+    "RecordRegressionDataset",
     "ManifestRegressionDataset",
+    "RecordMultiLabelClassificationDataset",
     "ManifestMultiLabelClassificationDataset",
+    "RecordSegmentationDataset",
     "ManifestSegmentationDataset",
+    "RecordDetectionDataset",
     "ManifestDetectionDataset",
+    "RecordImageTextDataset",
     "ManifestImageTextDataset",
+    "RecordTextDataset",
     "ManifestTextDataset",
+    "RecordPairDataset",
     "ManifestPairDataset",
+    "RecordTripletDataset",
     "ManifestTripletDataset",
     "GridImageCsvDataset",
     "GridImageDirDataset",
