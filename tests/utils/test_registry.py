@@ -74,14 +74,22 @@ class TestGlobalRegistries:
         for name in (
             "ImageFolderDataset",
             "ImageTextSidecarDataset",
+            "RecordRegressionDataset",
             "ManifestRegressionDataset",
+            "RecordMultiLabelClassificationDataset",
             "ManifestMultiLabelClassificationDataset",
             "ImageMaskSidecarDataset",
+            "RecordSegmentationDataset",
             "ManifestSegmentationDataset",
+            "RecordDetectionDataset",
             "ManifestDetectionDataset",
+            "RecordTextDataset",
             "ManifestTextDataset",
+            "RecordPairDataset",
             "ManifestPairDataset",
+            "RecordTripletDataset",
             "ManifestTripletDataset",
+            "ImageEditDataset",
         ):
             assert name in available, f"Missing {name}"
 
@@ -90,6 +98,7 @@ class TestGlobalRegistries:
         assert "PadCollate" in available
         assert "DictCollate" in available
         assert "DetectionCollate" in available
+        assert "ImageEditCollate" in available
 
     def test_scheduler_registry_empty_by_default(self):
         # scheduler 没有预注册 PyTorch 原生类
