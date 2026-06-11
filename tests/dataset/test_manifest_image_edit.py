@@ -6,7 +6,12 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader
 
-from xdl.dataset import ManifestImageEditCollate, ManifestImageEditDataset
+from xdl.dataset import (
+    ImageEditCollate,
+    ImageEditDataset,
+    ManifestImageEditCollate,
+    ManifestImageEditDataset,
+)
 from xdl.utils.registry import COLLATE_REGISTRY, DATASET_REGISTRY, TRANSFORM_REGISTRY
 
 
@@ -101,6 +106,10 @@ def test_manifest_image_edit_dataset_loads_csv_without_mask_from_manifest_dir(
 
 
 def test_manifest_image_edit_components_are_registered() -> None:
+    assert DATASET_REGISTRY.get("ImageEditDataset") is ImageEditDataset
     assert DATASET_REGISTRY.get("ManifestImageEditDataset") is ManifestImageEditDataset
+    assert COLLATE_REGISTRY.get("ImageEditCollate") is ImageEditCollate
     assert COLLATE_REGISTRY.get("ManifestImageEditCollate") is ManifestImageEditCollate
+    assert ImageEditDataset is ManifestImageEditDataset
+    assert ImageEditCollate is ManifestImageEditCollate
     assert TRANSFORM_REGISTRY.get("PairedImageTransform") is not None
