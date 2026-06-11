@@ -2,16 +2,23 @@ import csv
 import json
 from pathlib import Path
 
+import pytest
 import torch
 from PIL import Image
 
+from xdl.config.builder import build_dataset
 from xdl.dataset import (
+    ImageFolderDataset,
     ImageFolderClassificationDataset,
+    ImageTextSidecarDataset,
     ManifestClassificationDataset,
     ManifestImageTextDataset,
+    ManifestMultiLabelClassificationDataset,
     ManifestPairDataset,
     ManifestRegressionDataset,
     ManifestRecordDataset,
+    ManifestTextDataset,
+    ManifestTripletDataset,
 )
 from xdl.utils.registry import DATASET_REGISTRY
 
@@ -25,7 +32,11 @@ def _to_marker_tensor(image: Image.Image) -> torch.Tensor:
     return torch.tensor([image.size[0], image.size[1]], dtype=torch.long)
 
 
-def test_manifest_record_dataset_loads_jsonl(tmp_path) -> None:
+def _prefix_text(value: str) -> str:
+    return f"tok::{value}"
+
+
+def test_manifest_record_dataset_loads_jsonl_and_repeat(tmp_path) -> None:
     manifest_path = tmp_path / "records.jsonl"
     manifest_path.write_text(
         json.dumps({"id": "a", "value": 1}) + "\n"
@@ -33,10 +44,11 @@ def test_manifest_record_dataset_loads_jsonl(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestRecordDataset(manifest_path)
+    dataset = ManifestRecordDataset(manifest_path, repeat=2)
 
-    assert len(dataset) == 2
+    assert len(dataset) == 4
     assert dataset[0] == {"id": "a", "value": 1}
+    assert dataset[2] == {"id": "a", "value": 1}
 
 
 def test_image_folder_classification_dataset_discovers_class_dirs(tmp_path) -> None:
@@ -53,6 +65,36 @@ def test_image_folder_classification_dataset_discovers_class_dirs(tmp_path) -> N
     assert len(dataset) == 2
     assert torch.equal(image, torch.tensor([5, 4]))
     assert target == 0
+
+
+def test_image_folder_dataset_returns_image_sample_and_repeat(tmp_path: Path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+    _save_rgb(tmp_path / "nested" / "b.jpg", (0, 255, 0))
+
+    dataset = ImageFolderDataset(
+        tmp_path,
+        transform=_to_marker_tensor,
+        recursive=True,
+        sample_id_from="relative_path",
+        repeat=2,
+    )
+    sample = dataset[0]
+
+    assert len(dataset) == 4
+    assert torch.equal(sample["image"], torch.tensor([5, 4]))
+    assert sample["sample_id"] == "a.png"
+    assert sample["image_path"] == str((tmp_path / "a.png").resolve())
+    assert dataset[2]["sample_id"] == "a.png"
+
+
+def test_image_folder_dataset_can_disable_recursive_scan(tmp_path: Path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+    _save_rgb(tmp_path / "nested" / "b.jpg", (0, 255, 0))
+
+    dataset = ImageFolderDataset(tmp_path, recursive=False)
+
+    assert len(dataset) == 1
+    assert dataset[0]["sample_id"] == "a"
 
 
 def test_manifest_classification_dataset_supports_string_labels_and_csv(
@@ -101,13 +143,64 @@ def test_manifest_image_text_dataset_returns_text_sample_and_path(tmp_path) -> N
     dataset = ManifestImageTextDataset(
         manifest_path,
         transform=_to_marker_tensor,
+        text_transform=_prefix_text,
     )
     sample = dataset[0]
 
     assert torch.equal(sample["image"], torch.tensor([5, 4]))
-    assert sample["text"] == "a blue square"
+    assert sample["text"] == "tok::a blue square"
     assert sample["sample_id"] == "sample-1"
     assert sample["image_path"] == str((tmp_path / "image.png").resolve())
+
+
+def test_image_text_sidecar_dataset_reads_same_directory_txt(tmp_path: Path) -> None:
+    _save_rgb(tmp_path / "000.png", (0, 0, 255))
+    (tmp_path / "000.txt").write_text("first prompt\nsecond prompt\n", encoding="utf-8")
+
+    dataset = ImageTextSidecarDataset(
+        root=tmp_path,
+        transform=_to_marker_tensor,
+        text_transform=_prefix_text,
+        text_selection="first_line",
+    )
+    sample = dataset[0]
+
+    assert torch.equal(sample["image"], torch.tensor([5, 4]))
+    assert sample["text"] == "tok::first prompt"
+    assert sample["sample_id"] == "000"
+    assert sample["image_path"] == str((tmp_path / "000.png").resolve())
+    assert sample["text_path"] == str((tmp_path / "000.txt").resolve())
+
+
+def test_image_text_sidecar_dataset_reads_split_roots_and_skips_missing(
+    tmp_path: Path,
+) -> None:
+    image_root = tmp_path / "images"
+    text_root = tmp_path / "texts"
+    _save_rgb(image_root / "000.png", (0, 0, 255))
+    _save_rgb(image_root / "001.png", (255, 0, 0))
+    text_root.mkdir()
+    (text_root / "000.txt").write_text("caption text\n", encoding="utf-8")
+
+    dataset = ImageTextSidecarDataset(
+        image_root=image_root,
+        text_root=text_root,
+        missing_text="skip",
+        text_selection="full",
+    )
+    sample = dataset[0]
+
+    assert len(dataset) == 1
+    assert sample["text"] == "caption text"
+    assert sample["sample_id"] == "000"
+    assert sample["text_path"] == str((text_root / "000.txt").resolve())
+
+
+def test_image_text_sidecar_dataset_errors_on_missing_text(tmp_path: Path) -> None:
+    _save_rgb(tmp_path / "000.png", (0, 0, 255))
+
+    with pytest.raises(FileNotFoundError, match="Missing sidecar text files"):
+        ImageTextSidecarDataset(root=tmp_path)
 
 
 def test_manifest_regression_dataset_returns_numeric_target(tmp_path) -> None:
@@ -126,6 +219,56 @@ def test_manifest_regression_dataset_returns_numeric_target(tmp_path) -> None:
 
     assert torch.equal(image, torch.tensor([5, 4]))
     assert target == 3.5
+
+
+def test_manifest_multilabel_dataset_supports_csv_string_labels(tmp_path) -> None:
+    _save_rgb(tmp_path / "sample_a.png", (1, 2, 3))
+    _save_rgb(tmp_path / "sample_b.png", (4, 5, 6))
+    manifest_path = tmp_path / "multilabel.csv"
+    with manifest_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["image", "labels"])
+        writer.writeheader()
+        writer.writerow({"image": "sample_a.png", "labels": "cat,dog"})
+        writer.writerow({"image": "sample_b.png", "labels": "dog"})
+
+    dataset = ManifestMultiLabelClassificationDataset(
+        manifest_path,
+        transform=_to_marker_tensor,
+    )
+    image, target = dataset[0]
+
+    assert dataset.classes == ["cat", "dog"]
+    assert torch.equal(image, torch.tensor([5, 4]))
+    assert target.tolist() == [1.0, 1.0]
+    assert dataset[1][1].tolist() == [0.0, 1.0]
+
+
+def test_manifest_text_dataset_returns_target_text_and_record(tmp_path) -> None:
+    manifest_path = tmp_path / "text.jsonl"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "prompt": "describe image",
+                "response": "blue hair",
+                "sample_id": "txt-1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    dataset = ManifestTextDataset(
+        manifest_path,
+        text_transform=_prefix_text,
+        target_text_transform=_prefix_text,
+        include_record=True,
+    )
+    sample = dataset[0]
+
+    assert sample["text"] == "tok::describe image"
+    assert sample["target_text"] == "tok::blue hair"
+    assert sample["sample_id"] == "txt-1"
+    assert sample["record"]["response"] == "blue hair"
 
 
 def test_manifest_pair_dataset_returns_pair_sample(tmp_path) -> None:
@@ -166,16 +309,95 @@ def test_manifest_pair_dataset_returns_pair_sample(tmp_path) -> None:
     assert sample["image_b_path"] == str((tmp_path / "right.png").resolve())
 
 
+def test_manifest_triplet_dataset_returns_triplet_sample(tmp_path) -> None:
+    _save_rgb(tmp_path / "anchor.png", (10, 11, 12))
+    _save_rgb(tmp_path / "positive.png", (13, 14, 15))
+    _save_rgb(tmp_path / "negative.png", (16, 17, 18))
+    manifest_path = tmp_path / "triplets.jsonl"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "anchor_image": "anchor.png",
+                "positive_image": "positive.png",
+                "negative_image": "negative.png",
+                "anchor_text": "a",
+                "positive_text": "p",
+                "negative_text": "n",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    dataset = ManifestTripletDataset(
+        manifest_path,
+        transform=_to_marker_tensor,
+        text_transform=_prefix_text,
+        anchor_text_key="anchor_text",
+        positive_text_key="positive_text",
+        negative_text_key="negative_text",
+        include_paths=True,
+    )
+    sample = dataset[0]
+
+    assert torch.equal(sample["anchor_image"], torch.tensor([5, 4]))
+    assert torch.equal(sample["positive_image"], torch.tensor([5, 4]))
+    assert torch.equal(sample["negative_image"], torch.tensor([5, 4]))
+    assert sample["anchor_text"] == "tok::a"
+    assert sample["positive_text"] == "tok::p"
+    assert sample["negative_text"] == "tok::n"
+    assert sample["anchor_image_path"] == str((tmp_path / "anchor.png").resolve())
+    assert sample["positive_image_path"] == str((tmp_path / "positive.png").resolve())
+    assert sample["negative_image_path"] == str((tmp_path / "negative.png").resolve())
+
+
+def test_builder_supports_manifest_text_dataset_text_transforms(tmp_path) -> None:
+    manifest_path = tmp_path / "text.jsonl"
+    manifest_path.write_text(
+        json.dumps({"text": "hello", "target_text": "world"}) + "\n",
+        encoding="utf-8",
+    )
+
+    dataset = build_dataset(
+        {
+            "target": "registry:ManifestTextDataset",
+            "params": {
+                "manifest_path": str(manifest_path),
+                "text_transform": {
+                    "target": "torch.nn:Identity",
+                    "params": {},
+                },
+                "target_text_transform": {
+                    "target": "torch.nn:Identity",
+                    "params": {},
+                },
+            },
+        }
+    )
+    sample = dataset[0]
+
+    assert sample["text"] == "hello"
+    assert sample["target_text"] == "world"
+
+
 def test_dataset_templates_are_registered() -> None:
     assert DATASET_REGISTRY.get("ManifestRecordDataset") is ManifestRecordDataset
+    assert DATASET_REGISTRY.get("ImageFolderDataset") is ImageFolderDataset
     assert (
         DATASET_REGISTRY.get("ImageFolderClassificationDataset")
         is ImageFolderClassificationDataset
     )
+    assert DATASET_REGISTRY.get("ImageTextSidecarDataset") is ImageTextSidecarDataset
     assert (
         DATASET_REGISTRY.get("ManifestClassificationDataset")
         is ManifestClassificationDataset
     )
     assert DATASET_REGISTRY.get("ManifestRegressionDataset") is ManifestRegressionDataset
+    assert (
+        DATASET_REGISTRY.get("ManifestMultiLabelClassificationDataset")
+        is ManifestMultiLabelClassificationDataset
+    )
     assert DATASET_REGISTRY.get("ManifestImageTextDataset") is ManifestImageTextDataset
+    assert DATASET_REGISTRY.get("ManifestTextDataset") is ManifestTextDataset
     assert DATASET_REGISTRY.get("ManifestPairDataset") is ManifestPairDataset
+    assert DATASET_REGISTRY.get("ManifestTripletDataset") is ManifestTripletDataset

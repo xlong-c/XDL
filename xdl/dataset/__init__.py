@@ -26,24 +26,34 @@ from .manifest_image_edit import (
     PairedImageTransform,
 )
 from .templates import (
+    ImageFolderDataset,
     ImageFolderClassificationDataset,
+    ImageTextSidecarDataset,
     ManifestClassificationDataset,
     ManifestImageTextDataset,
+    ManifestMultiLabelClassificationDataset,
     ManifestPairDataset,
     ManifestRegressionDataset,
     ManifestRecordDataset,
+    ManifestTextDataset,
+    ManifestTripletDataset,
 )
 
 register_dataset("SyntheticClassificationDataset")(SyntheticClassificationDataset)
 register_dataset("ManifestImageEditDataset")(ManifestImageEditDataset)
 register_dataset("ManifestRecordDataset")(ManifestRecordDataset)
+register_dataset("ImageFolderDataset")(ImageFolderDataset)
 register_dataset("ImageFolderClassificationDataset")(ImageFolderClassificationDataset)
+register_dataset("ImageTextSidecarDataset")(ImageTextSidecarDataset)
 register_dataset("ManifestClassificationDataset")(ManifestClassificationDataset)
 register_dataset("ManifestRegressionDataset")(ManifestRegressionDataset)
+register_dataset("ManifestMultiLabelClassificationDataset")(ManifestMultiLabelClassificationDataset)
 register_dataset("ManifestSegmentationDataset")(ManifestSegmentationDataset)
 register_dataset("ManifestDetectionDataset")(ManifestDetectionDataset)
 register_dataset("ManifestImageTextDataset")(ManifestImageTextDataset)
+register_dataset("ManifestTextDataset")(ManifestTextDataset)
 register_dataset("ManifestPairDataset")(ManifestPairDataset)
+register_dataset("ManifestTripletDataset")(ManifestTripletDataset)
 register_transform("PairedImageTransform")(PairedImageTransform)
 register_transform("ImageMaskTransform")(ImageMaskTransform)
 register_transform("ImageBoxesTransform")(ImageBoxesTransform)
@@ -85,13 +95,18 @@ __all__ = [
     "PairedImageTransform",
     "ManifestImageEditCollate",
     "ManifestRecordDataset",
+    "ImageFolderDataset",
     "ImageFolderClassificationDataset",
+    "ImageTextSidecarDataset",
     "ManifestClassificationDataset",
     "ManifestRegressionDataset",
+    "ManifestMultiLabelClassificationDataset",
     "ManifestSegmentationDataset",
     "ManifestDetectionDataset",
     "ManifestImageTextDataset",
+    "ManifestTextDataset",
     "ManifestPairDataset",
+    "ManifestTripletDataset",
     "GridImageCsvDataset",
     "GridImageDirDataset",
     "Hair10HairDataset",

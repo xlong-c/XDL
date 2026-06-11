@@ -81,7 +81,56 @@
 - 只在确有复用价值时上提抽象
 - 避免把任务私有逻辑硬塞进 schema
 
-### 7. 分布式与大模型接入路径继续沉淀
+### 7. `xdl/dataset/` 按数据形态继续补模板
+
+原因：
+
+- 当前 manifest 主路径已经基本成形
+- `ImageFolderDataset` 和 `ImageTextSidecarDataset` 已覆盖纯图片目录与 `image + txt` 基础入口
+- 实际项目里经常先面对“数据怎么摆”，再决定任务类型
+
+建议把 dataset 继续按两层补齐：
+
+1. 样本语义形态
+
+- `image + label`
+- `image + target`
+- `image + labels`
+- `image + text`
+- `text (+ target_text)`
+- `pair`
+- `triplet`
+- `image + mask`
+- `image + boxes + labels`
+- `image edit`
+
+2. 磁盘组织形态
+
+- manifest 显式字段
+- 目录分类
+- basename sidecar 对齐
+- 纯图片目录
+- 标准格式标注（COCO / YOLO / VOC / keypoint）
+
+建议优先级：
+
+1. `ImageMaskSidecarDataset` 或更通用的 `BasenameAlignedDataset`
+   - 适合 `images/000.png` 对应 `masks/000.png`
+   - 也可复用到 `image + json` / `image + label` 这类 sidecar 结构
+
+2. 标准格式适配
+   - `COCODetectionDataset`
+   - `COCOSegmentationDataset`
+   - keypoint 模板
+
+落地原则：
+
+- manifest 继续作为长期推荐主路径
+- sidecar / image-folder 模板作为低门槛接入路径
+- 不把所有数据组织方式都硬塞成一个超大 dataset 类
+- 优先沉淀成可注册、可 YAML 构建、可测试的通用模板，而不是只在训练脚本里临时实现
+
+### 8. 分布式与大模型接入路径继续沉淀
 
 原因：
 

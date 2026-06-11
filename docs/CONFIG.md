@@ -183,15 +183,134 @@ train_dataloader:
 - `trainer.batch_size` 可作为默认 batch size 来源
 - `collate_fn` 支持 `None`、可调用对象或 `target + params`
 
+### 先区分两种“数据类型”
+
+规划 dataset 模板时，先区分两个维度：
+
+1. 样本语义形态：单条样本里到底有哪些字段。
+2. 磁盘组织形态：这些字段在目录、sidecar 文件或集中标注里怎样存放。
+
+这两个维度不要混在一起。比如：
+
+- `image + text` 是样本语义形态
+- `000.png` 对应 `000.txt` 是磁盘组织形态
+
+同一个语义形态可以有多种组织方式；同一种组织方式也可以承载不同任务。
+
+### 样本语义形态
+
+当前 XDL 已覆盖或正在补齐的主流语义形态包括：
+
+- `image + label`：单标签分类
+- `image + target`：回归
+- `image + labels`：多标签分类
+- `image + text`：图文配对或图像生成微调
+- `text (+ target_text)`：纯文本或 instruction / response
+- `image_a + image_b (+ label)`：pair / matching / contrastive
+- `anchor + positive + negative`：triplet / retrieval
+- `image + mask`：分割等 dense target
+- `image + boxes + labels`：检测
+- `source_image + target_image (+ reference_image + edit_mask + prompt)`：编辑 / 条件生成
+
+### 磁盘组织形态
+
+仓库当前已经出现, 或后续非常值得支持的组织方式主要有：
+
+1. 目录分类型
+
+```text
+root/
+  cat/
+    000.png
+  dog/
+    001.png
+```
+
+- 标签来自父目录名
+- 对应 `image + label`
+- 当前模板：`ImageFolderClassificationDataset`
+
+2. Manifest 显式字段型
+
+```jsonl
+{"image": "images/000.png", "prompt": "a studio portrait"}
+{"image": "images/001.png", "label": "cat"}
+```
+
+- 字段最明确, 可扩展性最好
+- 当前是 XDL 推荐主路径
+- 当前模板覆盖 classification / regression / multilabel / image-text / text / pair / triplet / segmentation / detection / image-edit
+
+3. Basename 对齐的 sidecar 型
+
+```text
+data/
+  000.png
+  000.txt
+  001.png
+  001.txt
+```
+
+或：
+
+```text
+images/
+  000.png
+texts/
+  000.txt
+```
+
+- 通过同名 stem 对齐
+- 常见于 `image + text`, `image + label`, `image + mask`
+- 仓库里 `train/train_sd35m_apex_xdl.py` 已经有 `image.with_suffix(".txt")` 的手写实现
+- 当前模板：`ImageTextSidecarDataset`
+- 后续 `image + mask` / `image + json` 仍建议继续补 basename 对齐模板
+
+4. 多目录对齐型
+
+```text
+images/
+  000.png
+masks/
+  000.png
+```
+
+- 本质上仍是 basename 对齐
+- 常见于分割、depth、编辑、多模态条件输入
+- 当前 `ManifestImageEditDataset` 的真实样本可以由 manifest 描述这类结构
+
+5. 纯图片目录
+
+```text
+images/
+  000.png
+  001.png
+```
+
+- 没有标签或说明文件
+- 常见于推理、生成模型无监督图像源、自监督、特征提取
+- 当前模板：`ImageFolderDataset`, 返回 `image + sample_id + image_path`
+
+6. 集中标注文件型
+
+- 如 COCO / YOLO / VOC / keypoint json
+- 当前 examples 还没有这类官方样例
+- 但这是后续生态兼容的重要方向
+
 常用内置 dataset 模板:
 
+- `registry:ImageFolderDataset`: 读取纯图片目录, 返回 `image + sample_id`, 可选 `image_path`.
 - `registry:ImageFolderClassificationDataset`: 读取 `root/class_name/image` 分类目录.
 - `registry:ManifestClassificationDataset`: 从 JSONL/JSON/CSV manifest 读取 `image + label`.
 - `registry:ManifestRegressionDataset`: 从 manifest 读取 `image + target`, 适合分数、年龄、质量估计等回归任务.
+- `registry:ManifestMultiLabelClassificationDataset`: 从 manifest 读取 `image + labels`, 适合多标签分类.
 - `registry:ManifestSegmentationDataset`: 从 manifest 读取 `image + mask`, 适合语义分割和其他 dense label 任务.
 - `registry:ManifestDetectionDataset`: 从 manifest 读取 `image + boxes + labels`, 适合目标检测和变长 target 任务.
 - `registry:ManifestImageTextDataset`: 从 manifest 读取 `image + text/prompt/caption`, 适合图文微调.
+- `registry:ImageTextSidecarDataset`: 从同名 `.txt` sidecar 读取 `image + text`, 支持同目录或 image/text 分目录.
+- `registry:ManifestTextDataset`: 从 manifest 读取 `text/prompt/caption`, 可选 `target_text/response/completion`, 适合纯文本或指令样本.
 - `registry:ManifestPairDataset`: 从 manifest 读取 `image_a + image_b`, 可选 `label` / `text_a` / `text_b`, 适合 siamese、对比学习、检索 pair.
+- `registry:ManifestTripletDataset`: 从 manifest 读取 `anchor/positive/negative` 图像三元组, 可选各自文本字段, 适合 metric learning 和 retrieval.
 - `registry:ManifestImageEditDataset`: 从 manifest 读取 source/target/reference/mask 多图编辑样本.
 - `registry:ManifestRecordDataset`: 直接返回 manifest 里的 dict 记录.
 
@@ -201,16 +320,84 @@ train_dataloader:
 
 - 分类: `image`, `label`
 - 回归: `image`, `target`
+- 多标签: `image`, `labels`
 - 分割: `image`, `mask`
 - 检测: `image`, `boxes`, `labels`
 - 图文: `image`, `text` 或 `prompt` / `caption`
+- 文本: `text` 或 `prompt` / `caption`, 可选 `target_text` / `response` / `completion`
 - Pair: `image_a`, `image_b`, 可选 `label`, `text_a`, `text_b`
+- Triplet: `anchor_image`, `positive_image`, `negative_image`, 可选 `anchor_text`, `positive_text`, `negative_text`
 - Image edit: `source_image`, `target_image`, 可选 `reference_image`, `edit_mask`, `prompt`
 - 通用样本标识: `sample_id` 或 `id`
 
 如果 manifest 使用不同字段名, 优先通过 dataset 参数显式映射, 不要在训练入口里写额外字段迁移逻辑.
 
-### Manifest 样例
+### 按数据来规划 dataset
+
+实际落模板时，优先先看“手里的数据长什么样”，再决定 dataset 类型。
+
+推荐的判断顺序：
+
+1. 先看磁盘组织形态
+   - 目录分类型：优先 `ImageFolderClassificationDataset`
+   - manifest 明确字段：优先 manifest 系列模板
+   - `000.png + 000.txt`：优先 `ImageTextSidecarDataset`
+   - `000.png + 000.json` / `images/000.png + masks/000.png`：后续走 basename 对齐模板
+   - 只有图片：优先 `ImageFolderDataset`
+2. 再看样本语义形态
+   - 分类 / 回归 / 多标签
+   - 图文 / 文本
+   - pair / triplet
+   - dense / detection / edit
+3. 最后再决定 transform 和 collate
+   - 单输入任务通常可直接复用普通 transform
+   - `image + mask` / `image + boxes` / 多图编辑样本需要同步 transform
+   - 变长 target 任务要单独 collate
+
+可以把当前和后续的 dataset 规划概括成 4 组：
+
+1. Manifest 主路径
+
+- 适合长期可维护的数据
+- 适合多字段、多任务、可扩展 schema
+- 当前优先级最高
+
+2. 目录快捷路径
+
+- 适合最常见的目录分类和纯图片输入
+- 目标是减少写 manifest 的门槛
+- 当前已有 `ImageFolderClassificationDataset` 和 `ImageFolderDataset`
+
+3. Sidecar / basename 对齐路径
+
+- 适合 `000.png` 对应 `000.txt` / `000.json` / `000.png`
+- 适合 diffusion 微调、caption、小型多模态数据、分割 mask
+- 当前已有 `ImageTextSidecarDataset` 覆盖 `image + txt`
+- 后续建议继续补：
+  - `ImageMaskSidecarDataset`
+  - `BasenameAlignedDataset`
+
+4. 标准格式适配路径
+
+- 适合 COCO / YOLO / VOC / keypoint 等通用生态数据
+- 目标是减少用户自己写 parser
+- 后续建议逐步补：
+  - `COCODetectionDataset`
+  - `COCOSegmentationDataset`
+  - `ManifestKeypointDataset` 或标准 keypoint 适配模板
+
+### Dataset 样例
+
+纯图片目录:
+
+```yaml
+train_dataset:
+  target: "registry:ImageFolderDataset"
+  params:
+    root: ${xdl.abspath:${xdl.config_dir},data/images}
+    transform: ${train_transforms}
+    recursive: true
+```
 
 分类:
 
@@ -268,6 +455,41 @@ train_dataset:
     manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_it.jsonl}
     transform: ${train_transforms}
     text_keys: ["prompt", "caption", "text"]
+```
+
+image-text sidecar:
+
+```yaml
+train_dataset:
+  target: "registry:ImageTextSidecarDataset"
+  params:
+    root: ${xdl.abspath:${xdl.config_dir},data/image_text}
+    transform: ${train_transforms}
+    text_extension: ".txt"
+    text_selection: "first_line"
+    missing_text: "skip"
+```
+
+text-only:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestTextDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_text.jsonl}
+    text_keys: ["prompt", "text"]
+    target_text_keys: ["response", "target_text"]
+```
+
+triplet:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestTripletDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_triplet.jsonl}
+    transform: ${train_transforms}
+    include_paths: true
 ```
 
 image edit:
@@ -338,6 +560,21 @@ callbacks:
 ```
 
 `Trainer.from_setup(setup)` 会把这些 callback 加入训练器。
+
+### dataset 参数中的可调用 transform
+
+除了 `transform` / `target_transform`, 内置 manifest 文本模板还支持把
+`text_transform` 和 `target_text_transform` 写成 `target + params` 组件配置:
+
+```yaml
+train_dataset:
+  target: "registry:ManifestTextDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},data/train_text.jsonl}
+    text_transform:
+      target: "torch.nn:Identity"
+      params: {}
+```
 
 ### CoreModel task
 

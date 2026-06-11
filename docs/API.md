@@ -103,6 +103,23 @@ from xdl.utils.registry import (
 - `register_*("Name")(ClassOrFunction)` 是自定义组件接入方式。
 - 支持的注册类型保持为：MODEL、DATASET、OPTIMIZER、SCHEDULER、LOSS、METRIC、TRANSFORM、COLLATE。
 
+当前推荐的内置 dataset 主路径包括：
+
+- `ImageFolderDataset`
+- `ImageFolderClassificationDataset`
+- `ImageTextSidecarDataset`
+- `ManifestRecordDataset`
+- `ManifestClassificationDataset`
+- `ManifestRegressionDataset`
+- `ManifestMultiLabelClassificationDataset`
+- `ManifestSegmentationDataset`
+- `ManifestDetectionDataset`
+- `ManifestImageTextDataset`
+- `ManifestTextDataset`
+- `ManifestPairDataset`
+- `ManifestTripletDataset`
+- `ManifestImageEditDataset`
+
 ### 常用工具入口
 
 ```python
@@ -144,6 +161,7 @@ xdl-usage
 - `xdl.config` 中的 resolver 工具，例如 `load_config_with_schema()`、`merge_with_schema()`、`resolve_config()`。
 - Accelerate、DeepSpeed、FSDP 相关配置字段和行为。
 - 具体内置模型、数据集、loss、metric、optimizer、scheduler 的注册名称和参数细节。
+- 新增 dataset 模板的字段细节与返回结构, 包括 `ImageFolderDataset`、`ImageTextSidecarDataset`、`ManifestMultiLabelClassificationDataset`、`ManifestTextDataset`、`ManifestTripletDataset`。
 - 复杂 callback 的完整构造参数，例如监控、日志、采样、设备统计类回调。
 
 使用这些 API 时，建议通过测试固定自己的项目契约。

@@ -72,10 +72,15 @@ class TestGlobalRegistries:
         available = DATASET_REGISTRY.list_available()
         assert "SyntheticClassificationDataset" in available
         for name in (
+            "ImageFolderDataset",
+            "ImageTextSidecarDataset",
             "ManifestRegressionDataset",
+            "ManifestMultiLabelClassificationDataset",
             "ManifestSegmentationDataset",
             "ManifestDetectionDataset",
+            "ManifestTextDataset",
             "ManifestPairDataset",
+            "ManifestTripletDataset",
         ):
             assert name in available, f"Missing {name}"
 

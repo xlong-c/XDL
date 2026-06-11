@@ -14,29 +14,59 @@
 - `_manifest.py`：manifest 读盘与路径解析公共 helper
 - `manifest_image_edit.py`: 通用多图 image edit manifest 数据集和 paired transform
 - `manifest_dense.py`: 分割, 检测数据集模板, 以及 image-mask / image-boxes transform
-- `templates.py`: 通用 manifest, image folder, classification, regression, image-text, pair 数据集模板
+- `templates.py`: 通用 manifest, image folder, image-only, image-text sidecar, classification, regression, multi-label, image-text, text, pair, triplet 数据集模板
 - `collate.py`：通用批处理拼接逻辑
 
 ## 推荐模板
 
 - `ManifestRecordDataset`：最通用的 manifest dict 读取模板
+- `ImageFolderDataset`：纯图片目录模板, 适合推理、自监督或无标签图像源
 - `ImageFolderClassificationDataset`：最短路径的目录分类模板
+- `ImageTextSidecarDataset`：`000.png` 对应 `000.txt` 的图文 sidecar 模板
 - `ManifestClassificationDataset`：真实项目更常见的 manifest 分类模板
 - `ManifestRegressionDataset`：分数, 年龄, 质量估计等回归模板
+- `ManifestMultiLabelClassificationDataset`：多标签分类模板
 - `ManifestSegmentationDataset`：`image + mask` dense prediction 模板
 - `ManifestDetectionDataset`：`image + boxes + labels` 检测模板
 - `ManifestImageTextDataset`：图文配对模板
+- `ManifestTextDataset`：纯文本 / 指令 / 响应样本模板
 - `ManifestPairDataset`：siamese / contrastive / retrieval pair 模板
+- `ManifestTripletDataset`：anchor / positive / negative 检索模板
 - `ManifestImageEditDataset`：source/target/reference/mask 编辑模板
+
+## 数据组织形态
+
+当前和后续规划中，优先区分两层：
+
+1. 样本语义形态：`image + label`、`image + text`、`pair`、`triplet`、`image + mask` 等
+2. 磁盘组织形态：manifest、目录分类、basename sidecar 对齐、纯图片目录、标准格式标注
+
+当前主路径是 manifest 系列模板。
+
+仓库里已经存在的真实数据组织方式包括：
+
+- 目录分类：`root/class_name/image`
+- 纯图片目录：`root/image`
+- manifest 显式字段：classification / regression / segmentation / detection / image-text / image-edit
+- 多图编辑样本：`source_image + target_image + reference_image + mask`
+- `image + txt` sidecar：同目录或 image/text 分目录的 basename 对齐
+
+后续优先补的组织形态模板：
+
+- `images/000.png` 对应 `masks/000.png`：`ImageMaskSidecarDataset` 或更通用的 `BasenameAlignedDataset`
+- 标准格式适配：COCO / keypoint
 
 ## 推荐字段名
 
 - 分类: `image`, `label`
 - 回归: `image`, `target`
+- 多标签: `image`, `labels`
 - 分割: `image`, `mask`
 - 检测: `image`, `boxes`, `labels`
 - 图文: `image`, `text` 或 `prompt` / `caption`
+- 文本: `text` 或 `prompt` / `caption`, 可选 `target_text` / `response` / `completion`
 - Pair: `image_a`, `image_b`, 可选 `label`, `text_a`, `text_b`
+- Triplet: `anchor_image`, `positive_image`, `negative_image`, 可选 `anchor_text`, `positive_text`, `negative_text`
 - 编辑: `source_image`, `target_image`, 可选 `reference_image`, `edit_mask`, `prompt`
 - 通用样本标识: `sample_id` 或 `id`
 

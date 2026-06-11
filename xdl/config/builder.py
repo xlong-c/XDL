@@ -305,7 +305,12 @@ def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> An
     if transform_value is not None:
         params["transform"] = transform_value
 
-    for optional_key in ("target_transform", "transforms"):
+    for optional_key in (
+        "target_transform",
+        "transforms",
+        "text_transform",
+        "target_text_transform",
+    ):
         if optional_key in params:
             params[optional_key] = _resolve_optional_transform(params[optional_key])
 

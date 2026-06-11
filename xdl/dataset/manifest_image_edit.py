@@ -12,7 +12,7 @@ from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
 
-from ._manifest import load_manifest_records, resolve_path
+from ._manifest import build_sample_id, first_present_value, load_manifest_context, resolve_path
 
 
 IMAGE_KEYS: Tuple[str, ...] = ("source_image", "target_image", "reference_image")
@@ -106,15 +106,13 @@ class ManifestImageEditDataset(Dataset[Dict[str, Any]]):
         sample_id_key: Optional[str] = None,
         transform: Optional[PairedImageTransform] = None,
     ) -> None:
-        self.manifest_path = Path(manifest_path).expanduser().resolve()
-        self.records = load_manifest_records(self.manifest_path)
-        if not self.records:
-            raise ValueError(f"Manifest is empty: {self.manifest_path}")
-
-        self.base_dir = (
-            Path(base_dir).expanduser().resolve()
-            if base_dir is not None
-            else self.manifest_path.parent
+        (
+            self.manifest_path,
+            self.base_dir,
+            self.records,
+        ) = load_manifest_context(
+            manifest_path,
+            base_dir=base_dir,
         )
         self.image_keys = tuple(image_keys or IMAGE_KEYS)
         self.required_image_keys = tuple(required_image_keys or REQUIRED_IMAGE_KEYS)
@@ -185,22 +183,18 @@ class ManifestImageEditDataset(Dataset[Dict[str, Any]]):
         return {}
 
     def _prompt(self, record: Mapping[str, Any]) -> str:
-        for key in self.prompt_keys:
-            value = record.get(key)
-            if value not in (None, ""):
-                return str(value)
-        return ""
+        value = first_present_value(record, self.prompt_keys, default="")
+        return str(value) if value not in (None, "") else ""
 
     def _sample_id(self, record: Mapping[str, Any], index: int) -> str:
-        if self.sample_id_key and record.get(self.sample_id_key) not in (None, ""):
-            return str(record[self.sample_id_key])
-        for key in ("sample_id", "id"):
-            if record.get(key) not in (None, ""):
-                return str(record[key])
         source_value = record.get(self.image_keys[0])
-        if source_value not in (None, ""):
-            return Path(str(source_value)).stem
-        return str(index)
+        fallback = Path(str(source_value)).stem if source_value not in (None, "") else None
+        return build_sample_id(
+            record,
+            index=index,
+            sample_id_key=self.sample_id_key,
+            fallback=fallback,
+        )
 
 
 class ManifestImageEditCollate:

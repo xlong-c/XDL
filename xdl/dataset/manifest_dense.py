@@ -13,7 +13,13 @@ from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
 
-from ._manifest import load_manifest_records, resolve_path
+from ._manifest import (
+    build_sample_id,
+    load_manifest_context,
+    require_record_keys,
+    resolve_path,
+    resolve_record_path,
+)
 
 PathLike = Union[str, Path]
 Record = Dict[str, Any]
@@ -191,11 +197,13 @@ class ManifestSegmentationDataset(Dataset[Record]):
         include_paths: bool = False,
         sample_id_key: Optional[str] = None,
     ) -> None:
-        self.manifest_path = Path(manifest_path).expanduser().resolve()
-        self.base_dir = (
-            Path(base_dir).expanduser().resolve()
-            if base_dir is not None
-            else self.manifest_path.parent
+        (
+            self.manifest_path,
+            self.base_dir,
+            self.records,
+        ) = load_manifest_context(
+            manifest_path,
+            base_dir=base_dir,
         )
         self.image_key = image_key
         self.mask_key = mask_key
@@ -203,22 +211,16 @@ class ManifestSegmentationDataset(Dataset[Record]):
         self.image_mode = image_mode
         self.include_paths = bool(include_paths)
         self.sample_id_key = sample_id_key
-        self.records = load_manifest_records(self.manifest_path)
-        if not self.records:
-            raise ValueError(f"Manifest is empty: {self.manifest_path}")
 
     def __len__(self) -> int:
         return len(self.records)
 
     def __getitem__(self, index: int) -> Record:
         record = self.records[index]
-        if self.image_key not in record:
-            raise KeyError(f"Manifest record requires image key '{self.image_key}'")
-        if self.mask_key not in record:
-            raise KeyError(f"Manifest record requires mask key '{self.mask_key}'")
+        require_record_keys(record, (self.image_key, self.mask_key))
 
-        image_path = resolve_path(record[self.image_key], self.base_dir)
-        mask_path = resolve_path(record[self.mask_key], self.base_dir)
+        image_path = resolve_record_path(record, self.image_key, self.base_dir)
+        mask_path = resolve_record_path(record, self.mask_key, self.base_dir)
         image = Image.open(image_path).convert(self.image_mode)
         mask = Image.open(mask_path).convert("L")
         if self.transform is not None:
@@ -238,14 +240,13 @@ class ManifestSegmentationDataset(Dataset[Record]):
         return sample
 
     def _sample_id(self, record: Mapping[str, Any], image_path: Path, index: int) -> str:
-        if self.sample_id_key and record.get(self.sample_id_key) not in (None, ""):
-            return str(record[self.sample_id_key])
-        for key in ("sample_id", "id"):
-            if record.get(key) not in (None, ""):
-                return str(record[key])
-        if image_path.name:
-            return image_path.stem
-        return str(index)
+        fallback = image_path.stem if image_path.name else None
+        return build_sample_id(
+            record,
+            index=index,
+            sample_id_key=self.sample_id_key,
+            fallback=fallback,
+        )
 
 
 class ManifestDetectionDataset(Dataset[Record]):
@@ -263,11 +264,13 @@ class ManifestDetectionDataset(Dataset[Record]):
         include_paths: bool = False,
         sample_id_key: Optional[str] = None,
     ) -> None:
-        self.manifest_path = Path(manifest_path).expanduser().resolve()
-        self.base_dir = (
-            Path(base_dir).expanduser().resolve()
-            if base_dir is not None
-            else self.manifest_path.parent
+        (
+            self.manifest_path,
+            self.base_dir,
+            self.records,
+        ) = load_manifest_context(
+            manifest_path,
+            base_dir=base_dir,
         )
         self.image_key = image_key
         self.boxes_key = boxes_key
@@ -276,21 +279,15 @@ class ManifestDetectionDataset(Dataset[Record]):
         self.image_mode = image_mode
         self.include_paths = bool(include_paths)
         self.sample_id_key = sample_id_key
-        self.records = load_manifest_records(self.manifest_path)
-        if not self.records:
-            raise ValueError(f"Manifest is empty: {self.manifest_path}")
 
     def __len__(self) -> int:
         return len(self.records)
 
     def __getitem__(self, index: int) -> Record:
         record = self.records[index]
-        if self.image_key not in record:
-            raise KeyError(f"Manifest record requires image key '{self.image_key}'")
-        if self.boxes_key not in record:
-            raise KeyError(f"Manifest record requires boxes key '{self.boxes_key}'")
+        require_record_keys(record, (self.image_key, self.boxes_key))
 
-        image_path = resolve_path(record[self.image_key], self.base_dir)
+        image_path = resolve_record_path(record, self.image_key, self.base_dir)
         image = Image.open(image_path).convert(self.image_mode)
         boxes = _coerce_boxes(record[self.boxes_key])
         labels = _coerce_labels(record.get(self.labels_key), len(boxes))
@@ -312,14 +309,13 @@ class ManifestDetectionDataset(Dataset[Record]):
         return sample
 
     def _sample_id(self, record: Mapping[str, Any], image_path: Path, index: int) -> str:
-        if self.sample_id_key and record.get(self.sample_id_key) not in (None, ""):
-            return str(record[self.sample_id_key])
-        for key in ("sample_id", "id"):
-            if record.get(key) not in (None, ""):
-                return str(record[key])
-        if image_path.name:
-            return image_path.stem
-        return str(index)
+        fallback = image_path.stem if image_path.name else None
+        return build_sample_id(
+            record,
+            index=index,
+            sample_id_key=self.sample_id_key,
+            fallback=fallback,
+        )
 
 
 class DetectionCollate:
