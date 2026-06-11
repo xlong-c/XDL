@@ -11,30 +11,30 @@
 - `basic.py`：基础或合成数据集
 - `hairdata*.py`：毛发相关数据集
 - `hair_transforms.py`：相关 transform
-- `_manifest.py`：manifest 读盘与路径解析公共 helper
+- `_records.py`：manifest 读盘与路径解析公共 helper
 - `_paths.py`: 图片扫描, 扩展名归一化, basename sidecar 对齐和 path sample_id helper
-- `manifest_image_edit.py`: 通用多图 image edit manifest 数据集和 paired transform
-- `manifest_dense.py`: 分割, 检测, image-mask sidecar 数据集模板, 以及 image-mask / image-boxes transform
+- `image_edit.py`: 通用多图 image edit manifest 数据集和 paired transform
+- `dense.py`: 分割, 检测, image-mask sidecar 数据集模板, 以及 image-mask / image-boxes transform
 - `templates.py`: 通用 manifest, image folder, image-only, image-text sidecar, classification, regression, multi-label, image-text, text, pair, triplet 数据集模板
 - `collate.py`：通用批处理拼接逻辑
 
 ## 推荐模板
 
-- `ManifestRecordDataset`：最通用的 manifest dict 读取模板
+- `RecordDataset`：最通用的 manifest dict 读取模板
 - `ImageFolderDataset`：纯图片目录模板, 适合推理、自监督或无标签图像源
 - `ImageFolderClassificationDataset`：最短路径的目录分类模板
 - `ImageTextSidecarDataset`：`000.png` 对应 `000.txt` 的图文 sidecar 模板
 - `ImageMaskSidecarDataset`: `images/000.png` 对应 `masks/000.png` 的 image-mask sidecar 模板
-- `ManifestClassificationDataset`：真实项目更常见的 manifest 分类模板
-- `ManifestRegressionDataset`：分数, 年龄, 质量估计等回归模板
-- `ManifestMultiLabelClassificationDataset`：多标签分类模板
-- `ManifestSegmentationDataset`：`image + mask` dense prediction 模板
-- `ManifestDetectionDataset`：`image + boxes + labels` 检测模板
-- `ManifestImageTextDataset`：图文配对模板
-- `ManifestTextDataset`：纯文本 / 指令 / 响应样本模板
-- `ManifestPairDataset`：siamese / contrastive / retrieval pair 模板
-- `ManifestTripletDataset`：anchor / positive / negative 检索模板
-- `ManifestImageEditDataset`：source/target/reference/mask 编辑模板
+- `RecordClassificationDataset`：真实项目更常见的 manifest 分类模板
+- `RecordRegressionDataset`：分数, 年龄, 质量估计等回归模板
+- `RecordMultiLabelClassificationDataset`：多标签分类模板
+- `RecordSegmentationDataset`：`image + mask` dense prediction 模板
+- `RecordDetectionDataset`：`image + boxes + labels` 检测模板
+- `RecordImageTextDataset`：图文配对模板
+- `RecordTextDataset`：纯文本 / 指令 / 响应样本模板
+- `RecordPairDataset`：siamese / contrastive / retrieval pair 模板
+- `RecordTripletDataset`：anchor / positive / negative 检索模板
+- `ImageEditDataset`：source/target/reference/mask 编辑模板
 
 ## 数据组织形态
 
@@ -43,7 +43,7 @@
 1. 样本语义形态：`image + label`、`image + text`、`pair`、`triplet`、`image + mask` 等
 2. 磁盘组织形态：manifest、目录分类、basename sidecar 对齐、纯图片目录、标准格式标注
 
-当前主路径是 manifest 系列模板。
+当前主路径是 `Record*` 模板读取 manifest 文件. 历史 `Manifest*` 类名和 registry 键继续保留为兼容别名, 新代码优先使用 `Record*` / `ImageEdit*` 名称.
 
 仓库里已经存在的真实数据组织方式包括：
 
