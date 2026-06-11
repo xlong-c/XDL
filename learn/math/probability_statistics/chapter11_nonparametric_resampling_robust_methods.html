@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="数理统计第十一章教程: 非参数统计, 重抽样与稳健方法 HTML 教程">
+  <title>数理统计第十一章教程: 非参数统计, 重抽样与稳健方法</title>
+  <link rel="stylesheet" href="probability_statistics.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      }
+    });
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="outline.md">
+        <span class="brand-mark">P</span>
+        <span>概率统计教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="outline.md">总纲</a>
+        <a class="nav-link" href="todo.html">进度</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Chapter 11</p>
+        <h1>数理统计第十一章教程: 非参数统计, 重抽样与稳健方法</h1>
+        <p class="lead">前面几章的很多结论依赖漂亮的模型假设: - 样本独立同分布 - 正态总体或大样本正态近似 - 方差稳定 - 少数异常值不会强烈影响结果 现实数据却经常不这么配合:</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#route-panel">阅读路径</a>
+        </div>
+      </div>
+      <aside id="route-panel" class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>页面概览</strong>
+          <span class="tag">公式 + 图示 + 主线</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>74</strong></div>
+          <div class="stat-card"><span>公式</span><strong>56</strong></div>
+          <div class="stat-card"><span>配图</span><strong>4</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 先看全章主线</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 为什么需要非参数和稳健方法</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 秩的思想</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 符号检验</strong><span>本节是页面阅读路径中的关键节点.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-先看全章主线">0. 先看全章主线</a>
+<a href="#02-1-为什么需要非参数和稳健方法">1. 为什么需要非参数和稳健方法</a>
+<a href="#03-11-参数方法的优势">1.1 参数方法的优势</a>
+<a href="#04-12-参数方法的风险">1.2 参数方法的风险</a>
+<a href="#05-13-非参数不等于没有假设">1.3 非参数不等于没有假设</a>
+<a href="#06-2-秩的思想">2. 秩的思想</a>
+<a href="#07-21-什么是秩">2.1 什么是秩</a>
+<a href="#08-22-为什么用秩">2.2 为什么用秩</a>
+<a href="#09-23-信息损失">2.3 信息损失</a>
+<a href="#10-3-符号检验">3. 符号检验</a>
+<a href="#11-31-问题形式">3.1 问题形式</a>
+<a href="#12-32-原假设">3.2 原假设</a>
+<a href="#13-33-优点和限制">3.3 优点和限制</a>
+<a href="#14-4-wilcoxon-检验初步">4. Wilcoxon 检验初步</a>
+<a href="#15-41-wilcoxon-符号秩检验">4.1 Wilcoxon 符号秩检验</a>
+<a href="#16-42-wilcoxon-秩和检验">4.2 Wilcoxon 秩和检验</a>
+<a href="#17-43-它检验的不是简单均值差">4.3 它检验的不是简单均值差</a>
+<a href="#18-5-kolmogorov-smirnov-检验初步">5. Kolmogorov-Smirnov 检验初步</a>
+<a href="#19-51-从经验分布函数出发">5.1 从经验分布函数出发</a>
+<a href="#20-52-单样本-ks-检验">5.2 单样本 KS 检验</a>
+<a href="#21-53-两样本-ks-检验">5.3 两样本 KS 检验</a>
+<a href="#22-54-使用注意">5.4 使用注意</a>
+<a href="#23-6-bootstrap">6. Bootstrap</a>
+<a href="#24-61-核心想法">6.1 核心想法</a>
+<a href="#25-62-bootstrap-能估什么">6.2 Bootstrap 能估什么</a>
+<a href="#26-63-百分位区间">6.3 百分位区间</a>
+<a href="#27-64-bootstrap-的限制">6.4 Bootstrap 的限制</a>
+<a href="#28-7-jackknife-初步">7. Jackknife 初步</a>
+<a href="#29-71-留一法思想">7.1 留一法思想</a>
+<a href="#30-72-用途">7.2 用途</a>
+<a href="#31-73-和-bootstrap-的差别">7.3 和 Bootstrap 的差别</a>
+<a href="#32-8-置换检验">8. 置换检验</a>
+<a href="#33-81-核心想法">8.1 核心想法</a>
+<a href="#34-82-例子-均值差">8.2 例子: 均值差</a>
+<a href="#35-83-置换检验的关键假设">8.3 置换检验的关键假设</a>
+<a href="#36-9-稳健位置估计">9. 稳健位置估计</a>
+<a href="#37-91-均值的脆弱性">9.1 均值的脆弱性</a>
+<a href="#38-92-中位数">9.2 中位数</a>
+<a href="#39-93-截尾均值">9.3 截尾均值</a>
+<a href="#40-10-稳健尺度估计">10. 稳健尺度估计</a>
+<a href="#41-101-标准差的问题">10.1 标准差的问题</a>
+<a href="#42-102-mad">10.2 MAD</a>
+<a href="#43-103-iqr">10.3 IQR</a>
+<a href="#44-11-厚尾数据">11. 厚尾数据</a>
+<a href="#45-111-什么是厚尾">11.1 什么是厚尾</a>
+<a href="#46-112-为什么厚尾麻烦">11.2 为什么厚尾麻烦</a>
+<a href="#47-113-应对思路">11.3 应对思路</a>
+<a href="#48-12-异常值处理">12. 异常值处理</a>
+<a href="#49-121-异常值不是自动错误">12.1 异常值不是自动错误</a>
+<a href="#50-122-处理前先分类">12.2 处理前先分类</a>
+<a href="#51-123-敏感性分析">12.3 敏感性分析</a>
+<a href="#52-13-参数方法-非参数方法和稳健方法怎么选">13. 参数方法, 非参数方法和稳健方法怎么选</a>
+<a href="#53-131-参数方法适合什么时候">13.1 参数方法适合什么时候</a>
+<a href="#54-132-非参数方法适合什么时候">13.2 非参数方法适合什么时候</a>
+<a href="#55-133-重抽样适合什么时候">13.3 重抽样适合什么时候</a>
+<a href="#56-134-稳健方法适合什么时候">13.4 稳健方法适合什么时候</a>
+<a href="#57-14-本章主线总结">14. 本章主线总结</a>
+<a href="#58-15-典型题型与实战清单">15. 典型题型与实战清单</a>
+<a href="#59-151-典型题型">15.1 典型题型</a>
+<a href="#60-152-实战清单">15.2 实战清单</a>
+<a href="#61-16-典型误区">16. 典型误区</a>
+<a href="#62-误区-1-以为非参数方法没有假设">误区 1: 以为非参数方法没有假设</a>
+<a href="#63-误区-2-bootstrap-能修复样本偏差">误区 2: Bootstrap 能修复样本偏差</a>
+<a href="#64-误区-3-异常值一律删除">误区 3: 异常值一律删除</a>
+<a href="#65-误区-4-秩检验总是在比较中位数">误区 4: 秩检验总是在比较中位数</a>
+<a href="#66-误区-5-用重抽样替代研究设计">误区 5: 用重抽样替代研究设计</a>
+<a href="#67-误区-6-只看均值不看分布">误区 6: 只看均值不看分布</a>
+<a href="#68-17-和前后章节的连接点">17. 和前后章节的连接点</a>
+<a href="#69-171-和第七章的连接">17.1 和第七章的连接</a>
+<a href="#70-172-和第八章的连接">17.2 和第八章的连接</a>
+<a href="#71-173-和第九章的连接">17.3 和第九章的连接</a>
+<a href="#72-174-和第十章的连接">17.4 和第十章的连接</a>
+<a href="#73-175-和后续贝叶斯与统计学习的连接">17.5 和后续贝叶斯与统计学习的连接</a>
+<a href="#74-18-本章收尾">18. 本章收尾</a>
+    </aside>
+    <div class="content">
+      <article class="article">
+        <div class="chapter-note">
+          <strong>HTML 阅读版</strong>
+          本页由同名 Markdown 自动转换生成, 保留原文结构, 并增强目录, 图表, 公式和重点提示的阅读体验.
+        </div>
+        <div class="source-title"><h2>数理统计第十一章教程: 非参数统计, 重抽样与稳健方法</h2></div>
+<blockquote class="callout"><p>前面几章的很多结论依赖漂亮的模型假设:</p><p>- 样本独立同分布<br>- 正态总体或大样本正态近似<br>- 方差稳定<br>- 少数异常值不会强烈影响结果</p><p>现实数据却经常不这么配合:</p><p>1. 分布明显偏态或厚尾.<br>2. 样本量不大, 正态近似不稳.<br>3. 数据里有异常值.<br>4. 只关心顺序, 不相信原始尺度.<br>5. 很难写出可信的参数模型.</p><p>这一章介绍的非参数统计, 重抽样和稳健方法, 不是放弃统计推断, 而是在假设不够可靠时换一套更稳妥的工具.</p></blockquote>
+<hr class="divider">
+<h2 id="01-0-先看全章主线">0. 先看全章主线</h2>
+<p>第十一章的主线可以压成下面这张图:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A[&quot;现实数据&lt;br/&gt;偏态, 厚尾, 异常值&quot;] --&gt; B[&quot;参数方法&lt;br/&gt;依赖明确分布假设&quot;]
+    A --&gt; C[&quot;非参数方法&lt;br/&gt;少用分布形状假设&quot;]
+    C --&gt; D[&quot;秩和符号&lt;br/&gt;使用顺序和方向信息&quot;]
+    C --&gt; E[&quot;KS 检验&lt;br/&gt;比较分布函数&quot;]
+    A --&gt; F[&quot;重抽样&lt;br/&gt;用样本近似重复抽样&quot;]
+    F --&gt; G[&quot;Bootstrap&lt;br/&gt;有放回重采样&quot;]
+    F --&gt; H[&quot;Jackknife&lt;br/&gt;留一法近似影响&quot;]
+    F --&gt; I[&quot;置换检验&lt;br/&gt;打乱标签构造零分布&quot;]
+    A --&gt; J[&quot;稳健方法&lt;br/&gt;降低异常值影响&quot;]
+    J --&gt; K[&quot;中位数, MAD,&lt;br/&gt;截尾均值&quot;]</pre></div>
+<p>一句话概括这一章:</p>
+<blockquote class="callout"><p>非参数和稳健方法不是完全没有假设,<br>而是在参数模型不够可信时,<br>用更少的结构假设换取更稳妥的推断.</p></blockquote>
+<hr class="divider">
+<h2 id="02-1-为什么需要非参数和稳健方法">1. 为什么需要非参数和稳健方法</h2>
+<h3 id="03-11-参数方法的优势">1.1 参数方法的优势</h3>
+<p>参数方法假设总体属于某个有限参数族.<br> 例如:</p>
+<div class="math-block">$$
+X\sim \mathcal{N}(\mu,\sigma^2)
+$$</div>
+<p>或:</p>
+<div class="math-block">$$
+X\sim \mathrm{Exponential}(\lambda)
+$$</div>
+<p>如果假设合理, 参数方法通常很高效:</p>
+<ul><li>公式清楚</li>
+<li>推断精确</li>
+<li>样本量需求较低</li>
+<li>解释简洁</li></ul>
+<h3 id="04-12-参数方法的风险">1.2 参数方法的风险</h3>
+<p>如果假设明显错了, 参数方法可能给出看似精确但实际不可靠的结论.</p>
+<p>常见问题包括:</p>
+<ul><li>正态假设不成立</li>
+<li>方差不等</li>
+<li>离群点强烈影响均值和方差</li>
+<li>分布厚尾导致极端值更常见</li>
+<li>样本量太小, 大样本近似不稳</li></ul>
+<p>这时我们需要另一类方法.</p>
+<h3 id="05-13-非参数不等于没有假设">1.3 非参数不等于没有假设</h3>
+<p>非参数方法并不是完全没有假设.<br> 它只是减少对具体分布形状的依赖.</p>
+<p>例如秩和检验不要求正态分布, 但仍然需要考虑:</p>
+<ul><li>样本是否独立</li>
+<li>两组观测是否可比较</li>
+<li>数据是否至少有顺序意义</li>
+<li>检验目标到底是位置差异还是更广泛的分布差异</li></ul>
+<p>所以更准确的说法是:</p>
+<blockquote class="callout"><p>非参数方法少用参数分布假设, 但不是无条件可靠.</p></blockquote>
+<hr class="divider">
+<h2 id="06-2-秩的思想">2. 秩的思想</h2>
+<h3 id="07-21-什么是秩">2.1 什么是秩</h3>
+<p>把一组观测从小到大排序, 每个观测的位置编号称为秩.</p>
+<p>例如样本:</p>
+<div class="math-block">$$
+3.2,\ 1.5,\ 4.1,\ 2.0
+$$</div>
+<p>从小到大是:</p>
+<div class="math-block">$$
+1.5,\ 2.0,\ 3.2,\ 4.1
+$$</div>
+<p>对应秩为:</p>
+<div class="math-block">$$
+2,\ 1,\ 4,\ 3
+$$</div>
+<p>原始数值被转换成相对顺序.</p>
+<h3 id="08-22-为什么用秩">2.2 为什么用秩</h3>
+<p>秩方法关心的是谁更大, 谁更小, 而不是具体差多少.</p>
+<p>这有两个好处:</p>
+<ul><li>对极端值更不敏感</li>
+<li>不需要强假设原始数值服从正态分布</li></ul>
+<figure class="figure"><img src="assets/ps_ch11_rank_vs_parametric.png" alt="参数视角与秩视角对比图"><figcaption>参数视角与秩视角对比图</figcaption></figure>
+<p>图中左侧看原始数值, 均值会被极端点拉动.<br> 右侧把数值转换成秩, 重点变成两组在合并排序中的相对位置.</p>
+<h3 id="09-23-信息损失">2.3 信息损失</h3>
+<p>秩方法也有代价.<br> 把原始数值变成秩以后, 数值间距信息会被丢掉.</p>
+<p>例如:</p>
+<div class="math-block">$$
+1,2,3
+$$</div>
+<p>和:</p>
+<div class="math-block">$$
+1,2,100
+$$</div>
+<p>秩都是:</p>
+<div class="math-block">$$
+1,2,3
+$$</div>
+<p>但原始尺度差异完全不同.</p>
+<p>所以秩方法适合在原始尺度不可靠, 或异常值风险很高时使用.</p>
+<hr class="divider">
+<h2 id="10-3-符号检验">3. 符号检验</h2>
+<h3 id="11-31-问题形式">3.1 问题形式</h3>
+<p>符号检验常用于配对数据或中位数问题.</p>
+<p>例如同一批用户在改版前后各有一个指标:</p>
+<div class="math-block">$$
+(X_i,Y_i),\quad i=1,\dots,n
+$$</div>
+<p>构造差值:</p>
+<div class="math-block">$$
+D_i=Y_i-X_i
+$$</div>
+<p>如果只关心方向, 就记录:</p>
+<div class="math-block">$$
+\mathrm{sign}(D_i)
+$$</div>
+<h3 id="12-32-原假设">3.2 原假设</h3>
+<p>检验中位数差异是否为 0:</p>
+<div class="math-block">$$
+H_0:\mathrm{median}(D)=0
+$$</div>
+<p>如果 $H_0$ 成立, 正差和负差大致一样可能.</p>
+<p>忽略 $D_i=0$ 的样本后, 正号个数:</p>
+<div class="math-block">$$
+S=\#\{i:D_i&gt;0\}
+$$</div>
+<p>在 $H_0$ 下近似服从:</p>
+<div class="math-block">$$
+S\sim \mathrm{Binomial}(n,0.5)
+$$</div>
+<h3 id="13-33-优点和限制">3.3 优点和限制</h3>
+<p>优点:</p>
+<ul><li>非常稳健</li>
+<li>只需要方向信息</li>
+<li>对极端差值不敏感</li></ul>
+<p>限制:</p>
+<ul><li>丢掉差值大小</li>
+<li>功效可能较低</li>
+<li>只适合问题确实可以用方向表达时</li></ul>
+<hr class="divider">
+<h2 id="14-4-wilcoxon-检验初步">4. Wilcoxon 检验初步</h2>
+<h3 id="15-41-wilcoxon-符号秩检验">4.1 Wilcoxon 符号秩检验</h3>
+<p>符号检验只看方向.<br> Wilcoxon 符号秩检验进一步使用差值绝对值的秩.</p>
+<p>对配对差值:</p>
+<div class="math-block">$$
+D_i=Y_i-X_i
+$$</div>
+<p>步骤大致是:</p>
+<ol><li>去掉 $D_i=0$ 的样本.</li>
+<li>对 $|D_i|$ 排秩.</li>
+<li>给秩加上原差值的正负号.</li>
+<li>比较正秩和负秩是否平衡.</li></ol>
+<p>它比符号检验利用了更多信息, 但仍然比 t 检验少依赖正态假设.</p>
+<h3 id="16-42-wilcoxon-秩和检验">4.2 Wilcoxon 秩和检验</h3>
+<p>两独立样本的秩和检验也称 Mann-Whitney U 检验.</p>
+<p>它把两组样本合并排序, 比较两组秩和是否明显不同.</p>
+<p>直觉是:</p>
+<blockquote class="callout"><p>如果两组来自同一分布, 它们在合并排序中应该交错出现.</p></blockquote>
+<p>如果一组整体偏大, 这一组的秩和会偏大.</p>
+<h3 id="17-43-它检验的不是简单均值差">4.3 它检验的不是简单均值差</h3>
+<p>秩和检验常被粗略说成比较中位数, 但严格解释要小心.</p>
+<p>如果两组分布形状相同, 只存在位置平移, 它可以理解为比较位置差异.<br> 如果两组分布形状不同, 它更像是在比较随机优势:</p>
+<div class="math-block">$$
+P(X&lt;Y)
+$$</div>
+<p>因此结论语言要和假设条件匹配.</p>
+<hr class="divider">
+<h2 id="18-5-kolmogorov-smirnov-检验初步">5. Kolmogorov-Smirnov 检验初步</h2>
+<h3 id="19-51-从经验分布函数出发">5.1 从经验分布函数出发</h3>
+<p>第七章定义过经验分布函数:</p>
+<div class="math-block">$$
+F_n(x)=\frac{1}{n}\sum_{i=1}^{n}\mathbf{1}\{X_i\le x\}
+$$</div>
+<p>KS 检验直接比较分布函数之间的距离.</p>
+<h3 id="20-52-单样本-ks-检验">5.2 单样本 KS 检验</h3>
+<p>单样本 KS 检验比较经验分布 $F_n$ 和某个理论分布 $F_0$:</p>
+<div class="math-block">$$
+D_n=\sup_x |F_n(x)-F_0(x)|
+$$</div>
+<p>如果最大差距太大, 就拒绝样本来自 $F_0$ 的假设.</p>
+<h3 id="21-53-两样本-ks-检验">5.3 两样本 KS 检验</h3>
+<p>两样本 KS 检验比较两个经验分布:</p>
+<div class="math-block">$$
+D_{n,m}=\sup_x |F_n(x)-G_m(x)|
+$$</div>
+<p>它关心的是两个总体分布是否相同, 不只是均值或中位数.</p>
+<h3 id="22-54-使用注意">5.4 使用注意</h3>
+<p>KS 检验对分布整体差异敏感, 但不同位置的敏感度并不完全相同.<br> 如果重点是尾部差异, 可能需要专门的尾部检验或图形诊断.</p>
+<hr class="divider">
+<h2 id="23-6-bootstrap">6. Bootstrap</h2>
+<h3 id="24-61-核心想法">6.1 核心想法</h3>
+<p>Bootstrap 的核心思想是:</p>
+<blockquote class="callout"><p>把手里的样本当作总体的近似, 再从样本中有放回地重采样.</p></blockquote>
+<p>给定样本:</p>
+<div class="math-block">$$
+x_1,\dots,x_n
+$$</div>
+<p>每次有放回抽取 $n$ 个值, 得到一份 bootstrap 样本:</p>
+<div class="math-block">$$
+x_1^*,\dots,x_n^*
+$$</div>
+<p>然后计算统计量:</p>
+<div class="math-block">$$
+T^*=T(x_1^*,\dots,x_n^*)
+$$</div>
+<p>重复很多次后, $T^*$ 的分布用来近似 $T$ 的抽样分布.</p>
+<figure class="figure"><img src="assets/ps_ch11_bootstrap_flow.png" alt="Bootstrap 重采样流程图"><figcaption>Bootstrap 重采样流程图</figcaption></figure>
+<h3 id="25-62-bootstrap-能估什么">6.2 Bootstrap 能估什么</h3>
+<p>Bootstrap 常用于估计:</p>
+<ul><li>标准误</li>
+<li>偏差</li>
+<li>置信区间</li>
+<li>复杂统计量的抽样分布</li></ul>
+<p>尤其当统计量的理论标准误难推导时, Bootstrap 很有用.</p>
+<h3 id="26-63-百分位区间">6.3 百分位区间</h3>
+<p>假设我们重复 $B$ 次得到:</p>
+<div class="math-block">$$
+T_1^*,\dots,T_B^*
+$$</div>
+<p>一个简单的 $95%$ bootstrap 百分位区间是:</p>
+<div class="math-block">$$
+[q_{0.025},q_{0.975}]
+$$</div>
+<p>其中 $q_{0.025}$ 和 $q_{0.975}$ 是 bootstrap 统计量的对应分位数.</p>
+<h3 id="27-64-bootstrap-的限制">6.4 Bootstrap 的限制</h3>
+<p>Bootstrap 不是魔法.<br> 它依赖一个关键前提:</p>
+<blockquote class="callout"><p>原始样本能代表总体.</p></blockquote>
+<p>如果样本本身严重有偏, Bootstrap 会围绕这个有偏样本重复采样, 不能自动修复偏差.</p>
+<p>另外, 对极端尾部分位数, 强依赖数据, 小样本最大值等问题, 普通 bootstrap 可能表现不稳.</p>
+<hr class="divider">
+<h2 id="28-7-jackknife-初步">7. Jackknife 初步</h2>
+<h3 id="29-71-留一法思想">7.1 留一法思想</h3>
+<p>Jackknife 每次删掉一个观测, 用剩余 $n-1$ 个样本重新计算统计量.</p>
+<p>第 $i$ 个 jackknife 样本为:</p>
+<div class="math-block">$$
+x_{(i)}=(x_1,\dots,x_{i-1},x_{i+1},\dots,x_n)
+$$</div>
+<p>对应统计量:</p>
+<div class="math-block">$$
+T_{(i)}=T(x_{(i)})
+$$</div>
+<h3 id="30-72-用途">7.2 用途</h3>
+<p>Jackknife 常用于:</p>
+<ul><li>估计标准误</li>
+<li>估计偏差</li>
+<li>分析单个样本点对统计量的影响</li></ul>
+<p>如果删掉某个点后统计量变化很大, 这个点可能是高影响点.</p>
+<h3 id="31-73-和-bootstrap-的差别">7.3 和 Bootstrap 的差别</h3>
+<p>Bootstrap 是有放回重采样, 每次抽出同样大小的样本.<br> Jackknife 是系统地每次删掉一个点.</p>
+<p>粗略比较:</p>
+<ul><li>Bootstrap 更灵活, 适用统计量更广</li>
+<li>Jackknife 更便宜, 更适合影响分析</li>
+<li>对非光滑统计量, 如中位数, Jackknife 可能不如 Bootstrap 稳</li></ul>
+<hr class="divider">
+<h2 id="32-8-置换检验">8. 置换检验</h2>
+<h3 id="33-81-核心想法">8.1 核心想法</h3>
+<p>置换检验用于检验两组差异时非常直观.</p>
+<p>假设原假设是:</p>
+<div class="math-block">$$
+H_0:\text{两组来自同一分布}
+$$</div>
+<p>如果 $H_0$ 成立, 组标签 A 和 B 是可以交换的.</p>
+<p>于是我们可以:</p>
+<ol><li>合并两组数据.</li>
+<li>随机打乱组标签.</li>
+<li>每次重新计算组间差异统计量.</li>
+<li>用这些置换统计量构造零假设分布.</li>
+<li>看真实组间差异是否足够极端.</li></ol>
+<h3 id="34-82-例子-均值差">8.2 例子: 均值差</h3>
+<p>设观察到两组均值差:</p>
+<div class="math-block">$$
+T_{\mathrm{obs}}=\bar X-\bar Y
+$$</div>
+<p>置换后得到:</p>
+<div class="math-block">$$
+T_1^{\pi},\dots,T_B^{\pi}
+$$</div>
+<p>双侧 p 值可以近似为:</p>
+<div class="math-block">$$
+p\approx
+\frac{1+\#\{|T_b^{\pi}|\ge |T_{\mathrm{obs}}|\}}
+{B+1}
+$$</div>
+<p>分子和分母加 1 是常见的有限样本修正, 可避免 p 值为 0.</p>
+<h3 id="35-83-置换检验的关键假设">8.3 置换检验的关键假设</h3>
+<p>置换检验依赖可交换性.<br> 也就是说, 在原假设下, 标签打乱后数据的联合分布不变.</p>
+<p>如果样本有时间依赖, 分层结构或配对结构, 不能随意全局打乱标签.<br> 需要在合理的块内或配对结构内置换.</p>
+<hr class="divider">
+<h2 id="36-9-稳健位置估计">9. 稳健位置估计</h2>
+<h3 id="37-91-均值的脆弱性">9.1 均值的脆弱性</h3>
+<p>均值使用所有数值大小, 所以对极端值敏感.</p>
+<p>例如:</p>
+<div class="math-block">$$
+1,2,3,4,100
+$$</div>
+<p>均值是:</p>
+<div class="math-block">$$
+22
+$$</div>
+<p>但大多数样本集中在 1 到 4 附近.</p>
+<h3 id="38-92-中位数">9.2 中位数</h3>
+<p>中位数是排序后中间位置的值.<br> 它对少数极端值更稳健.</p>
+<p>中位数的 breakdown point 可达 $50%$.<br> 直觉是:</p>
+<blockquote class="callout"><p>只要不到一半的样本被污染, 中位数仍不会被无限拉走.</p></blockquote>
+<h3 id="39-93-截尾均值">9.3 截尾均值</h3>
+<p>截尾均值先去掉两端一定比例的样本, 再求均值.</p>
+<p>例如 10% 截尾均值:</p>
+<ol><li>排序.</li>
+<li>去掉最小的 10% 和最大的 10%.</li>
+<li>对中间部分求均值.</li></ol>
+<p>它在均值和中位数之间折中:</p>
+<ul><li>比均值更稳健</li>
+<li>比中位数保留更多数值信息</li></ul>
+<figure class="figure"><img src="assets/ps_ch11_outlier_mean_median.png" alt="异常值对均值和中位数影响图"><figcaption>异常值对均值和中位数影响图</figcaption></figure>
+<p>图中随着一个异常值越来越大, 均值持续被拉动, 中位数变化很慢, 截尾均值介于二者之间.</p>
+<hr class="divider">
+<h2 id="40-10-稳健尺度估计">10. 稳健尺度估计</h2>
+<h3 id="41-101-标准差的问题">10.1 标准差的问题</h3>
+<p>标准差使用平方偏差:</p>
+<div class="math-block">$$
+S^2=\frac{1}{n-1}\sum_{i=1}^{n}(X_i-\bar X)^2
+$$</div>
+<p>平方会放大极端值影响.<br> 如果数据有厚尾或异常点, 标准差可能被强烈拉大.</p>
+<h3 id="42-102-mad">10.2 MAD</h3>
+<p>MAD, median absolute deviation, 定义为:</p>
+<div class="math-block">$$
+\mathrm{MAD}=\mathrm{median}(|X_i-\mathrm{median}(X)|)
+$$</div>
+<p>在正态分布下, 常用尺度校正:</p>
+<div class="math-block">$$
+1.4826\times \mathrm{MAD}
+$$</div>
+<p>使其可与标准差大致对齐.</p>
+<h3 id="43-103-iqr">10.3 IQR</h3>
+<p>四分位距定义为:</p>
+<div class="math-block">$$
+\mathrm{IQR}=Q_3-Q_1
+$$</div>
+<p>它只依赖中间 50% 的数据, 对极端尾部更稳健.</p>
+<p>常见箱线图中的异常值规则:</p>
+<div class="math-block">$$
+Q_1-1.5\mathrm{IQR},\quad Q_3+1.5\mathrm{IQR}
+$$</div>
+<p>这只是启发式规则, 不是必须删除数据的命令.</p>
+<hr class="divider">
+<h2 id="44-11-厚尾数据">11. 厚尾数据</h2>
+<h3 id="45-111-什么是厚尾">11.1 什么是厚尾</h3>
+<p>厚尾分布指极端值出现概率比正态分布更高.</p>
+<figure class="figure"><img src="assets/ps_ch11_heavy_tail_distribution.png" alt="厚尾分布示意图"><figcaption>厚尾分布示意图</figcaption></figure>
+<p>图中右侧用对数纵轴放大尾部差异.<br> t 分布在尾部明显高于正态分布, 说明极端值更常见.</p>
+<h3 id="46-112-为什么厚尾麻烦">11.2 为什么厚尾麻烦</h3>
+<p>厚尾会带来:</p>
+<ul><li>样本均值收敛更慢</li>
+<li>样本方差波动更大</li>
+<li>正态近似需要更大样本</li>
+<li>极端值对模型和检验影响更强</li></ul>
+<p>在金融损失, 网络流量, 用户消费金额, 文件大小等场景中, 厚尾很常见.</p>
+<h3 id="47-113-应对思路">11.3 应对思路</h3>
+<p>常见应对方式:</p>
+<ul><li>使用中位数, 分位数, 截尾均值</li>
+<li>对正值数据取对数</li>
+<li>使用稳健标准误</li>
+<li>使用分位数回归</li>
+<li>对尾部单独建模</li>
+<li>报告不止均值, 同时报分位数</li></ul>
+<hr class="divider">
+<h2 id="48-12-异常值处理">12. 异常值处理</h2>
+<h3 id="49-121-异常值不是自动错误">12.1 异常值不是自动错误</h3>
+<p>异常值可能来自:</p>
+<ul><li>录入错误</li>
+<li>传感器故障</li>
+<li>埋点重复</li>
+<li>真实罕见事件</li>
+<li>不同子群体混在一起</li></ul>
+<p>不能看到异常值就直接删除.</p>
+<h3 id="50-122-处理前先分类">12.2 处理前先分类</h3>
+<p>处理异常值前先问:</p>
+<ol><li>是否是数据错误?</li>
+<li>是否来自目标总体?</li>
+<li>是否由业务规则解释?</li>
+<li>是否只影响少数统计量?</li>
+<li>删除后结论是否变化?</li></ol>
+<p>如果是明确数据错误, 可以修正或排除并记录规则.<br> 如果是真实极端事件, 删除它可能会扭曲目标总体.</p>
+<h3 id="51-123-敏感性分析">12.3 敏感性分析</h3>
+<p>稳妥做法是报告敏感性分析:</p>
+<ul><li>包含异常值的结果</li>
+<li>排除明确错误后的结果</li>
+<li>使用稳健统计量后的结果</li></ul>
+<p>如果结论只在某一种处理方式下成立, 就要谨慎解释.</p>
+<hr class="divider">
+<h2 id="52-13-参数方法-非参数方法和稳健方法怎么选">13. 参数方法, 非参数方法和稳健方法怎么选</h2>
+<h3 id="53-131-参数方法适合什么时候">13.1 参数方法适合什么时候</h3>
+<p>参数方法适合:</p>
+<ul><li>分布假设有理论或经验支持</li>
+<li>样本量不大但模型可靠</li>
+<li>需要高效估计</li>
+<li>需要明确解释参数</li></ul>
+<p>例如正态误差线性回归在许多工程场景中是有用近似.</p>
+<h3 id="54-132-非参数方法适合什么时候">13.2 非参数方法适合什么时候</h3>
+<p>非参数方法适合:</p>
+<ul><li>不想强依赖正态分布</li>
+<li>数据只有顺序意义</li>
+<li>样本量中等, 可用秩信息</li>
+<li>目标是比较分布或位置差异</li></ul>
+<p>例如评分等级, 偏态响应, 小样本两组比较.</p>
+<h3 id="55-133-重抽样适合什么时候">13.3 重抽样适合什么时候</h3>
+<p>重抽样适合:</p>
+<ul><li>统计量标准误难推导</li>
+<li>想估计复杂指标的不确定性</li>
+<li>样本量足以代表总体</li>
+<li>希望用模拟方式理解抽样波动</li></ul>
+<p>Bootstrap 常用于中位数, 分位数, AUC, 自定义业务指标的区间估计.</p>
+<h3 id="56-134-稳健方法适合什么时候">13.4 稳健方法适合什么时候</h3>
+<p>稳健方法适合:</p>
+<ul><li>异常值不可避免</li>
+<li>分布厚尾</li>
+<li>均值和标准差不稳定</li>
+<li>希望结论不被少数点主导</li></ul>
+<p>稳健不是保守的同义词.<br> 它是在承认数据不完美的前提下, 让结论更可追溯.</p>
+<hr class="divider">
+<h2 id="57-14-本章主线总结">14. 本章主线总结</h2>
+<p>第十一章可以压成几句话:</p>
+<ol><li>参数方法高效, 但依赖分布假设.</li>
+<li>非参数方法减少分布形状假设, 常使用秩, 符号和经验分布.</li>
+<li>符号检验只用方向信息, 很稳健但功效较低.</li>
+<li>Wilcoxon 方法使用秩信息, 适合不想强依赖正态假设的比较.</li>
+<li>KS 检验直接比较经验分布函数.</li>
+<li>Bootstrap 用有放回重采样近似抽样分布.</li>
+<li>Jackknife 通过留一法估计标准误和样本影响.</li>
+<li>置换检验通过打乱标签构造零假设分布.</li>
+<li>中位数, MAD, IQR, 截尾均值能降低异常值影响.</li>
+<li>厚尾数据需要比正态直觉更谨慎的推断.</li></ol>
+<p>本章最重要的提醒是:</p>
+<blockquote class="callout"><p>少一点分布假设不等于没有假设,<br>稳健方法也必须和数据来源, 抽样机制, 研究目标一起解释.</p></blockquote>
+<hr class="divider">
+<h2 id="58-15-典型题型与实战清单">15. 典型题型与实战清单</h2>
+<h3 id="59-151-典型题型">15.1 典型题型</h3>
+<ol><li><strong>判断是否适合参数 t 检验</strong><ul><li>看样本量</li>
+<li>看偏态和异常值</li>
+<li>看独立性和方差结构</li></ul></li></ol>
+<ol><li><strong>选择秩检验</strong><ul><li>配对数据可考虑 Wilcoxon 符号秩检验</li>
+<li>两独立样本可考虑秩和检验</li></ul></li></ol>
+<ol><li><strong>写 Bootstrap 流程</strong><ul><li>有放回抽样</li>
+<li>每次计算统计量</li>
+<li>用重复统计量估标准误或区间</li></ul></li></ol>
+<ol><li><strong>写置换检验流程</strong><ul><li>明确可交换性</li>
+<li>打乱标签</li>
+<li>构造零分布</li>
+<li>计算极端比例</li></ul></li></ol>
+<ol><li><strong>比较均值和中位数</strong><ul><li>说明异常值对均值影响更强</li>
+<li>说明中位数更稳健但可能效率较低</li></ul></li></ol>
+<ol><li><strong>识别厚尾风险</strong><ul><li>极端值频繁</li>
+<li>样本方差不稳定</li>
+<li>均值区间很宽或不稳定</li></ul></li></ol>
+<h3 id="60-152-实战清单">15.2 实战清单</h3>
+<p>分析真实数据时, 可以按下面顺序检查:</p>
+<ol><li>数据是否有异常值?</li>
+<li>分布是否明显偏态或厚尾?</li>
+<li>目标统计量是均值, 中位数, 分位数还是比例?</li>
+<li>参数假设是否有现实依据?</li>
+<li>样本量是否支持大样本近似?</li>
+<li>是否可用 Bootstrap 估计不确定性?</li>
+<li>是否存在配对, 分层或时间结构?</li>
+<li>置换检验是否满足可交换性?</li>
+<li>稳健结果和普通结果是否一致?</li>
+<li>异常值处理规则是否提前确定并记录?</li></ol>
+<hr class="divider">
+<h2 id="61-16-典型误区">16. 典型误区</h2>
+<h3 id="62-误区-1-以为非参数方法没有假设">误区 1: 以为非参数方法没有假设</h3>
+<p>非参数方法仍然需要样本独立性, 可比较性和合理抽样机制.<br> 只是它们通常少依赖具体分布形状.</p>
+<h3 id="63-误区-2-bootstrap-能修复样本偏差">误区 2: Bootstrap 能修复样本偏差</h3>
+<p>Bootstrap 只能围绕已有样本重采样.<br> 如果原始样本不代表目标总体, Bootstrap 不能自动变出代表性.</p>
+<h3 id="64-误区-3-异常值一律删除">误区 3: 异常值一律删除</h3>
+<p>异常值可能是真实重要事件.<br> 删除前必须说明原因, 规则和对结论的影响.</p>
+<h3 id="65-误区-4-秩检验总是在比较中位数">误区 4: 秩检验总是在比较中位数</h3>
+<p>秩和检验在分布形状相同且只存在位置平移时可解释为位置差异.<br> 分布形状不同的时候, 解释要更谨慎.</p>
+<h3 id="66-误区-5-用重抽样替代研究设计">误区 5: 用重抽样替代研究设计</h3>
+<p>如果数据收集过程有偏, 标签不可交换, 或样本不独立, 重抽样方法也会失效.</p>
+<h3 id="67-误区-6-只看均值不看分布">误区 6: 只看均值不看分布</h3>
+<p>厚尾和偏态数据中, 均值可能不足以代表典型样本.<br> 应同时看中位数, 分位数, 尾部风险和图形诊断.</p>
+<hr class="divider">
+<h2 id="68-17-和前后章节的连接点">17. 和前后章节的连接点</h2>
+<h3 id="69-171-和第七章的连接">17.1 和第七章的连接</h3>
+<p>经验分布函数和顺序统计量是非参数统计的重要基础.<br> 第七章的抽样分布思想也贯穿 Bootstrap 和置换检验.</p>
+<h3 id="70-172-和第八章的连接">17.2 和第八章的连接</h3>
+<p>Bootstrap 可以为复杂估计量提供标准误和置信区间.<br> 稳健估计则是在估计量设计上降低异常值影响.</p>
+<h3 id="71-173-和第九章的连接">17.3 和第九章的连接</h3>
+<p>置换检验和秩检验都是假设检验.<br> 它们同样需要明确原假设, p 值解释和错误控制.</p>
+<h3 id="72-174-和第十章的连接">17.4 和第十章的连接</h3>
+<p>残差异常, 厚尾和异方差会影响回归推断.<br> 稳健标准误, 分位数回归, Bootstrap 区间等方法都能作为补充.</p>
+<h3 id="73-175-和后续贝叶斯与统计学习的连接">17.5 和后续贝叶斯与统计学习的连接</h3>
+<p>贝叶斯模型和机器学习模型也会遇到异常值和厚尾问题.<br> 稳健损失, 重尾噪声, 重采样评估, 都会继续使用本章思想.</p>
+<hr class="divider">
+<h2 id="74-18-本章收尾">18. 本章收尾</h2>
+<p>现实数据很少完全满足教科书假设.<br> 第十一章的价值是提醒我们:</p>
+<blockquote class="callout"><p>当漂亮模型不够可靠时,<br>仍然可以通过秩, 重抽样和稳健估计继续做有边界的推断.</p></blockquote>
+<p>下一章开始进入贝叶斯统计.<br> 那里会换一种视角: 不只把参数看成固定未知量, 还可以用概率分布表达我们对参数的不确定性.</p>
+      </article>
+      <nav class="chapter-nav" aria-label="前后页面">
+        <a class="prev" href="chapter10_regression_anova_glm_intro.html"><span>上一页</span><strong>Chapter 10: 数理统计第十章教程: 回归, 方差分析与广义线性模型初步</strong></a>
+        <a class="next" href="chapter12_bayesian_prior_posterior_conjugacy.html"><span>下一页</span><strong>Chapter 12: 贝叶斯统计第十二章教程: 贝叶斯视角, 先验, 后验与共轭族</strong></a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="footer">
+    由 build_probability_statistics_html.py 生成. 样式文件: probability_statistics.css.
+  </footer>
+</body>
+</html>
