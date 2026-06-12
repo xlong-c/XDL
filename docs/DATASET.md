@@ -27,7 +27,7 @@ XDL 的推荐顺序是:
 | `image + label` | 单标签分类 | `ImageFolderClassificationDataset`, `RecordClassificationDataset` |
 | `image + target` | 回归, 质量估计, 年龄预测 | `RecordRegressionDataset` |
 | `image + labels` | 多标签分类 | `RecordMultiLabelClassificationDataset` |
-| `image + mask` | 语义分割, depth, dense label | `RecordSegmentationDataset`, `ImageMaskSidecarDataset` |
+| `image + mask` | 语义分割, depth, 逐像素标注 | `RecordSegmentationDataset`, `ImageMaskSidecarDataset` |
 | `image + boxes + labels` | 目标检测 | `RecordDetectionDataset` |
 | `image + text` | caption, diffusion 微调, 图文检索 | `RecordImageTextDataset`, `ImageTextSidecarDataset` |
 | `text (+ target_text)` | 文本分类前处理, SFT, 指令数据 | `RecordTextDataset` |

@@ -9,8 +9,6 @@ from torch.utils.data import DataLoader
 from xdl.dataset import (
     ImageEditCollate,
     ImageEditDataset,
-    ManifestImageEditCollate,
-    ManifestImageEditDataset,
 )
 from xdl.utils.registry import COLLATE_REGISTRY, DATASET_REGISTRY, TRANSFORM_REGISTRY
 
@@ -44,7 +42,7 @@ def test_manifest_image_edit_dataset_loads_jsonl_and_collates(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestImageEditDataset(manifest_path, height=4, width=6)
+    dataset = ImageEditDataset(manifest_path, height=4, width=6)
     sample = dataset[0]
 
     assert sample["source_image"].shape == (3, 4, 6)
@@ -60,7 +58,7 @@ def test_manifest_image_edit_dataset_loads_jsonl_and_collates(tmp_path) -> None:
     loader = DataLoader(
         dataset,
         batch_size=1,
-        collate_fn=ManifestImageEditCollate(),
+        collate_fn=ImageEditCollate(),
     )
     batch = next(iter(loader))
 
@@ -97,7 +95,7 @@ def test_manifest_image_edit_dataset_loads_csv_without_mask_from_manifest_dir(
         )
     monkeypatch.chdir(other_cwd)
 
-    dataset = ManifestImageEditDataset(manifest_path, height=4, width=4)
+    dataset = ImageEditDataset(manifest_path, height=4, width=4)
     sample = dataset[0]
 
     assert sample["has_mask"].item() is False
@@ -107,9 +105,5 @@ def test_manifest_image_edit_dataset_loads_csv_without_mask_from_manifest_dir(
 
 def test_manifest_image_edit_components_are_registered() -> None:
     assert DATASET_REGISTRY.get("ImageEditDataset") is ImageEditDataset
-    assert DATASET_REGISTRY.get("ManifestImageEditDataset") is ManifestImageEditDataset
     assert COLLATE_REGISTRY.get("ImageEditCollate") is ImageEditCollate
-    assert COLLATE_REGISTRY.get("ManifestImageEditCollate") is ManifestImageEditCollate
-    assert ImageEditDataset is ManifestImageEditDataset
-    assert ImageEditCollate is ManifestImageEditCollate
     assert TRANSFORM_REGISTRY.get("PairedImageTransform") is not None

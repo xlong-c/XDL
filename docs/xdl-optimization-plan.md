@@ -29,11 +29,11 @@
 
 ## P1 — 质量提升
 
-### 3. `xdl/dataset/` 的毛发数据集增强逻辑去重
+### 3. `xdl/dataset/hair/` 的毛发数据集增强逻辑去重
 
 原因：
 
-- `hairdata.py`、`hairdata3y.py`、`hairdata10hair.py` 仍可能存在共享增强逻辑
+- `xdl/dataset/hair/` 下的毛发数据集仍可能存在共享增强逻辑
 
 建议：
 

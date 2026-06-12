@@ -17,19 +17,18 @@ class CosineAnnealingWarmRestarts(TorchCosineAnnealingWarmRestarts):
         last_epoch: 上一个epoch的索引,用于恢复训练,默认为-1
     """
 
-    def __init__(self, optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1, verbose=False):
+    def __init__(self, optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1):
         super().__init__(
             optimizer=optimizer,
             T_0=T_0,
             T_mult=T_mult,
             eta_min=eta_min,
             last_epoch=last_epoch,
-            verbose=verbose,
         )
 
 
 def cosine_annealing_warm_restarts(
-    optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1, verbose=False
+    optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1
 ):
     """
     创建CosineAnnealingWarmRestarts调度器的便捷函数
@@ -40,7 +39,6 @@ def cosine_annealing_warm_restarts(
         T_mult: 重启间隔的倍增因子,默认为1
         eta_min: 最小学习率,默认为0
         last_epoch: 上一个epoch的索引,默认为-1
-        verbose: 是否输出调度信息,默认为False
 
     Returns:
         CosineAnnealingWarmRestarts调度器实例
@@ -51,5 +49,4 @@ def cosine_annealing_warm_restarts(
         T_mult=T_mult,
         eta_min=eta_min,
         last_epoch=last_epoch,
-        verbose=verbose,
     )

@@ -13,84 +13,59 @@ Hair10HairDataset = None
 
 from . import collate  # 注册 PadCollate / DictCollate
 from .basic import SyntheticClassificationDataset
-from .dense import (
-    DetectionCollate,
-    ImageBoxesTransform,
-    ImageMaskSidecarDataset,
-    ImageMaskTransform,
-    ManifestDetectionDataset,
-    ManifestSegmentationDataset,
-    RecordDetectionDataset,
-    RecordSegmentationDataset,
+from .classification import (
+    ImageFolderClassificationDataset,
+    RecordClassificationDataset,
+    RecordMultiLabelClassificationDataset,
 )
-from .image_edit import (
-    ImageEditCollate,
-    ImageEditDataset,
-    ManifestImageEditCollate,
-    ManifestImageEditDataset,
+from .collate import DetectionCollate, DictCollate, ImageEditCollate, PadCollate
+from .detection import RecordDetectionDataset
+from .folder import ImageFolderDataset
+from .image_edit import ImageEditDataset
+from .image_text import ImageTextSidecarDataset, RecordImageTextDataset
+from .pair import RecordPairDataset
+from .record import RecordDataset, RecordDatasetBase
+from .regression import RecordRegressionDataset
+from .segmentation import ImageMaskSidecarDataset, RecordSegmentationDataset
+from .sidecar import BasenameAlignedDataset
+from .split import split_dataset, train_val_split
+from .text import RecordTextDataset
+from .transforms import (
+    ImageBoxesTransform,
+    ImageMaskTransform,
     PairedImageTransform,
 )
-from .templates import (
-    ImageFolderDataset,
-    ImageFolderClassificationDataset,
-    ImageTextSidecarDataset,
-    ManifestClassificationDataset,
-    ManifestDatasetBase,
-    ManifestImageTextDataset,
-    ManifestMultiLabelClassificationDataset,
-    ManifestPairDataset,
-    ManifestRegressionDataset,
-    ManifestRecordDataset,
-    ManifestTextDataset,
-    ManifestTripletDataset,
-    RecordClassificationDataset,
-    RecordDataset,
-    RecordDatasetBase,
-    RecordImageTextDataset,
-    RecordMultiLabelClassificationDataset,
-    RecordPairDataset,
-    RecordRegressionDataset,
-    RecordTextDataset,
-    RecordTripletDataset,
-)
+from .triplet import RecordTripletDataset
+
 
 # 通用模板集中注册在这里, 让 YAML 可以统一使用 registry:Name 构建数据集.
 register_dataset("SyntheticClassificationDataset")(SyntheticClassificationDataset)
 register_dataset("ImageEditDataset")(ImageEditDataset)
-register_dataset("ManifestImageEditDataset")(ImageEditDataset)
+register_dataset("BasenameAlignedDataset")(BasenameAlignedDataset)
 register_dataset("RecordDataset")(RecordDataset)
-register_dataset("ManifestRecordDataset")(RecordDataset)
 register_dataset("ImageFolderDataset")(ImageFolderDataset)
 register_dataset("ImageFolderClassificationDataset")(ImageFolderClassificationDataset)
 register_dataset("ImageTextSidecarDataset")(ImageTextSidecarDataset)
 register_dataset("RecordClassificationDataset")(RecordClassificationDataset)
-register_dataset("ManifestClassificationDataset")(RecordClassificationDataset)
 register_dataset("RecordRegressionDataset")(RecordRegressionDataset)
-register_dataset("ManifestRegressionDataset")(RecordRegressionDataset)
-register_dataset("RecordMultiLabelClassificationDataset")(RecordMultiLabelClassificationDataset)
-register_dataset("ManifestMultiLabelClassificationDataset")(RecordMultiLabelClassificationDataset)
+register_dataset("RecordMultiLabelClassificationDataset")(
+    RecordMultiLabelClassificationDataset
+)
 register_dataset("ImageMaskSidecarDataset")(ImageMaskSidecarDataset)
 register_dataset("RecordSegmentationDataset")(RecordSegmentationDataset)
-register_dataset("ManifestSegmentationDataset")(RecordSegmentationDataset)
 register_dataset("RecordDetectionDataset")(RecordDetectionDataset)
-register_dataset("ManifestDetectionDataset")(RecordDetectionDataset)
 register_dataset("RecordImageTextDataset")(RecordImageTextDataset)
-register_dataset("ManifestImageTextDataset")(RecordImageTextDataset)
 register_dataset("RecordTextDataset")(RecordTextDataset)
-register_dataset("ManifestTextDataset")(RecordTextDataset)
 register_dataset("RecordPairDataset")(RecordPairDataset)
-register_dataset("ManifestPairDataset")(RecordPairDataset)
 register_dataset("RecordTripletDataset")(RecordTripletDataset)
-register_dataset("ManifestTripletDataset")(RecordTripletDataset)
 register_transform("PairedImageTransform")(PairedImageTransform)
 register_transform("ImageMaskTransform")(ImageMaskTransform)
 register_transform("ImageBoxesTransform")(ImageBoxesTransform)
 register_collate("ImageEditCollate")(ImageEditCollate)
-register_collate("ManifestImageEditCollate")(ImageEditCollate)
 register_collate("DetectionCollate")(DetectionCollate)
 
 # 视觉数据集
-from .vision_datasets import CIFAR10Dataset, MNISTDataset
+from .vision import CIFAR10Dataset, MNISTDataset
 
 if CIFAR10Dataset is not None:
     register_dataset("CIFAR10")(CIFAR10Dataset)
@@ -98,21 +73,21 @@ if MNISTDataset is not None:
     register_dataset("MNIST")(MNISTDataset)
 
 try:
-    from .hairdata import GridImageDataset as GridImageCsvDataset
+    from .hair.hairdata import GridImageDataset as GridImageCsvDataset
 
     register_dataset("GridImageCsvDataset")(GridImageCsvDataset)
 except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
     _import_errors["GridImageCsvDataset"] = exc
 
 try:
-    from .hairdata3y import GridImageDataset as GridImageDirDataset
+    from .hair.hairdata3y import GridImageDataset as GridImageDirDataset
 
     register_dataset("GridImageDirDataset")(GridImageDirDataset)
 except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
     _import_errors["GridImageDirDataset"] = exc
 
 try:
-    from .hairdata10hair import Hair10HairDataset
+    from .hair.hairdata10hair import Hair10HairDataset
 
     register_dataset("Hair10HairDataset")(Hair10HairDataset)
 except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
@@ -121,36 +96,26 @@ except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
 __all__ = [
     "SyntheticClassificationDataset",
     "ImageEditDataset",
-    "ManifestImageEditDataset",
+    "BasenameAlignedDataset",
     "PairedImageTransform",
+    "PadCollate",
+    "DictCollate",
     "ImageEditCollate",
-    "ManifestImageEditCollate",
     "RecordDataset",
-    "ManifestRecordDataset",
     "ImageFolderDataset",
     "ImageFolderClassificationDataset",
     "ImageTextSidecarDataset",
     "ImageMaskSidecarDataset",
     "RecordDatasetBase",
-    "ManifestDatasetBase",
     "RecordClassificationDataset",
-    "ManifestClassificationDataset",
     "RecordRegressionDataset",
-    "ManifestRegressionDataset",
     "RecordMultiLabelClassificationDataset",
-    "ManifestMultiLabelClassificationDataset",
     "RecordSegmentationDataset",
-    "ManifestSegmentationDataset",
     "RecordDetectionDataset",
-    "ManifestDetectionDataset",
     "RecordImageTextDataset",
-    "ManifestImageTextDataset",
     "RecordTextDataset",
-    "ManifestTextDataset",
     "RecordPairDataset",
-    "ManifestPairDataset",
     "RecordTripletDataset",
-    "ManifestTripletDataset",
     "GridImageCsvDataset",
     "GridImageDirDataset",
     "Hair10HairDataset",
@@ -159,4 +124,6 @@ __all__ = [
     "ImageMaskTransform",
     "ImageBoxesTransform",
     "DetectionCollate",
+    "split_dataset",
+    "train_val_split",
 ]

@@ -12,8 +12,6 @@ from xdl.dataset import (
     ImageBoxesTransform,
     ImageMaskSidecarDataset,
     ImageMaskTransform,
-    ManifestDetectionDataset,
-    ManifestSegmentationDataset,
     RecordDetectionDataset,
     RecordSegmentationDataset,
 )
@@ -46,7 +44,7 @@ def test_manifest_segmentation_dataset_loads_sample_and_paths(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestSegmentationDataset(
+    dataset = RecordSegmentationDataset(
         manifest_path,
         transform=ImageMaskTransform(height=4, width=6),
         include_paths=True,
@@ -167,7 +165,7 @@ def test_manifest_detection_dataset_parses_json_strings_and_collates(tmp_path, m
     )
     monkeypatch.chdir(other_cwd)
 
-    dataset = ManifestDetectionDataset(
+    dataset = RecordDetectionDataset(
         manifest_path,
         transform=ImageBoxesTransform(height=4, width=5),
         include_paths=True,
@@ -203,7 +201,7 @@ def test_dense_dataset_components_are_registered_and_buildable(tmp_path) -> None
 
     dataset = build_dataset(
         {
-            "target": "registry:ManifestSegmentationDataset",
+            "target": "registry:RecordSegmentationDataset",
             "params": {
                 "manifest_path": str(manifest_path),
                 "transform": {
@@ -234,11 +232,7 @@ def test_dense_dataset_components_are_registered_and_buildable(tmp_path) -> None
 
     assert sidecar_dataset[0]["image"].shape == (3, 4, 4)
     assert DATASET_REGISTRY.get("RecordSegmentationDataset") is RecordSegmentationDataset
-    assert DATASET_REGISTRY.get("ManifestSegmentationDataset") is ManifestSegmentationDataset
     assert DATASET_REGISTRY.get("RecordDetectionDataset") is RecordDetectionDataset
-    assert DATASET_REGISTRY.get("ManifestDetectionDataset") is ManifestDetectionDataset
-    assert RecordSegmentationDataset is ManifestSegmentationDataset
-    assert RecordDetectionDataset is ManifestDetectionDataset
     assert DATASET_REGISTRY.get("ImageMaskSidecarDataset") is ImageMaskSidecarDataset
     assert TRANSFORM_REGISTRY.get("ImageMaskTransform") is ImageMaskTransform
     assert TRANSFORM_REGISTRY.get("ImageBoxesTransform") is ImageBoxesTransform

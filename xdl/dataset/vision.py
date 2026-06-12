@@ -1,9 +1,13 @@
-"""视觉数据集模板 — torchvision 封装。
+"""Vision datasets backed by torchvision.
 
 如需扩展，按相同模式添加即可。注册在 __init__.py 中完成。
 """
 
-from xdl.utils.registry import DATASET_REGISTRY  # noqa: F401
+from __future__ import annotations
+
+from typing import Any, Optional, Tuple
+
+from torch.utils.data import Dataset
 
 _import_error: Exception | None = None
 
@@ -15,17 +19,26 @@ except ImportError as exc:
 
 if _import_error is None:
 
-    class _Wrapper:
+    class _Wrapper(Dataset[Tuple[Any, Any]]):
         """torchvision 数据集统一包装。"""
-        def __init__(self, root="./data", train=True, download=True, transform=None):
+
+        _dataset_cls: type
+
+        def __init__(
+            self,
+            root: str = "./data",
+            train: bool = True,
+            download: bool = True,
+            transform: Optional[Any] = None,
+        ) -> None:
             self.dataset = self._dataset_cls(
                 root=root, train=train, download=download, transform=transform
             )
 
-        def __getitem__(self, idx):
+        def __getitem__(self, idx: int) -> Tuple[Any, Any]:
             return self.dataset[idx]
 
-        def __len__(self):
+        def __len__(self) -> int:
             return len(self.dataset)
 
     class CIFAR10Dataset(_Wrapper):
@@ -35,5 +48,5 @@ if _import_error is None:
         _dataset_cls = torchvision.datasets.MNIST
 
 else:
-    CIFAR10Dataset = None  # type: ignore
-    MNISTDataset = None  # type: ignore
+    CIFAR10Dataset = None  # type: ignore[assignment,misc]
+    MNISTDataset = None  # type: ignore[assignment,misc]

@@ -210,7 +210,7 @@ train_dataloader:
 - `text (+ target_text)`：纯文本或 instruction / response
 - `image_a + image_b (+ label)`：pair / matching / contrastive
 - `anchor + positive + negative`：triplet / retrieval
-- `image + mask`：分割等 dense target
+- `image + mask`：分割 / 逐像素标注
 - `image + boxes + labels`：检测
 - `source_image + target_image (+ reference_image + edit_mask + prompt)`：编辑 / 条件生成
 
@@ -307,7 +307,7 @@ images/
 - `registry:RecordRegressionDataset`: 从 manifest 读取 `image + target`, 适合分数、年龄、质量估计等回归任务.
 - `registry:RecordMultiLabelClassificationDataset`: 从 manifest 读取 `image + labels`, 适合多标签分类.
 - `registry:ImageMaskSidecarDataset`: 从同名 mask sidecar 读取 `image + mask`, 支持同目录或 image/mask 分目录.
-- `registry:RecordSegmentationDataset`: 从 manifest 读取 `image + mask`, 适合语义分割和其他 dense label 任务.
+- `registry:RecordSegmentationDataset`: 从 manifest 读取 `image + mask`, 适合语义分割和其他逐像素标注任务.
 - `registry:RecordDetectionDataset`: 从 manifest 读取 `image + boxes + labels`, 适合目标检测和变长 target 任务.
 - `registry:RecordImageTextDataset`: 从 manifest 读取 `image + text/prompt/caption`, 适合图文微调.
 - `registry:ImageTextSidecarDataset`: 从同名 `.txt` sidecar 读取 `image + text`, 支持同目录或 image/text 分目录.
@@ -354,7 +354,7 @@ images/
    - 分类 / 回归 / 多标签
    - 图文 / 文本
    - pair / triplet
-   - dense / detection / edit
+   - 分割 / 检测 / 编辑
 3. 最后再决定 transform 和 collate
    - 单输入任务通常可直接复用普通 transform
    - `image + mask` / `image + boxes` / 多图编辑样本需要同步 transform

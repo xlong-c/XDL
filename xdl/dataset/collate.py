@@ -1,6 +1,6 @@
 """内置 collate 函数。"""
 
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, cast
 
 import torch
 from torch.utils.data.dataloader import default_collate
@@ -23,12 +23,14 @@ class PadCollate:
 
     def __call__(self, batch: Sequence[Any]) -> Any:
         if isinstance(batch[0], torch.Tensor):
+            tensors = cast(list[torch.Tensor], list(batch))
             return torch.nn.utils.rnn.pad_sequence(
-                batch, batch_first=self.batch_first, padding_value=self.pad_value
+                tensors, batch_first=self.batch_first, padding_value=self.pad_value
             )
         if isinstance(batch[0], (list, tuple)):
             # tuple/list 样本按列 padding, 常见于 (tokens, labels) 这类变长序列.
-            transposed = list(zip(*batch))
+            sequence_batch = cast(Sequence[Sequence[Any]], batch)
+            transposed = list(zip(*sequence_batch))
             return tuple(
                 torch.nn.utils.rnn.pad_sequence(
                     [torch.as_tensor(x) for x in col],
@@ -37,7 +39,7 @@ class PadCollate:
                 )
                 for col in transposed
             )
-        return default_collate(batch)
+        return default_collate(list(batch))
 
 
 @COLLATE_REGISTRY.register("DictCollate")
@@ -68,3 +70,45 @@ class DictCollate:
             else:
                 collated[key] = list(values)
         return collated
+
+
+class DetectionCollate:
+    """Collate detection samples while preserving variable-sized targets."""
+
+    def __call__(self, batch: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+        if not batch:
+            return {}
+        collated: Dict[str, Any] = {}
+        for key in batch[0].keys():
+            values = [item[key] for item in batch]
+            if key in {"boxes", "labels"}:
+                # 检测目标数量逐图不同, 保留 list, 由 task/loss 决定后续处理方式.
+                collated[key] = values
+            elif torch.is_tensor(values[0]):
+                collated[key] = default_collate(values)
+            else:
+                collated[key] = list(values)
+        return collated
+
+
+class ImageEditCollate:
+    """Collate image edit samples into a dict batch."""
+
+    def __init__(self, keys: Optional[Iterable[str]] = None) -> None:
+        self.keys = list(keys) if keys is not None else None
+
+    def __call__(self, batch: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+        if not batch:
+            return {}
+        keys = self.keys if self.keys is not None else list(batch[0].keys())
+        collated: Dict[str, Any] = {}
+        for key in keys:
+            values = [item[key] for item in batch]
+            if torch.is_tensor(values[0]):
+                collated[key] = default_collate(values)
+            else:
+                collated[key] = list(values)
+        return collated
+
+
+__all__ = ["PadCollate", "DictCollate", "DetectionCollate", "ImageEditCollate"]

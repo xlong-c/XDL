@@ -8,26 +8,21 @@ from PIL import Image
 
 from xdl.config.builder import build_dataset
 from xdl.dataset import (
+    BasenameAlignedDataset,
     ImageFolderDataset,
     ImageFolderClassificationDataset,
     ImageTextSidecarDataset,
-    ManifestClassificationDataset,
-    ManifestDatasetBase,
-    ManifestImageTextDataset,
-    ManifestMultiLabelClassificationDataset,
-    ManifestPairDataset,
-    ManifestRegressionDataset,
-    ManifestRecordDataset,
-    ManifestTextDataset,
-    ManifestTripletDataset,
     RecordClassificationDataset,
     RecordDataset,
+    RecordDatasetBase,
     RecordImageTextDataset,
     RecordMultiLabelClassificationDataset,
     RecordPairDataset,
     RecordRegressionDataset,
     RecordTextDataset,
     RecordTripletDataset,
+    split_dataset,
+    train_val_split,
 )
 from xdl.utils.registry import DATASET_REGISTRY
 
@@ -53,7 +48,7 @@ def test_manifest_record_dataset_loads_jsonl_and_repeat(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestRecordDataset(manifest_path, repeat=2)
+    dataset = RecordDataset(manifest_path, repeat=2)
 
     assert len(dataset) == 4
     assert dataset[0] == {"id": "a", "value": 1}
@@ -68,7 +63,7 @@ def test_manifest_dataset_base_supports_thin_custom_adapters(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    class TinyManifestAdapter(ManifestDatasetBase):
+    class TinyManifestAdapter(RecordDatasetBase):
         def __getitem__(self, index: int) -> dict[str, str]:
             base_index, record = self._record_at(index)
             image_path = self._resolve_record_path(record, "image")
@@ -150,7 +145,7 @@ def test_manifest_classification_dataset_supports_string_labels_and_csv(
         writer.writerow({"image": "img_b.png", "label": "ant"})
     monkeypatch.chdir(other_cwd)
 
-    dataset = ManifestClassificationDataset(
+    dataset = RecordClassificationDataset(
         manifest_path,
         transform=_to_marker_tensor,
     )
@@ -176,7 +171,7 @@ def test_manifest_image_text_dataset_returns_text_sample_and_path(tmp_path) -> N
         encoding="utf-8",
     )
 
-    dataset = ManifestImageTextDataset(
+    dataset = RecordImageTextDataset(
         manifest_path,
         transform=_to_marker_tensor,
         text_transform=_prefix_text,
@@ -247,7 +242,7 @@ def test_manifest_regression_dataset_returns_numeric_target(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestRegressionDataset(
+    dataset = RecordRegressionDataset(
         manifest_path,
         transform=_to_marker_tensor,
     )
@@ -267,7 +262,7 @@ def test_manifest_multilabel_dataset_supports_csv_string_labels(tmp_path) -> Non
         writer.writerow({"image": "sample_a.png", "labels": "cat,dog"})
         writer.writerow({"image": "sample_b.png", "labels": "dog"})
 
-    dataset = ManifestMultiLabelClassificationDataset(
+    dataset = RecordMultiLabelClassificationDataset(
         manifest_path,
         transform=_to_marker_tensor,
     )
@@ -293,7 +288,7 @@ def test_manifest_text_dataset_returns_target_text_and_record(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestTextDataset(
+    dataset = RecordTextDataset(
         manifest_path,
         text_transform=_prefix_text,
         target_text_transform=_prefix_text,
@@ -326,7 +321,7 @@ def test_manifest_pair_dataset_returns_pair_sample(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestPairDataset(
+    dataset = RecordPairDataset(
         manifest_path,
         transform=_to_marker_tensor,
         text_a_key="text_a",
@@ -365,7 +360,7 @@ def test_manifest_triplet_dataset_returns_triplet_sample(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    dataset = ManifestTripletDataset(
+    dataset = RecordTripletDataset(
         manifest_path,
         transform=_to_marker_tensor,
         text_transform=_prefix_text,
@@ -396,7 +391,7 @@ def test_builder_supports_manifest_text_dataset_text_transforms(tmp_path) -> Non
 
     dataset = build_dataset(
         {
-            "target": "registry:ManifestTextDataset",
+            "target": "registry:RecordTextDataset",
             "params": {
                 "manifest_path": str(manifest_path),
                 "text_transform": {
@@ -418,7 +413,6 @@ def test_builder_supports_manifest_text_dataset_text_transforms(tmp_path) -> Non
 
 def test_dataset_templates_are_registered() -> None:
     assert DATASET_REGISTRY.get("RecordDataset") is RecordDataset
-    assert DATASET_REGISTRY.get("ManifestRecordDataset") is ManifestRecordDataset
     assert DATASET_REGISTRY.get("ImageFolderDataset") is ImageFolderDataset
     assert (
         DATASET_REGISTRY.get("ImageFolderClassificationDataset")
@@ -429,33 +423,233 @@ def test_dataset_templates_are_registered() -> None:
         DATASET_REGISTRY.get("RecordClassificationDataset")
         is RecordClassificationDataset
     )
-    assert (
-        DATASET_REGISTRY.get("ManifestClassificationDataset")
-        is ManifestClassificationDataset
-    )
     assert DATASET_REGISTRY.get("RecordRegressionDataset") is RecordRegressionDataset
-    assert DATASET_REGISTRY.get("ManifestRegressionDataset") is ManifestRegressionDataset
     assert (
         DATASET_REGISTRY.get("RecordMultiLabelClassificationDataset")
         is RecordMultiLabelClassificationDataset
     )
-    assert (
-        DATASET_REGISTRY.get("ManifestMultiLabelClassificationDataset")
-        is ManifestMultiLabelClassificationDataset
-    )
     assert DATASET_REGISTRY.get("RecordImageTextDataset") is RecordImageTextDataset
-    assert DATASET_REGISTRY.get("ManifestImageTextDataset") is ManifestImageTextDataset
     assert DATASET_REGISTRY.get("RecordTextDataset") is RecordTextDataset
-    assert DATASET_REGISTRY.get("ManifestTextDataset") is ManifestTextDataset
     assert DATASET_REGISTRY.get("RecordPairDataset") is RecordPairDataset
-    assert DATASET_REGISTRY.get("ManifestPairDataset") is ManifestPairDataset
     assert DATASET_REGISTRY.get("RecordTripletDataset") is RecordTripletDataset
-    assert DATASET_REGISTRY.get("ManifestTripletDataset") is ManifestTripletDataset
-    assert RecordDataset is ManifestRecordDataset
-    assert RecordClassificationDataset is ManifestClassificationDataset
-    assert RecordRegressionDataset is ManifestRegressionDataset
-    assert RecordMultiLabelClassificationDataset is ManifestMultiLabelClassificationDataset
-    assert RecordImageTextDataset is ManifestImageTextDataset
-    assert RecordTextDataset is ManifestTextDataset
-    assert RecordPairDataset is ManifestPairDataset
-    assert RecordTripletDataset is ManifestTripletDataset
+
+
+# ---------------------------------------------------------------------------
+# BasenameAlignedDataset
+# ---------------------------------------------------------------------------
+
+
+def test_basename_aligned_txt_sidecar_reads_file_and_returns_key(tmp_path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+    (tmp_path / "a.txt").write_text("hello world\n", encoding="utf-8")
+
+    dataset = BasenameAlignedDataset(
+        ".txt",
+        root=tmp_path,
+        sidecar_key="caption",
+        sidecar_transform=lambda s: s.upper(),
+    )
+    sample = dataset[0]
+
+    assert sample["caption"] == "HELLO WORLD"
+    assert sample["sample_id"] == "a"
+    assert sample["image_path"] == str((tmp_path / "a.png").resolve())
+    assert sample["caption_path"] == str((tmp_path / "a.txt").resolve())
+
+
+def test_basename_aligned_json_sidecar_parses_and_returns_key(tmp_path) -> None:
+    _save_rgb(tmp_path / "img.png", (0, 255, 0))
+    (tmp_path / "img.json").write_text(
+        json.dumps({"tags": ["cat", "outdoor"], "score": 0.9}),
+        encoding="utf-8",
+    )
+
+    dataset = BasenameAlignedDataset(".json", root=tmp_path)
+    sample = dataset[0]
+
+    assert sample["json"] == {"tags": ["cat", "outdoor"], "score": 0.9}
+    assert sample["image_path"] == str((tmp_path / "img.png").resolve())
+    assert sample["json_path"] == str((tmp_path / "img.json").resolve())
+
+
+def test_basename_aligned_json_sidecar_with_custom_reader(tmp_path) -> None:
+    _save_rgb(tmp_path / "a.png", (0, 0, 0))
+    (tmp_path / "a.meta").write_text("key=value\n", encoding="utf-8")
+
+    dataset = BasenameAlignedDataset(
+        ".meta",
+        root=tmp_path,
+        sidecar_key="meta",
+        sidecar_reader=lambda p: dict(
+            line.split("=", 1) for line in p.read_text("utf-8").strip().splitlines()
+        ),
+    )
+    sample = dataset[0]
+
+    assert sample["meta"] == {"key": "value"}
+
+
+def test_basename_aligned_txt_split_roots_and_skip_missing(tmp_path) -> None:
+    image_root = tmp_path / "images"
+    text_root = tmp_path / "texts"
+    _save_rgb(image_root / "001.png", (255, 0, 0))
+    _save_rgb(image_root / "002.png", (0, 255, 0))
+    text_root.mkdir()
+    (text_root / "001.txt").write_text("present\n", encoding="utf-8")
+
+    dataset = BasenameAlignedDataset(
+        ".txt",
+        image_root=image_root,
+        sidecar_root=text_root,
+        missing_sidecar="skip",
+    )
+    assert len(dataset) == 1
+    assert dataset[0]["sample_id"] == "001"
+
+
+def test_basename_aligned_missing_sidecar_errors(tmp_path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+
+    with pytest.raises(FileNotFoundError, match="Missing sidecar"):
+        BasenameAlignedDataset(".txt", root=tmp_path)
+
+
+def test_basename_aligned_image_sidecar_reads_as_pil(tmp_path) -> None:
+    # Use .jpg for the "sidecar" so it pairs correctly with .png main images.
+    _save_rgb(tmp_path / "input.png", (100, 150, 200))
+    Image.new("RGB", (5, 5), color=(50, 50, 50)).save(tmp_path / "input.jpg")
+
+    dataset = BasenameAlignedDataset(
+        ".jpg",
+        root=tmp_path,
+        sidecar_key="target",
+        extensions=[".png"],
+        image_mode="RGB",
+    )
+    sample = dataset[0]
+
+    from PIL.Image import Image as PILImage
+
+    assert isinstance(sample["image"], PILImage)
+    assert isinstance(sample["target"], PILImage)
+    assert sample["sample_id"] == "input"
+    assert sample["target_path"] == str((tmp_path / "input.jpg").resolve())
+
+
+def test_basename_aligned_can_apply_transform_to_image_only(tmp_path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+    (tmp_path / "a.txt").write_text("text\n", encoding="utf-8")
+
+    dataset = BasenameAlignedDataset(
+        ".txt",
+        root=tmp_path,
+        transform=_to_marker_tensor,
+    )
+    sample = dataset[0]
+
+    assert torch.equal(sample["image"], torch.tensor([5, 4]))
+    assert sample["txt"] == "text"
+
+
+def test_basename_aligned_repeat(tmp_path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+    (tmp_path / "a.txt").write_text("ok\n", encoding="utf-8")
+
+    dataset = BasenameAlignedDataset(".txt", root=tmp_path, repeat=3)
+    assert len(dataset) == 3
+    assert dataset[0]["sample_id"] == "a"
+    assert dataset[1]["sample_id"] == "a"
+
+
+def test_basename_aligned_is_registered() -> None:
+    assert DATASET_REGISTRY.get("BasenameAlignedDataset") is BasenameAlignedDataset
+
+
+# ---------------------------------------------------------------------------
+# split_dataset / train_val_split
+# ---------------------------------------------------------------------------
+
+
+def test_split_dataset_produces_correct_subset_lengths(tmp_path) -> None:
+    _save_rgb(tmp_path / "a.png", (255, 0, 0))
+    _save_rgb(tmp_path / "b.png", (0, 255, 0))
+    manifest_path = tmp_path / "rec.jsonl"
+    manifest_path.write_text(
+        json.dumps({"id": "a", "value": 1}) + "\n"
+        + json.dumps({"id": "b", "value": 2}) + "\n",
+        encoding="utf-8",
+    )
+    dataset = RecordDataset(manifest_path)
+
+    subsets = split_dataset(dataset, [1, 1], seed=42)
+    assert len(subsets) == 2
+    assert len(subsets[0]) == 1
+    assert len(subsets[1]) == 1
+
+
+def test_split_dataset_is_deterministic(tmp_path) -> None:
+    manifest_path = tmp_path / "rec.jsonl"
+    lines = "\n".join(
+        json.dumps({"id": str(i), "value": i}) for i in range(10)
+    )
+    manifest_path.write_text(lines + "\n", encoding="utf-8")
+    dataset = RecordDataset(manifest_path)
+
+    a0 = [s.indices[:] for s in split_dataset(dataset, [5, 5], seed=99)]
+    a1 = [s.indices[:] for s in split_dataset(dataset, [5, 5], seed=99)]
+    assert a0 == a1
+
+    # Different seed → different split.
+    b = [s.indices[:] for s in split_dataset(dataset, [5, 5], seed=77)]
+    assert a0 != b
+
+
+def test_split_dataset_rejects_mismatched_lengths(tmp_path) -> None:
+    manifest_path = tmp_path / "rec.jsonl"
+    manifest_path.write_text(
+        json.dumps({"id": "x"}) + "\n" + json.dumps({"id": "y"}) + "\n",
+        encoding="utf-8",
+    )
+    dataset = RecordDataset(manifest_path)
+
+    with pytest.raises(ValueError, match="Sum of lengths"):
+        split_dataset(dataset, [1, 2], seed=0)
+
+
+def test_train_val_split_default_ratio(tmp_path) -> None:
+    manifest_path = tmp_path / "rec.jsonl"
+    lines = "\n".join(
+        json.dumps({"id": str(i), "value": i}) for i in range(10)
+    )
+    manifest_path.write_text(lines + "\n", encoding="utf-8")
+    dataset = RecordDataset(manifest_path)
+
+    train, val = train_val_split(dataset, val_ratio=0.2, seed=42)
+    assert len(train) == 8
+    assert len(val) == 2
+
+
+def test_train_val_split_zero_ratio(tmp_path) -> None:
+    manifest_path = tmp_path / "rec.jsonl"
+    manifest_path.write_text(
+        json.dumps({"id": "a"}) + "\n" + json.dumps({"id": "b"}) + "\n",
+        encoding="utf-8",
+    )
+    dataset = RecordDataset(manifest_path)
+
+    train, val = train_val_split(dataset, val_ratio=0.0)
+    assert len(train) == 2
+    assert len(val) == 0
+
+
+def test_train_val_split_full_ratio(tmp_path) -> None:
+    manifest_path = tmp_path / "rec.jsonl"
+    manifest_path.write_text(
+        json.dumps({"id": "a"}) + "\n" + json.dumps({"id": "b"}) + "\n",
+        encoding="utf-8",
+    )
+    dataset = RecordDataset(manifest_path)
+
+    train, val = train_val_split(dataset, val_ratio=1.0)
+    assert len(train) == 0
+    assert len(val) == 2

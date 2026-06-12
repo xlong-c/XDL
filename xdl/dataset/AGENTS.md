@@ -7,16 +7,25 @@
 
 ## 当前内容
 
-- `vision_datasets.py`：常用视觉数据集
-- `basic.py`：基础或合成数据集
-- `hairdata*.py`：毛发相关数据集
-- `hair_transforms.py`：相关 transform
-- `_records.py`：manifest 读盘与路径解析公共 helper
-- `_paths.py`: 图片扫描, 扩展名归一化, basename sidecar 对齐和 path sample_id helper
-- `image_edit.py`: 通用多图 image edit manifest 数据集和 paired transform
-- `dense.py`: 分割, 检测, image-mask sidecar 数据集模板, 以及 image-mask / image-boxes transform
-- `templates.py`: 通用 manifest, image folder, image-only, image-text sidecar, classification, regression, multi-label, image-text, text, pair, triplet 数据集模板
-- `collate.py`：通用批处理拼接逻辑
+- `utils.py`: 路径操作, manifest 读盘, record 解析, sidecar 对齐, tensor 转换等公共 helper
+- `collate.py`: 通用 collate 和任务 collate
+- `transforms.py`: 需要同步处理 image / mask / boxes / 多图样本的 transform
+- `basic.py`: 基础或合成数据集
+- `vision.py`: 常用 torchvision 数据集封装
+- `record.py`: manifest record 基类和通用 record dataset
+- `folder.py`: 纯图片目录 dataset
+- `sidecar.py`: 通用 basename sidecar 对齐 dataset
+- `classification.py`: 单标签和多标签分类 dataset
+- `regression.py`: 回归 dataset
+- `segmentation.py`: image + mask 分割 dataset
+- `detection.py`: image + boxes + labels 检测 dataset
+- `image_text.py`: image + text dataset
+- `text.py`: 文本 record dataset
+- `pair.py`: pair / siamese / contrastive dataset
+- `triplet.py`: triplet / retrieval dataset
+- `image_edit.py`: 图像编辑 dataset
+- `split.py`: dataset 拆分 helper
+- `hair/`: 毛发相关数据集和 transform
 
 ## 推荐模板
 
@@ -28,7 +37,7 @@
 - `RecordClassificationDataset`：真实项目更常见的 manifest 分类模板
 - `RecordRegressionDataset`：分数, 年龄, 质量估计等回归模板
 - `RecordMultiLabelClassificationDataset`：多标签分类模板
-- `RecordSegmentationDataset`：`image + mask` dense prediction 模板
+- `RecordSegmentationDataset`：`image + mask` 分割 / 逐像素标注模板
 - `RecordDetectionDataset`：`image + boxes + labels` 检测模板
 - `RecordImageTextDataset`：图文配对模板
 - `RecordTextDataset`：纯文本 / 指令 / 响应样本模板
@@ -43,7 +52,7 @@
 1. 样本语义形态：`image + label`、`image + text`、`pair`、`triplet`、`image + mask` 等
 2. 磁盘组织形态：manifest、目录分类、basename sidecar 对齐、纯图片目录、标准格式标注
 
-当前主路径是 `Record*` 模板读取 manifest 文件. 历史 `Manifest*` 类名和 registry 键继续保留为兼容别名, 新代码优先使用 `Record*` / `ImageEdit*` 名称.
+当前主路径是 `Record*` / `ImageEdit*` 模板读取 manifest 文件. 历史 `Manifest*` 类名和 registry 键继续保留为兼容别名, 新代码优先使用 `Record*` / `ImageEdit*` 名称.
 
 仓库里已经存在的真实数据组织方式包括：
 
@@ -56,8 +65,24 @@
 
 后续优先补的组织形态模板：
 
-- 更通用的 `BasenameAlignedDataset`, 覆盖 `image + json` / `image + label` 等 sidecar 结构
+- ~~更通用的 `BasenameAlignedDataset`, 覆盖 `image + json` / `image + label` 等 sidecar 结构~~ 已实现
 - 标准格式适配：COCO / keypoint
+
+## 新增：BasenameAlignedDataset
+
+`BasenameAlignedDataset` 是一个通用的 basename 对齐数据集模板, 替代为每种 sidecar 格式写新类的模式.
+
+- 通过 `sidecar_extension` 指定 sidecar 文件扩展名
+- 内置 reader: `.txt/.text` (字符串), `.json` (解析后的 dict/list), 图片扩展名 (PIL.Image)
+- 支持 `sidecar_reader` 自定义读取逻辑, `sidecar_transform` 对 sidecar 内容做变换
+- `transform` 仅作用于 image, 不做 paired transform (需要 paired transform 的场景继续用 `ImageMaskSidecarDataset`)
+
+## 新增：split_dataset / train_val_split
+
+轻量数据集拆分工具, 封装 torch 的 `random_split`:
+
+- `split_dataset(dataset, lengths, *, seed=42)` — 确定性随机拆分, 返回 `list[Subset]`
+- `train_val_split(dataset, val_ratio=0.1, *, seed=42)` — 拆分为训练集和验证集
 
 ## 推荐字段名
 

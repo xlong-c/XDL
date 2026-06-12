@@ -1,92 +1,22 @@
-"""Multi-image edit dataset and collate utilities."""
+"""Image editing datasets."""
 
 from __future__ import annotations
 
-import random
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
-import numpy as np
 import torch
-from PIL import Image, ImageOps
+from PIL import Image
 from torch.utils.data import Dataset
-from torch.utils.data.dataloader import default_collate
 
-from ._records import build_sample_id, first_present_value, load_manifest_context, resolve_path
+from .collate import ImageEditCollate
+from .transforms import PairedImageTransform
+from .utils import build_sample_id, first_present_value, load_manifest_context, resolve_path
 
-
-IMAGE_KEYS: Tuple[str, ...] = ("source_image", "target_image", "reference_image")
-REQUIRED_IMAGE_KEYS: Tuple[str, ...] = ("source_image", "target_image")
-MASK_KEYS: Tuple[str, ...] = ("edit_mask", "mask", "mask_image")
-PROMPT_KEYS: Tuple[str, ...] = ("prompt", "text", "caption")
-
-
-def _to_image_tensor(image: Image.Image, *, normalize: bool) -> torch.Tensor:
-    array = np.array(image, dtype=np.float32, copy=True)
-    if array.ndim == 2:
-        array = array[:, :, None]
-    tensor = torch.from_numpy(array).permute(2, 0, 1).contiguous() / 255.0
-    if normalize:
-        tensor = tensor * 2.0 - 1.0
-    return tensor
-
-
-def _to_mask_tensor(mask: Image.Image) -> torch.Tensor:
-    array = np.array(mask, dtype=np.float32, copy=True)
-    if array.ndim == 3:
-        array = array[:, :, 0]
-    return torch.from_numpy(array[None, ...]).contiguous() / 255.0
-
-
-class PairedImageTransform:
-    """Apply the same resize/crop/flip decisions to images and masks."""
-
-    def __init__(
-        self,
-        height: int = 512,
-        width: int = 512,
-        center_crop: bool = True,
-        random_flip: bool = False,
-        normalize: bool = True,
-    ) -> None:
-        self.height = int(height)
-        self.width = int(width)
-        self.center_crop = bool(center_crop)
-        self.random_flip = bool(random_flip)
-        self.normalize = bool(normalize)
-
-    def __call__(
-        self,
-        images: Mapping[str, Image.Image],
-        masks: Optional[Mapping[str, Image.Image]] = None,
-    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
-        do_flip = self.random_flip and random.random() < 0.5
-        image_tensors = {
-            key: _to_image_tensor(
-                self._prepare_image(image.convert("RGB"), do_flip=do_flip),
-                normalize=self.normalize,
-            )
-            for key, image in images.items()
-        }
-        mask_tensors = {
-            key: _to_mask_tensor(self._prepare_image(mask.convert("L"), do_flip=do_flip))
-            for key, mask in (masks or {}).items()
-        }
-        return image_tensors, mask_tensors
-
-    def _prepare_image(self, image: Image.Image, *, do_flip: bool) -> Image.Image:
-        if self.center_crop:
-            image = ImageOps.fit(
-                image,
-                (self.width, self.height),
-                method=Image.Resampling.BILINEAR,
-                centering=(0.5, 0.5),
-            )
-        else:
-            image = image.resize((self.width, self.height), Image.Resampling.BILINEAR)
-        if do_flip:
-            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        return image
+IMAGE_KEYS = ("source_image", "target_image", "reference_image")
+REQUIRED_IMAGE_KEYS = ("source_image", "target_image")
+MASK_KEYS = ("edit_mask", "mask", "mask_image")
+PROMPT_KEYS = ("prompt", "text", "caption")
 
 
 class ImageEditDataset(Dataset[Dict[str, Any]]):
@@ -154,7 +84,7 @@ class ImageEditDataset(Dataset[Dict[str, Any]]):
                 dtype=source_tensor.dtype,
             )
 
-        sample = {
+        sample: Dict[str, Any] = {
             key: image_tensors[key]
             for key in self.image_keys
         }
@@ -201,25 +131,13 @@ class ImageEditDataset(Dataset[Dict[str, Any]]):
         )
 
 
-class ImageEditCollate:
-    """Collate image edit samples into a dict batch."""
-
-    def __init__(self, keys: Optional[Iterable[str]] = None) -> None:
-        self.keys = list(keys) if keys is not None else None
-
-    def __call__(self, batch: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
-        if not batch:
-            return {}
-        keys = self.keys if self.keys is not None else list(batch[0].keys())
-        collated: Dict[str, Any] = {}
-        for key in keys:
-            values = [item[key] for item in batch]
-            if torch.is_tensor(values[0]):
-                collated[key] = default_collate(values)
-            else:
-                collated[key] = list(values)
-        return collated
-
-
 ManifestImageEditDataset = ImageEditDataset
 ManifestImageEditCollate = ImageEditCollate
+
+__all__ = [
+    "ImageEditDataset",
+    "PairedImageTransform",
+    "ImageEditCollate",
+    "ManifestImageEditDataset",
+    "ManifestImageEditCollate",
+]
