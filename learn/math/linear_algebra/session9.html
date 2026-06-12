@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN" data-accent="blue">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="第九章: 矩阵分解与数值视角 HTML 教程">
+  <title>第九章: 矩阵分解与数值视角</title>
+  <link rel="stylesheet" href="linear_algebra.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">L</span>
+        <span>线性代数教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="index.html">首页</a>
+        <a class="nav-link" href="outline.md">总纲</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Session 9</p>
+        <h1>第九章: 矩阵分解与数值视角</h1>
+        <p class="lead">把矩阵拆成更稳定, 更可解释, 更易计算的部分, 理解 LU, QR, Cholesky, SVD, 伪逆和条件数.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#01-0-全章主线">看主线</a>
+          <a class="button" href="#07-6-实战清单与易错点">实战清单</a>
+        </div>
+      </div>
+      <aside class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>本章定位</strong>
+          <span class="tag">稳定计算</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>7</strong></div>
+          <div class="stat-card"><span>公式块</span><strong>4</strong></div>
+          <div class="stat-card"><span>配图</span><strong>2</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 全章主线</strong><span>分解不是为了形式漂亮, 而是为了求解, 投影, 压缩和控制误差.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 常见分解各自解决什么</strong><span>不同分解服务不同问题, 不能只背名字.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. SVD 的核心图像</strong><span>SVD 把任意矩阵拆成输入正交方向, 单轴缩放和输出正交方向.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 条件数和数值稳定性</strong><span>数学上有唯一解, 不代表数值上容易求.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-全章主线">0. 全章主线</a>
+<a href="#02-1-常见分解各自解决什么">1. 常见分解各自解决什么</a>
+<a href="#03-2-svd-的核心图像">2. SVD 的核心图像</a>
+<a href="#04-3-条件数和数值稳定性">3. 条件数和数值稳定性</a>
+<a href="#05-4-几何图像-svd-和病态问题">4. 几何图像: SVD 和病态问题</a>
+<a href="#06-5-物理问题-有限元刚度矩阵">5. 物理问题: 有限元刚度矩阵</a>
+<a href="#07-6-实战清单与易错点">6. 实战清单与易错点</a>
+    </aside>
+    <div class="content">
+      <section id="01-0-全章主线" class="section"><div class="section-header"><p class="section-kicker">Route</p><h2>0. 全章主线</h2><p>分解不是为了形式漂亮, 而是为了求解, 投影, 压缩和控制误差.</p></div><div class="section-body wide"><div class="flow"><div class="flow-item"><strong>LU</strong><span>把消元过程保存下来.</span></div>
+<div class="flow-item"><strong>QR</strong><span>用正交基做稳定投影.</span></div>
+<div class="flow-item"><strong>Cholesky</strong><span>正定系统的高效分解.</span></div>
+<div class="flow-item"><strong>SVD</strong><span>任何矩阵的主方向分解.</span></div>
+<div class="flow-item"><strong>条件数</strong><span>误差会被放大多少.</span></div></div></div></section>
+<section id="02-1-常见分解各自解决什么" class="section"><div class="section-header"><p class="section-kicker">Factorization</p><h2>1. 常见分解各自解决什么</h2><p>不同分解服务不同问题, 不能只背名字.</p></div><div class="section-body wide">
+                    <div class="table-wrap"><table><thead><tr><th>分解</th><th>形式</th><th>典型用途</th></tr></thead><tbody>
+                    <tr><td>LU</td><td>$A=LU$</td><td>多次求解同一个系数矩阵的方程组</td></tr>
+                    <tr><td>QR</td><td>$A=QR$</td><td>最小二乘, 正交化, 稳定求解</td></tr>
+                    <tr><td>Cholesky</td><td>$A=LL^T$</td><td>对称正定系统, 协方差, 能量矩阵</td></tr>
+                    <tr><td>SVD</td><td>$A=U\Sigma V^T$</td><td>低秩近似, 伪逆, 降维, 病态诊断</td></tr>
+                    </tbody></table></div>
+                    </div></section>
+<section id="03-2-svd-的核心图像" class="section"><div class="section-header"><p class="section-kicker">SVD</p><h2>2. SVD 的核心图像</h2><p>SVD 把任意矩阵拆成输入正交方向, 单轴缩放和输出正交方向.</p></div><div class="section-body wide">
+                    <div class="formula">$$
+                    A=U\Sigma V^T
+                    $$</div>
+                    <p>$V^T$ 先把输入转到右奇异向量坐标, $\Sigma$ 按奇异值缩放, $U$ 再转到输出方向. 奇异值越小, 对应方向越容易放大误差.</p>
+                    <div class="formula">$$
+                    A_k=\sum_{i=1}^k\sigma_i u_i v_i^T
+                    $$</div>
+                    <p>截断 SVD 给出 Frobenius 范数和谱范数意义下的最佳低秩近似.</p>
+                    </div></section>
+<section id="04-3-条件数和数值稳定性" class="section"><div class="section-header"><p class="section-kicker">Conditioning</p><h2>3. 条件数和数值稳定性</h2><p>数学上有唯一解, 不代表数值上容易求.</p></div><div class="section-body wide">
+                    <div class="formula">$$
+                    \kappa_2(A)=\frac{\sigma_{\max}(A)}{\sigma_{\min}(A)}
+                    $$</div>
+                    <p>条件数大表示某些方向被矩阵压得很扁. 求逆或求解时, 这些方向上的微小测量误差会被巨大放大.</p>
+                    <div class="warning"><strong>常见误区</strong>行列式很小不等于条件数一定大, 行列式不小也不保证条件数好. 条件数关注最大和最小伸缩比例.</div>
+                    </div></section>
+<section id="05-4-几何图像-svd-和病态问题" class="section"><div class="section-header"><p class="section-kicker">Geometry</p><h2>4. 几何图像: SVD 和病态问题</h2><p>SVD 把单位圆变成椭圆, 条件数就是长短轴比例.</p></div><div class="section-body wide"><div class="figure-grid"><figure><img src="assets/la_ch09_svd_ellipse.png" alt="单位圆经过矩阵变成椭圆"><figcaption>奇异值给出椭圆主轴长度. 右奇异向量是输入方向, 左奇异向量是输出方向.</figcaption></figure><figure><img src="assets/la_ch09_condition_number.png" alt="近乎平行的约束导致病态求解"><figcaption>两条线几乎平行时, 右端项的微小变化会让交点明显漂移. 这是病态线性系统的几何直觉.</figcaption></figure></div></div></section>
+<section id="06-5-物理问题-有限元刚度矩阵" class="section"><div class="section-header"><p class="section-kicker">Physics</p><h2>5. 物理问题: 有限元刚度矩阵</h2><p>大型结构求解需要分解和条件数视角, 不能只看理论公式.</p></div><div class="section-body wide">
+                    <div class="physics"><strong>问题</strong>有限元静力分析常得到 $Ku=f$. $K$ 是大型稀疏刚度矩阵, $u$ 是节点位移, $f$ 是外力. 直接求逆既慢又不稳定.</div>
+                    <div class="formula">$$
+                    Ku=f,\quad K=K^T,\quad K\succ0\ \text{after boundary conditions}
+                    $$</div>
+                    <p>工程上会利用稀疏 Cholesky, 共轭梯度或预条件器. 预条件的目标是降低有效条件数, 让迭代更快收敛.</p>
+                    </div></section>
+<section id="07-6-实战清单与易错点" class="section"><div class="section-header"><p class="section-kicker">Checklist</p><h2>6. 实战清单与易错点</h2><p>数值线性代数先问目标和矩阵结构, 再选分解.</p></div><div class="section-body wide">
+                    <div class="grid">
+                      <div class="card"><strong>实战清单</strong><ol><li>目标是求解, 拟合, 压缩还是诊断?</li><li>矩阵是否对称, 正定, 稀疏, 低秩?</li><li>是否需要多次求解同一矩阵?</li><li>条件数是否会放大误差?</li><li>能否避免显式求逆?</li></ol></div>
+                      <div class="card"><strong>高频错误</strong><ol><li>把特征分解和 SVD 当成同一件事.</li><li>对病态矩阵直接求逆.</li><li>忽略浮点误差和数据噪声.</li><li>不知道伪逆只给某种最小范数或最小二乘解.</li></ol></div>
+                    </div>
+                    <div class="summary"><strong>记住</strong>分解是工程计算的接口. 它让线性代数从"可解"走向"可稳定求解".</div>
+                    </div></section>
+      <nav class="pager" aria-label="章节翻页"><a class="prev" href="session8.html"><span>上一章</span><strong>第八章: 二次型与实对称矩阵</strong></a><a class="next" href="session10.html"><span>下一章</span><strong>第十章: 工程与机器学习应用</strong></a></nav>
+    </div>
+  </main>
+
+  <footer class="footer-note">
+    本页为 XDL learn/math/linear_algebra 的静态 HTML 教程页面. 数学公式由 MathJax 渲染, 配图由本目录 assets 下的 Python 脚本生成.
+  </footer>
+</body>
+</html>

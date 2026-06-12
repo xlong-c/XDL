@@ -13,6 +13,8 @@ PyTorch 深度学习框架, 组件注册系统 + 回调生命周期. Python 3.12
 - **配置规范**：新增或重构 YAML/层级配置解析时，优先使用 `OmegaConf` 统一处理加载、合并、插值、resolver 和 `DictConfig`/`ListConfig` 到普通容器的转换；不要在训练入口或工具脚本里散落 `yaml.safe_load` + 手写合并逻辑，除非只是兼容旧路径或读写极小的固定结构文件
 - **结构化配置加载规则**: 训练入口或研究脚本里的轻量 `load_config` 优先遵循 `dataclass/structured config` 定义默认值和 schema, 再由 YAML 直接覆盖的顺序. 除非有明确兼容需求, 不要在 `load_config` 中额外做路径重写, 字符串 `"null"` 兼容, 旧字段迁移, clamp/奇偶修正, 或 list/tuple 强转. 需要约束时优先让 schema/OmegaConf 报错, 或在业务使用处显式校验
 - **半角符号**：文档或者注释之类使用点,括号,引号,冒号等一律写半角,不要混入全角符号
+- **文档第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档,`docs/html/` 是给人类用户阅读的可视化文档. 新增长期 MD 放 `docs/md/`,新增自有 HTML 放 `docs/html/`.
+- **HTML 阅读页样式**: 仓库自有 HTML 是给人类阅读的可视化层,新增或重构 `docs/html/`,`research/`,`learn/` 等目录下的 HTML/CSS 时,先遵循 [docs/md/HTML_STYLE.md](docs/md/HTML_STYLE.md). 项目自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板之一;`math-doc-page`,`research-page`,`flash-attention-page` 等只能作为语义叠加 class,不能成为第三套视觉模板. 默认复用 `docs/html/assets/xdl-doc.css` 的主题 token 和公共组件,不要复制大段内联 `<style>`,不要使用散落的 `style=`,不要复制公共版式或为单页另写一套主题系统;需要交互式主题切换时复用 `docs/html/assets/xdl-theme.js`.
 
 ## 架构
 
@@ -50,21 +52,23 @@ xdl/
 
 必读规则：
 
-- 改动公开 API、导出符号、兼容策略或 Stable / Provisional / Internal 边界时，必须先读并遵循 [docs/API.md](docs/API.md)，行为变化必须同步更新它。
-- 改动训练生命周期、`CoreModel`、`Trainer`、回调调用顺序、手动优化、batch 迁移或日志行为时，必须先读并遵循 [docs/XDL.md](docs/XDL.md) 和 [xdl/trainer/README.md](xdl/trainer/README.md)。
-- 改动 YAML 配置、schema、`target + params` 组织方式或 `setup_from_yaml` 构建行为时，必须先读并遵循 [docs/CONFIG.md](docs/CONFIG.md)。
-- 改动安装、依赖、wheel 分发、可运行入口或环境验证时，必须先读并遵循 [docs/INSTALL.md](docs/INSTALL.md) 和 [xdl/USAGE.md](xdl/USAGE.md)。
-- 改动子模块职责、目录边界或把逻辑在 `xdl/`、`tools/`、`examples/`、`train/` 等目录之间迁移时，必须先读并遵循 [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md)。
-- 改动文档结构、文档索引或长期文档边界时，必须先读并遵循 [docs/README.md](docs/README.md)。
+- 改动公开 API、导出符号、兼容策略或 Stable / Provisional / Internal 边界时，必须先读并遵循 [docs/md/API.md](docs/md/API.md)，行为变化必须同步更新它。
+- 改动训练生命周期、`CoreModel`、`Trainer`、回调调用顺序、手动优化、batch 迁移或日志行为时，必须先读并遵循 [docs/md/XDL.md](docs/md/XDL.md) 和 [xdl/trainer/README.md](xdl/trainer/README.md)。
+- 改动 YAML 配置、schema、`target + params` 组织方式或 `setup_from_yaml` 构建行为时，必须先读并遵循 [docs/md/CONFIG.md](docs/md/CONFIG.md)。
+- 改动安装、依赖、wheel 分发、可运行入口或环境验证时，必须先读并遵循 [docs/md/INSTALL.md](docs/md/INSTALL.md) 和 [xdl/USAGE.md](xdl/USAGE.md)。
+- 改动子模块职责、目录边界或把逻辑在 `xdl/`、`tools/`、`examples/`、`train/` 等目录之间迁移时，必须先读并遵循 [docs/md/xdl-functional-boundary.md](docs/md/xdl-functional-boundary.md)。
+- 改动文档结构、文档索引或长期文档边界时，必须先读并遵循 [docs/AGENTS.md](docs/AGENTS.md) 和 [docs/md/README.md](docs/md/README.md)。
+- 改动自有 HTML 阅读页视觉系统,主题 token,公共 CSS 或主题切换交互时,必须先读并遵循 [docs/md/HTML_STYLE.md](docs/md/HTML_STYLE.md).
 
-- [docs/README.md](docs/README.md) — 文档索引、推荐阅读顺序和各文档边界
-- [docs/INSTALL.md](docs/INSTALL.md) — 安装、环境验证和当前可运行入口
-- [docs/XDL.md](docs/XDL.md) — 框架定位、核心分层、训练入口、`CoreModel` / `Trainer` 生命周期
+- [docs/md/README.md](docs/md/README.md) — 文档索引、推荐阅读顺序和各文档边界
+- [docs/md/INSTALL.md](docs/md/INSTALL.md) — 安装、环境验证和当前可运行入口
+- [docs/md/XDL.md](docs/md/XDL.md) — 框架定位、核心分层、训练入口、`CoreModel` / `Trainer` 生命周期
 - [xdl/USAGE.md](xdl/USAGE.md) — 随 wheel 分发的单文件用法摘要，安装后可通过 `xdl-usage` 查看
-- [docs/CONFIG.md](docs/CONFIG.md) — YAML 配置系统、schema v1、`target + params` 组织方式
-- [docs/API.md](docs/API.md) — Stable / Provisional / Internal API 边界和兼容策略
-- [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md) — 各源码子模块职责速查与边界
-- [docs/xdl-optimization-plan.md](docs/xdl-optimization-plan.md) — 当前仍有效的框架后续优化方向
+- [docs/md/CONFIG.md](docs/md/CONFIG.md) — YAML 配置系统、schema v1、`target + params` 组织方式
+- [docs/md/API.md](docs/md/API.md) — Stable / Provisional / Internal API 边界和兼容策略
+- [docs/md/HTML_STYLE.md](docs/md/HTML_STYLE.md) - 自有 HTML 阅读页统一样式,主题 token,色彩,交互规范和 CSS 收拢边界
+- [docs/md/xdl-functional-boundary.md](docs/md/xdl-functional-boundary.md) — 各源码子模块职责速查与边界
+- [docs/md/xdl-optimization-plan.md](docs/md/xdl-optimization-plan.md) — 当前仍有效的框架后续优化方向
 - [xdl/trainer/README.md](xdl/trainer/README.md) — 训练器子模块说明，含手动优化、梯度累积 helper、日志命名和 batch 迁移行为
 
 ## XDL 训练脚本接入备忘

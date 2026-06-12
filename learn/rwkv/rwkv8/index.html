@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-accent="teal">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RWKV8 + TileLang 从零教程</title>
+  <link rel="stylesheet" href="rwkv8.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+</head>
+<body class="xdl-style-ledger rwkv8-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../../../docs/html/index.html">
+        <span class="brand-mark">X</span>
+        <span>XDL Learn</span>
+      </a>
+      <div class="topbar-cluster">
+        <nav aria-label="页面导航">
+          <a href="#mental-model">概念</a>
+          <a href="#rosa">ROSA</a>
+          <a href="#tilelang">TileLang</a>
+          <a href="#code">代码</a>
+          <a href="#run">运行</a>
+        </nav>
+        <div class="theme-switcher" role="group" aria-label="页面主题">
+          <button type="button" data-theme-value="system">系统</button>
+          <button type="button" data-theme-value="light">日间</button>
+          <button type="button" data-theme-value="dark">夜间</button>
+          <button type="button" data-theme-value="sepia">暖纸</button>
+          <button type="button" data-accent-value="teal">青</button>
+          <button type="button" data-accent-value="blue">蓝</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow">RWKV8 / ROSA / TileLang</p>
+      <h1>从零实现一个可验证的 RWKV8 ROSA 教学算子</h1>
+      <p class="lead">
+        这份教程从普通序列模型讲起, 逐步解释 RWKV8 公开方向里的 ROSA 符号记忆,
+        再把它落到一个 TileLang 教学 kernel 和 PyTorch block 中. 目标不是复刻生产级
+        后缀自动机, 而是先得到一个能读懂, 能测试, 能继续优化的最小闭环.
+      </p>
+      <div class="hero-actions">
+        <a class="button primary" href="rwkv8_tilelang.py">查看实现</a>
+        <a class="button" href="README.md">技术整理</a>
+        <a class="button" href="#run">直接运行</a>
+      </div>
+    </div>
+    <div class="hero-panel" aria-label="教程摘要">
+      <div class="hero-stat">
+        <strong>新增代码</strong>
+        <span><code>rwkv8_tilelang.py</code>: CPU reference, TileLang kernel, 1-bit/4-bit ROSA layer, tiny LM.</span>
+      </div>
+      <div class="hero-stat">
+        <strong>核心思路</strong>
+        <span>把每个通道或 4-bit group 看成一条离散符号序列, 对 query suffix 做历史 key 匹配, 输出 successor value.</span>
+      </div>
+      <div class="hero-stat">
+        <strong>当前验证</strong>
+        <span>无 CUDA 环境可跑 CPU reference 和 PyTorch block. 有 CUDA 时再启用 TileLang 后端做逐符号对比.</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <aside class="toc" aria-label="目录">
+      <div class="toc-title">学习路线</div>
+      <a href="#start">0. 你会得到什么</a>
+      <a href="#mental-model">1. RWKV 的最小心智模型</a>
+      <a href="#rwkv8-public">2. RWKV8 公开形态</a>
+      <a href="#rosa">3. ROSA 后缀记忆</a>
+      <a href="#bits">4. 1-bit 与 4-bit 符号化</a>
+      <a href="#tilelang">5. TileLang 实现方式</a>
+      <a href="#code">6. 代码导读</a>
+      <a href="#run">7. 运行与验证</a>
+      <a href="#extend">8. 下一步优化</a>
+      <a href="#sources">9. 资料来源</a>
+    </aside>
+
+    <main id="main" class="content">
+      <section id="start" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Start</p>
+          <h2>0. 你会得到什么</h2>
+          <p>
+            如果你从来没有写过 RWKV 或 TileLang, 可以按本页顺序读. 每一节都只引入一个新概念:
+            先理解符号记忆的数学语义, 再理解代码如何表达它, 最后理解如何把这个算子放进一个 RWKV8 风格 block.
+          </p>
+        </div>
+
+        <div class="card-grid">
+          <div class="card">
+            <span class="tag">实现</span>
+            <h3>一个可运行的学习实现</h3>
+            <p>
+              <code>rwkv8_tilelang.py</code> 提供 <code>rosa_suffix_match_ref</code>,
+              <code>rosa_suffix_match_tilelang</code>, <code>RWKV8Rosa1Bit</code>,
+              <code>RWKV8Rosa4Bit</code>, <code>RWKV8PureRosaBlock</code> 和
+              <code>TinyRWKV8RosaLM</code>.
+            </p>
+          </div>
+          <div class="card blue">
+            <span class="tag">验证</span>
+            <h3>先语义正确, 再谈性能</h3>
+            <p>
+              CPU reference 使用朴素循环, 很慢但容易检查. TileLang kernel 采用同一语义,
+              在 CUDA 上按 <code>(row, time)</code> 并行计算每个输出符号.
+            </p>
+          </div>
+          <div class="card amber">
+            <span class="tag">边界</span>
+            <h3>这不是生产级 RWKV8</h3>
+            <p>
+              官方公开 RWKV8 仍处于快速实验形态. 本实现是教学版 ROSA 算子, 没有训练级自定义梯度,
+              也没有把后缀自动机状态工程化到增量解码.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout tip">
+          <strong>阅读建议:</strong> 先跑 <code>python learn/rwkv/rwkv8/rwkv8_tilelang.py</code>,
+          看输出里的 <code>rosa out</code> 和 <code>hit mask</code>, 再回来看第 3 节的匹配规则.
+        </div>
+      </section>
+
+      <section id="mental-model" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Mental Model</p>
+          <h2>1. RWKV 的最小心智模型</h2>
+          <p>
+            Transformer 的注意力会显式比较当前 token 和所有历史 token. RWKV 系列想保留序列建模能力,
+            但把推理状态压缩成常数大小或更接近 RNN 的状态更新形式. 到 RWKV7, 公开论文强调动态状态演化.
+            RWKV8 公开 demo 则把一个新方向推到台前: ROSA, 也就是符号级 suffix memory.
+          </p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>模型家族</th>
+                <th>记忆形式</th>
+                <th>读历史的方式</th>
+                <th>本教程关注点</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Transformer attention</td>
+                <td>KV cache 随序列长度增长</td>
+                <td>当前 query 和所有 key 做 softmax 加权</td>
+                <td>不是本文实现对象</td>
+              </tr>
+              <tr>
+                <td>RWKV7 / linear attention family</td>
+                <td>每 head 矩阵状态或 fast-weight memory</td>
+                <td>递推更新状态, 再用当前 read vector 读出</td>
+                <td>作为背景理解</td>
+              </tr>
+              <tr>
+                <td>RWKV8 / Heron + ROSA demo</td>
+                <td>离散符号 suffix memory</td>
+                <td>匹配 query suffix 在历史 key 中的出现位置, 输出后继 value</td>
+                <td>本文实现 ROSA 的可验证教学版</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          换句话说, 本文不从大模型完整训练开始. 我们先实现最小问题:
+          给定离散序列 <code>q</code>, <code>k</code>, <code>v</code>, 对每个时间步输出一个匹配得到的符号.
+          这个小问题跑通后, 再把它包成 1-bit 或 4-bit layer, 最后接到 RWKV8 风格 block 里.
+        </p>
+      </section>
+
+      <section id="rwkv8-public" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Public State</p>
+          <h2>2. RWKV8 公开形态: 先接受它仍在实验</h2>
+          <p>
+            截至本文编写时, 官方公开材料更像一组快速迭代脚本, 而不是一个冻结的论文规格.
+            所以教程采用保守表述: 实现公开脚本中最容易独立验证的 ROSA 语义, 并明确标出哪些部分是教学取舍.
+          </p>
+        </div>
+
+        <div class="emphasis-strip">
+          <span><b>ROSA</b> Rapid Online Suffix Automaton, 用后缀匹配做符号记忆.</span>
+          <span><b>1-bit</b> 每个通道二值化后独立做 suffix lookup.</span>
+          <span><b>4-bit</b> 每四个通道打包成一个 0..15 symbol 再 lookup.</span>
+        </div>
+
+        <div class="callout warn">
+          <strong>工程边界:</strong> 这个目录位于 <code>learn/</code>, 属于学习实验. 它不注册为 XDL 主框架模型,
+          不承诺稳定 API. 如果以后要进入 <code>xdl/</code>, 需要重新整理配置, 梯度, checkpoint 和公共 API 边界.
+        </div>
+      </section>
+
+      <section id="rosa" class="section">
+        <div class="section-head">
+          <p class="section-kicker">ROSA</p>
+          <h2>3. ROSA 后缀记忆, 从一个例子开始</h2>
+          <p>
+            ROSA 的读法可以先忘掉神经网络, 只看三条离散序列. 在时间 <code>t</code>,
+            我们取 <code>q[0:t]</code> 的所有 suffix, 到历史 <code>k[0:t-1]</code> 里找最长匹配.
+            若最长匹配在 key 历史里结束于位置 <code>j</code>, 输出 <code>v[j+1]</code>.
+          </p>
+        </div>
+
+        <figure class="diagram">
+          <img src="assets/rosa_suffix_match.svg" alt="ROSA 将 query suffix 匹配到 key 历史, 再输出 value 后继符号">
+          <figcaption class="caption">
+            图 1. ROSA 不是 softmax attention. 它先做离散 suffix match, 再取匹配片段之后的 value.
+          </figcaption>
+        </figure>
+
+        <div class="formula-box">for each row and time t:
+    best_len = 0
+    best_end = -1
+    for q_start in 0..t:
+        suffix = q[q_start:t+1]
+        search suffix in k[0:t]
+        if matched and longer than best:
+            best_end = match_end
+    out[t] = v[best_end + 1] if matched else miss_value</div>
+
+        <div class="two-column">
+          <div class="card">
+            <span class="tag">为什么是 suffix</span>
+            <p>
+              suffix 表示 "当前上下文末尾刚刚发生了什么模式". 如果这个模式曾经在历史 key 中出现过,
+              那么它后面跟着的 value 可以作为一种符号级预测或记忆读出.
+            </p>
+          </div>
+          <div class="card">
+            <span class="tag">为什么输出 v[j+1]</span>
+            <p>
+              匹配片段本身说明 "历史上见过同样结尾". 后继 value 则表示 "上次这个模式之后发生了什么".
+              这和语言模型里的 next-token 直觉很接近.
+            </p>
+          </div>
+        </div>
+
+        <h3>3.1 先写最笨但最清楚的 reference</h3>
+        <p>
+          教学实现的 <code>rosa_suffix_match_ref</code> 用四层 Python 循环表达同一件事.
+          它的目的不是快, 而是成为 TileLang kernel 的语义锚点.
+        </p>
+
+        <pre><code class="language-python">out, hit = rosa_suffix_match_ref(q_symbols, k_symbols, v_symbols)
+print(out.tolist())
+print(hit.tolist())</code></pre>
+
+        <p>
+          返回值有两个: <code>out</code> 是匹配到的 value symbol, <code>hit</code> 是这个位置是否命中.
+          4-bit 路径需要 <code>hit</code>, 因为 symbol 0 既可能是真命中, 也可能是 miss 的默认值.
+        </p>
+      </section>
+
+      <section id="bits" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Symbols</p>
+          <h2>4. 1-bit 与 4-bit 符号化</h2>
+          <p>
+            神经网络里的 <code>q</code>, <code>k</code>, <code>v</code> 是连续张量. ROSA 需要离散 symbol.
+            本实现给出两条公开 demo 中最常见的教学路径: 1-bit 和 4-bit.
+          </p>
+        </div>
+
+        <div class="step-panel">
+          <span class="number">1</span>
+          <div>
+            <h3>1-bit: 每个通道独立变成 0/1</h3>
+            <p>
+              对 <code>[B, T, C]</code> 的每个通道做 <code>x &gt; 0</code>. 然后 reshape 成
+              <code>[B * C, T]</code>, 每一行是一条独立符号序列. 匹配输出再 reshape 回
+              <code>[B, T, C]</code>, 用 <code>0 -> -emb</code>, <code>1 -> +emb</code> 映射回连续值.
+            </p>
+            <span class="mini-equation">bit = (x &gt; 0), out = (2 * bit - 1) * emb</span>
+          </div>
+        </div>
+
+        <div class="step-panel">
+          <span class="number">2</span>
+          <div>
+            <h3>4-bit: 四个通道打包成一个 0..15 symbol</h3>
+            <p>
+              4-bit 版本把四个 sign bit 组成一个 uint8 symbol, 例如 <code>[0, 1, 0, 1]</code>
+              变成二进制 <code>1010</code>, 也就是十进制 <code>10</code>. ROSA 对 group 序列匹配,
+              命中后再把 symbol 展开回四个通道.
+            </p>
+          </div>
+        </div>
+
+        <figure class="diagram">
+          <img src="assets/bit_packing.svg" alt="ROSA 4-bit 将四个通道符号打包成一个 uint8 symbol">
+          <figcaption class="caption">
+            图 2. 4-bit 路径降低了 ROSA 行数, 但每个 symbol 的表达容量从 2 扩到 16.
+          </figcaption>
+        </figure>
+
+        <div class="callout tip">
+          <strong>实现细节:</strong> <code>RWKV8Rosa4Bit</code> 默认 <code>zero_on_miss=True</code>.
+          这是为了避免 miss 的默认 symbol 0 被误解释成真实的 <code>[-1, -1, -1, -1]</code>.
+        </div>
+      </section>
+
+      <section id="tilelang" class="section">
+        <div class="section-head">
+          <p class="section-kicker">TileLang</p>
+          <h2>5. 用 TileLang 写教学 kernel</h2>
+          <p>
+            TileLang 是 Python DSL. 你写 <code>@tilelang.jit</code>, <code>T.prim_func</code>,
+            <code>T.Kernel</code>, <code>T.Tensor</code>, <code>T.serial</code> 这样的结构,
+            TileLang 再把它降低到 GPU kernel. 本仓库本机版本是 <code>0.1.10</code>.
+          </p>
+        </div>
+
+        <figure class="diagram">
+          <img src="assets/tilelang_grid.svg" alt="TileLang kernel 使用 row 和 time 两维 grid 计算 ROSA 输出">
+          <figcaption class="caption">
+            图 3. 为了教学清晰, 一个 CUDA program 负责一个 <code>(row, t)</code> 输出.
+          </figcaption>
+        </figure>
+
+        <h3>5.1 为什么这个 kernel 是 brute-force</h3>
+        <p>
+          真正的 ROSA 名字里有 suffix automaton. 后缀自动机可以把 "找最长 suffix 匹配" 做成在线状态更新.
+          但第一版教学 kernel 如果直接上自动机, 你会同时面对算法, 状态结构, TileLang 语法和调试难度.
+          所以本实现先采用 brute-force:
+        </p>
+
+        <div class="badge-row">
+          <span class="pill">容易和 CPU reference 对齐</span>
+          <span class="pill">适合小 T demo</span>
+          <span class="pill">不适合长序列生产</span>
+          <span class="pill">后续可替换内部搜索</span>
+        </div>
+
+        <pre><code class="language-python">@tilelang.jit(pass_configs=pass_configs)
+def _factory():
+    rows = T.symbolic("rows")
+
+    @T.prim_func
+    def kernel(q, k, v, out, hit):
+        with T.Kernel(rows, seq_len, threads=threads) as (row, t):
+            best_len = T.alloc_var(dtype=T.int32)
+            best_end = T.alloc_var(dtype=T.int32)
+            ...
+            for q_start in T.serial(seq_len):
+                for k_start in T.serial(seq_len):
+                    ...
+            if best_len &gt; 0:
+                out[row, t] = v[row, best_end + 1]
+                hit[row, t] = 1</code></pre>
+
+        <div class="callout warn">
+          <strong>性能提醒:</strong> 这个 kernel 的教学价值高于性能价值. 长序列上你应该把内部搜索换成在线 suffix automaton,
+          或者先用 CUDA/C++ 实现状态机, 再考虑 TileLang 是否适合表达那部分控制流.
+        </div>
+      </section>
+
+      <section id="code" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Code Tour</p>
+          <h2>6. 新增代码导读</h2>
+          <p>
+            代码刻意分层. 最底层只处理 uint8 symbol. 中间层处理 1-bit/4-bit 符号化.
+            上层才是 RWKV8 风格的 PyTorch block.
+          </p>
+        </div>
+
+        <div class="code-map">
+          <div class="code-map-item">
+            <code>rosa_suffix_match_ref</code>
+            <p>CPU 参考实现. 它定义权威语义: 最长 suffix, latest tie, 输出 successor value 和 hit mask.</p>
+          </div>
+          <div class="code-map-item">
+            <code>build_rosa_suffix_match_kernel</code>
+            <p>
+              TileLang kernel 工厂. <code>seq_len</code>, <code>miss_value</code>,
+              <code>threads</code>, <code>target_arch</code> 是静态构建参数.
+            </p>
+          </div>
+          <div class="code-map-item">
+            <code>rosa_suffix_match_tilelang</code>
+            <p>CUDA wrapper. 检查输入是 CUDA uint8 tensor, 分配 <code>out</code> 和 <code>hit</code>, 调用 TileLang kernel.</p>
+          </div>
+          <div class="code-map-item">
+            <code>RWKV8Rosa1Bit</code>
+            <p>把连续 <code>[B, T, C]</code> 二值化, 展开成 <code>[B*C, T]</code>, 运行 ROSA, 再映射到 <code>+-emb</code>.</p>
+          </div>
+          <div class="code-map-item">
+            <code>RWKV8Rosa4Bit</code>
+            <p>把每 4 个通道打包成 uint8 symbol, 运行同一个 ROSA kernel, 再展开回通道并按 hit mask 清零 miss.</p>
+          </div>
+          <div class="code-map-item">
+            <code>RWKV8PureRosaBlock</code>
+            <p>一个纯 ROSA + FFN block. 它包含 LayerNorm, time shift, QKV projection, ROSA, output projection 和 squared ReLU FFN.</p>
+          </div>
+          <div class="code-map-item">
+            <code>TinyRWKV8RosaLM</code>
+            <p>最小语言模型壳子. 它用于检查 block 可以被普通 PyTorch 模型调用, 不代表可训练大模型配置.</p>
+          </div>
+        </div>
+
+        <figure class="diagram">
+          <img src="assets/rwkv8_block.svg" alt="RWKV8 ROSA block 的 LayerNorm, QKV, ROSA, FFN 数据流">
+          <figcaption class="caption">
+            图 4. PyTorch 负责连续层, TileLang 只负责离散 ROSA memory lookup.
+          </figcaption>
+        </figure>
+
+        <h3>6.1 为什么不直接手写完整大模型</h3>
+        <p>
+          因为 RWKV8 公开脚本还在迭代, 从零教程最怕把不稳定实验参数写成 "标准".
+          因此本页先固定一个最小闭环: 符号化 -> ROSA lookup -> block 前向 -> tiny LM 前向.
+          后续要做训练, 应该另起配置文件, 明确 tokenizer, loss, optimizer, gradient estimator 和保存格式.
+        </p>
+      </section>
+
+      <section id="run" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Run</p>
+          <h2>7. 运行与验证</h2>
+          <p>
+            这个目录不使用命令行参数解析库. Demo 的配置在 <code>RWKV8RosaDemoConfig</code> 里显式写出.
+            你可以直接编辑代码里的 config, 或者后续按仓库规范改成 YAML/OmegaConf.
+          </p>
+        </div>
+
+        <h3>7.1 运行 demo</h3>
+        <pre><code class="language-bash">python learn/rwkv/rwkv8/rwkv8_tilelang.py</code></pre>
+
+        <p>无 CUDA 环境下预期输出类似:</p>
+        <pre><code>reference q : [1, 0, 1, 0, 1, 1, 0, 1]
+reference k : [1, 0, 1, 1, 0, 1, 0, 1]
+reference v : [0, 1, 0, 1, 1, 0, 1, 0]
+rosa out    : [0, 0, 1, 0, 1, 1, 0, 1]
+hit mask    : [0, 0, 1, 1, 1, 1, 1, 1]
+tiny lm logits: shape=(2, 12, 64), dtype=torch.float32, device=cpu
+CUDA unavailable; skip TileLang ROSA kernel demo</code></pre>
+
+        <h3>7.2 运行测试</h3>
+        <pre><code class="language-bash">pytest tests/test_rwkv8_tilelang.py -q</code></pre>
+
+        <p>当前测试覆盖:</p>
+        <ul>
+          <li>已知序列的 ROSA reference 输出.</li>
+          <li>4-bit pack/unpack round trip.</li>
+          <li>1-bit 和 4-bit layer 的 shape 与 hit mask.</li>
+          <li>Tiny LM CPU 前向.</li>
+          <li>TileLang wrapper 对非 CUDA 输入的错误提示.</li>
+        </ul>
+
+        <h3>7.3 有 CUDA 时怎么验证 TileLang</h3>
+        <p>
+          当 <code>torch.cuda.is_available()</code> 为 true, demo 会随机生成 uint8 symbol,
+          分别跑 CPU reference 和 TileLang backend, 再用 <code>torch.testing.assert_close</code>
+          做逐元素比较. 如果你想只测这个路径, 可以在 Python 中直接调用:
+        </p>
+
+        <pre><code class="language-python">from learn.rwkv.rwkv8.rwkv8_tilelang import (
+    rosa_suffix_match_ref,
+    rosa_suffix_match_tilelang,
+)
+
+q = torch.randint(0, 2, (32, 16), device="cuda", dtype=torch.uint8)
+k = torch.randint(0, 2, q.shape, device="cuda", dtype=torch.uint8)
+v = torch.randint(0, 2, q.shape, device="cuda", dtype=torch.uint8)
+out_ref, hit_ref = rosa_suffix_match_ref(q, k, v)
+out_tl, hit_tl = rosa_suffix_match_tilelang(q, k, v)
+torch.testing.assert_close(out_tl.cpu(), out_ref.cpu(), rtol=0, atol=0)
+torch.testing.assert_close(hit_tl.cpu(), hit_ref.cpu(), rtol=0, atol=0)</code></pre>
+
+        <h3>7.4 只验证 TileLang 编译</h3>
+        <p>
+          有些环境有 <code>nvcc</code> 但没有可见 GPU. 这种情况下可以只验证 DSL 是否能被 TileLang
+          降低并编译成 kernel. 如果默认缓存目录不可写, 把 <code>TILELANG_CACHE_DIR</code> 指到
+          <code>/tmp</code>. 如果自动架构检测失败, 手动传入 <code>target_arch</code>.
+        </p>
+
+        <pre><code class="language-bash">PYTHONDONTWRITEBYTECODE=1 TILELANG_CACHE_DIR=/tmp/tilelang-cache-xdl python - &lt;&lt;'PY'
+from learn.rwkv.rwkv8.rwkv8_tilelang import build_rosa_suffix_match_kernel
+
+kernel = build_rosa_suffix_match_kernel(seq_len=4, target_arch="sm_80")
+print(type(kernel))
+PY</code></pre>
+
+        <div class="callout tip">
+          <strong>路径提醒:</strong> 当前 pytest 通过 <code>importlib.util.spec_from_file_location</code>
+          加载学习脚本, 因为 <code>learn/</code> 不是正式 Python package. 这是有意保持的边界.
+        </div>
+      </section>
+
+      <section id="extend" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Next</p>
+          <h2>8. 下一步怎么从教学版走向工程版</h2>
+          <p>
+            如果你已经能读懂现在的代码, 下一步不是盲目扩大模型, 而是逐层替换瓶颈.
+            下面这张路线图按收益和难度排序.
+          </p>
+        </div>
+
+        <div class="route">
+          <div class="route-step">
+            <span class="route-index">1</span>
+            <div class="route-body">
+              <strong>替换 brute-force 搜索</strong>
+              <span>把 TileLang 内部三层扫描换成 suffix automaton 状态, 或先用 C++/CUDA 写状态机.</span>
+            </div>
+          </div>
+          <div class="route-step">
+            <span class="route-index">2</span>
+            <div class="route-body">
+              <strong>定义增量解码状态</strong>
+              <span>当前教学版每次看完整上下文. 真正推理需要缓存 ROSA 状态, 避免每步重算.</span>
+            </div>
+          </div>
+          <div class="route-step">
+            <span class="route-index">3</span>
+            <div class="route-body">
+              <strong>补训练梯度策略</strong>
+              <span>二值化和 suffix lookup 不可导. 训练级实现需要 straight-through estimator 或官方配套方案.</span>
+            </div>
+          </div>
+          <div class="route-step">
+            <span class="route-index">4</span>
+            <div class="route-body">
+              <strong>接入 YAML 配置</strong>
+              <span>如果进入 XDL 训练主链路, 按仓库规范使用结构化配置和 OmegaConf, 不在脚本里散落手写合并逻辑.</span>
+            </div>
+          </div>
+          <div class="route-step">
+            <span class="route-index">5</span>
+            <div class="route-body">
+              <strong>与官方脚本持续对齐</strong>
+              <span>RWKV8 仍在变化. 升级前先重新查看官方 <code>RWKV-v8/</code> 脚本和 README.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sources" class="section">
+        <div class="section-head">
+          <p class="section-kicker">Sources</p>
+          <h2>9. 资料来源与本页状态</h2>
+          <p>
+            本页结合了仓库内已有 <code>README.md</code>, 本地 TileLang 示例, 以及官方公开仓库信息.
+            由于 RWKV8 和 TileLang 都可能继续变化, 涉及生产训练前应再次核对最新代码.
+          </p>
+        </div>
+
+        <ul class="source-list">
+          <li><a href="https://github.com/BlinkDL/RWKV-LM">BlinkDL/RWKV-LM 官方仓库</a></li>
+          <li><a href="https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v8/README.md">RWKV-v8 README</a></li>
+          <li><a href="https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md">RWKV-8.md</a></li>
+          <li><a href="https://github.com/tile-ai/tilelang">TileLang 官方仓库</a></li>
+          <li><a href="../../../learn/tilelang/flashatt.py">本仓库 TileLang FlashAttention 示例</a></li>
+          <li><a href="../../../learn/deepseek/mHC/mhc_tilelang.py">本仓库 TileLang mHC 示例</a></li>
+        </ul>
+
+        <div class="callout">
+          <strong>当前本地状态:</strong> 本页对应 <code>learn/rwkv/rwkv8/rwkv8_tilelang.py</code>
+          和 <code>tests/test_rwkv8_tilelang.py</code>. 本机无 CUDA, 因此已验证 CPU reference 和 PyTorch block,
+          TileLang GPU kernel 需要在 CUDA 环境中再跑一次逐元素对比.
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

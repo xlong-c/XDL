@@ -54,11 +54,14 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 - [xdl/](xdl/)：框架源码
 - [config/](config/)：YAML 配置示例
 - [examples/](examples/)：脚本级示例
-- [docs/](docs/): 长期文档,包含 MD 工作文档和 HTML 阅读版
+- [docs/md/](docs/md/): 给 agents 和开发者写代码前看的 MD 工作文档
+- [docs/html/](docs/html/): 给人类用户阅读的 HTML 可视化文档
 - [tests/](tests/)：测试
 - [tools/](tools/)：工具脚本
 
 ## 文档入口
+
+文档第一规则: `docs/md/` 给 agents 和开发者看,`docs/html/` 给人类用户看. 行为,字段,API 和兼容边界以源码和 `docs/md/` 为事实源,HTML 只负责阅读体验.
 
 给用户看的阅读版:
 
@@ -67,13 +70,13 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 
 给 Codex 和开发者改代码前看的高密度 MD:
 
-1. [docs/README.md](docs/README.md)
-2. [docs/INSTALL.md](docs/INSTALL.md)
-3. [docs/XDL.md](docs/XDL.md)
-4. [docs/CONFIG.md](docs/CONFIG.md)
-5. [docs/DATASET.md](docs/DATASET.md)
-6. [docs/API.md](docs/API.md)
-7. [docs/xdl-functional-boundary.md](docs/xdl-functional-boundary.md)
+1. [docs/md/README.md](docs/md/README.md)
+2. [docs/md/INSTALL.md](docs/md/INSTALL.md)
+3. [docs/md/XDL.md](docs/md/XDL.md)
+4. [docs/md/CONFIG.md](docs/md/CONFIG.md)
+5. [docs/md/DATASET.md](docs/md/DATASET.md)
+6. [docs/md/API.md](docs/md/API.md)
+7. [docs/md/xdl-functional-boundary.md](docs/md/xdl-functional-boundary.md)
 
 ## 稳定公共入口
 
@@ -85,7 +88,7 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 from xdl.callbacks import Callback
 ```
 
-完整公共 API 边界见 [docs/API.md](docs/API.md)。历史文件级导入路径仍保持兼容，但推荐逐步迁移到子包入口。
+完整公共 API 边界见 [docs/md/API.md](docs/md/API.md)。历史文件级导入路径仍保持兼容，但推荐逐步迁移到子包入口。
 
 ## 快速开始
 

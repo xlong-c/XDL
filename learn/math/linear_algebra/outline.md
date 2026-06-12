@@ -14,6 +14,14 @@
 - 先讲主线，再讲技术细节
 - 每章末尾补上实战清单、易错点和总结
 
+当前目录已经提供 HTML 阅读版:
+
+- `index.html`: 线性代数教程首页与章节导航
+- `session1.html` 到 `session10.html`: 十个章节正文
+- `linear_algebra.css`: 课程页面样式, 复用 `docs/html/assets/xdl-doc.css`
+- `assets/gen_linear_algebra_figs.py`: 配图生成脚本
+- `build_linear_algebra_html.py`: HTML 页面生成脚本
+
 ---
 
 ## 0. 整套教程的总路线
@@ -514,20 +522,28 @@ flowchart LR
 
 ---
 
-## 11. 建议的文件组织方式
+## 11. 文件组织方式
 
-为了后面持续扩写，建议按下面的方式组织：
+当前 HTML 阅读版按下面的方式组织：
 
-- `session1.md`：第一章 线性方程组与消元法
-- `session2.md`：第二章 矩阵运算与逆矩阵
-- `session3.md`：第三章 行列式
-- `session4.md`：第四章 向量与向量空间
-- `session5.md`：第五章 线性变换与坐标变换
-- `session6.md`：第六章 特征值、特征向量与对角化
-- `session7.md`：第七章 内积、正交与最小二乘
-- `session8.md`：第八章 二次型与实对称矩阵
-- `session9.md`：第九章 矩阵分解与数值视角
-- `session10.md`：第十章 工程与机器学习应用
+- `index.html`: 教程首页, 章节总览和阅读路线
+- `session1.html`: 第一章 线性方程组与消元法
+- `session2.html`: 第二章 矩阵运算与逆矩阵
+- `session3.html`: 第三章 行列式
+- `session4.html`: 第四章 向量与向量空间
+- `session5.html`: 第五章 线性变换与坐标变换
+- `session6.html`: 第六章 特征值、特征向量与对角化
+- `session7.html`: 第七章 内积、正交与最小二乘
+- `session8.html`: 第八章 二次型与实对称矩阵
+- `session9.html`: 第九章 矩阵分解与数值视角
+- `session10.html`: 第十章 工程与机器学习应用
+
+源码和资产按下面的方式组织：
+
+- `build_linear_algebra_html.py`: 维护章节正文结构并生成 HTML
+- `linear_algebra.css`: 课程级样式入口
+- `assets/*.png`: Python 生成的章节配图
+- `assets/gen_linear_algebra_figs.py`: 统一生成所有配图
 
 如果后面还想补辅助文件，也可以增加：
 
@@ -535,12 +551,7 @@ flowchart LR
 - `formula_map.md`：公式索引与章节跳转
 - `exercise_guide.md`：题型总表与常见套路
 
-配图脚本建议同步拆分：
-
-- `gen_linear_algebra_session1_figs.py`
-- `gen_linear_algebra_session2_figs.py`
-- `gen_linear_algebra_session3_figs.py`
-- ...
+如果后续配图继续增多, 可以再按章节拆分 `assets/gen_linear_algebra_session*_figs.py`; 当前规模下先集中在一个脚本里, 方便一次性重建所有图片。
 
 ---
 
@@ -563,19 +574,14 @@ flowchart LR
 
 ---
 
-## 13. 下一步最建议先写哪一章
+## 13. 后续最值得继续增强的部分
 
-如果按课程自然顺序，最建议下一步直接写：
+当前 HTML 版已经覆盖十章主线。后续如果继续扩写, 最值得优先增强这些内容：
 
-> **第一章：线性方程组与消元法**
-
-因为它最适合作为整套教程的起点，很多后续概念都能从这里自然长出来。
-
-如果按机器学习关联度，也可以优先写：
-
-> **第七章：内积、正交与最小二乘**
-
-因为投影、最小二乘、QR 和后面的回归、PCA、优化联系最紧。
+1. 给每章补更多手算例题和答案提示
+2. 增加章节间的公式索引和概念依赖图
+3. 为第七章和第九章补 Python 数值实验
+4. 为第十章补一个小型端到端案例, 例如传感器校准或弹簧系统模态分析
 
 ---
 

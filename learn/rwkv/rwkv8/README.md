@@ -5,6 +5,36 @@
 
 ---
 
+## 0. 本目录新增实现与教程
+
+- `rwkv8_tilelang.py`: TileLang 教学版 RWKV8/ROSA suffix-match 算子, CPU reference, 1-bit/4-bit ROSA layer, RWKV8 风格 block, tiny LM demo.
+- `index.html`: 从零开始的 RWKV8 + TileLang 图文教程, 复用仓库统一 HTML 样式.
+- `rwkv8.css`: 本教程的少量局部样式, 顶部导入 `docs/html/assets/xdl-doc.css`.
+- `assets/*.svg`: ROSA suffix match, 4-bit packing, TileLang grid, RWKV8 block 图示.
+- `../../../tests/test_rwkv8_tilelang.py`: 新增实现的 pytest 覆盖.
+
+运行最小闭环:
+
+```bash
+python learn/rwkv/rwkv8/rwkv8_tilelang.py
+pytest tests/test_rwkv8_tilelang.py -q
+```
+
+无 CUDA 环境会跑 CPU reference 与 PyTorch block, 并跳过 TileLang GPU kernel demo. 有 CUDA 时脚本会额外比较 TileLang output 与 CPU reference.
+
+只验证 TileLang 编译时, 可指定缓存目录和目标架构:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 TILELANG_CACHE_DIR=/tmp/tilelang-cache-xdl python - <<'PY'
+from learn.rwkv.rwkv8.rwkv8_tilelang import build_rosa_suffix_match_kernel
+
+kernel = build_rosa_suffix_match_kernel(seq_len=4, target_arch="sm_80")
+print(type(kernel))
+PY
+```
+
+---
+
 ## 1. 快速结论（先看这个）
 
 1. **RWKV v8 目前仍是实验形态**，官方公开内容以 `RWKV-v8/` 目录脚本为主（不是单一稳定论文实现）。
@@ -290,4 +320,3 @@ python RWKV-v8/251105_reverse_run.py
 1. 统一的 `RosaOp` 接口（1bit/4bit 插拔）
 2. 增量解码状态定义（ROSA 状态 + RWKV 状态）
 3. 训练超参数模板（ctx、lr、warmup、loss、tokenizer）
-

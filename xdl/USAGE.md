@@ -304,7 +304,7 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 from xdl.callbacks import Callback
 ```
 
-历史文件级导入路径当前继续兼容，但不建议新代码继续扩散。完整 Stable / Provisional / Internal API 边界见源码仓库的 `docs/API.md`。
+历史文件级导入路径当前继续兼容，但不建议新代码继续扩散。完整 Stable / Provisional / Internal API 边界见源码仓库的 `docs/md/API.md`。
 
 ## 常见坑
 

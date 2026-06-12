@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN" data-accent="blue">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="第八章: 二次型与实对称矩阵 HTML 教程">
+  <title>第八章: 二次型与实对称矩阵</title>
+  <link rel="stylesheet" href="linear_algebra.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">L</span>
+        <span>线性代数教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="index.html">首页</a>
+        <a class="nav-link" href="outline.md">总纲</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Session 8</p>
+        <h1>第八章: 二次型与实对称矩阵</h1>
+        <p class="lead">用矩阵表达二次能量, 曲率和稳定性, 理解正定, 不定, 谱定理和 Hessian 的关系.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#01-0-全章主线">看主线</a>
+          <a class="button" href="#07-6-实战清单与易错点">实战清单</a>
+        </div>
+      </div>
+      <aside class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>本章定位</strong>
+          <span class="tag">能量与曲率</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>7</strong></div>
+          <div class="stat-card"><span>公式块</span><strong>5</strong></div>
+          <div class="stat-card"><span>配图</span><strong>2</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 全章主线</strong><span>二次型把二阶信息压缩进矩阵, 对称矩阵让这种信息有清晰几何意义.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 二次型是什么</strong><span>二次型是所有二次项的统一矩阵表达.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 正定, 负定和不定</strong><span>正定性判断一个二次型在所有非零方向上的符号.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 谱定理和主轴</strong><span>实对称矩阵有一组标准正交特征向量, 这让二次型可以被旋转到主轴方向.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-全章主线">0. 全章主线</a>
+<a href="#02-1-二次型是什么">1. 二次型是什么</a>
+<a href="#03-2-正定-负定和不定">2. 正定, 负定和不定</a>
+<a href="#04-3-谱定理和主轴">3. 谱定理和主轴</a>
+<a href="#05-4-几何图像-曲率-主轴和能量">4. 几何图像: 曲率, 主轴和能量</a>
+<a href="#06-5-物理问题-势能-刚度和稳定性">5. 物理问题: 势能, 刚度和稳定性</a>
+<a href="#07-6-实战清单与易错点">6. 实战清单与易错点</a>
+    </aside>
+    <div class="content">
+      <section id="01-0-全章主线" class="section"><div class="section-header"><p class="section-kicker">Route</p><h2>0. 全章主线</h2><p>二次型把二阶信息压缩进矩阵, 对称矩阵让这种信息有清晰几何意义.</p></div><div class="section-body wide"><div class="flow"><div class="flow-item"><strong>二次型</strong><span>$x^TAx$ 表示二阶量.</span></div>
+<div class="flow-item"><strong>对称化</strong><span>只保留真正影响二次型的部分.</span></div>
+<div class="flow-item"><strong>正定性</strong><span>判断能量是否总为正.</span></div>
+<div class="flow-item"><strong>谱定理</strong><span>正交特征基给出主轴.</span></div>
+<div class="flow-item"><strong>优化</strong><span>Hessian 描述局部曲率.</span></div></div></div></section>
+<section id="02-1-二次型是什么" class="section"><div class="section-header"><p class="section-kicker">Definition</p><h2>1. 二次型是什么</h2><p>二次型是所有二次项的统一矩阵表达.</p></div><div class="section-body wide">
+                    <div class="formula">$$
+                    q(x)=x^TAx
+                    $$</div>
+                    <p>若 $A$ 不是对称矩阵, 二次型只依赖它的对称部分:</p>
+                    <div class="formula">$$
+                    x^TAx=x^T\left(\frac{A+A^T}{2}\right)x
+                    $$</div>
+                    <p>因此研究实二次型时, 可以把焦点放在实对称矩阵上.</p>
+                    </div></section>
+<section id="03-2-正定-负定和不定" class="section"><div class="section-header"><p class="section-kicker">Definiteness</p><h2>2. 正定, 负定和不定</h2><p>正定性判断一个二次型在所有非零方向上的符号.</p></div><div class="section-body wide">
+                    <div class="table-wrap"><table><thead><tr><th>类型</th><th>条件</th><th>几何图像</th></tr></thead><tbody>
+                    <tr><td>正定</td><td>$x^TAx>0,\ x\ne0$</td><td>能量碗, 原点是严格极小</td></tr>
+                    <tr><td>负定</td><td>$x^TAx<0,\ x\ne0$</td><td>倒扣能量碗</td></tr>
+                    <tr><td>不定</td><td>有正方向也有负方向</td><td>鞍面</td></tr>
+                    <tr><td>半正定</td><td>$x^TAx\ge0$</td><td>某些方向平坦</td></tr>
+                    </tbody></table></div>
+                    <p>常用判据包括特征值符号, 顺序主子式和 Cholesky 分解是否存在.</p>
+                    </div></section>
+<section id="04-3-谱定理和主轴" class="section"><div class="section-header"><p class="section-kicker">Spectral</p><h2>3. 谱定理和主轴</h2><p>实对称矩阵有一组标准正交特征向量, 这让二次型可以被旋转到主轴方向.</p></div><div class="section-body wide">
+                    <div class="formula">$$
+                    A=Q\Lambda Q^T,\quad Q^TQ=I
+                    $$</div>
+                    <p>令 $y=Q^Tx$, 则</p>
+                    <div class="formula">$$
+                    x^TAx=y^T\Lambda y=\lambda_1y_1^2+\cdots+\lambda_ny_n^2
+                    $$</div>
+                    <p>这说明特征向量给出二次型的主轴, 特征值给出各主轴方向上的曲率或能量刚度.</p>
+                    </div></section>
+<section id="05-4-几何图像-曲率-主轴和能量" class="section"><div class="section-header"><p class="section-kicker">Geometry</p><h2>4. 几何图像: 曲率, 主轴和能量</h2><p>等高线能直接显示正定和不定二次型的差别.</p></div><div class="section-body wide"><div class="figure-grid"><figure><img src="assets/la_ch08_quadratic_contours.png" alt="正定二次型和不定二次型等高线"><figcaption>正定二次型的等高线围绕原点闭合. 不定二次型会出现鞍形结构, 沿不同方向符号不同.</figcaption></figure><figure><img src="assets/la_ch08_energy_bowl.png" alt="耦合弹簧系统的二次能量"><figcaption>弹性势能常写成 $E=\frac12 x^TKx$. 刚度矩阵正定意味着平衡点稳定.</figcaption></figure></div></div></section>
+<section id="06-5-物理问题-势能-刚度和稳定性" class="section"><div class="section-header"><p class="section-kicker">Physics</p><h2>5. 物理问题: 势能, 刚度和稳定性</h2><p>小位移系统的稳定性通常由二次能量决定.</p></div><div class="section-body wide">
+                    <div class="physics"><strong>问题</strong>弹簧结构在平衡点附近的势能可近似为 $E(x)=\frac12x^TKx$. 若 $K$ 正定, 任意非零小位移都会增加能量, 平衡点稳定.</div>
+                    <div class="formula">$$
+                    K\succ0\Rightarrow E(x)>0\quad (x\ne0)
+                    $$</div>
+                    <p>优化中的 Hessian 也扮演类似角色. 对函数 $f$ 在临界点附近做二阶展开, Hessian 的正定性决定局部极小, 负定性决定局部极大, 不定则常对应鞍点.</p>
+                    </div></section>
+<section id="07-6-实战清单与易错点" class="section"><div class="section-header"><p class="section-kicker">Checklist</p><h2>6. 实战清单与易错点</h2><p>二次型题要区分相似, 合同和正交对角化.</p></div><div class="section-body wide">
+                    <div class="grid">
+                      <div class="card"><strong>实战清单</strong><ol><li>矩阵是否对称?</li><li>研究的是二次型 $x^TAx$ 还是线性变换 $Ax$?</li><li>需要判断正定性还是求标准形?</li><li>特征值符号是否解释了几何图像?</li></ol></div>
+                      <div class="card"><strong>高频错误</strong><ol><li>把合同变换和相似变换混淆.</li><li>只看对角元就判断正定.</li><li>忘记半正定有平坦方向.</li><li>把 Hessian 和梯度混为一谈.</li></ol></div>
+                    </div>
+                    <div class="summary"><strong>记住</strong>二次型是能量和曲率的矩阵语言. 实对称矩阵的特征值告诉每个主方向上的弯曲程度.</div>
+                    </div></section>
+      <nav class="pager" aria-label="章节翻页"><a class="prev" href="session7.html"><span>上一章</span><strong>第七章: 内积, 正交与最小二乘</strong></a><a class="next" href="session9.html"><span>下一章</span><strong>第九章: 矩阵分解与数值视角</strong></a></nav>
+    </div>
+  </main>
+
+  <footer class="footer-note">
+    本页为 XDL learn/math/linear_algebra 的静态 HTML 教程页面. 数学公式由 MathJax 渲染, 配图由本目录 assets 下的 Python 脚本生成.
+  </footer>
+</body>
+</html>

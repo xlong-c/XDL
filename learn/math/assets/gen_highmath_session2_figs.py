@@ -1,4 +1,4 @@
-"""Generate figures for highmath/session2.md.
+"""Generate figures for highmath/session2.html.
 
 Run:
     MPLCONFIGDIR=/tmp/mpl python learn/math/assets/gen_highmath_session2_figs.py

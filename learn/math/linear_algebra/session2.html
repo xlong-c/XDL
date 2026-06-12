@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN" data-accent="blue">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="第二章: 矩阵运算与逆矩阵 HTML 教程">
+  <title>第二章: 矩阵运算与逆矩阵</title>
+  <link rel="stylesheet" href="linear_algebra.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">L</span>
+        <span>线性代数教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="index.html">首页</a>
+        <a class="nav-link" href="outline.md">总纲</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Session 2</p>
+        <h1>第二章: 矩阵运算与逆矩阵</h1>
+        <p class="lead">把矩阵从数字表升级为线性规则, 理解矩阵乘法是变换复合, 逆矩阵是把变换倒回去.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#01-0-全章主线">看主线</a>
+          <a class="button" href="#07-6-实战清单与易错点">实战清单</a>
+        </div>
+      </div>
+      <aside class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>本章定位</strong>
+          <span class="tag">矩阵作为变换</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>7</strong></div>
+          <div class="stat-card"><span>公式块</span><strong>5</strong></div>
+          <div class="stat-card"><span>配图</span><strong>2</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 全章主线</strong><span>矩阵运算看似规则多, 主线其实是变换如何组合和反解.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 矩阵不是一张表</strong><span>矩阵最重要的解释是线性映射: 输入一个向量, 输出另一个向量.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 乘法为什么是行乘列</strong><span>矩阵乘法来自变换复合, 不是任意定义出来的记号游戏.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 逆矩阵的意义</strong><span>可逆意味着变换没有丢信息, 每个输出都能唯一追溯回输入.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-全章主线">0. 全章主线</a>
+<a href="#02-1-矩阵不是一张表">1. 矩阵不是一张表</a>
+<a href="#03-2-乘法为什么是行乘列">2. 乘法为什么是行乘列</a>
+<a href="#04-3-逆矩阵的意义">3. 逆矩阵的意义</a>
+<a href="#05-4-几何图像-网格怎样被矩阵移动">4. 几何图像: 网格怎样被矩阵移动</a>
+<a href="#06-5-物理问题-电路网络中的矩阵">5. 物理问题: 电路网络中的矩阵</a>
+<a href="#07-6-实战清单与易错点">6. 实战清单与易错点</a>
+    </aside>
+    <div class="content">
+      <section id="01-0-全章主线" class="section"><div class="section-header"><p class="section-kicker">Route</p><h2>0. 全章主线</h2><p>矩阵运算看似规则多, 主线其实是变换如何组合和反解.</p></div><div class="section-body wide"><div class="flow"><div class="flow-item"><strong>向量输入</strong><span>状态或坐标写成列向量.</span></div>
+<div class="flow-item"><strong>矩阵作用</strong><span>矩阵把输入变成输出.</span></div>
+<div class="flow-item"><strong>乘法</strong><span>多个变换连续执行.</span></div>
+<div class="flow-item"><strong>单位矩阵</strong><span>什么都不改变的基准.</span></div>
+<div class="flow-item"><strong>逆矩阵</strong><span>把输出还原成输入.</span></div></div><div class="summary"><strong>本章核心</strong>矩阵乘法不交换, 因为先旋转再拉伸和先拉伸再旋转通常不是同一个动作.</div></div></section>
+<section id="02-1-矩阵不是一张表" class="section"><div class="section-header"><p class="section-kicker">Meaning</p><h2>1. 矩阵不是一张表</h2><p>矩阵最重要的解释是线性映射: 输入一个向量, 输出另一个向量.</p></div><div class="section-body wide">
+                    <p>当 $A$ 是 $m\times n$ 矩阵时, 它接受 $n$ 维向量并输出 $m$ 维向量:</p>
+                    <div class="formula">$$
+                    A:\mathbb{R}^n\to\mathbb{R}^m,\quad x\mapsto Ax
+                    $$</div>
+                    <p>第 $j$ 列 $a_j$ 可以理解为标准基向量 $e_j$ 被矩阵送到的位置. 因此</p>
+                    <div class="formula">$$
+                    Ax=x_1a_1+x_2a_2+\cdots+x_na_n
+                    $$</div>
+                    <p>矩阵乘向量的本质是用输入坐标对矩阵列向量做线性组合.</p>
+                    </div></section>
+<section id="03-2-乘法为什么是行乘列" class="section"><div class="section-header"><p class="section-kicker">Multiplication</p><h2>2. 乘法为什么是行乘列</h2><p>矩阵乘法来自变换复合, 不是任意定义出来的记号游戏.</p></div><div class="section-body wide">
+                    <p>若 $B$ 先把 $x$ 变成 $Bx$, 再由 $A$ 作用, 总效果是 $A(Bx)=(AB)x$. 这要求乘积 $AB$ 的每一列等于 $A$ 作用在 $B$ 的对应列上.</p>
+                    <div class="formula">$$
+                    AB=\left[Ab_1\ Ab_2\ \cdots\ Ab_k\right]
+                    $$</div>
+                    <div class="note"><strong>维度检查</strong>$A_{m\times n}B_{n\times k}$ 才能相乘, 结果是 $m\times k$. 中间维度代表前一个输出必须能喂给后一个输入.</div>
+                    </div></section>
+<section id="04-3-逆矩阵的意义" class="section"><div class="section-header"><p class="section-kicker">Inverse</p><h2>3. 逆矩阵的意义</h2><p>可逆意味着变换没有丢信息, 每个输出都能唯一追溯回输入.</p></div><div class="section-body wide">
+                    <div class="formula">$$
+                    A^{-1}A=AA^{-1}=I,\quad Ax=b\Rightarrow x=A^{-1}b
+                    $$</div>
+                    <p>但实际计算中, 不应该把"求逆再相乘"当成默认数值方法. 求解线性系统通常更适合用消元, LU 或 QR. 逆矩阵更重要的价值是表达结构: 这个变换是否能倒回去.</p>
+                    <div class="grid three">
+                      <div class="card"><strong>可逆</strong>旋转, 非零缩放, 不把空间压扁的剪切.</div>
+                      <div class="card"><strong>不可逆</strong>投影, 把平面压成线, 把多维信息合并掉.</div>
+                      <div class="card"><strong>单位矩阵</strong>所有向量都保持原样, 是变换复合中的中性元素.</div>
+                    </div>
+                    </div></section>
+<section id="05-4-几何图像-网格怎样被矩阵移动" class="section"><div class="section-header"><p class="section-kicker">Geometry</p><h2>4. 几何图像: 网格怎样被矩阵移动</h2><p>观察网格能快速看出矩阵的旋转, 拉伸, 剪切和压缩效果.</p></div><div class="section-body wide"><div class="figure-grid"><figure><img src="assets/la_ch02_grid_transform.png" alt="矩阵作用在平面网格上的效果"><figcaption>矩阵把标准基送到两列向量的位置, 整个网格随之被线性地拉伸和剪切.</figcaption></figure><figure><img src="assets/la_ch02_circuit_linear_system.png" alt="简单电路方程写成矩阵形式"><figcaption>电路中的 KCL/KVL 会产生线性方程组. 网络矩阵可逆时, 电压输入能唯一决定电流.</figcaption></figure></div>
+                    <p>图中的网格线仍保持直线和平行, 这是线性变换的重要特征. 如果一个变换会把直线弯成曲线, 它就不是线性代数这一章研究的对象.</p>
+                    </div></section>
+<section id="06-5-物理问题-电路网络中的矩阵" class="section"><div class="section-header"><p class="section-kicker">Physics</p><h2>5. 物理问题: 电路网络中的矩阵</h2><p>线性电阻网络把电压, 电流和电阻连接成矩阵方程.</p></div><div class="section-body wide">
+                    <div class="physics"><strong>问题</strong>在由线性电阻组成的电路里, Kirchhoff 电流定律和电压定律给出一组线性约束. 未知量可以是支路电流, 节点电压或网孔电流.</div>
+                    <div class="formula">$$
+                    Gv=i,\quad G_{ij}\ \text{由电导和连接关系决定}
+                    $$</div>
+                    <p>若矩阵 $G$ 在选定边界条件下可逆, 给定注入电流 $i$ 就能唯一求出节点电压 $v$. 若不可逆, 常见原因是参考电位没有固定, 或网络中存在无法区分的自由漂移模式.</p>
+                    </div></section>
+<section id="07-6-实战清单与易错点" class="section"><div class="section-header"><p class="section-kicker">Checklist</p><h2>6. 实战清单与易错点</h2><p>矩阵题优先检查维度, 顺序和信息是否丢失.</p></div><div class="section-body wide">
+                    <div class="grid">
+                      <div class="card"><strong>实战清单</strong><ol><li>每个矩阵的输入维度和输出维度是什么?</li><li>乘法顺序是否对应真实执行顺序?</li><li>是否需要可逆, 还是只需要求解 $Ax=b$?</li><li>特殊矩阵的性质是否满足条件?</li></ol></div>
+                      <div class="card"><strong>高频错误</strong><ol><li>把矩阵乘法当成对应元素相乘.</li><li>默认 $AB=BA$.</li><li>把有解和可逆混为一谈.</li><li>忘记检查 $A$ 是否方阵就谈逆矩阵.</li></ol></div>
+                    </div>
+                    <div class="summary"><strong>记住</strong>矩阵是线性规则, 乘法是规则复合, 逆矩阵是规则可反向执行.</div>
+                    </div></section>
+      <nav class="pager" aria-label="章节翻页"><a class="prev" href="session1.html"><span>上一章</span><strong>第一章: 线性方程组与消元法</strong></a><a class="next" href="session3.html"><span>下一章</span><strong>第三章: 行列式</strong></a></nav>
+    </div>
+  </main>
+
+  <footer class="footer-note">
+    本页为 XDL learn/math/linear_algebra 的静态 HTML 教程页面. 数学公式由 MathJax 渲染, 配图由本目录 assets 下的 Python 脚本生成.
+  </footer>
+</body>
+</html>
