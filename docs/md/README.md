@@ -1410,6 +1410,7 @@ xdl-usage
 - 主题 token,强调色,深浅色和旧变量别名.
 - 基础排版,链接,表格,代码块,图片,打印和响应式行为.
 - 通用页面组件,例如 `.topbar`, `.hero`, `.button`, `.card`, `.section`, `.layout`, `.toc`, `.article`, `.callout`, `.note`, `.table-wrap`, `.flow`.
+- 长文页面如需让正文保持与标题区同宽,同时把目录做成左侧停靠的大组件,优先把这类双栏骨架提升到 `xdl-doc.css`,不要在目录专属 CSS 里重复实现一套侧栏逻辑.
 - 通用数学/教程组件,例如 `.formula`, `.math-block`, `.mermaid-wrap`, `.example`, `.practice`, `.checklist`, `.chapter-note`, `.chapter-nav`, `.footer-nav`.
 - `body.xdl-style-atlas`, `body.xdl-style-ledger` 两种项目级版式模板,以及 `body.math-doc-page`, `body.research-page` 这类只能叠加在两种模板上的语义桥接.
 
@@ -1646,6 +1647,7 @@ xdl-usage
 
 - 阅读主宽度控制在 `--xdl-reading` 到 `--xdl-content` 之间. 长正文不要铺满超宽屏.
 - 页面要有明确的 `header`,正文 `main`,必要时有 sticky `topbar` 或 `toc`.
+- 需要可折叠目录时,优先使用 `details.toc > summary + nav.toc-list` 结构,并在公共 CSS 中定义展开/收回两种状态,保证标题区与正文共用同一右侧列宽.
 - 标题层级保持真实结构,不要为了变大而跳级.
 - 大段正文使用舒展行高,保持短段落,表格必须可横向滚动.
 - 卡片只用于并列信息块,工具面板,索引项和局部容器. 不要把整个页面堆成卡片套卡片.
