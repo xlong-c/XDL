@@ -36,54 +36,62 @@
     </div>
   </header>
 
-  <section class="hero">
-    <div>
-      <p class="eyebrow">RWKV8 / ROSA / TileLang</p>
-      <h1>从零实现一个可验证的 RWKV8 ROSA 教学算子</h1>
-      <p class="lead">
-        这份教程从普通序列模型讲起, 逐步解释 RWKV8 公开方向里的 ROSA 符号记忆,
-        再把它落到一个 TileLang 教学 kernel 和 PyTorch block 中. 目标不是复刻生产级
-        后缀自动机, 而是先得到一个能读懂, 能测试, 能继续优化的最小闭环.
-      </p>
-      <div class="hero-actions">
-        <a class="button primary" href="rwkv8_tilelang.py">查看实现</a>
-        <a class="button" href="README.md">技术整理</a>
-        <a class="button" href="#run">直接运行</a>
-      </div>
-    </div>
-    <div class="hero-panel" aria-label="教程摘要">
-      <div class="hero-stat">
-        <strong>新增代码</strong>
-        <span><code>rwkv8_tilelang.py</code>: CPU reference, TileLang kernel, 1-bit/4-bit ROSA layer, tiny LM.</span>
-      </div>
-      <div class="hero-stat">
-        <strong>核心思路</strong>
-        <span>把每个通道或 4-bit group 看成一条离散符号序列, 对 query suffix 做历史 key 匹配, 输出 successor value.</span>
-      </div>
-      <div class="hero-stat">
-        <strong>当前验证</strong>
-        <span>无 CUDA 环境可跑 CPU reference 和 PyTorch block. 有 CUDA 时再启用 TileLang 后端做逐符号对比.</span>
-      </div>
-    </div>
-  </section>
+  <div class="layout layout-docked-toc">
+    <details class="toc toc-docked" aria-label="学习路线导航" open>
+      <summary>
+        <span class="toc-summary-copy">
+          <span class="toc-summary-title">学习路线</span>
+          <span class="toc-summary-meta">10 节导航</span>
+        </span>
+      </summary>
+      <nav class="toc-list" aria-label="目录">
+        <a href="#start">0. 你会得到什么</a>
+        <a href="#mental-model">1. RWKV 的最小心智模型</a>
+        <a href="#rwkv8-public">2. RWKV8 公开形态</a>
+        <a href="#rosa">3. ROSA 后缀记忆</a>
+        <a href="#bits">4. 1-bit 与 4-bit 符号化</a>
+        <a href="#tilelang">5. TileLang 实现方式</a>
+        <a href="#code">6. 代码导读</a>
+        <a href="#run">7. 运行与验证</a>
+        <a href="#extend">8. 下一步优化</a>
+        <a href="#sources">9. 资料来源</a>
+      </nav>
+    </details>
 
-  <div class="layout">
-    <aside class="toc" aria-label="目录">
-      <div class="toc-title">学习路线</div>
-      <a href="#start">0. 你会得到什么</a>
-      <a href="#mental-model">1. RWKV 的最小心智模型</a>
-      <a href="#rwkv8-public">2. RWKV8 公开形态</a>
-      <a href="#rosa">3. ROSA 后缀记忆</a>
-      <a href="#bits">4. 1-bit 与 4-bit 符号化</a>
-      <a href="#tilelang">5. TileLang 实现方式</a>
-      <a href="#code">6. 代码导读</a>
-      <a href="#run">7. 运行与验证</a>
-      <a href="#extend">8. 下一步优化</a>
-      <a href="#sources">9. 资料来源</a>
-    </aside>
+    <div class="page-column">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">RWKV8 / ROSA / TileLang</p>
+          <h1>从零实现一个可验证的 RWKV8 ROSA 教学算子</h1>
+          <p class="lead">
+            这份教程从普通序列模型讲起, 逐步解释 RWKV8 公开方向里的 ROSA 符号记忆,
+            再把它落到一个 TileLang 教学 kernel 和 PyTorch block 中. 目标不是复刻生产级
+            后缀自动机, 而是先得到一个能读懂, 能测试, 能继续优化的最小闭环.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="rwkv8_tilelang.py">查看实现</a>
+            <a class="button" href="README.md">技术整理</a>
+            <a class="button" href="#run">直接运行</a>
+          </div>
+        </div>
+        <div class="hero-panel" aria-label="教程摘要">
+          <div class="hero-stat">
+            <strong>新增代码</strong>
+            <span><code>rwkv8_tilelang.py</code>: CPU reference, TileLang kernel, 1-bit/4-bit ROSA layer, tiny LM.</span>
+          </div>
+          <div class="hero-stat">
+            <strong>核心思路</strong>
+            <span>把每个通道或 4-bit group 看成一条离散符号序列, 对 query suffix 做历史 key 匹配, 输出 successor value.</span>
+          </div>
+          <div class="hero-stat">
+            <strong>当前验证</strong>
+            <span>无 CUDA 环境可跑 CPU reference 和 PyTorch block. 有 CUDA 时再启用 TileLang 后端做逐符号对比.</span>
+          </div>
+        </div>
+      </section>
 
-    <main id="main" class="content">
-      <section id="start" class="section">
+      <main id="main" class="content">
+        <section id="start" class="section">
         <div class="section-head">
           <p class="section-kicker">Start</p>
           <h2>0. 你会得到什么</h2>
@@ -126,7 +134,7 @@
           <strong>阅读建议:</strong> 先跑 <code>python learn/rwkv/rwkv8/rwkv8_tilelang.py</code>,
           看输出里的 <code>rosa out</code> 和 <code>hit mask</code>, 再回来看第 3 节的匹配规则.
         </div>
-      </section>
+        </section>
 
       <section id="mental-model" class="section">
         <div class="section-head">
@@ -572,7 +580,8 @@ PY</code></pre>
           TileLang GPU kernel 需要在 CUDA 环境中再跑一次逐元素对比.
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   </div>
 </body>
 </html>
