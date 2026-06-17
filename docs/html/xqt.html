@@ -21,154 +21,581 @@
     <a class="back-link" href="index.html">返回文档阅读入口</a>
     <h1>XQT 压缩与部署阅读页</h1>
     <p class="subtitle">
-      这是 <code>xqt/</code> 的阅读版入口, 只提炼当前源码和 <a href="../md/XQT.md">docs/md/XQT.md</a> 的事实. 先看入口和流水线, 再看 recipe 和后端边界.
+      这是 <code>xqt/</code> 的阅读版入口. 它不替代 <a href="../md/XQT.md">docs/md/XQT.md</a> 的规划文档, 也不替代源码; 它的目标是让人更快看懂 XQT 现在到底在做什么, 为什么会有这些模块, 一条 recipe 是怎么跑起来的, 以及哪些函数和类值得直接上手.
     </p>
-    <span class="note">XQT 仍是实验包. 当前已覆盖 CPU smoke, ONNX Runtime QDQ, PyTorch native export, CUDA FP8 recipe, TensorRT dry-run 和 HF 文本蒸馏/剪枝支架.</span>
+    <span class="note">事实边界以源码和 <code>docs/md</code> 为准. 当前 XQT 仍是实验包, 只有顶层入口和 XDL adapter 被列为 Provisional API, 子模块细节仍按 Internal 处理.</span>
   </header>
 
   <main>
     <section class="section">
-      <h2>一. 入口</h2>
-      <div class="grid">
+      <div class="section-head">
+        <h2>一. XQT 在干嘛</h2>
+        <p>先不要把它理解成一个“大而全的新框架”. 现在更准确的说法是: 它是 XDL 仓库里一条独立的模型压缩与部署工具链, 负责把训练产物继续往量化, 剪枝, 蒸馏, 导出和验证那一段推进.</p>
+      </div>
+      <div class="grid three">
         <div class="card">
-          <h3>运行 recipe</h3>
-          <p><code>xqt-run-recipe</code> 读取 <code>XQT_CONFIG</code>, 默认使用 <code>xqt/recipes/smoke_cpu.yaml</code>, 不解析命令行参数。</p>
+          <h3>输入是什么</h3>
+          <p>主要输入是 PyTorch <code>nn.Module</code>, checkpoint, 以及一份用 OmegaConf 加载的 YAML recipe. 如果你已经有 XDL 的 <code>TrainSetup</code> 或训练出来的 checkpoint, 也可以通过 adapter 接进来.</p>
         </div>
-        <div class="card">
-          <h3>预检 recipe</h3>
-          <p><code>xqt-preflight</code> 读取同一配置, 输出 JSON 检查报告, 用于先确认 target, 依赖, 可执行文件和 CUDA 条件。</p>
+        <div class="card blue">
+          <h3>输出是什么</h3>
+          <p>输出是变换后的模型, 导出产物, 指标报告和 manifest. 典型产物包括 <code>.onnx</code>, TensorRT engine, <code>.pt2</code>, <code>.pte</code>, 以及 <code>metrics.json</code>, <code>metrics.md</code>, <code>manifest.json</code>.</p>
         </div>
-        <div class="card">
-          <h3>顶层 API</h3>
-          <p><code>xqt.load_xqt_config</code>, <code>xqt.run_xqt_recipe</code>, <code>xqt.preflight_xqt_config</code> 和 XDL adapter 入口目前列为 Provisional。</p>
+        <div class="card amber">
+          <h3>它不做什么</h3>
+          <p>它不替代 <code>xdl.trainer.Trainer</code>, 不重新实现 TensorRT 或 ONNX Runtime, 也不承诺目前每个子模块都已经稳定. 现在最可靠的是“recipe 驱动的最小闭环”, 而不是某个内部 helper 的长期兼容性.</p>
         </div>
+      </div>
+      <div class="flow" aria-label="xqt overview flow">
+        <span>训练产物<br><code>module</code><br><code>checkpoint</code></span>
+        <span>可选压缩<br>distill<br>prune<br>quant</span>
+        <span>导出与比较<br>torch.export<br>onnx<br>runtime diff</span>
+        <span>基准与报告<br>latency<br>memory<br>metrics</span>
+        <span>产物归档<br>manifest<br>checksum<br>artifacts</span>
       </div>
     </section>
 
     <section class="section">
-      <h2>二. 执行链路</h2>
-      <div class="flow" aria-label="xqt pipeline">
-        <span>1. 配置<br><code>OmegaConf</code><br><code>XQTConfig</code></span>
-        <span>2. Context<br><code>XQTContext</code><br>model / data / metrics</span>
-        <span>3. Pass Manager<br>顺序执行<br>失败即停</span>
-        <span>4. Artifact<br>manifest<br>checksum<br>report</span>
-        <span>5. 产物<br>onnx<br>engine<br>pte<br>md/json</span>
+      <div class="section-head">
+        <h2>二. 它是怎么来的</h2>
+        <p>XQT 不是先画完架构图再从零实现的. 从当前仓库能看出来, 它是先从几类专题实验脚本长出来, 然后逐步收敛成包结构.</p>
       </div>
-    </section>
-
-    <section class="section">
-      <h2>三. 关键模块</h2>
-      <div class="card-grid">
-        <article class="card">
-          <span class="tag">core</span>
-          <h3>配置, manifest, registry</h3>
-          <p><code>xqt/core/schema.py</code> 定义 recipe schema v1, <code>xqt/core/config.py</code> 负责 OmegaConf 加载, <code>xqt/core/artifact.py</code> 记录 checksum 和产物, <code>xqt/core/registry.py</code> 提供 pass, recipe, exporter registry。</p>
-        </article>
-        <article class="card blue">
-          <span class="tag">pipeline</span>
-          <h3>runner 与 pass</h3>
-          <p><code>xqt/pipeline/runner.py</code> 负责组装默认 pass 顺序, <code>xqt/pipeline/passes.py</code> 实现 load, eval, prune, quant, export, benchmark, report。</p>
-        </article>
-        <article class="card amber">
-          <span class="tag">quant</span>
-          <h3>torchao 与 ONNX QDQ</h3>
-          <p>当前量化主线是 <code>quant/torchao_backend.py</code>, <code>quant/onnx_qdq.py</code>, <code>quant/calibration.py</code> 和 <code>quant/sensitivity.py</code>。</p>
-        </article>
-        <article class="card">
-          <span class="tag">export</span>
-          <h3>导出后端</h3>
-          <p>已接入 <code>torch.export</code>, TorchScript, ONNX, TensorRT trtexec, OpenVINO, ExecuTorch, ncnn 和 MNN 的适配层。</p>
-        </article>
-        <article class="card blue">
-          <span class="tag">distill</span>
-          <h3>蒸馏与 HF 文本支架</h3>
-          <p><code>distill/losses.py</code>, <code>distill/training.py</code>, <code>distill/hf_text.py</code> 负责 teacher-student 蒸馏和文本分类 bundle。</p>
-        </article>
-        <article class="card amber">
-          <span class="tag">xdl</span>
-          <h3>XDL 对接</h3>
-          <p><code>xqt/xdl_adapter.py</code> 把 XDL TrainSetup 或 checkpoint 转成 XQT context, 方便把训练产物接到压缩流水线。</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>四. 当前 recipe</h2>
       <table>
         <thead>
           <tr>
-            <th>Recipe</th>
-            <th>用途</th>
-            <th>状态</th>
+            <th>来源</th>
+            <th>今天在 XQT 里的痕迹</th>
+            <th>说明</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><code>smoke_cpu.yaml</code></td>
-            <td>CPU smoke, PyTorch native export, manifest</td>
-            <td>最小闭环, 当前默认入口。</td>
+            <td><code>xqt/torchao_vit.py</code></td>
+            <td><code>xqt.quant.torchao_backend</code>, <code>xqt.quant.sensitivity</code>, <code>xqt.benchmark.latency</code></td>
+            <td>最早是 ViT + torchao FP8 实验, 里面已经有“选择量化哪些层”“逐层误差分析”“跑性能基准”这些核心想法. 现在这些能力被拆成了更通用的量化和 benchmark helper.</td>
           </tr>
           <tr>
-            <td><code>image_resnet_onnx_qdq_int8.yaml</code></td>
-            <td>ResNet/CNN, ONNX Runtime QDQ, TensorRT dry-run</td>
-            <td>用于验证 ONNX 导出和 QDQ 量化路径。</td>
+            <td>扩散推理实验脚本</td>
+            <td><code>xqt.diffusion_distill</code></td>
+            <td>当前仓库里已经开始收拢 timestep schedule, latent/cache, consistency 风格 loss 和采样报告对象, 但它还明显处在“给少步蒸馏铺路”的阶段.</td>
           </tr>
           <tr>
-            <td><code>image_resnet_cifar100_qdq_cpu.yaml</code></td>
-            <td>本地 CIFAR-100, ONNX Runtime QDQ, benchmark</td>
-            <td>真实数据链路, 仍偏验证性质。</td>
+            <td>部署研究资料和 smoke 需求</td>
+            <td><code>xqt.export</code>, <code>xqt.pipeline</code>, <code>xqt.recipes</code></td>
+            <td>为了把 ONNX, TensorRT, ExecuTorch, ncnn, MNN 这些路径从零散实验变成可复跑闭环, 仓库把它们抽成了统一 export adapter 和 recipe runner.</td>
           </tr>
           <tr>
-            <td><code>image_vit_torchao_fp8.yaml</code></td>
-            <td>ViT, torchao FP8, sensitivity report</td>
-            <td>当前默认使用 <code>cuda:0</code>, 可直接跑 quant + benchmark. 真实任务精度仍需目标数据验证。</td>
+            <td>XDL 训练生态</td>
+            <td><code>xqt.xdl_adapter</code></td>
+            <td>XQT 没有自己再造一套训练配置生态, 而是提供 <code>xdl_setup_to_xqt_context</code> 和 checkpoint loader, 让训练结果直接继续接压缩与部署流程.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">所以阅读 XQT 时最重要的心理预期是: 这是“从真实实验反推出来的工程工具链”, 不是“所有方向都已经抽象到位的成品包”. 这也是为什么顶层 API 已经有了, 但很多内部模块仍不承诺稳定.</p>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>三. 最值得先记住的三个入口</h2>
+        <p>如果你只是想知道“我该从哪里开始用”, 优先记住这三个入口就够了.</p>
+      </div>
+      <div class="card-grid">
+        <article class="card">
+          <span class="tag">CLI</span>
+          <h3><code>xqt-run-recipe</code></h3>
+          <p>读取环境变量 <code>XQT_CONFIG</code>, 默认跑 <code>xqt/recipes/smoke_cpu.yaml</code>. 它不解析命令行参数, 配置切换完全靠 YAML 或环境变量.</p>
+          <pre><code>XQT_CONFIG=xqt/recipes/smoke_cpu.yaml xqt-run-recipe
+XQT_WRITE_MANIFEST=0 xqt-run-recipe</code></pre>
+        </article>
+        <article class="card blue">
+          <span class="tag">CLI</span>
+          <h3><code>xqt-preflight</code></h3>
+          <p>在真正执行前先做轻量检查. 它会检查 target 能不能 import, data root 在不在, 依赖包和可执行文件是否可用, CUDA 设备是否满足 recipe 要求, 最后输出 JSON.</p>
+          <pre><code>XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-preflight</code></pre>
+        </article>
+        <article class="card amber">
+          <span class="tag">API</span>
+          <h3><code>xqt.run_xqt_recipe()</code></h3>
+          <p>这是 Python 侧最核心的顶层入口. 它会装载 config, 创建 <code>XQTContext</code>, 构造 pass pipeline, 依次执行, 最后按需写出 manifest.</p>
+          <pre><code>from xqt import run_xqt_recipe
+
+context = run_xqt_recipe("xqt/recipes/smoke_cpu.yaml")
+print(context.metrics)
+print(context.artifacts)</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>四. 一条 recipe 是怎么跑起来的</h2>
+        <p>XQT 的主链路并不复杂. 真正的骨架可以概括成 <code>Config -&gt; Context -&gt; Pipeline -&gt; Manifest</code>.</p>
+      </div>
+      <div class="flow" aria-label="xqt pipeline main flow">
+        <span>1. load config<br><code>load_xqt_config</code><br><code>XQTConfig</code></span>
+        <span>2. create context<br><code>create_context</code><br><code>XQTContext</code></span>
+        <span>3. build pipeline<br><code>default_pass_names</code><br><code>SequentialPipeline</code></span>
+        <span>4. run passes<br><code>load_model</code><br><code>... -&gt; write_reports</code></span>
+        <span>5. write outputs<br><code>metrics.*</code><br><code>manifest.json</code></span>
+      </div>
+      <div class="route">
+        <div class="route-item">
+          <div class="route-index">1</div>
+          <div class="route-body">
+            <strong><code>xqt.core.config.load_xqt_config()</code></strong>
+            <span>先用 <code>OmegaConf.structured(XQTConfig)</code> 建默认 schema, 再叠加 YAML 或 mapping 覆盖, 最后做几项最基础的校验, 比如 <code>config_version</code>, compression axes, benchmark 数值范围和 prune/diffusion 参数合法性.</span>
+          </div>
+        </div>
+        <div class="route-item">
+          <div class="route-index">2</div>
+          <div class="route-body">
+            <strong><code>xqt.pipeline.runner.create_context()</code></strong>
+            <span>把 config 包进一个可变的 <code>XQTContext</code>. 后面的 pass 都是在这个对象上读写 <code>model</code>, <code>teacher</code>, <code>data</code>, <code>metrics</code>, <code>artifacts</code>, <code>manifest</code>.</span>
+          </div>
+        </div>
+        <div class="route-item">
+          <div class="route-index">3</div>
+          <div class="route-body">
+            <strong><code>xqt.pipeline.runner.default_pass_names()</code></strong>
+            <span>按默认顺序决定需要跑哪些 pass: <code>load_model</code>, <code>load_data</code>, <code>baseline_eval</code>, 然后按开关插入 <code>distill</code>, <code>prune</code>, <code>quant</code>, <code>diffusion_distill</code>, 最后是 <code>export</code>, <code>benchmark</code>, <code>write_reports</code>.</span>
+          </div>
+        </div>
+        <div class="route-item">
+          <div class="route-index">4</div>
+          <div class="route-body">
+            <strong><code>xqt.pipeline.pass_manager.SequentialPipeline</code></strong>
+            <span>顺序执行每个 pass. 某个 pass 抛异常时, 它会被包成 <code>XQTPipelineError</code>; 每个成功执行的 pass 名称都会追加到 manifest 里.</span>
+          </div>
+        </div>
+        <div class="route-item">
+          <div class="route-index">5</div>
+          <div class="route-body">
+            <strong><code>xqt.core.artifact.ArtifactManifest</code></strong>
+            <span>收集项目名, checksum, 配置快照, 依赖版本, 产物列表和指标列表. <code>run_xqt_recipe()</code> 默认会把它写到 <code>artifact_dir/manifest.json</code>.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>五. recipe 到底长什么样</h2>
+        <p><code>xqt/core/schema.py</code> 定义的是一套很轻量的 schema. 它不是“魔法 DSL”, 本质上就是几层 dataclass: project, model, data, compression, export, validation, benchmark.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3><code>project</code></h3>
+          <p><code>ProjectConfig</code> 只有两个核心字段: <code>name</code> 和 <code>artifact_dir</code>. 一个 recipe 跑完后大多数产物都会归到这个目录下.</p>
+        </div>
+        <div class="card">
+          <h3><code>model</code></h3>
+          <p><code>ModelConfig</code> 继承自通用 <code>ComponentConfig</code>, 关键字段是 <code>target</code>, <code>params</code>, <code>checkpoint</code>, <code>dtype</code>, <code>device</code>. <code>target</code> 是一个 dotted import string.</p>
+        </div>
+        <div class="card">
+          <h3><code>data</code></h3>
+          <p>按 split 分成 <code>train</code>, <code>validation</code>, <code>calibration</code>, <code>prompts</code>. 每个 split 都是 <code>DataSplitConfig</code>, 包含 <code>target</code>, <code>root</code>, <code>sample_limit</code>, <code>batch_size</code>, <code>params</code>.</p>
+        </div>
+        <div class="card blue">
+          <h3><code>compression</code></h3>
+          <p>通过 <code>axes</code> 声明压缩维度, 再分别用 <code>quant</code>, <code>prune</code>, <code>distill</code>, <code>diffusion_distill</code> 四个子配置开关真实 pass.</p>
+        </div>
+        <div class="card blue">
+          <h3><code>export</code></h3>
+          <p><code>export.targets</code> 是一个列表, 每个元素是 <code>ExportTargetConfig</code>. 里面有 <code>format</code>, <code>output_path</code>, <code>opset</code>, <code>precision</code>, <code>dynamic_shapes</code>, <code>profiles</code>, <code>params</code>.</p>
+        </div>
+        <div class="card amber">
+          <h3><code>validation</code> / <code>benchmark</code></h3>
+          <p><code>validation.output_diff</code> 控制 runtime diff 阈值; <code>validation.metric</code> 控制任务指标容忍度; <code>benchmark</code> 控制 warmup, iterations, percentiles, CUDA 同步和是否测内存.</p>
+        </div>
+      </div>
+      <pre><code>config_version: 1
+
+project:
+  name: xqt_smoke_cpu
+  artifact_dir: artifacts/xqt/smoke_cpu
+
+model:
+  target: torch.nn.Linear
+  params:
+    in_features: 4
+    out_features: 2
+  device: cpu
+
+data:
+  validation:
+    target: synthetic_classification
+    sample_limit: 8
+    batch_size: 2
+
+compression:
+  axes: [precision, sparsity]
+  prune:
+    enabled: true
+    method: global_l1_unstructured
+    target_sparsity: 0.5
+
+export:
+  targets:
+    - format: torch_export
+      output_path: artifacts/xqt/smoke_cpu/model.pt2</code></pre>
+      <p class="note">这个例子基本就是 <code>xqt/recipes/smoke_cpu.yaml</code> 的缩写版. 从它可以看出 XQT 的设计倾向: 尽量靠一份清晰的 YAML 把“目标模型是什么, 数据从哪来, 开哪些 pass, 输出写到哪”描述清楚.</p>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>六. 当前内置 pass 在做什么</h2>
+        <p>真正的业务分支主要集中在 <code>xqt/pipeline/passes.py</code>. 如果想理解 XQT 现在“实际能跑到什么程度”, 这里比规划文档更重要.</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Pass</th>
+            <th>类</th>
+            <th>主要行为</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>load_model</code></td>
+            <td><code>LoadModelPass</code></td>
+            <td>根据 <code>model.target</code> 调 <code>build_target()</code> 实例化模型. 普通路径要求产物是 <code>torch.nn.Module</code>. 如果 target 返回的是 <code>HFTextClassificationBundle</code>, 它会顺便把 student, teacher, tokenizer 和 dataloader 塞进 context.</td>
           </tr>
           <tr>
-            <td><code>prune_finetune_cpu.yaml</code></td>
-            <td>线性剪枝 schedule + KD 微调</td>
-            <td>验证剪枝后恢复流程。</td>
+            <td><code>load_data</code></td>
+            <td><code>LoadDataPass</code></td>
+            <td>当前内置只支持两类数据目标: <code>synthetic_classification</code> 和 <code>torchvision_image_classification</code>. 也就是说, 这条内置链路更偏 smoke 和通用视觉验证, 复杂数据一般靠你在调用 <code>run_xqt_recipe()</code> 时直接把 dataloader 注入 context.</td>
           </tr>
           <tr>
-            <td><code>hf_text_kd_prune.yaml</code></td>
-            <td>HF 文本分类, KD, pruning</td>
-            <td>需要 <code>transformers</code> 和 <code>datasets</code>。</td>
+            <td><code>baseline_eval</code></td>
+            <td><code>BaselineEvalPass</code></td>
+            <td>调用 <code>xqt.eval.evaluate_pytorch_model()</code> 在 validation loader 上跑基线精度, 结果写到 <code>context.metrics["baseline"]</code> 和 manifest 指标里.</td>
+          </tr>
+          <tr>
+            <td><code>distill</code></td>
+            <td><code>DistillPass</code></td>
+            <td>当前实现的是一个小型 teacher-student logit distillation loop. 它要求 <code>context.teacher</code> 和 train dataloader 已经准备好, 然后用 <code>train_logit_distillation()</code> 跑若干步并记录均值 loss.</td>
+          </tr>
+          <tr>
+            <td><code>prune</code></td>
+            <td><code>PrunePass</code></td>
+            <td>内置剪枝主线目前是 <code>global_l1_unstructured</code>. 它既支持一次性剪枝, 也支持带 schedule 的 prune + KD loop, 最后会固化 reparameterization 并汇总稀疏率.</td>
+          </tr>
+          <tr>
+            <td><code>quant</code></td>
+            <td><code>QuantPass</code></td>
+            <td>当前只支持两个 backend: <code>torchao</code> 和 <code>onnxruntime_qdq</code>. 前者直接在 PyTorch 模型上原地量化指定模块; 后者会先确保有 ONNX 图, 再做静态 QDQ 量化并把量化 ONNX 文件记到 artifact 里.</td>
+          </tr>
+          <tr>
+            <td><code>export</code></td>
+            <td><code>ExportPass</code></td>
+            <td>按 <code>export.targets</code> 顺序导出. 目前能分支到 <code>torch_export</code>, <code>torchscript</code>, <code>onnx</code>, <code>tensorrt</code>, <code>executorch</code>, <code>ncnn</code>, <code>mnn</code>. 其中一些后端是纯 adapter 或 dry-run 命令生成器.</td>
+          </tr>
+          <tr>
+            <td><code>benchmark</code></td>
+            <td><code>BenchmarkPass</code></td>
+            <td>取 validation 的第一个 batch 做延迟和可选内存基准, 底层用的是 <code>xqt.benchmark.benchmark_callable()</code> 和 <code>benchmark_memory()</code>.</td>
+          </tr>
+          <tr>
+            <td><code>write_reports</code></td>
+            <td><code>WriteReportsPass</code></td>
+            <td>把当前 <code>context.metrics</code> 写成 <code>metrics.json</code> 和 <code>metrics.md</code>. 这个 pass 不负责所有产物的导出, 它只负责把已经收集好的指标落盘.</td>
           </tr>
         </tbody>
       </table>
     </section>
 
     <section class="section">
-      <h2>五. 读源码时优先看</h2>
+      <div class="section-head">
+        <h2>七. 主要类和函数怎么用</h2>
+        <p>这一节只讲那些“你真的可能直接 import 来用”的对象. 更深的内部 helper 可以读源码时再看.</p>
+      </div>
+      <div class="card-grid">
+        <article class="card">
+          <span class="tag">config</span>
+          <h3><code>XQTConfig</code> 与 <code>load_xqt_config()</code></h3>
+          <p><code>XQTConfig</code> 是 schema dataclass. <code>load_xqt_config()</code> 是最推荐的装载入口, 因为它会补默认值, 解析 OmegaConf resolver, 然后做基础校验.</p>
+          <pre><code>from xqt import XQTConfig, load_xqt_config
+
+config = load_xqt_config("xqt/recipes/smoke_cpu.yaml")
+assert isinstance(config, XQTConfig)
+print(config.project.artifact_dir)</code></pre>
+        </article>
+        <article class="card blue">
+          <span class="tag">runtime</span>
+          <h3><code>XQTContext</code></h3>
+          <p>这是所有 pass 共享的运行时容器. 你可以把它理解成“这次 recipe 执行的工作台”. 如果你不想完全依赖内置 data/model pass, 也可以先自己建好 model 或 dataloader 再塞进去.</p>
+          <pre><code>from xqt.pipeline import create_context
+
+context = create_context(
+    "xqt/recipes/smoke_cpu.yaml",
+    model=my_model,
+    data={"validation": my_loader},
+)
+print(context.device)</code></pre>
+        </article>
+        <article class="card amber">
+          <span class="tag">runner</span>
+          <h3><code>run_xqt_recipe()</code></h3>
+          <p>最通用的执行入口. 它既能吃路径, 也能吃已加载好的 config. 你还可以传 <code>model</code>, <code>teacher</code>, <code>data</code>, 自定义 <code>pass_names</code> 或 <code>pass_params</code>.</p>
+          <pre><code>from xqt import run_xqt_recipe
+
+context = run_xqt_recipe(
+    "xqt/recipes/prune_finetune_cpu.yaml",
+    model=student,
+    teacher=teacher,
+    data={"train": train_loader, "validation": val_loader},
+)</code></pre>
+        </article>
+        <article class="card">
+          <span class="tag">preflight</span>
+          <h3><code>preflight_xqt_config()</code></h3>
+          <p>适合在真正跑量化或导出前先做环境体检. 它返回的是 <code>PreflightReport</code>, 里面每条检查都是 <code>PreflightCheck</code>.</p>
+          <pre><code>from xqt import preflight_xqt_config
+
+report = preflight_xqt_config("xqt/recipes/image_vit_torchao_fp8.yaml")
+print(report.passed)
+print(report.to_dict())</code></pre>
+        </article>
+        <article class="card blue">
+          <span class="tag">artifact</span>
+          <h3><code>ArtifactManifest</code></h3>
+          <p>如果你想把 XQT 产物跟外部流程接起来, manifest 是最值得依赖的结构化对象. 它会记录配置快照, 依赖版本, checksum, 产物和指标.</p>
+          <pre><code>from xqt import ArtifactManifest
+
+manifest = ArtifactManifest(project_name="demo")
+manifest.write_json("artifacts/demo/manifest.json")</code></pre>
+        </article>
+        <article class="card amber">
+          <span class="tag">xdl</span>
+          <h3>XDL adapter</h3>
+          <p><code>xdl_setup_to_xqt_context()</code>, <code>xdl_checkpoint_to_xqt_context()</code>, <code>load_checkpoint_into_model()</code> 是 XQT 和 XDL 训练侧最关键的桥.</p>
+          <pre><code>from xqt import xdl_setup_to_xqt_context
+
+context = xdl_setup_to_xqt_context(
+    setup,
+    "xqt/recipes/smoke_cpu.yaml",
+)</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>八. 各模块现在大概成熟到什么程度</h2>
+        <p>下面这张表不是版本承诺, 只是帮助你快速判断“今天看哪个模块更值得投入时间”.</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>模块</th>
+            <th>当前角色</th>
+            <th>更适合怎么看</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>xqt.core</code></td>
+            <td>已经是主干. config, schema, registry, manifest, errors 都集中在这里.</td>
+            <td>如果你想理解 recipe 结构或想加一个新导出路径, 这里是第一站.</td>
+          </tr>
+          <tr>
+            <td><code>xqt.pipeline</code></td>
+            <td>已经是执行主骨架. runner, pass manager, 内置 passes, preflight 都是当前最真实的流程定义.</td>
+            <td>想知道“XQT 现在实际会做什么”, 优先读这个模块.</td>
+          </tr>
+          <tr>
+            <td><code>xqt.quant</code></td>
+            <td>当前最实用的压缩模块之一. 已经覆盖 torchao 和 ONNX Runtime QDQ 两条主线, 也有 calibration, policy 和 sensitivity helper.</td>
+            <td>如果你的目标是先落地一个量化闭环, 这里是最值得继续扩展的地方.</td>
+          </tr>
+          <tr>
+            <td><code>xqt.export</code></td>
+            <td>覆盖面很广, 但成熟度不完全一致. ONNX, torch export 较完整; TensorRT/OpenVINO/mobile 更偏 adapter 或命令封装.</td>
+            <td>看具体后端时要区分“完整导出 + 校验”和“外部工具 adapter”两种层次.</td>
+          </tr>
+          <tr>
+            <td><code>xqt.prune</code></td>
+            <td>已经有全局 L1 非结构化剪枝, 稀疏率汇总, 结构改写 helper 和 prune + KD schedule.</td>
+            <td>今天更像一个可用 baseline, 不是全套结构化剪枝系统.</td>
+          </tr>
+          <tr>
+            <td><code>xqt.distill</code></td>
+            <td>已经有 logit KD, feature/relation distillation loss, module hook, teacher cache, HF 文本分类 bundle 和小训练 loop.</td>
+            <td>如果你关心 teacher-student 流程怎么接 recipe, 这个模块已经有比较明确的骨架.</td>
+          </tr>
+          <tr>
+            <td><code>xqt.diffusion_distill</code></td>
+            <td>现在更像“扩散少步蒸馏的积木盒”: schedule, cache, loss, spec, report 都有, 但还不是一条完整 recipe 主链.</td>
+            <td>适合带着具体研究目标去读, 不适合作为现成闭环期待.</td>
+          </tr>
+          <tr>
+            <td><code>xqt.eval</code> / <code>xqt.benchmark</code></td>
+            <td>这两个模块很小, 但很关键. 它们负责把“有没有变快”“误差大不大”变成结构化报告.</td>
+            <td>读起来最轻, 也最容易拿去给外部流程复用.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>九. 当前 recipe 地图</h2>
+        <p>这些 YAML 基本代表了 XQT 现在已经打通或至少明确铺好的方向. 看 recipe 往往比看 README 更快知道今天能跑什么.</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Recipe</th>
+            <th>想验证什么</th>
+            <th>实际意义</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>xqt/recipes/smoke_cpu.yaml</code></td>
+            <td>最小 CPU 闭环: schema, load_model, synthetic data, prune, torch export, manifest.</td>
+            <td>这是默认入口, 也是判断“基础 runner 还通不通”的第一份配方.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/recipes/image_resnet_onnx_qdq_int8.yaml</code></td>
+            <td>ResNet 类模型的 ONNX 导出, ONNX Runtime QDQ INT8, TensorRT dry-run.</td>
+            <td>这条 recipe 展示的是部署导向最强的那条路径: 先有 ONNX 图, 再量化, 再往 TensorRT 方向接.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/recipes/image_resnet_cifar100_qdq_cpu.yaml</code></td>
+            <td>把上面的 ONNX QDQ 路径接到本地 CIFAR-100 数据上.</td>
+            <td>它比纯 synthetic smoke 更接近真实数据, 但仍偏验证性质.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/recipes/image_vit_torchao_fp8.yaml</code></td>
+            <td>ViT + torchao FP8 + CUDA benchmark.</td>
+            <td>这条 recipe 是早期 <code>torchao_vit.py</code> 实验向通用流水线收敛的直接体现.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/recipes/prune_finetune_cpu.yaml</code></td>
+            <td>线性剪枝 schedule 和 teacher KD 微调组合.</td>
+            <td>它说明 XQT 的剪枝不是只做一次掩码, 而是已经开始考虑“剪完怎么恢复”.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/recipes/hf_text_kd_prune.yaml</code></td>
+            <td>HuggingFace 文本分类 teacher-student bundle + KD + pruning.</td>
+            <td>这条 recipe 证明 XQT 不只想做视觉部署, 也在尝试把 NLP 的蒸馏和剪枝流程 recipe 化.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>十. 导出与后端边界</h2>
+        <p><code>xqt/export/capability.py</code> 已经把“有哪些导出格式, 优先级如何, 是否支持动态 shape, 是否支持量化”总结成能力矩阵. 这个模块很适合用来快速判断后端路线.</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>格式</th>
+            <th>状态</th>
+            <th>现在怎么看</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>torch_export</code></td>
+            <td>implemented</td>
+            <td>PyTorch 自家 <code>ExportedProgram</code> 路径, 是最轻量也最稳的内部导出基线之一.</td>
+          </tr>
+          <tr>
+            <td><code>onnx</code></td>
+            <td>implemented</td>
+            <td>现在是很多后端的中间桥梁, 也是 QDQ 和 TensorRT/OpenVINO 适配最常见的入口.</td>
+          </tr>
+          <tr>
+            <td><code>tensorrt</code></td>
+            <td>adapter</td>
+            <td>当前重点是 <code>trtexec</code> 命令构造, dry-run, engine 生成和性能阈值检查, 不是自己实现 TensorRT 编译器.</td>
+          </tr>
+          <tr>
+            <td><code>torchscript</code></td>
+            <td>implemented</td>
+            <td>更像一个回退路径和兼容桥, 不是 XQT 当前最优先的部署主线.</td>
+          </tr>
+          <tr>
+            <td><code>openvino</code>, <code>executorch</code>, <code>ncnn</code>, <code>mnn</code></td>
+            <td>adapter</td>
+            <td>这些更多是可选后端接入点. 在阅读时要把它们理解为“XQT 统一了入口和报告方式”, 而不是“XQT 完整接管了这些后端”.</td>
+          </tr>
+        </tbody>
+      </table>
+      <pre><code>from xqt.export import deployment_capability_matrix
+
+for capability in deployment_capability_matrix(implemented_only=True):
+    print(capability.format, capability.status, capability.runtimes)</code></pre>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>十一. XQT 与 XDL 的关系</h2>
+        <p>XQT 的重要设计选择之一是“与 XDL 松耦合, 但不是断开关系”. 训练和压缩/部署不是两套完全平行的世界.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>从 TrainSetup 接入</h3>
+          <p><code>xdl_setup_to_xqt_context()</code> 会把 XDL 的 <code>train_loader</code>, <code>val_loader</code>, 可选 <code>test_loader</code>, 以及 <code>setup.model</code> 打包成 XQT context. 对已经用 XDL 训练起来的项目很方便.</p>
+        </div>
+        <div class="card blue">
+          <h3>从 checkpoint 接入</h3>
+          <p><code>load_checkpoint_into_model()</code> 能处理几种常见 checkpoint 布局, 包括 <code>model_state_dict</code>, <code>state_dict</code> 和原始 state dict. <code>xdl_checkpoint_to_xqt_context()</code> 再把它包进 context, 同时保留 source checkpoint 追踪信息.</p>
+        </div>
+        <div class="card amber">
+          <h3>边界在哪里</h3>
+          <p>XQT 不去接管 XDL 的训练生命周期. 它的职责是“接住训练结果, 继续往压缩, 导出, 验证走”. 所以如果你需要的是完整训练 loop, 还应该优先在 XDL 里解决.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>十二. 建议的阅读顺序</h2>
+        <p>如果你要真正改 XQT 或在它上面接自己的 recipe, 推荐按下面顺序读, 效率最高.</p>
+      </div>
       <div class="route">
         <div class="route-item">
-          <div class="number">1</div>
-          <div>
-            <strong><code>xqt/pipeline/runner.py</code></strong>
-            <span>默认 pass 顺序, manifest 构造, recipe 执行入口。</span>
+          <div class="route-index">1</div>
+          <div class="route-body">
+            <strong><code>xqt/__init__.py</code></strong>
+            <span>先看顶层到底导出了哪些名字, 这基本就是今天最应该被当成对外入口的那部分.</span>
           </div>
-          <a href="../../xqt/pipeline/runner.py">打开</a>
+          <a href="../../xqt/__init__.py">打开</a>
         </div>
         <div class="route-item">
-          <div class="number">2</div>
-          <div>
-            <strong><code>xqt/pipeline/passes.py</code></strong>
-            <span>load, eval, prune, quant, export, benchmark 的真实分支。</span>
-          </div>
-          <a href="../../xqt/pipeline/passes.py">打开</a>
-        </div>
-        <div class="route-item">
-          <div class="number">3</div>
-          <div>
-            <strong><code>xqt/core/config.py</code></strong>
-            <span>OmegaConf 合并, structured config, 校验规则。</span>
+          <div class="route-index">2</div>
+          <div class="route-body">
+            <strong><code>xqt/core/schema.py</code> + <code>xqt/core/config.py</code></strong>
+            <span>先搞清 recipe 的形状和加载方式, 否则后面每个 pass 看起来都会像散点逻辑.</span>
           </div>
           <a href="../../xqt/core/config.py">打开</a>
         </div>
         <div class="route-item">
-          <div class="number">4</div>
-          <div>
-            <strong><code>xqt/xdl_adapter.py</code></strong>
-            <span>XDL checkpoint 到 XQT context 的桥接。</span>
+          <div class="route-index">3</div>
+          <div class="route-body">
+            <strong><code>xqt/pipeline/runner.py</code></strong>
+            <span>这里定义了 pass 顺序, manifest 创建, context 创建和总执行入口, 是整条主链的总览图.</span>
+          </div>
+          <a href="../../xqt/pipeline/runner.py">打开</a>
+        </div>
+        <div class="route-item">
+          <div class="route-index">4</div>
+          <div class="route-body">
+            <strong><code>xqt/pipeline/passes.py</code></strong>
+            <span>这是“真实行为”最多的文件. 看它就能知道 XQT 现在支持什么, 不支持什么, 报告写到哪.</span>
+          </div>
+          <a href="../../xqt/pipeline/passes.py">打开</a>
+        </div>
+        <div class="route-item">
+          <div class="route-index">5</div>
+          <div class="route-body">
+            <strong>你关心的子模块</strong>
+            <span>量化看 <code>xqt/quant</code>, 导出看 <code>xqt/export</code>, 剪枝看 <code>xqt/prune</code>, 蒸馏看 <code>xqt/distill</code>, XDL 对接看 <code>xqt/xdl_adapter.py</code>.</span>
           </div>
           <a href="../../xqt/xdl_adapter.py">打开</a>
         </div>
@@ -176,7 +603,10 @@
     </section>
 
     <section class="section">
-      <h2>六. 验证命令</h2>
+      <div class="section-head">
+        <h2>十三. 当前验证命令</h2>
+        <p>如果想确认这套链路现在是否健康, 先跑这些命令. 它们基本覆盖了测试, lint, 语法检查和代表性 recipe.</p>
+      </div>
       <pre><code>python -m pytest tests/xqt -q
 python -m pytest tests/xqt tests/config/test_structured.py tests/utils/test_registry.py -q
 python -m ruff check xqt tests/xqt
@@ -185,11 +615,19 @@ XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-preflight
 XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-run-recipe
 XQT_CONFIG=xqt/recipes/smoke_cpu.yaml xqt-run-recipe</code></pre>
     </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>十四. 最后怎么概括 XQT</h2>
+        <p>如果只用一句话概括当前 XQT, 可以这样理解: 它已经不是几个零散实验脚本, 但也还没到稳定公共子框架的阶段; 它最有价值的部分, 是已经把压缩与部署这条后处理链路收拢成了可配置, 可验证, 可落盘的一条 recipe 流水线.</p>
+      </div>
+      <p>今天最值得直接依赖的是顶层入口, recipe schema, runner, manifest, 以及几个已经较实用的量化/导出/评估 helper. 今天最需要保守对待的是子模块内部细节和具体实现形态, 因为这些仍在继续收敛.</p>
+    </section>
   </main>
 
   <footer>
     <div class="inner">
-      事实源仍是 <a href="../md/XQT.md">docs/md/XQT.md</a> 和源码.
+      事实源仍是 <a href="../md/XQT.md">docs/md/XQT.md</a>, <a href="../md/README.md">docs/md/README.md</a> 和 <code>xqt/</code> 源码.
     </div>
   </footer>
 </body>
