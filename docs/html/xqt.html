@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="XQT 压缩与部署工具链阅读页">
   <title>XQT 压缩与部署阅读页</title>
   <link rel="stylesheet" href="assets/xdl-doc.css">
   <script defer src="assets/xdl-theme.js"></script>
@@ -20,153 +21,175 @@
     <a class="back-link" href="index.html">返回文档阅读入口</a>
     <h1>XQT 压缩与部署阅读页</h1>
     <p class="subtitle">
-      XQT 是 <code>xqt/</code> 下的实验性模型压缩与部署工具链,覆盖量化,蒸馏,剪枝,扩散少步蒸馏和部署格式导出. 事实源仍是 <a href="../md/XQT.md">docs/md/XQT.md</a> 和源码,本文只做阅读版地图.
+      这是 <code>xqt/</code> 的阅读版入口, 只提炼当前源码和 <a href="../md/XQT.md">docs/md/XQT.md</a> 的事实. 先看入口和流水线, 再看 recipe 和后端边界.
     </p>
-    <span class="note">当前能力已覆盖 CPU smoke,本地 CIFAR-100 ONNX Runtime QDQ 和可选后端 adapter. CUDA FP8 和 TensorRT engine 生成仍需目标硬件单独验证.</span>
+    <span class="note">XQT 仍是实验包. 当前已覆盖 CPU smoke, ONNX Runtime QDQ, PyTorch native export, CUDA FP8 recipe, TensorRT dry-run 和 HF 文本蒸馏/剪枝支架.</span>
   </header>
 
   <main>
     <section class="section">
-      <h2>一. 工具链路径</h2>
-      <div class="flow" aria-label="xqt pipeline">
-        <span>1. PyTorch<br><code>nn.Module</code><br><code>checkpoint</code></span>
-        <span>2. 评估<br>baseline metric<br>output diff</span>
-        <span>3. 压缩<br>quant<br>distill<br>prune</span>
-        <span>4. 导出<br>ONNX<br>TensorRT<br>OpenVINO<br>mobile</span>
-        <span>5. 报告<br>manifest<br>metrics<br>benchmark</span>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>二. 当前模块</h2>
+      <h2>一. 入口</h2>
       <div class="grid">
         <div class="card">
-          <h3>core / pipeline</h3>
-          <p>负责 structured config, manifest, registry, pass manager, preflight 和 YAML runner. 顶层 <code>xqt.load_xqt_config</code>, <code>xqt.run_xqt_recipe</code> 和 <code>xqt.preflight_xqt_config</code> 已列为 Provisional.</p>
+          <h3>运行 recipe</h3>
+          <p><code>xqt-run-recipe</code> 读取 <code>XQT_CONFIG</code>, 默认使用 <code>xqt/recipes/smoke_cpu.yaml</code>, 不解析命令行参数。</p>
         </div>
         <div class="card">
-          <h3>quant</h3>
-          <p>包含 torchao adapter, ONNX Runtime static QDQ INT8 adapter, calibration statistics, layer sensitivity 和 policy helper.</p>
+          <h3>预检 recipe</h3>
+          <p><code>xqt-preflight</code> 读取同一配置, 输出 JSON 检查报告, 用于先确认 target, 依赖, 可执行文件和 CUDA 条件。</p>
         </div>
         <div class="card">
-          <h3>distill / prune</h3>
-          <p>包含 logit KD, feature/relation loss, teacher cache, HF text bundle, global L1 pruning, structured rewrite 和 prune + KD schedule.</p>
-        </div>
-        <div class="card">
-          <h3>diffusion_distill</h3>
-          <p>包含 timestep schedule, prompt/latent/trajectory cache, consistency/LCM style loss 和 sampling report metadata.</p>
-        </div>
-        <div class="card">
-          <h3>export</h3>
-          <p>包含 <code>torch.export</code>, TorchScript fallback, ONNX export/checker/runtime diff, TensorRT <code>trtexec</code> 命令和性能阈值报告, OpenVINO optional adapter, ExecuTorch, pnnx/ncnn 和 MNNConvert adapter.</p>
-        </div>
-        <div class="card">
-          <h3>xdl_adapter</h3>
-          <p>从 XDL TrainSetup-like 对象或 PyTorch/XDL-style checkpoint 创建 XQT context,用于把训练产物接入压缩 pipeline.</p>
+          <h3>顶层 API</h3>
+          <p><code>xqt.load_xqt_config</code>, <code>xqt.run_xqt_recipe</code>, <code>xqt.preflight_xqt_config</code> 和 XDL adapter 入口目前列为 Provisional。</p>
         </div>
       </div>
     </section>
 
     <section class="section">
-      <h2>三. Recipe 状态</h2>
+      <h2>二. 执行链路</h2>
+      <div class="flow" aria-label="xqt pipeline">
+        <span>1. 配置<br><code>OmegaConf</code><br><code>XQTConfig</code></span>
+        <span>2. Context<br><code>XQTContext</code><br>model / data / metrics</span>
+        <span>3. Pass Manager<br>顺序执行<br>失败即停</span>
+        <span>4. Artifact<br>manifest<br>checksum<br>report</span>
+        <span>5. 产物<br>onnx<br>engine<br>pte<br>md/json</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>三. 关键模块</h2>
+      <div class="card-grid">
+        <article class="card">
+          <span class="tag">core</span>
+          <h3>配置, manifest, registry</h3>
+          <p><code>xqt/core/schema.py</code> 定义 recipe schema v1, <code>xqt/core/config.py</code> 负责 OmegaConf 加载, <code>xqt/core/artifact.py</code> 记录 checksum 和产物, <code>xqt/core/registry.py</code> 提供 pass, recipe, exporter registry。</p>
+        </article>
+        <article class="card blue">
+          <span class="tag">pipeline</span>
+          <h3>runner 与 pass</h3>
+          <p><code>xqt/pipeline/runner.py</code> 负责组装默认 pass 顺序, <code>xqt/pipeline/passes.py</code> 实现 load, eval, prune, quant, export, benchmark, report。</p>
+        </article>
+        <article class="card amber">
+          <span class="tag">quant</span>
+          <h3>torchao 与 ONNX QDQ</h3>
+          <p>当前量化主线是 <code>quant/torchao_backend.py</code>, <code>quant/onnx_qdq.py</code>, <code>quant/calibration.py</code> 和 <code>quant/sensitivity.py</code>。</p>
+        </article>
+        <article class="card">
+          <span class="tag">export</span>
+          <h3>导出后端</h3>
+          <p>已接入 <code>torch.export</code>, TorchScript, ONNX, TensorRT trtexec, OpenVINO, ExecuTorch, ncnn 和 MNN 的适配层。</p>
+        </article>
+        <article class="card blue">
+          <span class="tag">distill</span>
+          <h3>蒸馏与 HF 文本支架</h3>
+          <p><code>distill/losses.py</code>, <code>distill/training.py</code>, <code>distill/hf_text.py</code> 负责 teacher-student 蒸馏和文本分类 bundle。</p>
+        </article>
+        <article class="card amber">
+          <span class="tag">xdl</span>
+          <h3>XDL 对接</h3>
+          <p><code>xqt/xdl_adapter.py</code> 把 XDL TrainSetup 或 checkpoint 转成 XQT context, 方便把训练产物接到压缩流水线。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>四. 当前 recipe</h2>
       <table>
         <thead>
           <tr>
             <th>Recipe</th>
-            <th>覆盖模块</th>
-            <th>当前状态</th>
+            <th>用途</th>
+            <th>状态</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><code>smoke_cpu.yaml</code></td>
-            <td>eval, prune, torch_export, benchmark, manifest</td>
-            <td>CPU smoke 已覆盖,用于验证 runner,PyTorch native export 和报告路径.</td>
+            <td>CPU smoke, PyTorch native export, manifest</td>
+            <td>最小闭环, 当前默认入口。</td>
           </tr>
           <tr>
             <td><code>image_resnet_onnx_qdq_int8.yaml</code></td>
-            <td>ONNX export, ONNX QDQ, TensorRT dry-run</td>
-            <td>synthetic image smoke 和 TensorRT 阈值解析测试已覆盖. 真实 engine 生成仍待目标机器验证.</td>
+            <td>ResNet/CNN, ONNX Runtime QDQ, TensorRT dry-run</td>
+            <td>用于验证 ONNX 导出和 QDQ 量化路径。</td>
           </tr>
           <tr>
             <td><code>image_resnet_cifar100_qdq_cpu.yaml</code></td>
             <td>本地 CIFAR-100, ONNX Runtime QDQ, benchmark</td>
-            <td>已在 CPU 上生成真实 QDQ ONNX, manifest 和 metrics. 当前只是链路验证,不是精度基线.</td>
+            <td>真实数据链路, 仍偏验证性质。</td>
           </tr>
           <tr>
             <td><code>image_vit_torchao_fp8.yaml</code></td>
-            <td>torchao FP8, ViT, benchmark</td>
-            <td>配置和模块路径已存在. 真实 FP8 收益需要支持硬件和 pretrained 权重验证.</td>
+            <td>ViT, torchao FP8, sensitivity report</td>
+            <td>当前默认使用 <code>cuda:0</code>, 可直接跑 quant + benchmark. 真实任务精度仍需目标数据验证。</td>
           </tr>
           <tr>
             <td><code>prune_finetune_cpu.yaml</code></td>
-            <td>linear sparsity schedule, teacher KD finetune</td>
-            <td>CPU smoke 已覆盖,用于验证剪枝后微调闭环.</td>
+            <td>线性剪枝 schedule + KD 微调</td>
+            <td>验证剪枝后恢复流程。</td>
           </tr>
           <tr>
             <td><code>hf_text_kd_prune.yaml</code></td>
-            <td>HF text classification, KD, global L1 pruning</td>
-            <td>bundle adapter 和 fake HF pipeline 已覆盖. 当前环境有 <code>transformers</code>,缺 <code>datasets</code>;真实 checkpoint 运行需补依赖和权重/数据.</td>
+            <td>HF 文本分类, KD, pruning</td>
+            <td>需要 <code>transformers</code> 和 <code>datasets</code>。</td>
           </tr>
         </tbody>
       </table>
     </section>
 
     <section class="section">
-      <h2>四. 后端边界</h2>
-      <div class="callout warn">
-        <strong>可选依赖不进入基础承诺.</strong>
-        TensorRT, OpenVINO, ExecuTorch, ncnn, MNN 和 diffusers pipeline 都通过 adapter 隔离. 缺少二进制或 Python 包时,测试优先覆盖命令构造和 dry-run,真实产物需要在目标机器单独验收.
+      <h2>五. 读源码时优先看</h2>
+      <div class="route">
+        <div class="route-item">
+          <div class="number">1</div>
+          <div>
+            <strong><code>xqt/pipeline/runner.py</code></strong>
+            <span>默认 pass 顺序, manifest 构造, recipe 执行入口。</span>
+          </div>
+          <a href="../../xqt/pipeline/runner.py">打开</a>
+        </div>
+        <div class="route-item">
+          <div class="number">2</div>
+          <div>
+            <strong><code>xqt/pipeline/passes.py</code></strong>
+            <span>load, eval, prune, quant, export, benchmark 的真实分支。</span>
+          </div>
+          <a href="../../xqt/pipeline/passes.py">打开</a>
+        </div>
+        <div class="route-item">
+          <div class="number">3</div>
+          <div>
+            <strong><code>xqt/core/config.py</code></strong>
+            <span>OmegaConf 合并, structured config, 校验规则。</span>
+          </div>
+          <a href="../../xqt/core/config.py">打开</a>
+        </div>
+        <div class="route-item">
+          <div class="number">4</div>
+          <div>
+            <strong><code>xqt/xdl_adapter.py</code></strong>
+            <span>XDL checkpoint 到 XQT context 的桥接。</span>
+          </div>
+          <a href="../../xqt/xdl_adapter.py">打开</a>
+        </div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>后端</th>
-            <th>当前接入方式</th>
-            <th>验证重点</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>ONNX Runtime</td>
-            <td>ONNX diff + static QDQ quantization</td>
-            <td>checker 通过,输出 diff,校准样本数和 QDQ 图产物.</td>
-          </tr>
-          <tr>
-            <td>TensorRT</td>
-            <td><code>trtexec</code> command adapter + performance parser</td>
-            <td>precision flag,dynamic shape profile,engine checksum,性能摘要和阈值报告. 当前环境缺 <code>trtexec</code>,只能验证 dry-run 和解析逻辑.</td>
-          </tr>
-          <tr>
-            <td>OpenVINO</td>
-            <td>optional Python adapter</td>
-            <td>IR export,runtime diff,缺依赖时错误清楚.</td>
-          </tr>
-          <tr>
-            <td>Mobile</td>
-            <td>ExecuTorch <code>.pte</code>, <code>pnnx</code>, <code>onnx2ncnn</code>, <code>MNNConvert</code></td>
-            <td>命令参数,输出路径,dry-run 和真实二进制可用性.</td>
-          </tr>
-        </tbody>
-      </table>
     </section>
 
     <section class="section">
-      <h2>五. 验证命令</h2>
-      <p>当前建议先跑本地 smoke 和静态检查. 全仓测试已覆盖 XQT 相关路径和 XDL manifest 兼容别名.</p>
-      <p>Python 侧可选依赖可以按需安装: <code>pip install -e ".[xqt]"</code>, <code>pip install -e ".[xqt-hf]"</code>, <code>pip install -e ".[xqt-diffusion]"</code> 或 <code>pip install -e ".[xqt-all]"</code>.</p>
-      <pre><code>python -m pytest tests/xqt tests/config/test_structured.py tests/utils/test_registry.py -q
+      <h2>六. 验证命令</h2>
+      <pre><code>python -m pytest tests/xqt -q
+python -m pytest tests/xqt tests/config/test_structured.py tests/utils/test_registry.py -q
 python -m ruff check xqt tests/xqt
 python -m compileall -q xqt tests/xqt
-python -m pytest tests -q
 XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-preflight
+XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-run-recipe
 XQT_CONFIG=xqt/recipes/smoke_cpu.yaml xqt-run-recipe</code></pre>
     </section>
   </main>
 
   <footer>
     <div class="inner">
-      XQT remains experimental. Check <a href="../md/XQT.md">docs/md/XQT.md</a> before changing module boundaries or API status.
+      事实源仍是 <a href="../md/XQT.md">docs/md/XQT.md</a> 和源码.
     </div>
   </footer>
 </body>
