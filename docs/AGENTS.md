@@ -30,11 +30,13 @@
 - `HTML_STYLE.md`: 自有 HTML 阅读页样式规范,主题 token 和交互约束.
 - `xdl-functional-boundary.md`: 各源码子模块职责速查.
 - `xdl-optimization-plan.md`: 当前仍有效的框架后续优化方向.
+- `XQT.md`: `xqt/` 模型压缩与部署项目的架构草案,模块拆分,接口草案,recipe backlog 和任务排期.
 
 ### `docs/html/`
 
 - `index.html`: 面向人类用户的 HTML 阅读入口.
 - `dataset-structure.html`: 通用 dataset 模块结构说明,不包含 hair 特殊数据集.
+- `xqt.html`: XQT 压缩与部署工具链阅读页,只提炼 `docs/md/XQT.md` 和当前源码事实.
 - `style-showcase.html`: HTML 阅读页两种固定模板和组件展示.
 - `assets/xdl-doc.css`: 自有 HTML 阅读页统一样式入口.
 - `assets/xdl-theme.js`: HTML 阅读页主题和强调色切换脚本.

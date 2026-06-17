@@ -60,12 +60,38 @@ optimization = [
     "tilelang>=0.1.0",
 ]
 
+# XQT 压缩与部署可选依赖
+xqt = [
+    "torchao>=0.1.0",
+    "onnx>=1.16.0",
+    "onnxruntime>=1.18.0",
+]
+
+xqt-hf = [
+    "transformers>=4.40.0",
+    "datasets>=2.18.0",
+]
+
+xqt-diffusion = [
+    "diffusers>=0.30.0",
+    "transformers>=4.40.0",
+    "accelerate>=0.27.0",
+    "safetensors>=0.3.0",
+]
+
+xqt-all = [
+    "xdl[xqt]",
+    "xdl[xqt-hf]",
+    "xdl[xqt-diffusion]",
+]
+
 # 完整安装（所有功能）
 all = [
     "xdl[cv]",
     "xdl[logging]",
     "xdl[accelerate]",
     "xdl[optimization]",
+    "xdl[xqt-all]",
 ]
 
 # 开发和测试
@@ -84,13 +110,16 @@ Documentation = "https://github.com/xlong/xdl#readme"
 
 [project.scripts]
 xdl-usage = "xdl.usage:main"
+xqt-preflight = "xqt.entrypoints.preflight:main"
+xqt-run-recipe = "xqt.entrypoints.run_recipe:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["xdl*"]
+include = ["xdl*", "xqt*"]
 
 [tool.setuptools.package-data]
 xdl = ["py.typed", "USAGE.md"]
+xqt = ["py.typed", "recipes/*.yaml"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

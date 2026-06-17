@@ -1,7 +1,7 @@
 """
-数据集注册入口。
+数据集注册入口.
 
-注意：部分数据集依赖可选三方库，导入失败时不会阻断整个框架。
+注意: 部分数据集依赖可选三方库, 导入失败时不会阻断整个框架.
 """
 
 from xdl.utils.registry import register_collate, register_dataset, register_transform
@@ -58,10 +58,17 @@ register_dataset("RecordImageTextDataset")(RecordImageTextDataset)
 register_dataset("RecordTextDataset")(RecordTextDataset)
 register_dataset("RecordPairDataset")(RecordPairDataset)
 register_dataset("RecordTripletDataset")(RecordTripletDataset)
+# 历史 Manifest* registry 键保留为兼容别名. 新配置优先使用 Record* / ImageEdit* 名称.
+register_dataset("ManifestRegressionDataset")(RecordRegressionDataset)
+register_dataset("ManifestSegmentationDataset")(RecordSegmentationDataset)
+register_dataset("ManifestDetectionDataset")(RecordDetectionDataset)
+register_dataset("ManifestPairDataset")(RecordPairDataset)
+register_dataset("ManifestImageEditDataset")(ImageEditDataset)
 register_transform("PairedImageTransform")(PairedImageTransform)
 register_transform("ImageMaskTransform")(ImageMaskTransform)
 register_transform("ImageBoxesTransform")(ImageBoxesTransform)
 register_collate("ImageEditCollate")(ImageEditCollate)
+register_collate("ManifestImageEditCollate")(ImageEditCollate)
 register_collate("DetectionCollate")(DetectionCollate)
 
 # 视觉数据集

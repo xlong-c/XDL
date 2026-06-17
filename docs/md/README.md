@@ -15,6 +15,7 @@
 | --- | --- |
 | [../html/index.html](../html/index.html) | 阅读版总入口,按安装,理解框架,写配置,扩展数据集和 API 边界组织阅读路线. |
 | [../html/dataset-structure.html](../html/dataset-structure.html) | 通用 dataset 模块结构图和文件职责说明,不包含 hair 特殊数据集. |
+| [../html/xqt.html](../html/xqt.html) | XQT 压缩与部署工具链阅读页,提炼当前模块地图,recipe 状态和验证命令. |
 | [../html/style-showcase.html](../html/style-showcase.html) | HTML 阅读页两种固定模板和组件展示,用于维护视觉系统. |
 
 ## 给 agents 写代码看的 MD
@@ -29,6 +30,7 @@
 | 6 | [HTML_STYLE.md](HTML_STYLE.md) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
 | 7 | [xdl-functional-boundary.md](xdl-functional-boundary.md) | 各源码子模块职责速查. |
 | 8 | [xdl-optimization-plan.md](xdl-optimization-plan.md) | 当前仍有效的后续优化方向. |
+| 9 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署项目的架构草案,模块拆分,接口草案,recipe backlog 和任务排期. |
 
 ## 改动前必读
 
@@ -53,11 +55,13 @@
 - `HTML_STYLE.md` 只讲自有 HTML 阅读页的视觉系统和样式维护规则,不定义框架行为.
 - `xdl-functional-boundary.md` 只做模块职责速查,不重复写长篇使用指南.
 - `xdl-optimization-plan.md` 只保留仍然有效的待办,不复述现状说明.
+- `XQT.md` 只讲 `xqt/` 压缩与部署工具链规划,不承诺已稳定 API.
 
 ## HTML 同步规则
 
 - `../html/index.html` 只做面向用户的阅读入口和文档地图.
 - `../html/dataset-structure.html` 只做 dataset 模块结构的可视化说明.
+- `../html/xqt.html` 只做 XQT 工具链当前状态的阅读地图,不能替代 [XQT.md](XQT.md) 的任务排期和事实边界.
 - HTML 可以重排,提炼和图文化 MD 内容,但不要引入和 MD 或源码冲突的新事实.
 - 同一主题的行为,字段或 API 发生变化时,先更新对应 MD,再同步覆盖同一主题的 HTML 页面.
 - 新增或重构自有 HTML 时,body 必须且只能包含 `xdl-style-atlas` 或 `xdl-style-ledger` 两种模板之一,默认引用 `../html/assets/xdl-doc.css`;需要交互式主题切换时再引用 `../html/assets/xdl-theme.js`.
@@ -1311,6 +1315,8 @@ xdl-usage
 
 以下 API 当前可用,但仍处于演进期:
 
+- `xqt` 顶层实验入口: `load_xqt_config`, `run_xqt_recipe`, `preflight_xqt_config`, `XQTConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`.
+- `xqt` 到 XDL 的适配入口: `xdl_setup_to_xqt_context`, `xdl_checkpoint_to_xqt_context`, `load_checkpoint_into_model`.
 - `xdl.config` 中的 schema dataclass,例如 `ConfigSchemaV1`,`RuntimeConfig`,`TrainerConfig`.
 - `xdl.config` 中的 resolver 工具,例如 `load_config_with_schema()`,`merge_with_schema()`,`resolve_config()`.
 - Accelerate,DeepSpeed,FSDP 相关配置字段和行为.
@@ -1330,6 +1336,7 @@ xdl-usage
 - `Trainer`,`CoreModel`,callback 内部状态字段,除公开 property 和文档明确说明的字段外.
 - 具体文件布局,例如 `coreModel.py`,`trainer.py` 内部实现函数.
 - 临时研究,实验,工具目录中的脚本入口.
+- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.distill`, `xqt.diffusion_distill`, `xqt.export` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
 
 如果用户代码必须依赖 Internal API,建议先把需求提升为明确的公共 API,再补文档和测试.
 

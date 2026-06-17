@@ -108,6 +108,7 @@ dmypy.json
 
 # Deep Learning specific
 # Model files
+artifacts/xqt/
 *.pth
 *.pt
 *.h5
