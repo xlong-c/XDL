@@ -26,6 +26,10 @@
 - `XDL.md`: 框架定位,核心分层,训练入口,`CoreModel` / `Trainer` 生命周期.
 - `CONFIG.md`: YAML 配置系统,schema v1,`target + params` 组织方式.
 - `DATASET.md`: dataset 模板选择,磁盘组织,样本语义和扩展流程.
+- `ERROR_ANALYSIS.md`: 通用误差分析场景,误差类型和可视化数据函数需求.
+- `XQT_DATA.md`: `xqt/` 中蒸馏数据集,校准数据集,验证数据和 prompt 数据的需求边界.
+- `XQT_ANALYSIS.md`: `xqt/` 内分析,诊断和优化建议能力规划.
+- `XQT_PRE_EXPORT_FUSION.md`: `xqt/` 导出前前置融合的场景,边界,配置和验证要求.
 - `API.md`: Stable / Provisional / Internal API 边界和兼容策略.
 - `HTML_STYLE.md`: 自有 HTML 阅读页样式规范,主题 token 和交互约束.
 - `xdl-functional-boundary.md`: 各源码子模块职责速查.

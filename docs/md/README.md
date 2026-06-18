@@ -26,11 +26,15 @@
 | 2 | [XDL.md](XDL.md) | 框架定位,核心分层,训练入口,扩展方式. |
 | 3 | [CONFIG.md](CONFIG.md) | `setup_from_yaml()`,schema v1,`target + params`,YAML 组织方式. |
 | 4 | [DATASET.md](DATASET.md) | 数据集语义形态,磁盘组织形态,内置模板和新增 dataset 流程. |
-| 5 | [API.md](API.md) | 稳定公共 API,实验性 API,内部实现边界和废弃策略. |
-| 6 | [HTML_STYLE.md](HTML_STYLE.md) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
-| 7 | [xdl-functional-boundary.md](xdl-functional-boundary.md) | 各源码子模块职责速查. |
-| 8 | [xdl-optimization-plan.md](xdl-optimization-plan.md) | 当前仍有效的后续优化方向. |
-| 9 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署项目的架构草案,模块拆分,接口草案,recipe backlog 和任务排期. |
+| 5 | [ERROR_ANALYSIS.md](ERROR_ANALYSIS.md) | 通用误差分析场景,误差类型和可视化数据函数需求. |
+| 6 | [XQT_DATA.md](XQT_DATA.md) | `xqt/` 中蒸馏数据集,校准数据集,验证数据和 prompt 数据的需求边界. |
+| 7 | [XQT_ANALYSIS.md](XQT_ANALYSIS.md) | `xqt/` 内分析,诊断和优化建议能力规划. |
+| 8 | [XQT_PRE_EXPORT_FUSION.md](XQT_PRE_EXPORT_FUSION.md) | `xqt` 导出前前置融合的场景,边界,配置和验证要求. |
+| 9 | [API.md](API.md) | 稳定公共 API,实验性 API,内部实现边界和废弃策略. |
+| 10 | [HTML_STYLE.md](HTML_STYLE.md) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
+| 11 | [xdl-functional-boundary.md](xdl-functional-boundary.md) | 各源码子模块职责速查. |
+| 12 | [xdl-optimization-plan.md](xdl-optimization-plan.md) | 当前仍有效的后续优化方向. |
+| 13 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署项目的架构草案,模块拆分,接口草案,recipe backlog 和任务排期. |
 
 ## 改动前必读
 
@@ -40,6 +44,10 @@
 | 训练生命周期,`CoreModel`,`Trainer`,Callback | [XDL.md](XDL.md),[../../xdl/trainer/README.md](../../xdl/trainer/README.md) | 同步说明手动优化,batch 迁移,日志和回调顺序. |
 | YAML 配置,schema,`target + params` | [CONFIG.md](CONFIG.md) | 同步字段,示例和配置主链路. |
 | 数据集模板,collate,manifest | [DATASET.md](DATASET.md) | 同步模板选择表,注册名和测试要求. |
+| `xqt/` 中蒸馏数据,校准数据,验证数据,prompt 数据的角色边界 | [XQT_DATA.md](XQT_DATA.md),[XQT.md](XQT.md) | 同步数据分片职责,消费点和 recipe 角色划分. |
+| 通用误差分析,可视化数据函数,层输出/激活/梯度对比 | [ERROR_ANALYSIS.md](ERROR_ANALYSIS.md) | 同步场景分类,误差术语和数据结构边界. |
+| `xqt/` 分析,诊断,优化建议和 analysis pass | [XQT_ANALYSIS.md](XQT_ANALYSIS.md),[XQT.md](XQT.md) | 同步模块边界,首批 API,报告结构和 recipe 接入方式. |
+| `xqt/` 导出前前置融合,导出前图规整和 QDQ 前处理 | [XQT_PRE_EXPORT_FUSION.md](XQT_PRE_EXPORT_FUSION.md),[XQT.md](XQT.md) | 同步适用场景,配置字段,导出链位置和测试要求. |
 | 安装,依赖,wheel,运行入口 | [INSTALL.md](INSTALL.md),[../../xdl/USAGE.md](../../xdl/USAGE.md) | 同步安装命令和包内用法入口. |
 | 子模块职责,目录迁移 | [xdl-functional-boundary.md](xdl-functional-boundary.md) | 同步目录职责和依赖方向. |
 | 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 与 `docs/html/` 分层清楚. |
@@ -51,6 +59,10 @@
 - `XDL.md` 只讲框架结构,训练入口和扩展方式.
 - `CONFIG.md` 只讲配置系统,不展开 dataset 全量模板规划.
 - `DATASET.md` 只讲 dataset 模板规划,选择和扩展方式.
+- `XQT_DATA.md` 只讲 `xqt/` 内数据角色和消费边界,不替代通用 dataset 模板文档.
+- `ERROR_ANALYSIS.md` 只讲通用误差分析场景,误差类型和可视化数据需求,不承诺具体模块实现.
+- `XQT_ANALYSIS.md` 只讲 `xqt/` 内分析与优化建议能力,不重复写整体 XQT 架构背景.
+- `XQT_PRE_EXPORT_FUSION.md` 只讲 `xqt` 导出前前置融合的边界和接入方式,不替代整体导出或量化文档.
 - `API.md` 只讲公共 API 兼容边界,不重复使用教程.
 - `HTML_STYLE.md` 只讲自有 HTML 阅读页的视觉系统和样式维护规则,不定义框架行为.
 - `xdl-functional-boundary.md` 只做模块职责速查,不重复写长篇使用指南.
@@ -1317,6 +1329,7 @@ xdl-usage
 
 - `xqt` 顶层实验入口: `load_xqt_config`, `run_xqt_recipe`, `preflight_xqt_config`, `XQTConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`.
 - `xqt` 到 XDL 的适配入口: `xdl_setup_to_xqt_context`, `xdl_checkpoint_to_xqt_context`, `load_checkpoint_into_model`.
+- `xqt` 包当前虽然也从顶层 re-export 了 `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()`, 但这些导出暂时只服务内部 recipe 和测试装配, 还不视为 Provisional 契约.
 - `xdl.config` 中的 schema dataclass,例如 `ConfigSchemaV1`,`RuntimeConfig`,`TrainerConfig`.
 - `xdl.config` 中的 resolver 工具,例如 `load_config_with_schema()`,`merge_with_schema()`,`resolve_config()`.
 - Accelerate,DeepSpeed,FSDP 相关配置字段和行为.
@@ -1336,6 +1349,7 @@ xdl-usage
 - `Trainer`,`CoreModel`,callback 内部状态字段,除公开 property 和文档明确说明的字段外.
 - 具体文件布局,例如 `coreModel.py`,`trainer.py` 内部实现函数.
 - 临时研究,实验,工具目录中的脚本入口.
+- `xqt` registry 细节,包括 `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()` 的具体行为,键空间约束和冲突处理策略.
 - 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.distill`, `xqt.diffusion_distill`, `xqt.export` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
 
 如果用户代码必须依赖 Internal API,建议先把需求提升为明确的公共 API,再补文档和测试.

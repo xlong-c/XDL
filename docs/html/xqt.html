@@ -49,7 +49,7 @@
       <div class="flow" aria-label="xqt overview flow">
         <span>训练产物<br><code>module</code><br><code>checkpoint</code></span>
         <span>可选压缩<br>distill<br>prune<br>quant</span>
-        <span>导出与比较<br>torch.export<br>onnx<br>runtime diff</span>
+        <span>导出与比较<br>pre-export fusion<br>onnx<br>runtime diff</span>
         <span>基准与报告<br>latency<br>memory<br>metrics</span>
         <span>产物归档<br>manifest<br>checksum<br>artifacts</span>
       </div>
@@ -143,7 +143,7 @@ print(context.artifacts)</code></pre>
           <div class="route-index">1</div>
           <div class="route-body">
             <strong><code>xqt.core.config.load_xqt_config()</code></strong>
-            <span>先用 <code>OmegaConf.structured(XQTConfig)</code> 建默认 schema, 再叠加 YAML 或 mapping 覆盖, 最后做几项最基础的校验, 比如 <code>config_version</code>, compression axes, benchmark 数值范围和 prune/diffusion 参数合法性.</span>
+            <span>先用 <code>OmegaConf.structured(XQTConfig)</code> 建默认 schema, 再叠加 YAML 或 mapping 覆盖, 最后做几项最基础的校验, 比如 <code>config_version</code>, compression axes, benchmark 数值范围, prune/diffusion 参数合法性, 以及 export / ONNX QDQ 路径里的 <code>pre_export_fusion</code> 配置.</span>
           </div>
         </div>
         <div class="route-item">
@@ -157,7 +157,7 @@ print(context.artifacts)</code></pre>
           <div class="route-index">3</div>
           <div class="route-body">
             <strong><code>xqt.pipeline.runner.default_pass_names()</code></strong>
-            <span>按默认顺序决定需要跑哪些 pass: <code>load_model</code>, <code>load_data</code>, <code>baseline_eval</code>, 然后按开关插入 <code>distill</code>, <code>prune</code>, <code>quant</code>, <code>diffusion_distill</code>, 最后是 <code>export</code>, <code>benchmark</code>, <code>write_reports</code>.</span>
+            <span>按默认顺序决定需要跑哪些 pass: <code>load_model</code>, <code>load_data</code>, <code>baseline_eval</code>, 然后按开关插入 <code>distill</code>, <code>prune</code>, <code>quant</code>, <code>diffusion_distill</code>, 可选 <code>analyze</code>, 最后是 <code>export</code>, <code>benchmark</code>, <code>write_reports</code>.</span>
           </div>
         </div>
         <div class="route-item">

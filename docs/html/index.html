@@ -62,8 +62,17 @@
             <a class="pill" href="../md/XDL.md">框架</a>
             <a class="pill" href="../md/CONFIG.md">配置</a>
             <a class="pill" href="../md/DATASET.md">数据集</a>
+            <a class="pill" href="../md/XQT_DATA.md">XQT 数据</a>
             <a class="pill" href="../md/API.md">API</a>
             <a class="pill" href="../md/XQT.md">XQT</a>
+          </div>
+        </div>
+        <div class="map-row">
+          <div class="map-kind">XQT 专题</div>
+          <div class="map-links">
+            <a class="pill" href="../md/ERROR_ANALYSIS.md">误差分析</a>
+            <a class="pill" href="../md/XQT_ANALYSIS.md">XQT 分析</a>
+            <a class="pill" href="../md/XQT_PRE_EXPORT_FUSION.md">导出前融合</a>
           </div>
         </div>
       </div>
@@ -212,6 +221,26 @@
             <td><code>xqt/</code> 量化,蒸馏,剪枝,扩散少步蒸馏和部署格式导出</td>
             <td><a href="../md/XQT.md">XQT.md</a></td>
             <td>确认工具链边界,模块拆分,产物规范和任务排期.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/</code> 蒸馏数据集,校准数据集,验证数据和 prompt 数据边界</td>
+            <td><a href="../md/XQT_DATA.md">XQT_DATA.md</a></td>
+            <td>确认不同数据角色的职责,消费点和 recipe 划分.</td>
+          </tr>
+          <tr>
+            <td>通用误差分析,层输出/激活/梯度对比和可视化数据函数</td>
+            <td><a href="../md/ERROR_ANALYSIS.md">ERROR_ANALYSIS.md</a></td>
+            <td>确认误差术语,场景分类和分析数据结构边界.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/</code> 分析,诊断,优化建议和 analysis pass</td>
+            <td><a href="../md/XQT_ANALYSIS.md">XQT_ANALYSIS.md</a></td>
+            <td>确认逐层误差,激活漂移,混合精度建议和报告落盘边界.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/</code> 导出前前置融合,图规整和 QDQ 前处理</td>
+            <td><a href="../md/XQT_PRE_EXPORT_FUSION.md">XQT_PRE_EXPORT_FUSION.md</a></td>
+            <td>确认哪些预处理能在导出前做,以及对应配置和验证要求.</td>
           </tr>
         </tbody>
       </table>
