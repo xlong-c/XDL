@@ -1,15 +1,41 @@
 from ..utils.registry import register_metric
+from .image_generation import (
+    FrechetInceptionDistance,
+    InceptionScore,
+    KernelInceptionDistance,
+    MultiScaleStructuralSimilarity,
+    PeakSignalNoiseRatio,
+    StructuralSimilarity,
+)
 from .metrics import (
     Accuracy,
+    BLEUScore,
+    BalancedAccuracy,
+    BoxIoU,
+    ConfusionMatrix,
     DiceCoefficient,
     F1Score,
+    FrequencyWeightedIoU,
+    HitRateAtK,
     IoU,
+    MatthewsCorrCoef,
     MeanAbsoluteError,
+    MeanIoU,
+    MeanReciprocalRank,
     MeanSquaredError,
+    MultiLabelAccuracy,
+    MultiLabelF1Score,
+    MultiLabelPrecision,
+    MultiLabelRecall,
+    Perplexity,
+    PixelAccuracy,
     Precision,
+    ROUGELScore,
     Recall,
     RootMeanSquaredError,
+    SequenceExactMatch,
     TopKAccuracy,
+    TokenAccuracy,
 )
 
 
@@ -20,9 +46,38 @@ def _register_metrics():
     register_metric("Precision")(Precision)
     register_metric("Recall")(Recall)
     register_metric("F1Score")(F1Score)
+    register_metric("BalancedAccuracy")(BalancedAccuracy)
+    register_metric("MatthewsCorrCoef")(MatthewsCorrCoef)
+    register_metric("ConfusionMatrix")(ConfusionMatrix)
+    register_metric("MultiLabelAccuracy")(MultiLabelAccuracy)
+    register_metric("MultiLabelPrecision")(MultiLabelPrecision)
+    register_metric("MultiLabelRecall")(MultiLabelRecall)
+    register_metric("MultiLabelF1Score")(MultiLabelF1Score)
     register_metric("IoU")(IoU)
     register_metric("DiceCoefficient")(DiceCoefficient)
+    register_metric("PixelAccuracy")(PixelAccuracy)
+    register_metric("MeanIoU")(MeanIoU)
+    register_metric("FrequencyWeightedIoU")(FrequencyWeightedIoU)
+    register_metric("BoxIoU")(BoxIoU)
     register_metric("TopKAccuracy")(TopKAccuracy)
+    register_metric("MeanReciprocalRank")(MeanReciprocalRank)
+    register_metric("HitRateAtK")(HitRateAtK)
+    register_metric("Perplexity")(Perplexity)
+    register_metric("TokenAccuracy")(TokenAccuracy)
+    register_metric("SequenceExactMatch")(SequenceExactMatch)
+    register_metric("BLEUScore")(BLEUScore)
+    register_metric("ROUGELScore")(ROUGELScore)
+    register_metric("PeakSignalNoiseRatio")(PeakSignalNoiseRatio)
+    register_metric("StructuralSimilarity")(StructuralSimilarity)
+    register_metric("MultiScaleStructuralSimilarity")(MultiScaleStructuralSimilarity)
+    register_metric("FrechetInceptionDistance")(FrechetInceptionDistance)
+    register_metric("KernelInceptionDistance")(KernelInceptionDistance)
+    register_metric("InceptionScore")(InceptionScore)
+    register_metric("PSNR")(PeakSignalNoiseRatio)
+    register_metric("SSIM")(StructuralSimilarity)
+    register_metric("MS_SSIM")(MultiScaleStructuralSimilarity)
+    register_metric("FID")(FrechetInceptionDistance)
+    register_metric("KID")(KernelInceptionDistance)
     register_metric("MeanAbsoluteError")(MeanAbsoluteError)
     register_metric("MeanSquaredError")(MeanSquaredError)
     register_metric("RootMeanSquaredError")(RootMeanSquaredError)
@@ -35,9 +90,33 @@ __all__ = [
     "Precision",
     "Recall",
     "F1Score",
+    "BalancedAccuracy",
+    "MatthewsCorrCoef",
+    "ConfusionMatrix",
+    "MultiLabelAccuracy",
+    "MultiLabelPrecision",
+    "MultiLabelRecall",
+    "MultiLabelF1Score",
     "IoU",
     "DiceCoefficient",
+    "PixelAccuracy",
+    "MeanIoU",
+    "FrequencyWeightedIoU",
+    "BoxIoU",
     "TopKAccuracy",
+    "MeanReciprocalRank",
+    "HitRateAtK",
+    "Perplexity",
+    "TokenAccuracy",
+    "SequenceExactMatch",
+    "BLEUScore",
+    "ROUGELScore",
+    "PeakSignalNoiseRatio",
+    "StructuralSimilarity",
+    "MultiScaleStructuralSimilarity",
+    "FrechetInceptionDistance",
+    "KernelInceptionDistance",
+    "InceptionScore",
     "MeanAbsoluteError",
     "MeanSquaredError",
     "RootMeanSquaredError",

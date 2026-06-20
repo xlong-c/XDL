@@ -29,12 +29,21 @@
 | 5 | [ERROR_ANALYSIS.md](ERROR_ANALYSIS.md) | 通用误差分析场景,误差类型和可视化数据函数需求. |
 | 6 | [XQT_DATA.md](XQT_DATA.md) | `xqt/` 中蒸馏数据集,校准数据集,验证数据和 prompt 数据的需求边界. |
 | 7 | [XQT_ANALYSIS.md](XQT_ANALYSIS.md) | `xqt/` 内分析,诊断和优化建议能力规划. |
-| 8 | [XQT_PRE_EXPORT_FUSION.md](XQT_PRE_EXPORT_FUSION.md) | `xqt` 导出前前置融合的场景,边界,配置和验证要求. |
-| 9 | [API.md](API.md) | 稳定公共 API,实验性 API,内部实现边界和废弃策略. |
-| 10 | [HTML_STYLE.md](HTML_STYLE.md) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
-| 11 | [xdl-functional-boundary.md](xdl-functional-boundary.md) | 各源码子模块职责速查. |
-| 12 | [xdl-optimization-plan.md](xdl-optimization-plan.md) | 当前仍有效的后续优化方向. |
-| 13 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署项目的架构草案,模块拆分,接口草案,recipe backlog 和任务排期. |
+| 8 | [XQT_QUANTIZATION_REQUIREMENTS.md](XQT_QUANTIZATION_REQUIREMENTS.md) | `xqt.quant` 的模块边界,模型族量化策略和验收要求. |
+| 9 | [XQT_QUANTIZATION_IMPLEMENTATION_PLAN.md](XQT_QUANTIZATION_IMPLEMENTATION_PLAN.md) | `xqt.quant` 的实现任务清单,代码改动面和开发顺序. |
+| 10 | [XQT_PRUNING_REQUIREMENTS.md](XQT_PRUNING_REQUIREMENTS.md) | `xqt.prune` 结构化剪枝分类,能力边界和分阶段需求. |
+| 11 | [XQT_PRUNING_IMPLEMENTATION_PLAN.md](XQT_PRUNING_IMPLEMENTATION_PLAN.md) | `xqt.prune` 结构化剪枝的实现拆解,模块任务和开发顺序. |
+| 12 | [XQT_PRUNING_EXTENSION_REQUIREMENTS.md](XQT_PRUNING_EXTENSION_REQUIREMENTS.md) | `xqt.prune` 复杂结构和可扩展剪枝的专项需求边界. |
+| 13 | [XQT_PRUNING_TODO.md](XQT_PRUNING_TODO.md) | `xqt.prune` 复杂结构剪枝的 backlog,todo 和优先级建议. |
+| 14 | [XQT_WIDTH_TO_AUTO_STUDENT_RESEARCH.md](XQT_WIDTH_TO_AUTO_STUDENT_RESEARCH.md) | `xqt.prune` 从 hidden width pruning 扩展到 auto student rewrite 的预研边界. |
+| 15 | [XQT_PRE_EXPORT_FUSION.md](XQT_PRE_EXPORT_FUSION.md) | `xqt` 导出前前置融合的场景,边界,配置和验证要求. |
+| 16 | [XQT_OPERATOR_OPTIMIZATION_REQUIREMENTS.md](XQT_OPERATOR_OPTIMIZATION_REQUIREMENTS.md) | `xqt` 算子优化的场景,后端选择,常见算子和验收口径. |
+| 17 | [XQT_OPERATOR_OPTIMIZATION_TODO.md](XQT_OPERATOR_OPTIMIZATION_TODO.md) | `xqt` 算子优化,megakernel,Triton,TileLang,CuTile,CUTLASS 和 custom CUDA 后端的 TODO 和实施边界. |
+| 18 | [API.md](API.md) | 稳定公共 API,实验性 API,内部实现边界和废弃策略. |
+| 19 | [HTML_STYLE.md](HTML_STYLE.md) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
+| 20 | [xdl-functional-boundary.md](xdl-functional-boundary.md) | 各源码子模块职责速查. |
+| 21 | [xdl-optimization-plan.md](xdl-optimization-plan.md) | 当前仍有效的后续优化方向. |
+| 22 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署项目的架构草案,模块拆分,接口草案,recipe backlog 和任务排期. |
 
 ## 改动前必读
 
@@ -47,7 +56,13 @@
 | `xqt/` 中蒸馏数据,校准数据,验证数据,prompt 数据的角色边界 | [XQT_DATA.md](XQT_DATA.md),[XQT.md](XQT.md) | 同步数据分片职责,消费点和 recipe 角色划分. |
 | 通用误差分析,可视化数据函数,层输出/激活/梯度对比 | [ERROR_ANALYSIS.md](ERROR_ANALYSIS.md) | 同步场景分类,误差术语和数据结构边界. |
 | `xqt/` 分析,诊断,优化建议和 analysis pass | [XQT_ANALYSIS.md](XQT_ANALYSIS.md),[XQT.md](XQT.md) | 同步模块边界,首批 API,报告结构和 recipe 接入方式. |
+| `xqt/` 量化 backend,量化策略,量化模块边界和模型族量化路线 | [XQT_QUANTIZATION_REQUIREMENTS.md](XQT_QUANTIZATION_REQUIREMENTS.md),[XQT.md](XQT.md) | 同步 backend 覆盖矩阵,默认高精度清单,量化验收和组件级策略. |
+| `xqt/` 量化实现任务,`QuantPass` 编排,组件级 schema 和测试顺序 | [XQT_QUANTIZATION_IMPLEMENTATION_PLAN.md](XQT_QUANTIZATION_IMPLEMENTATION_PLAN.md),[XQT_QUANTIZATION_REQUIREMENTS.md](XQT_QUANTIZATION_REQUIREMENTS.md) | 同步任务拆解,代码落点,开发顺序和测试分层. |
+| `xqt/` 结构化剪枝,结构改写,head/block/channel 剪枝 | [XQT_PRUNING_REQUIREMENTS.md](XQT_PRUNING_REQUIREMENTS.md),[XQT.md](XQT.md) | 同步结构化剪枝分类,配置字段,rewrite 和验收标准. |
+| `xqt/` 结构化剪枝的模块拆解,pass 改造和测试分层 | [XQT_PRUNING_IMPLEMENTATION_PLAN.md](XQT_PRUNING_IMPLEMENTATION_PLAN.md),[XQT_PRUNING_REQUIREMENTS.md](XQT_PRUNING_REQUIREMENTS.md) | 同步 schema,plan,pass,recipe 和测试任务拆解. |
+| `xqt/` 复杂结构剪枝扩展, residual / branch / grouped conv / generic attention / global width 规划 | [XQT_PRUNING_EXTENSION_REQUIREMENTS.md](XQT_PRUNING_EXTENSION_REQUIREMENTS.md),[XQT_PRUNING_TODO.md](XQT_PRUNING_TODO.md),[XQT_PRUNING_REQUIREMENTS.md](XQT_PRUNING_REQUIREMENTS.md) | 同步扩展边界,优先级,验收口径和 backlog,不要把规划写成已实现事实. |
 | `xqt/` 导出前前置融合,导出前图规整和 QDQ 前处理 | [XQT_PRE_EXPORT_FUSION.md](XQT_PRE_EXPORT_FUSION.md),[XQT.md](XQT.md) | 同步适用场景,配置字段,导出链位置和测试要求. |
+| `xqt/` 算子优化,megakernel,Triton,TileLang,CuTile,CUTLASS 或 custom CUDA runtime | [XQT_OPERATOR_OPTIMIZATION_REQUIREMENTS.md](XQT_OPERATOR_OPTIMIZATION_REQUIREMENTS.md),[XQT_OPERATOR_OPTIMIZATION_TODO.md](XQT_OPERATOR_OPTIMIZATION_TODO.md),[XQT.md](XQT.md) | 同步 backend 分层,配置草案,preflight,manifest,常见算子和测试清单. |
 | 安装,依赖,wheel,运行入口 | [INSTALL.md](INSTALL.md),[../../xdl/USAGE.md](../../xdl/USAGE.md) | 同步安装命令和包内用法入口. |
 | 子模块职责,目录迁移 | [xdl-functional-boundary.md](xdl-functional-boundary.md) | 同步目录职责和依赖方向. |
 | 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 与 `docs/html/` 分层清楚. |
@@ -62,7 +77,16 @@
 - `XQT_DATA.md` 只讲 `xqt/` 内数据角色和消费边界,不替代通用 dataset 模板文档.
 - `ERROR_ANALYSIS.md` 只讲通用误差分析场景,误差类型和可视化数据需求,不承诺具体模块实现.
 - `XQT_ANALYSIS.md` 只讲 `xqt/` 内分析与优化建议能力,不重复写整体 XQT 架构背景.
+- `XQT_QUANTIZATION_REQUIREMENTS.md` 只讲 `xqt.quant` 的模块边界,模型族量化路线和验收要求,不替代整体 XQT 架构文档.
+- `XQT_QUANTIZATION_IMPLEMENTATION_PLAN.md` 只讲 `xqt.quant` 的实现拆解,代码落点和开发顺序,不替代需求文档.
+- `XQT_PRUNING_REQUIREMENTS.md` 只讲 `xqt.prune` 结构化剪枝需求和能力边界,不替代整体 XQT 架构文档.
+- `XQT_PRUNING_IMPLEMENTATION_PLAN.md` 只讲 `xqt.prune` 结构化剪枝的实现拆解和开发顺序,不替代需求文档.
+- `XQT_PRUNING_EXTENSION_REQUIREMENTS.md` 只讲复杂结构和可扩展剪枝的专项需求边界,不重复基础结构化剪枝总纲.
+- `XQT_PRUNING_TODO.md` 只讲复杂结构剪枝 backlog 和优先级,不替代需求文档.
+- `XQT_WIDTH_TO_AUTO_STUDENT_RESEARCH.md` 只讲 hidden width pruning 到 auto student rewrite 的预研边界,不承诺通用自动模型压缩器.
 - `XQT_PRE_EXPORT_FUSION.md` 只讲 `xqt` 导出前前置融合的边界和接入方式,不替代整体导出或量化文档.
+- `XQT_OPERATOR_OPTIMIZATION_REQUIREMENTS.md` 只讲 `xqt` 算子优化的需求边界,适用场景,后端选择,常见算子和验收口径,不替代 TODO 清单.
+- `XQT_OPERATOR_OPTIMIZATION_TODO.md` 只讲 `xqt` 算子优化,megakernel,Triton,TileLang,CuTile,CUTLASS 和 custom CUDA 的 TODO 与实施边界,不承诺已实现 API.
 - `API.md` 只讲公共 API 兼容边界,不重复使用教程.
 - `HTML_STYLE.md` 只讲自有 HTML 阅读页的视觉系统和样式维护规则,不定义框架行为.
 - `xdl-functional-boundary.md` 只做模块职责速查,不重复写长篇使用指南.

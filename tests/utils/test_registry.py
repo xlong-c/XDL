@@ -60,12 +60,74 @@ class TestGlobalRegistries:
         assert "CrossEntropyLoss" in available
         assert "MSELoss" in available
         # P0-2 新增
-        for name in ("HuberLoss", "InfoNCE", "DiceLoss"):
+        for name in (
+            "HuberLoss",
+            "InfoNCE",
+            "DiceLoss",
+            "LabelSmoothingCrossEntropy",
+            "SoftTargetCrossEntropy",
+            "AsymmetricLoss",
+            "CharbonnierLoss",
+            "TotalVariationLoss",
+            "GradientDifferenceLoss",
+            "SSIMLoss",
+            "ReconstructionLoss",
+            "KLDivergenceLoss",
+            "VAELoss",
+            "GANLoss",
+            "HingeDiscriminatorLoss",
+            "HingeGeneratorLoss",
+            "FeatureMatchingLoss",
+            "DiffusionPredictionLoss",
+            "JaccardLoss",
+            "TverskyLoss",
+            "FocalTverskyLoss",
+            "DiceCrossEntropyLoss",
+            "BoxIoULoss",
+            "MaskedCrossEntropyLoss",
+            "SequenceCrossEntropyLoss",
+            "TokenClassificationLoss",
+            "CausalLanguageModelingLoss",
+        ):
             assert name in available, f"Missing {name}"
 
     def test_metric_registry_has_builtin(self):
         available = METRIC_REGISTRY.list_available()
-        for name in ("Accuracy", "Precision", "Recall", "F1Score"):
+        for name in (
+            "Accuracy",
+            "Precision",
+            "Recall",
+            "F1Score",
+            "BalancedAccuracy",
+            "MatthewsCorrCoef",
+            "ConfusionMatrix",
+            "MultiLabelAccuracy",
+            "MultiLabelPrecision",
+            "MultiLabelRecall",
+            "MultiLabelF1Score",
+            "PixelAccuracy",
+            "MeanIoU",
+            "FrequencyWeightedIoU",
+            "BoxIoU",
+            "MeanReciprocalRank",
+            "HitRateAtK",
+            "Perplexity",
+            "TokenAccuracy",
+            "SequenceExactMatch",
+            "BLEUScore",
+            "ROUGELScore",
+            "PeakSignalNoiseRatio",
+            "StructuralSimilarity",
+            "MultiScaleStructuralSimilarity",
+            "FrechetInceptionDistance",
+            "KernelInceptionDistance",
+            "InceptionScore",
+            "PSNR",
+            "SSIM",
+            "MS_SSIM",
+            "FID",
+            "KID",
+        ):
             assert name in available, f"Missing {name}"
 
     def test_dataset_registry_has_builtin(self):
