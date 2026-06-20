@@ -21,20 +21,9 @@
 
 ### `docs/md/`
 
-- `README.md`: MD 工作文档索引,推荐阅读顺序和文档边界.
-- `INSTALL.md`: 安装,环境验证和当前可运行入口.
-- `XDL.md`: 框架定位,核心分层,训练入口,`CoreModel` / `Trainer` 生命周期.
-- `CONFIG.md`: YAML 配置系统,schema v1,`target + params` 组织方式.
-- `DATASET.md`: dataset 模板选择,磁盘组织,样本语义和扩展流程.
-- `ERROR_ANALYSIS.md`: 通用误差分析场景,误差类型和可视化数据函数需求.
-- `XQT_DATA.md`: `xqt/` 中蒸馏数据集,校准数据集,验证数据和 prompt 数据的需求边界.
-- `XQT_ANALYSIS.md`: `xqt/` 内分析,诊断和优化建议能力规划.
-- `XQT_PRE_EXPORT_FUSION.md`: `xqt/` 导出前前置融合的场景,边界,配置和验证要求.
-- `API.md`: Stable / Provisional / Internal API 边界和兼容策略.
-- `HTML_STYLE.md`: 自有 HTML 阅读页样式规范,主题 token 和交互约束.
-- `xdl-functional-boundary.md`: 各源码子模块职责速查.
-- `xdl-optimization-plan.md`: 当前仍有效的框架后续优化方向.
-- `XQT.md`: `xqt/` 模型压缩与部署项目的架构草案,模块拆分,接口草案,recipe backlog 和任务排期.
+- `README.md`: XDL MD 工作文档正文事实源,收拢安装,框架,配置,dataset,API,HTML 样式,模块边界和优化方向.
+- `HTML_STYLE.md`: 自有 HTML 阅读页样式规范,主题 token 和交互约束的兼容跳转页.
+- `XQT.md`: `xqt/` 模型压缩与部署项目的唯一长期 MD 入口,覆盖模块边界,数据角色,量化,剪枝,蒸馏,导出,算子优化,recipe 和任务状态.
 
 ### `docs/html/`
 
@@ -50,14 +39,14 @@
 
 - 文档内容必须与真实代码保持一致,不写脱离实现的理想化描述.
 - 涉及 API,目录,生命周期,配置字段或注册名称时,先搜索源码再更新文档.
-- 涉及公开 API,导出符号或兼容承诺时,必须同步检查并更新 `md/API.md`.
+- 涉及公开 API,导出符号或兼容承诺时,必须同步检查并更新 `md/README.md#xdl-api-稳定边界`.
 - 大改动时同步更新交叉引用,`md/README.md` 和 `html/index.html`.
 - 规划文档与现状说明要分开写,避免把待办写成已实现事实.
 - `docs/` 只保留长期有效内容;阶段性调研优先放 `research/`.
 - 新增普通 MD 只能放在 `docs/md/`;不要继续把长期文档散放在 `docs/` 根目录.
 - 新增 HTML 页面默认放在 `docs/html/`,保持静态自包含,避免依赖外部 CDN.
 - HTML 页面是阅读层,不是唯一事实源;同一主题的 MD 事实变化时,必须同步对应 HTML.
-- 新增或重构自有 HTML 时必须先遵循 `md/HTML_STYLE.md`: 页面 body 必须且只能包含 `xdl-style-atlas` 或 `xdl-style-ledger` 两种模板之一,默认引用 `html/assets/xdl-doc.css`,不要复制大段内联 `<style>` 或散落 `style=`.
+- 新增或重构自有 HTML 时必须先遵循 `md/README.md#xdl-html-阅读页样式规范`: 页面 body 必须且只能包含 `xdl-style-atlas` 或 `xdl-style-ledger` 两种模板之一,默认引用 `html/assets/xdl-doc.css`,不要复制大段内联 `<style>` 或散落 `style=`.
 - 需要主题交互时使用 `html/assets/xdl-theme.js` 和 `data-theme-value` / `data-accent-value`,不要为单页另写一套主题脚本.
 - 公共阅读页 CSS 只收敛到 `html/assets/xdl-doc.css`;目录专属 CSS 只能保留薄入口和命名空间明确的局部组件,不能复制公共版式,主题变量或通用阅读组件.
 

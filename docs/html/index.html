@@ -58,21 +58,18 @@
         <div class="map-row">
           <div class="map-kind">MD</div>
           <div class="map-links">
-            <a class="pill" href="../md/INSTALL.md">安装</a>
-            <a class="pill" href="../md/XDL.md">框架</a>
-            <a class="pill" href="../md/CONFIG.md">配置</a>
-            <a class="pill" href="../md/DATASET.md">数据集</a>
-            <a class="pill" href="../md/XQT_DATA.md">XQT 数据</a>
-            <a class="pill" href="../md/API.md">API</a>
+            <a class="pill" href="../md/README.md#xdl-安装与验证">安装</a>
+            <a class="pill" href="../md/README.md#xdl-项目结构与使用说明">框架</a>
+            <a class="pill" href="../md/README.md#xdl-config-系统说明">配置</a>
+            <a class="pill" href="../md/README.md#xdl-dataset-模板规划">数据集</a>
+            <a class="pill" href="../md/README.md#xdl-api-稳定边界">API</a>
             <a class="pill" href="../md/XQT.md">XQT</a>
           </div>
         </div>
         <div class="map-row">
           <div class="map-kind">XQT 专题</div>
           <div class="map-links">
-            <a class="pill" href="../md/ERROR_ANALYSIS.md">误差分析</a>
-            <a class="pill" href="../md/XQT_ANALYSIS.md">XQT 分析</a>
-            <a class="pill" href="../md/XQT_PRE_EXPORT_FUSION.md">导出前融合</a>
+            <a class="pill" href="../md/XQT.md">压缩与部署</a>
           </div>
         </div>
       </div>
@@ -125,7 +122,7 @@
             <strong>安装和验证</strong>
             <span>确认环境,依赖,可运行入口和基础测试命令.</span>
           </div>
-          <a href="../md/INSTALL.md">INSTALL.md</a>
+          <a href="../md/README.md#xdl-安装与验证">README.md#安装</a>
         </div>
         <div class="route-item">
           <div class="number">2</div>
@@ -133,7 +130,7 @@
             <strong>框架是什么</strong>
             <span>理解 XDL 的定位,核心分层,训练入口和生命周期.</span>
           </div>
-          <a href="../md/XDL.md">XDL.md</a>
+          <a href="../md/README.md#xdl-项目结构与使用说明">README.md#框架</a>
         </div>
         <div class="route-item">
           <div class="number">3</div>
@@ -141,7 +138,7 @@
             <strong>怎样写 YAML</strong>
             <span>理解 <code>setup_from_yaml()</code>,schema v1 和 <code>target + params</code> 组织方式.</span>
           </div>
-          <a href="../md/CONFIG.md">CONFIG.md</a>
+          <a href="../md/README.md#xdl-config-系统说明">README.md#配置</a>
         </div>
         <div class="route-item">
           <div class="number">4</div>
@@ -149,7 +146,7 @@
             <strong>怎样接数据集</strong>
             <span>先看模板选择,再看通用 dataset 模块结构图.</span>
           </div>
-          <a href="../md/DATASET.md">DATASET.md</a>
+          <a href="../md/README.md#xdl-dataset-模板规划">README.md#数据集</a>
         </div>
         <div class="route-item">
           <div class="number">5</div>
@@ -157,7 +154,7 @@
             <strong>哪些 API 稳定</strong>
             <span>区分 Stable, Provisional 和 Internal,避免依赖内部实现.</span>
           </div>
-          <a href="../md/API.md">API.md</a>
+          <a href="../md/README.md#xdl-api-稳定边界">README.md#API</a>
         </div>
         <div class="route-item">
           <div class="number">6</div>
@@ -165,13 +162,13 @@
             <strong>模块边界和后续方向</strong>
             <span>查子模块职责,再看当前仍有效的优化计划.</span>
           </div>
-          <a href="../md/xdl-functional-boundary.md">边界速查</a>
+          <a href="../md/README.md#xdl-模块功能边界速查">README.md#边界</a>
         </div>
         <div class="route-item">
           <div class="number">7</div>
           <div>
             <strong>XQT 压缩与部署</strong>
-            <span>查看量化,蒸馏,剪枝和扩散少步蒸馏的架构草案.</span>
+            <span>查看量化,蒸馏,剪枝,扩散少步蒸馏和部署导出的长期工作文档.</span>
           </div>
           <a href="../md/XQT.md">XQT.md</a>
         </div>
@@ -194,53 +191,33 @@
         <tbody>
           <tr>
             <td>训练生命周期,Trainer,CoreModel,Callback</td>
-            <td><a href="../md/XDL.md">XDL.md</a></td>
+            <td><a href="../md/README.md#xdl-项目结构与使用说明">README.md#框架</a></td>
             <td>确认手动优化,batch 迁移,日志和回调顺序.</td>
           </tr>
           <tr>
             <td>YAML 配置,schema,<code>target + params</code></td>
-            <td><a href="../md/CONFIG.md">CONFIG.md</a></td>
+            <td><a href="../md/README.md#xdl-config-系统说明">README.md#配置</a></td>
             <td>确认配置主链路和 OmegaConf 约束.</td>
           </tr>
           <tr>
             <td>数据集模板,collate,manifest</td>
-            <td><a href="../md/DATASET.md">DATASET.md</a></td>
+            <td><a href="../md/README.md#xdl-dataset-模板规划">README.md#数据集</a></td>
             <td>确认应该复用模板,新增 thin adapter,还是只新增 transform/collate.</td>
           </tr>
           <tr>
             <td>公开入口,导出符号,兼容策略</td>
-            <td><a href="../md/API.md">API.md</a></td>
+            <td><a href="../md/README.md#xdl-api-稳定边界">README.md#API</a></td>
             <td>确认 Stable / Provisional / Internal API 边界.</td>
           </tr>
           <tr>
             <td>目录职责或模块迁移</td>
-            <td><a href="../md/xdl-functional-boundary.md">xdl-functional-boundary.md</a></td>
+            <td><a href="../md/README.md#xdl-模块功能边界速查">README.md#边界</a></td>
             <td>确认逻辑应该放在哪个子模块.</td>
           </tr>
           <tr>
             <td><code>xqt/</code> 量化,蒸馏,剪枝,扩散少步蒸馏和部署格式导出</td>
             <td><a href="../md/XQT.md">XQT.md</a></td>
             <td>确认工具链边界,模块拆分,产物规范和任务排期.</td>
-          </tr>
-          <tr>
-            <td><code>xqt/</code> 蒸馏数据集,校准数据集,验证数据和 prompt 数据边界</td>
-            <td><a href="../md/XQT_DATA.md">XQT_DATA.md</a></td>
-            <td>确认不同数据角色的职责,消费点和 recipe 划分.</td>
-          </tr>
-          <tr>
-            <td>通用误差分析,层输出/激活/梯度对比和可视化数据函数</td>
-            <td><a href="../md/ERROR_ANALYSIS.md">ERROR_ANALYSIS.md</a></td>
-            <td>确认误差术语,场景分类和分析数据结构边界.</td>
-          </tr>
-          <tr>
-            <td><code>xqt/</code> 分析,诊断,优化建议和 analysis pass</td>
-            <td><a href="../md/XQT_ANALYSIS.md">XQT_ANALYSIS.md</a></td>
-            <td>确认逐层误差,激活漂移,混合精度建议和报告落盘边界.</td>
-          </tr>
-          <tr>
-            <td><code>xqt/</code> 导出前前置融合,图规整和 QDQ 前处理</td>
-            <td><a href="../md/XQT_PRE_EXPORT_FUSION.md">XQT_PRE_EXPORT_FUSION.md</a></td>
-            <td>确认哪些预处理能在导出前做,以及对应配置和验证要求.</td>
           </tr>
         </tbody>
       </table>

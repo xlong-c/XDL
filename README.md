@@ -68,15 +68,15 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 1. [docs/html/index.html](docs/html/index.html)
 2. [docs/html/dataset-structure.html](docs/html/dataset-structure.html)
 
-给 Codex 和开发者改代码前看的高密度 MD:
+给 Codex 和开发者改代码前看的高密度 MD 正文已经收拢到 [docs/md/README.md](docs/md/README.md):
 
-1. [docs/md/README.md](docs/md/README.md)
-2. [docs/md/INSTALL.md](docs/md/INSTALL.md)
-3. [docs/md/XDL.md](docs/md/XDL.md)
-4. [docs/md/CONFIG.md](docs/md/CONFIG.md)
-5. [docs/md/DATASET.md](docs/md/DATASET.md)
-6. [docs/md/API.md](docs/md/API.md)
-7. [docs/md/xdl-functional-boundary.md](docs/md/xdl-functional-boundary.md)
+1. [安装与验证](docs/md/README.md#xdl-安装与验证)
+2. [项目结构与使用说明](docs/md/README.md#xdl-项目结构与使用说明)
+3. [Config 系统说明](docs/md/README.md#xdl-config-系统说明)
+4. [Dataset 模板规划](docs/md/README.md#xdl-dataset-模板规划)
+5. [API 稳定边界](docs/md/README.md#xdl-api-稳定边界)
+6. [模块功能边界速查](docs/md/README.md#xdl-模块功能边界速查)
+7. [当前优化方向](docs/md/README.md#xdl-当前优化方向)
 
 ## 稳定公共入口
 
@@ -88,7 +88,7 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 from xdl.callbacks import Callback
 ```
 
-完整公共 API 边界见 [docs/md/API.md](docs/md/API.md)。历史文件级导入路径仍保持兼容，但推荐逐步迁移到子包入口。
+完整公共 API 边界见 [docs/md/README.md#xdl-api-稳定边界](docs/md/README.md#xdl-api-稳定边界)。历史文件级导入路径仍保持兼容，但推荐逐步迁移到子包入口。
 
 ## 快速开始
 
