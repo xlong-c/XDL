@@ -440,6 +440,11 @@ body {{
     padding: 0 10px;
     width: 100%;
 }}
+.slider {{
+    width: 180px;
+    accent-color: #ff4d4f;
+    cursor: ew-resize;
+}}
 .btn {{
     padding: 0 12px;
     cursor: pointer;
@@ -620,7 +625,6 @@ body {{
 }}
 #viewer-paint-canvas.brush-active {{
     pointer-events: auto;
-    cursor: none;
 }}
 #viewer-statusbar {{
     background: #252525;
@@ -645,11 +649,23 @@ body {{
     position: fixed;
     pointer-events: none;
     border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.6);
-    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255, 72, 72, 0.95);
+    background: rgba(255, 72, 72, 0.18);
+    box-shadow:
+        0 0 0 1px rgba(255, 72, 72, 0.28),
+        0 0 24px rgba(255, 72, 72, 0.82),
+        0 0 42px rgba(255, 72, 72, 0.42),
+        inset 0 0 14px rgba(255, 72, 72, 0.22);
     transform: translate(-50%, -50%);
+    transition:
+        left 0.035s linear,
+        top 0.035s linear,
+        width 0.08s ease,
+        height 0.08s ease,
+        opacity 0.12s ease;
+    opacity: 0;
     display: none;
-    z-index: 1001;
+    z-index: 2147483647;
 }}
 </style>
 </head>
@@ -695,7 +711,8 @@ body {{
         <button id="viewer-brush-btn" class="btn" style="color:#88c0ff;">🖌️涂抹</button>
         <span id="viewer-brush-size-wrap" class="field" style="display:none;">
             <label for="viewer-brush-size">笔刷</label>
-            <input id="viewer-brush-size" class="input" value="20" inputmode="numeric" style="width:52px;">px
+            <input id="viewer-brush-size" class="slider" type="range" min="2" max="200" step="1" value="20">
+            <span id="viewer-brush-size-value">20 px</span>
         </span>
         <span class="toolbar-sep"></span>
         <button id="viewer-undo-btn" class="btn">↩撤销</button>
@@ -726,6 +743,7 @@ const state = {{
     prefetchedThumbs: new Map(),
     thumbImageCache: new Map(),
     thumbLoadPromises: new Map(),
+    imageVersions: new Map(),
     pageStart: 0,
     renderToken: 0,
     cols: 2,
@@ -757,6 +775,7 @@ const viewerState = {{
 }};
 
 const viewerOverlayEl = document.getElementById('viewer-overlay');
+const viewerCanvasWrapEl = document.getElementById('viewer-canvas-wrap');
 const viewerImageEl = document.getElementById('viewer-image');
 const viewerPaintCanvas = document.getElementById('viewer-paint-canvas');
 const viewerBrushIndicator = document.getElementById('viewer-brush-indicator');
@@ -764,15 +783,34 @@ const viewerPickerBtn = document.getElementById('viewer-picker-btn');
 const viewerBrushBtn = document.getElementById('viewer-brush-btn');
 const viewerBrushSizeWrap = document.getElementById('viewer-brush-size-wrap');
 const viewerBrushSizeInput = document.getElementById('viewer-brush-size');
+const viewerBrushSizeValue = document.getElementById('viewer-brush-size-value');
 const viewerModeText = document.getElementById('viewer-mode-text');
 const viewerColorSwatch = document.getElementById('viewer-color-swatch');
 const viewerColorText = document.getElementById('viewer-color-text');
 const viewerBrushText = document.getElementById('viewer-brush-text');
 const viewerFilename = document.getElementById('viewer-filename');
 
+function getImageVersion(imagePath) {{
+    return state.imageVersions.get(imagePath) || 0;
+}}
+
+function bumpImageVersion(imagePath) {{
+    state.imageVersions.set(imagePath, Date.now());
+}}
+
+function buildImageUrl(imagePath) {{
+    const params = new URLSearchParams({{ path: imagePath }});
+    const version = getImageVersion(imagePath);
+    if (version) {{
+        params.set('v', String(version));
+    }}
+    return `/api/image?${{params.toString()}}`;
+}}
+
 function updateViewerStatus() {{
     viewerColorSwatch.style.backgroundColor = viewerState.currentColor;
     viewerColorText.textContent = viewerState.currentColor;
+    viewerBrushSizeValue.textContent = `${{viewerState.brushSize}} px`;
     viewerBrushText.textContent = viewerState.mode === 'brush' ? String(viewerState.brushSize) : '-';
 }}
 
@@ -796,22 +834,47 @@ function updateBrushIndicator() {{
     viewerBrushIndicator.style.height = viewerState.brushSize + 'px';
 }}
 
+function hideBrushIndicator() {{
+    viewerBrushIndicator.style.display = 'none';
+}}
+
+function positionBrushIndicator(clientX, clientY) {{
+    if (viewerState.mode !== 'brush') {{
+        hideBrushIndicator();
+        return;
+    }}
+    const rect = viewerOverlayEl.getBoundingClientRect();
+    const inside = (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+    );
+    if (!inside) {{
+        hideBrushIndicator();
+        return;
+    }}
+    viewerBrushIndicator.style.left = clientX + 'px';
+    viewerBrushIndicator.style.top = clientY + 'px';
+    viewerBrushIndicator.style.opacity = '1';
+    viewerBrushIndicator.style.display = '';
+}}
+
 function setViewerMode(mode) {{
     viewerState.mode = mode;
     const isBrush = mode === 'brush';
     viewerPickerBtn.classList.toggle('active', !isBrush);
     viewerBrushBtn.classList.toggle('active', isBrush);
     viewerBrushSizeWrap.style.display = isBrush ? '' : 'none';
+    viewerPaintCanvas.classList.toggle('brush-active', isBrush);
     viewerModeText.textContent = isBrush ? '🖌️涂抹' : '🎨取色';
     if (isBrush) {{
-        viewerImageEl.style.cursor = 'none';
-        viewerPaintCanvas.style.cursor = 'none';
         syncPaintCanvasSize();
-        viewerBrushIndicator.style.display = '';
         updateBrushIndicator();
     }} else {{
-        viewerImageEl.style.cursor = 'crosshair';
-        viewerBrushIndicator.style.display = 'none';
+        hideBrushIndicator();
     }}
     updateViewerStatus();
 }}
@@ -820,7 +883,7 @@ async function openViewer(path) {{
     viewerState.isOpen = true;
     viewerState.imagePath = path;
     viewerFilename.textContent = path.split(/[\\\\/]/).pop() || path;
-    const url = `/api/image?path=${{encodeURIComponent(path)}}`;
+    const url = buildImageUrl(path);
     viewerImageEl.src = url;
     viewerOverlayEl.classList.add('open');
     await new Promise((resolve) => {{
@@ -838,7 +901,7 @@ async function openViewer(path) {{
 function closeViewer() {{
     viewerState.isOpen = false;
     viewerOverlayEl.classList.remove('open');
-    viewerBrushIndicator.style.display = 'none';
+    hideBrushIndicator();
     viewerImageEl.src = '';
     clearPaintCanvas();
 }}
@@ -891,6 +954,10 @@ function buildThumbUrl(imagePath, width, height) {{
         slice_parts: String(state.sliceParts),
         bg_color: state.bgColor,
     }});
+    const version = getImageVersion(imagePath);
+    if (version) {{
+        params.set('v', String(version));
+    }}
     return `/api/thumb?${{params.toString()}}`;
 }}
 
@@ -1164,11 +1231,35 @@ function prevPage() {{
     render();
 }}
 
-function nextPage() {{
+async function nextPage() {{
     const step = getPageSize();
-    if (state.pageStart + step < state.images.length) {{
-        state.pageStart += step;
-        render();
+    const currentImages = [...state.images];
+    const currentSelection = new Set(state.selected);
+    const targetPageStart = state.pageStart + step;
+    const hasNextPage = targetPageStart < currentImages.length;
+
+    if (currentSelection.size) {{
+        const deletedBeforeTarget = currentImages.reduce((countBefore, item, index) => {{
+            if (index < targetPageStart && currentSelection.has(item.path)) {{
+                return countBefore + 1;
+            }}
+            return countBefore;
+        }}, 0);
+        const removed = await deleteSelected(false);
+        if (!removed) {{
+            return;
+        }}
+        if (hasNextPage) {{
+            state.pageStart = Math.max(0, targetPageStart - deletedBeforeTarget);
+            await render();
+            setStatus('已删除选中并切到下一页');
+        }}
+        return;
+    }}
+
+    if (hasNextPage) {{
+        state.pageStart = targetPageStart;
+        await render();
     }}
 }}
 
@@ -1193,14 +1284,14 @@ function zoomOut() {{
     render();
 }}
 
-async function deleteSelected() {{
+async function deleteSelected(requireConfirm = true) {{
     if (!state.selected.size) {{
         setStatus('还没有选中任何图片', true);
-        return;
+        return false;
     }}
     const count = state.selected.size;
-    if (!window.confirm(`确定删除选中的 ${{count}} 张图片吗?此操作不可撤销.`)) {{
-        return;
+    if (requireConfirm && !window.confirm(`确定删除选中的 ${{count}} 张图片吗?此操作不可撤销.`)) {{
+        return false;
     }}
     try {{
         const result = await postJSON('/api/delete', {{paths: [...state.selected]}});
@@ -1208,14 +1299,16 @@ async function deleteSelected() {{
         state.images = state.images.filter((item) => !deleted.has(item.path));
         state.selected.clear();
         const failedCount = result.failed.length;
-        render();
+        await render();
         if (failedCount) {{
             setStatus(`已删除 ${{result.deleted_count}} 张,失败 ${{failedCount}} 张`, true);
         }} else {{
             setStatus(`已删除 ${{result.deleted_count}} 张图片`);
         }}
+        return true;
     }} catch (error) {{
         setStatus(error.message, true);
+        return false;
     }}
 }}
 
@@ -1280,11 +1373,12 @@ async function savePainted() {{
     try {{
         const result = await postJSON('/api/save-painted', {{ path: viewerState.imagePath, image: base64 }});
         if (result.ok) {{
+            bumpImageVersion(viewerState.imagePath);
             setStatus('已保存: ' + viewerFilename.textContent);
-            closeViewer();
             state.thumbImageCache.clear();
             state.thumbLoadPromises.clear();
-            render();
+            closeViewer();
+            await render();
         }} else {{
             setStatus('保存失败: ' + (result.error || 'unknown'), true);
         }}
@@ -1293,15 +1387,31 @@ async function savePainted() {{
     }}
 }}
 
+async function toggleFullscreen() {{
+    try {{
+        if (typeof pywebview !== 'undefined' && pywebview.api && pywebview.api.toggle_fullscreen) {{
+            await pywebview.api.toggle_fullscreen();
+            return;
+        }}
+        if (document.fullscreenElement) {{
+            await document.exitFullscreen();
+        }} else {{
+            await document.documentElement.requestFullscreen();
+        }}
+    }} catch (error) {{
+        setStatus('切换全屏失败: ' + error.message, true);
+    }}
+}}
+
 function bindInputEvents() {{
     document.getElementById('open-btn').addEventListener('click', openDirectory);
     document.getElementById('browse-btn').addEventListener('click', pickDirectory);
     document.getElementById('prev-btn').addEventListener('click', prevPage);
-    document.getElementById('next-btn').addEventListener('click', nextPage);
+    document.getElementById('next-btn').addEventListener('click', () => {{ void nextPage(); }});
     document.getElementById('jump-btn').addEventListener('click', jumpToIndex);
     document.getElementById('zoom-in-btn').addEventListener('click', zoomIn);
     document.getElementById('zoom-out-btn').addEventListener('click', zoomOut);
-    document.getElementById('delete-btn').addEventListener('click', deleteSelected);
+    document.getElementById('delete-btn').addEventListener('click', () => {{ void deleteSelected(); }});
 
     document.getElementById('dir-input').addEventListener('keydown', (event) => {{
         if (event.key === 'Enter') {{
@@ -1357,18 +1467,24 @@ function bindInputEvents() {{
             syncPaintCanvasSize();
         }}
         if (viewerPaintCanvas.width <= 0 || viewerPaintCanvas.height <= 0) {{ return; }}
-        viewerState.isDrawing = true;
         const rect = viewerPaintCanvas.getBoundingClientRect();
+        if (
+            event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom
+        ) {{
+            return;
+        }}
+        viewerState.isDrawing = true;
+        positionBrushIndicator(event.clientX, event.clientY);
         viewerState.lastX = event.clientX - rect.left;
         viewerState.lastY = event.clientY - rect.top;
         drawDot(viewerState.lastX, viewerState.lastY);
     }});
 
     viewerOverlayEl.addEventListener('mousemove', (event) => {{
-        if (viewerState.mode === 'brush') {{
-            viewerBrushIndicator.style.left = event.clientX + 'px';
-            viewerBrushIndicator.style.top = event.clientY + 'px';
-        }}
+        positionBrushIndicator(event.clientX, event.clientY);
         if (!viewerState.isDrawing) {{ return; }}
         const rect = viewerPaintCanvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
@@ -1377,6 +1493,8 @@ function bindInputEvents() {{
         viewerState.lastX = x;
         viewerState.lastY = y;
     }});
+    viewerCanvasWrapEl.addEventListener('mouseleave', hideBrushIndicator);
+    viewerOverlayEl.addEventListener('mouseleave', hideBrushIndicator);
 
     // mouseup 绑定在 document 上, 确保拖拽到 overlay 外也能结束绘制
     document.addEventListener('mouseup', () => {{ viewerState.isDrawing = false; }});
@@ -1394,11 +1512,7 @@ function bindInputEvents() {{
 
     // ---- 全屏 ----
     document.getElementById('fullscreen-btn').addEventListener('click', () => {{
-        if (document.fullscreenElement) {{
-            document.exitFullscreen();
-        }} else {{
-            document.documentElement.requestFullscreen();
-        }}
+        void toggleFullscreen();
     }});
 
     // ---- 工具栏取色/涂抹按钮: 打开最近图片(有选中则第一个选中, 否则第一张) ----
@@ -1414,7 +1528,17 @@ function bindInputEvents() {{
         openViewer(idx).then(() => setViewerMode('brush'));
     }});
 
+    gridWrapEl.addEventListener('contextmenu', (event) => {{
+        event.preventDefault();
+        void nextPage();
+    }});
+
     window.addEventListener('keydown', (event) => {{
+        if (event.key === 'F11') {{
+            event.preventDefault();
+            void toggleFullscreen();
+            return;
+        }}
         const activeTag = document.activeElement ? document.activeElement.tagName : '';
         if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {{
             return;
@@ -1422,13 +1546,13 @@ function bindInputEvents() {{
         if (event.key === 'ArrowLeft') {{
             prevPage();
         }} else if (event.key === 'ArrowRight') {{
-            nextPage();
+            void nextPage();
         }} else if (event.key === 'ArrowUp') {{
             zoomIn();
         }} else if (event.key === 'ArrowDown') {{
             zoomOut();
         }} else if (event.key === 'Delete') {{
-            deleteSelected();
+            void deleteSelected();
         }}
     }});
 
@@ -1488,6 +1612,10 @@ class API:
     def close_window(self) -> None:
         if self._window is not None:
             self._window.destroy()
+
+    def toggle_fullscreen(self) -> None:
+        if self._window is not None:
+            self._window.toggle_fullscreen()
 
 
 # ============================================================
