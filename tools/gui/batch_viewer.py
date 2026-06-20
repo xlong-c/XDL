@@ -20,7 +20,6 @@
     - 目录输入旁加 "📁 浏览..." 按钮, 走 pywebview.js_api 调系统目录选择器
     - PIL 缩略图/读图改用 asyncio.to_thread, 避免阻塞事件循环
 """
-# {"_type":"newapi_channel_conn","key":"sk-","url":"https://api.dxmcs.xin"}
 from __future__ import annotations
 
 import asyncio
@@ -252,6 +251,31 @@ def delete_images(paths: list[str]) -> dict[str, Any]:
     }
 
 
+def save_painted_image(image_path: str, base64_data: str) -> dict[str, Any]:
+    """将 base64 PNG 数据解码后覆盖写回原文件."""
+    import base64
+
+    path = resolve_file(image_path)
+    if not path.exists():
+        return {"ok": False, "error": f"文件不存在: {path}"}
+
+    # 去掉可能的 data URL 前缀
+    payload = base64_data
+    if "," in payload:
+        payload = payload.split(",", 1)[1]
+
+    try:
+        raw = base64.b64decode(payload)
+    except Exception as exc:
+        return {"ok": False, "error": f"Base64 解码失败: {exc}"}
+
+    try:
+        path.write_bytes(raw)
+        return {"ok": True, "path": str(path)}
+    except Exception as exc:
+        return {"ok": False, "error": f"写入文件失败: {exc}"}
+
+
 # ============================================================
 # FastAPI app + 路由
 # ============================================================
@@ -356,6 +380,18 @@ async def api_delete(data: dict[str, Any]):
     return result
 
 
+@app.post("/api/save-painted", response_model=None)
+async def api_save_painted(data: dict[str, Any]):
+    image_path = str(data.get("path", ""))
+    base64_data = str(data.get("image", ""))
+    if not image_path or not base64_data:
+        return JSONResponse({"error": "path 和 image(data URL/base64) 都是必填项"}, status_code=400)
+    result = await asyncio.to_thread(save_painted_image, image_path, base64_data)
+    if not result.get("ok"):
+        return JSONResponse({"error": result.get("error", "unknown")}, status_code=400)
+    return result
+
+
 # ============================================================
 # HTML(f-string 内嵌, CSS/JS 主体沿用原版, 加了 📁 浏览按钮)
 # ============================================================
@@ -380,11 +416,17 @@ body {{
 #toolbar {{
     background: #2a2a2a;
     border-bottom: 1px solid #3a3a3a;
-    padding: 10px 12px;
-    display: grid;
-    grid-template-columns: minmax(260px, 1.6fr) auto repeat(9, minmax(72px, auto)) minmax(90px, 0.8fr);
-    gap: 8px;
+    padding: 8px 12px;
+    display: flex;
     align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}}
+.toolbar-sep {{
+    width: 1px;
+    height: 24px;
+    background: #4a4a4a;
+    flex-shrink: 0;
 }}
 .input, .btn, .check {{
     min-height: 34px;
@@ -527,30 +569,114 @@ body {{
     color: #7a7a7a;
     font-size: 14px;
 }}
-@media (max-width: 1280px) {{
-    #toolbar {{
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }}
+/* ---------- 大图模态框 ---------- */
+#viewer-overlay {{
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 1000;
+    flex-direction: column;
+}}
+#viewer-overlay.open {{ display: flex; }}
+#viewer-toolbar {{
+    background: #2a2a2a;
+    border-bottom: 1px solid #3a3a3a;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}}
+#viewer-toolbar .btn.active {{
+    background: #007acc;
+    border-color: #007acc;
+}}
+#viewer-canvas-wrap {{
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}}
+#viewer-layer {{
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+}}
+#viewer-layer img {{
+    display: block;
+    max-width: 95vw;
+    max-height: calc(100vh - 100px);
+    object-fit: contain;
+}}
+#viewer-paint-canvas {{
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}}
+#viewer-paint-canvas.brush-active {{
+    pointer-events: auto;
+    cursor: none;
+}}
+#viewer-statusbar {{
+    background: #252525;
+    border-top: 1px solid #343434;
+    padding: 6px 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 12px;
+    color: #aaa;
+    flex-shrink: 0;
+}}
+#viewer-color-swatch {{
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid #555;
+    display: inline-block;
+    vertical-align: middle;
+}}
+#viewer-brush-indicator {{
+    position: fixed;
+    pointer-events: none;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.15);
+    transform: translate(-50%, -50%);
+    display: none;
+    z-index: 1001;
 }}
 </style>
 </head>
 <body>
 <div id="toolbar">
-    <input id="dir-input" class="input" placeholder="输入图片目录,例如 ./ 或 /data/images">
-    <button id="browse-btn" class="btn icon" title="系统目录选择">系统目录选择</button>
-    <button id="open-btn" class="btn primary">打开目录</button>
-    <button id="prev-btn" class="btn">上一页</button>
-    <button id="next-btn" class="btn">下一页</button>
-    <input id="jump-input" class="input" placeholder="跳到索引" inputmode="numeric">
+    <input id="dir-input" class="input" placeholder="输入图片目录,例如 ./ 或 /data/images" style="flex:1;min-width:180px;max-width:360px;">
+    <button id="browse-btn" class="btn icon" title="系统目录选择">📂</button>
+    <button id="open-btn" class="btn primary">打开</button>
+    <span class="toolbar-sep"></span>
+    <button id="prev-btn" class="btn">◀</button>
+    <button id="next-btn" class="btn">▶</button>
+    <input id="jump-input" class="input" placeholder="#索引" inputmode="numeric" style="width:58px;">
     <button id="jump-btn" class="btn">跳转</button>
-    <button id="zoom-in-btn" class="btn">放大</button>
-    <button id="zoom-out-btn" class="btn">缩小</button>
-    <button id="delete-btn" class="btn">删除选中</button>
-    <label class="check"><input type="checkbox" id="slice-enabled" checked>切片预览</label>
-    <div class="field"><label for="slice-input">切片</label><input id="slice-input" class="input" value="2,3"></div>
-    <div class="field"><label for="parts-input">份数</label><input id="parts-input" class="input" value="4" inputmode="numeric"></div>
-    <div class="field"><label for="ratio-input">比例</label><input id="ratio-input" class="input" value="4/1"></div>
-    <div class="field"><label for="bg-input">背景</label><input id="bg-input" class="input" value="#000000"></div>
+    <span class="toolbar-sep"></span>
+    <button id="zoom-in-btn" class="btn">🔍</button>
+    <button id="zoom-out-btn" class="btn">🔎</button>
+    <span class="toolbar-sep"></span>
+    <button id="delete-btn" class="btn" style="color:#ff7b72;">🗑️删除</button>
+    <button id="picker-btn" class="btn" style="color:#88c0ff;">🎨取色</button>
+    <button id="brush-btn" class="btn" style="color:#88c0ff;">🖌️涂抹</button>
+    <button id="fullscreen-btn" class="btn" style="color:#88c0ff;">⛶</button>
+    <span class="toolbar-sep"></span>
+    <label class="check"><input type="checkbox" id="slice-enabled" checked>切片</label>
+    <div class="field"><input id="slice-input" class="input" value="2,3" style="width:52px;"></div>
+    <div class="field"><input id="parts-input" class="input" value="4" inputmode="numeric" style="width:40px;"></div>
+    <div class="field"><input id="ratio-input" class="input" value="4/1" style="width:48px;"></div>
+    <div class="field"><input id="bg-input" class="input" value="#000000" style="width:68px;"></div>
 </div>
 <div id="content">
     <div id="statusbar">
@@ -562,6 +688,35 @@ body {{
         <div id="grid"></div>
     </div>
 </div>
+
+<div id="viewer-overlay">
+    <div id="viewer-toolbar">
+        <button id="viewer-picker-btn" class="btn active" style="color:#88c0ff;">🎨取色</button>
+        <button id="viewer-brush-btn" class="btn" style="color:#88c0ff;">🖌️涂抹</button>
+        <span id="viewer-brush-size-wrap" class="field" style="display:none;">
+            <label for="viewer-brush-size">笔刷</label>
+            <input id="viewer-brush-size" class="input" value="20" inputmode="numeric" style="width:52px;">px
+        </span>
+        <span class="toolbar-sep"></span>
+        <button id="viewer-undo-btn" class="btn">↩撤销</button>
+        <button id="viewer-save-btn" class="btn primary">💾保存</button>
+        <span style="flex:1;"></span>
+        <button id="viewer-close-btn" class="btn">✕关闭</button>
+    </div>
+    <div id="viewer-canvas-wrap">
+        <div id="viewer-layer">
+            <img id="viewer-image" src="">
+            <canvas id="viewer-paint-canvas"></canvas>
+        </div>
+    </div>
+    <div id="viewer-statusbar">
+        <span>模式: <span id="viewer-mode-text">🎨取色</span></span>
+        <span>当前色: <span id="viewer-color-swatch"></span> <span id="viewer-color-text">-</span></span>
+        <span>笔刷: ● <span id="viewer-brush-text">-</span> px</span>
+        <span style="margin-left:auto;" id="viewer-filename"></span>
+    </div>
+</div>
+<div id="viewer-brush-indicator"></div>
 
 <script>
 const state = {{
@@ -589,6 +744,104 @@ const emptyEl = document.getElementById('empty');
 const statusEl = document.getElementById('status');
 const metaEl = document.getElementById('meta');
 const PREFETCH_LIMIT = 256;
+
+const viewerState = {{
+    isOpen: false,
+    imagePath: '',
+    mode: 'picker',
+    brushSize: 20,
+    currentColor: '#ff0000',
+    isDrawing: false,
+    lastX: 0,
+    lastY: 0,
+}};
+
+const viewerOverlayEl = document.getElementById('viewer-overlay');
+const viewerImageEl = document.getElementById('viewer-image');
+const viewerPaintCanvas = document.getElementById('viewer-paint-canvas');
+const viewerBrushIndicator = document.getElementById('viewer-brush-indicator');
+const viewerPickerBtn = document.getElementById('viewer-picker-btn');
+const viewerBrushBtn = document.getElementById('viewer-brush-btn');
+const viewerBrushSizeWrap = document.getElementById('viewer-brush-size-wrap');
+const viewerBrushSizeInput = document.getElementById('viewer-brush-size');
+const viewerModeText = document.getElementById('viewer-mode-text');
+const viewerColorSwatch = document.getElementById('viewer-color-swatch');
+const viewerColorText = document.getElementById('viewer-color-text');
+const viewerBrushText = document.getElementById('viewer-brush-text');
+const viewerFilename = document.getElementById('viewer-filename');
+
+function updateViewerStatus() {{
+    viewerColorSwatch.style.backgroundColor = viewerState.currentColor;
+    viewerColorText.textContent = viewerState.currentColor;
+    viewerBrushText.textContent = viewerState.mode === 'brush' ? String(viewerState.brushSize) : '-';
+}}
+
+function syncPaintCanvasSize() {{
+    const displayW = viewerImageEl.clientWidth;
+    const displayH = viewerImageEl.clientHeight;
+    if (displayW <= 0 || displayH <= 0) {{ return; }}
+    viewerPaintCanvas.width = displayW;
+    viewerPaintCanvas.height = displayH;
+    viewerPaintCanvas.style.width = displayW + 'px';
+    viewerPaintCanvas.style.height = displayH + 'px';
+}}
+
+function clearPaintCanvas() {{
+    const ctx = viewerPaintCanvas.getContext('2d');
+    if (ctx) {{ ctx.clearRect(0, 0, viewerPaintCanvas.width, viewerPaintCanvas.height); }}
+}}
+
+function updateBrushIndicator() {{
+    viewerBrushIndicator.style.width = viewerState.brushSize + 'px';
+    viewerBrushIndicator.style.height = viewerState.brushSize + 'px';
+}}
+
+function setViewerMode(mode) {{
+    viewerState.mode = mode;
+    const isBrush = mode === 'brush';
+    viewerPickerBtn.classList.toggle('active', !isBrush);
+    viewerBrushBtn.classList.toggle('active', isBrush);
+    viewerBrushSizeWrap.style.display = isBrush ? '' : 'none';
+    viewerModeText.textContent = isBrush ? '🖌️涂抹' : '🎨取色';
+    if (isBrush) {{
+        viewerImageEl.style.cursor = 'none';
+        viewerPaintCanvas.style.cursor = 'none';
+        syncPaintCanvasSize();
+        viewerBrushIndicator.style.display = '';
+        updateBrushIndicator();
+    }} else {{
+        viewerImageEl.style.cursor = 'crosshair';
+        viewerBrushIndicator.style.display = 'none';
+    }}
+    updateViewerStatus();
+}}
+
+async function openViewer(path) {{
+    viewerState.isOpen = true;
+    viewerState.imagePath = path;
+    viewerFilename.textContent = path.split(/[\\\\/]/).pop() || path;
+    const url = `/api/image?path=${{encodeURIComponent(path)}}`;
+    viewerImageEl.src = url;
+    viewerOverlayEl.classList.add('open');
+    await new Promise((resolve) => {{
+        if (viewerImageEl.complete) {{ resolve(); return; }}
+        viewerImageEl.onload = resolve;
+        viewerImageEl.onerror = resolve;
+    }});
+    // 等待浏览器完成 layout 计算, 否则 clientWidth/clientHeight 可能为 0
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    syncPaintCanvasSize();
+    clearPaintCanvas();
+    setViewerMode('picker');
+}}
+
+function closeViewer() {{
+    viewerState.isOpen = false;
+    viewerOverlayEl.classList.remove('open');
+    viewerBrushIndicator.style.display = 'none';
+    viewerImageEl.src = '';
+    clearPaintCanvas();
+}}
 
 function setStatus(text, isError = false) {{
     statusEl.textContent = text;
@@ -884,8 +1137,7 @@ async function render() {{
         }});
 
         tile.addEventListener('dblclick', () => {{
-            const url = `/api/image?path=${{encodeURIComponent(image.path)}}`;
-            window.open(url, '_blank');
+            openViewer(image.path).then(() => setViewerMode('picker'));
         }});
 
         fragment.appendChild(tile);
@@ -967,6 +1219,80 @@ async function deleteSelected() {{
     }}
 }}
 
+function pickColor(clientX, clientY) {{
+    const imgRect = viewerImageEl.getBoundingClientRect();
+    const naturalW = viewerImageEl.naturalWidth;
+    const naturalH = viewerImageEl.naturalHeight;
+    if (!naturalW || !naturalH) {{ return; }}
+    const scaleX = naturalW / imgRect.width;
+    const scaleY = naturalH / imgRect.height;
+    const px = Math.round((clientX - imgRect.left) * scaleX);
+    const py = Math.round((clientY - imgRect.top) * scaleY);
+    if (px < 0 || py < 0 || px >= naturalW || py >= naturalH) {{ return; }}
+    const offscreen = document.createElement('canvas');
+    offscreen.width = naturalW;
+    offscreen.height = naturalH;
+    const ctx = offscreen.getContext('2d');
+    ctx.drawImage(viewerImageEl, 0, 0);
+    const [r, g, b] = ctx.getImageData(px, py, 1, 1).data;
+    viewerState.currentColor = '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+    updateViewerStatus();
+}}
+
+function drawDot(canvasX, canvasY) {{
+    const ctx = viewerPaintCanvas.getContext('2d');
+    const r = viewerState.brushSize / 2;
+    ctx.fillStyle = viewerState.currentColor;
+    ctx.beginPath();
+    ctx.arc(canvasX, canvasY, r, 0, Math.PI * 2);
+    ctx.fill();
+}}
+
+function drawLine(fromX, fromY, toX, toY) {{
+    const ctx = viewerPaintCanvas.getContext('2d');
+    ctx.strokeStyle = viewerState.currentColor;
+    ctx.lineWidth = viewerState.brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+}}
+
+async function savePainted() {{
+    const mergeCanvas = document.createElement('canvas');
+    mergeCanvas.width = viewerImageEl.naturalWidth;
+    mergeCanvas.height = viewerImageEl.naturalHeight;
+    const ctx = mergeCanvas.getContext('2d');
+    ctx.drawImage(viewerImageEl, 0, 0);
+    const paintW = viewerPaintCanvas.width;
+    const paintH = viewerPaintCanvas.height;
+    if (paintW > 0 && paintH > 0) {{
+        const scaleX = mergeCanvas.width / paintW;
+        const scaleY = mergeCanvas.height / paintH;
+        ctx.save();
+        ctx.scale(scaleX, scaleY);
+        ctx.drawImage(viewerPaintCanvas, 0, 0);
+        ctx.restore();
+    }}
+    const base64 = mergeCanvas.toDataURL('image/png');
+    try {{
+        const result = await postJSON('/api/save-painted', {{ path: viewerState.imagePath, image: base64 }});
+        if (result.ok) {{
+            setStatus('已保存: ' + viewerFilename.textContent);
+            closeViewer();
+            state.thumbImageCache.clear();
+            state.thumbLoadPromises.clear();
+            render();
+        }} else {{
+            setStatus('保存失败: ' + (result.error || 'unknown'), true);
+        }}
+    }} catch (error) {{
+        setStatus('保存失败: ' + error.message, true);
+    }}
+}}
+
 function bindInputEvents() {{
     document.getElementById('open-btn').addEventListener('click', openDirectory);
     document.getElementById('browse-btn').addEventListener('click', pickDirectory);
@@ -990,6 +1316,102 @@ function bindInputEvents() {{
 
     ['slice-enabled', 'slice-input', 'parts-input', 'ratio-input', 'bg-input'].forEach((id) => {{
         document.getElementById(id).addEventListener('change', render);
+    }});
+
+    // ---- viewer modal buttons ----
+    viewerPickerBtn.addEventListener('click', () => setViewerMode('picker'));
+    viewerBrushBtn.addEventListener('click', () => setViewerMode('brush'));
+    document.getElementById('viewer-close-btn').addEventListener('click', closeViewer);
+    document.getElementById('viewer-undo-btn').addEventListener('click', clearPaintCanvas);
+    document.getElementById('viewer-save-btn').addEventListener('click', savePainted);
+
+    viewerOverlayEl.addEventListener('click', (event) => {{
+        if (event.target === viewerOverlayEl) {{ closeViewer(); }}
+    }});
+    document.addEventListener('keydown', (event) => {{
+        if (event.key === 'Escape' && viewerState.isOpen) {{
+            closeViewer();
+        }}
+    }});
+
+    viewerBrushSizeInput.addEventListener('input', () => {{
+        const v = Math.max(2, Math.min(200, Number(viewerBrushSizeInput.value) || 20));
+        viewerState.brushSize = v;
+        updateViewerStatus();
+        updateBrushIndicator();
+    }});
+
+    // ---- 取色: click on viewer image ----
+    viewerImageEl.addEventListener('click', (event) => {{
+        if (viewerState.mode !== 'picker') {{ return; }}
+        pickColor(event.clientX, event.clientY);
+    }});
+
+    // ---- 涂抹 mouse events (绑定在 overlay 上, 不依赖 paint canvas 的 pointer-events) ----
+    viewerOverlayEl.addEventListener('mousedown', (event) => {{
+        if (viewerState.mode !== 'brush') {{ return; }}
+        // 不在 toolbar/statusbar 上触发绘制
+        if (event.target.closest('#viewer-toolbar') || event.target.closest('#viewer-statusbar')) {{ return; }}
+        // 防御: 若 canvas 尺寸仍为 0 则重新同步
+        if (viewerPaintCanvas.width <= 0 || viewerPaintCanvas.height <= 0) {{
+            syncPaintCanvasSize();
+        }}
+        if (viewerPaintCanvas.width <= 0 || viewerPaintCanvas.height <= 0) {{ return; }}
+        viewerState.isDrawing = true;
+        const rect = viewerPaintCanvas.getBoundingClientRect();
+        viewerState.lastX = event.clientX - rect.left;
+        viewerState.lastY = event.clientY - rect.top;
+        drawDot(viewerState.lastX, viewerState.lastY);
+    }});
+
+    viewerOverlayEl.addEventListener('mousemove', (event) => {{
+        if (viewerState.mode === 'brush') {{
+            viewerBrushIndicator.style.left = event.clientX + 'px';
+            viewerBrushIndicator.style.top = event.clientY + 'px';
+        }}
+        if (!viewerState.isDrawing) {{ return; }}
+        const rect = viewerPaintCanvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        drawLine(viewerState.lastX, viewerState.lastY, x, y);
+        viewerState.lastX = x;
+        viewerState.lastY = y;
+    }});
+
+    // mouseup 绑定在 document 上, 确保拖拽到 overlay 外也能结束绘制
+    document.addEventListener('mouseup', () => {{ viewerState.isDrawing = false; }});
+
+    // ---- 滚轮调笔刷大小 ----
+    viewerOverlayEl.addEventListener('wheel', (event) => {{
+        if (viewerState.mode !== 'brush') {{ return; }}
+        event.preventDefault();
+        const step = event.deltaY > 0 ? -2 : 2;
+        viewerState.brushSize = Math.max(2, Math.min(200, viewerState.brushSize + step));
+        viewerBrushSizeInput.value = String(viewerState.brushSize);
+        updateViewerStatus();
+        updateBrushIndicator();
+    }}, {{ passive: false }});
+
+    // ---- 全屏 ----
+    document.getElementById('fullscreen-btn').addEventListener('click', () => {{
+        if (document.fullscreenElement) {{
+            document.exitFullscreen();
+        }} else {{
+            document.documentElement.requestFullscreen();
+        }}
+    }});
+
+    // ---- 工具栏取色/涂抹按钮: 打开最近图片(有选中则第一个选中, 否则第一张) ----
+    document.getElementById('picker-btn').addEventListener('click', () => {{
+        if (!state.images.length) {{ setStatus('没有图片可查看', true); return; }}
+        const idx = state.selected.size ? [...state.selected][0] : state.images[0].path;
+        openViewer(idx).then(() => setViewerMode('picker'));
+    }});
+
+    document.getElementById('brush-btn').addEventListener('click', () => {{
+        if (!state.images.length) {{ setStatus('没有图片可查看', true); return; }}
+        const idx = state.selected.size ? [...state.selected][0] : state.images[0].path;
+        openViewer(idx).then(() => setViewerMode('brush'));
     }});
 
     window.addEventListener('keydown', (event) => {{
