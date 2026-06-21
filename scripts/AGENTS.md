@@ -12,15 +12,20 @@
 - `build_wheel.py`：自动构建 XDL wheel，默认输出到 `dist/`
 - `check_dependency_config.py`：依赖配置检查
 - `offline_bundle.py`：离线资源处理
+- `normalize_punctuation.py`: 文档/注释标点归一化工具,将常见全角标点替换成半角标点
 
 ## 常用命令
 
 ```bash
 python scripts/build_wheel.py
 XDL_BUILD_CLEAN=1 python scripts/build_wheel.py
+XDL_PUNCT_CHECK=1 XDL_PUNCT_PATHS=docs/md/README.md python scripts/normalize_punctuation.py
+XDL_PUNCT_PATHS=docs/md/README.md python scripts/normalize_punctuation.py
 ```
 
 `build_wheel.py` 不使用命令行参数解析库，行为通过环境变量控制：`XDL_BUILD_OUT_DIR`、`XDL_BUILD_CLEAN`、`XDL_BUILD_CLEAN_DIST`、`XDL_BUILD_BACKEND`、`XDL_BUILD_CHECK`。
+
+`normalize_punctuation.py` 不使用命令行参数解析库,行为通过环境变量控制: `XDL_PUNCT_PATHS`,`XDL_PUNCT_CHECK`,`XDL_PUNCT_EXTS`. 改中文文档后优先对本次改动文件运行该工具,不要为了归一标点一次性重写大量历史文档.
 
 ## 修改约束
 

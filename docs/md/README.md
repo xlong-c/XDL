@@ -29,10 +29,11 @@
 | 3 | [XDL Config 系统说明](#xdl-config-系统说明) | `setup_from_yaml()`,schema v1,`target + params`,YAML 组织方式. |
 | 4 | [XDL Dataset 模板规划](#xdl-dataset-模板规划) | 数据集语义形态,磁盘组织形态,内置模板和新增 dataset 流程. |
 | 5 | [XDL API 稳定边界](#xdl-api-稳定边界) | 稳定公共 API,实验性 API,内部实现边界和废弃策略. |
-| 6 | [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
-| 7 | [XDL 模块功能边界速查](#xdl-模块功能边界速查) | 各源码子模块职责速查. |
-| 8 | [XDL 当前优化方向](#xdl-当前优化方向) | 当前仍有效的后续优化方向. |
-| 9 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署工具链的唯一长期 MD 入口,覆盖模块边界,数据角色,分析,量化,剪枝,蒸馏,导出,算子优化,recipe 和任务状态. |
+| 6 | [XDL 写作标点规范](#xdl-写作标点规范) | 中文文档和注释的半角标点要求,以及自动归一化工具. |
+| 7 | [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
+| 8 | [XDL 模块功能边界速查](#xdl-模块功能边界速查) | 各源码子模块职责速查. |
+| 9 | [XDL 当前优化方向](#xdl-当前优化方向) | 当前仍有效的后续优化方向. |
+| 10 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署工具链的唯一长期 MD 入口,覆盖模块边界,数据角色,分析,量化,剪枝,蒸馏,导出,算子优化,recipe 和任务状态. |
 
 ## 改动前必读
 
@@ -46,6 +47,7 @@
 | 安装,依赖,wheel,运行入口 | [XDL 安装与验证](#xdl-安装与验证),[../../xdl/USAGE.md](../../xdl/USAGE.md) | 同步安装命令和包内用法入口. |
 | 子模块职责,目录迁移 | [XDL 模块功能边界速查](#xdl-模块功能边界速查) | 同步目录职责和依赖方向. |
 | 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 与 `docs/html/` 分层清楚. |
+| 中文文档,注释或研究草案 | [XDL 写作标点规范](#xdl-写作标点规范) | 对本次改动文件运行 `scripts/normalize_punctuation.py`,不要一次性重写大量历史文档. |
 | HTML 视觉系统,公共 CSS,主题交互 | [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) | 同步 `../html/assets/` 和 HTML 页面引用. |
 
 ## 文档边界
@@ -59,6 +61,30 @@
 - [XDL 模块功能边界速查](#xdl-模块功能边界速查) 只做模块职责速查,不重复写长篇使用指南.
 - [XDL 当前优化方向](#xdl-当前优化方向) 只保留仍然有效的待办,不复述现状说明.
 - `XQT.md` 是 `xqt/` 唯一长期 MD 入口,只讲压缩与部署工具链的事实边界,模块状态,分析与误差诊断,recipe 和仍有效任务;阶段性研究和完成后失效的任务清单不要继续拆到 `docs/md/`.
+
+## XDL 写作标点规范
+
+- 文档和注释默认使用半角英文标点,例如 `,`, `.`, `:`, `;`, `?`, `!`, `()`, `[]`, 引号和路径分隔符.
+- 写中文文档时不要求手动逐字检查标点,但提交前应对本次改动文件运行归一化工具.
+- 只检查不写入:
+
+```bash
+XDL_PUNCT_CHECK=1 XDL_PUNCT_PATHS=docs/md/README.md python scripts/normalize_punctuation.py
+```
+
+- 自动替换明确列出的全角标点:
+
+```bash
+XDL_PUNCT_PATHS=docs/md/README.md python scripts/normalize_punctuation.py
+```
+
+- 多文件或目录可用逗号分隔:
+
+```bash
+XDL_PUNCT_PATHS=docs/md,research/xqt-practice-examples python scripts/normalize_punctuation.py
+```
+
+- 工具使用固定映射,不使用 Unicode NFKC,避免误改中文正文,全角数字,单位,数学符号或模型名. 默认扫描 `docs,research`,也可通过 `XDL_PUNCT_EXTS=.md,.txt` 限制后缀.
 
 ## HTML 同步规则
 
@@ -885,6 +911,13 @@ config = load_structured_dataclass_config(MyConfig, "train.yaml")
 ## XDL Dataset 模板规划
 
 本文档负责说明 XDL 数据集模板怎样选择, 怎样扩展, 以及新增数据集时优先复用哪些基类和模板. 配置系统写法只保留必要示例, 完整 `target + params` 规则见 [XDL Config 系统说明](#xdl-config-系统说明).
+
+### 0. 数据存放约定
+
+- **所有数据集和样本数据一律放进仓库根目录的 `data/`**, 不要新建顶层 `datasets/`, `raw/`, `resources/` 等平行目录. 历史上仓库根目录曾有 `datasets/` 存放 `coco8` 样本, 现已并入 `data/`, 统一归 `data/` 管理.
+- `data/` 被 `.gitignore` 整体忽略, 数据本体(图片, 标注, 压缩包, 大文件)一律不入库; 只有 `data/AGENTS.md` 作为目录说明通过例外规则保留. 需要样本数据时用下载脚本或文档说明在本地准备, 不要 commit 数据本体.
+- 配置和训练脚本引用本地数据时, 优先用 `${xdl.abspath:${xdl.config_dir},data/...}` 这种相对 `data/` 的写法, 不要硬编码绝对路径或用户家目录.
+- 磁盘组织形态(下面各节示例中的 `data/`, `images/`, `labels/` 等)描述的是 `data/` 之下的相对结构, 与上述"数据本体存放 `data/`"的约定一致. 详细目录规则见 [data/AGENTS.md](../../data/AGENTS.md).
 
 ### 1. 规划原则
 

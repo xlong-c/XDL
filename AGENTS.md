@@ -12,7 +12,7 @@ PyTorch 深度学习框架, 组件注册系统 + 回调生命周期. Python 3.12
 - **脚本参数**：Python 脚本不要使用命令行参数解析库，优先使用 YAML 配置或代码内显式配置
 - **配置规范**：新增或重构 YAML/层级配置解析时，优先使用 `OmegaConf` 统一处理加载、合并、插值、resolver 和 `DictConfig`/`ListConfig` 到普通容器的转换；不要在训练入口或工具脚本里散落 `yaml.safe_load` + 手写合并逻辑，除非只是兼容旧路径或读写极小的固定结构文件
 - **结构化配置加载规则**: 训练入口或研究脚本里的轻量 `load_config` 优先遵循 `dataclass/structured config` 定义默认值和 schema, 再由 YAML 直接覆盖的顺序. 除非有明确兼容需求, 不要在 `load_config` 中额外做路径重写, 字符串 `"null"` 兼容, 旧字段迁移, clamp/奇偶修正, 或 list/tuple 强转. 需要约束时优先让 schema/OmegaConf 报错, 或在业务使用处显式校验
-- **半角符号**：文档或者注释之类使用点,括号,引号,冒号等一律写半角,不要混入全角符号
+- **半角符号**: 文档或者注释之类使用点,括号,引号,冒号等一律写半角,不要混入全角符号. 写作后可用 `XDL_PUNCT_PATHS=<path> python scripts/normalize_punctuation.py` 自动归一,用 `XDL_PUNCT_CHECK=1` 只检查不写入
 - **文档第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档,`docs/html/` 是给人类用户阅读的可视化文档. 新增长期 MD 放 `docs/md/`,新增自有 HTML 放 `docs/html/`.
 - **HTML 阅读页样式**: 仓库自有 HTML 是给人类阅读的可视化层,新增或重构 `docs/html/`,`research/`,`learn/` 等目录下的 HTML/CSS 时,先遵循 [docs/md/README.md#xdl-html-阅读页样式规范](docs/md/README.md#xdl-html-阅读页样式规范). 项目自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板之一;`math-doc-page`,`research-page`,`flash-attention-page` 等只能作为语义叠加 class,不能成为第三套视觉模板. 默认复用 `docs/html/assets/xdl-doc.css` 的主题 token 和公共组件,不要复制大段内联 `<style>`,不要使用散落的 `style=`,不要复制公共版式或为单页另写一套主题系统;需要交互式主题切换时复用 `docs/html/assets/xdl-theme.js`.
 - **知识图谱更新**：完成大的代码改动（新增/删除模块、重命名公开符号、模块间调用关系变化等结构性变更）后，手动运行 `index_repository` 刷新知识图谱，保持图与代码一致。
@@ -33,6 +33,12 @@ xdl/
 ```
 
 其他目录：`config/`（YAML 配置）、`learn/`（CUDA 内核实验）、`tools/`（数据工具）、`tests/`。
+
+## 数据集存放约定
+
+- **所有数据集和样本数据一律放进 `data/`**，不要新建顶层 `datasets/`、`raw/`、`resources/` 等平行目录。历史上仓库根目录曾有 `datasets/`（存放 `coco8` 样本），现已并入 `data/`，统一归 `data/` 管理。
+- `data/` 被 `.gitignore` 整体忽略，数据本体（图片、标注、压缩包、大文件）一律不入库；只有 `data/AGENTS.md` 通过例外规则保留，作为目录说明。需要样本数据时用下载脚本（如 `tools/dataset/`）在本地准备，不要把数据本体 commit 进仓库。
+- 详细规则见 [data/AGENTS.md](data/AGENTS.md)。
 
 ## 核心约束
 
@@ -108,7 +114,7 @@ pytest tests/ -v --cov=xdl       # 测试
 ### 顶层目录
 
 - [config/AGENTS.md](config/AGENTS.md) — 训练与运行配置目录
-- [data/AGENTS.md](data/AGENTS.md) — 本地数据目录
+- [data/AGENTS.md](data/AGENTS.md) — 本地数据目录（所有数据集统一放 `data/`，不新建 `datasets/` 等平行目录，数据本体不入库）
 - [docs/AGENTS.md](docs/AGENTS.md) — 仓库文档目录
 - [downloads/AGENTS.md](downloads/AGENTS.md) — 下载产物目录
 - [examples/AGENTS.md](examples/AGENTS.md) — 示例脚本目录
