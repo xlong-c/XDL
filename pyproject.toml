@@ -64,12 +64,17 @@ optimization = [
 xqt = [
     "torchao>=0.1.0",
     "onnx>=1.16.0",
+    "onnxconverter-common>=1.14.0",
     "onnxruntime>=1.18.0",
 ]
 
 xqt-hf = [
     "transformers>=4.40.0",
     "datasets>=2.18.0",
+]
+
+xqt-yolo = [
+    "ultralytics>=8.4.72",
 ]
 
 xqt-diffusion = [
@@ -82,6 +87,7 @@ xqt-diffusion = [
 xqt-all = [
     "xdl[xqt]",
     "xdl[xqt-hf]",
+    "xdl[xqt-yolo]",
     "xdl[xqt-diffusion]",
 ]
 
