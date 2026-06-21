@@ -25,6 +25,7 @@ __pycache__/
 *.swo
 
 # Distribution / packaging
+artifacts/
 build/
 develop-eggs/
 dist/
