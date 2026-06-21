@@ -58,21 +58,21 @@
     <section class="section">
       <div class="section-head">
         <h2>二. 它是怎么来的</h2>
-        <p>XQT 不是先画完架构图再从零实现的. 从当前仓库能看出来, 它是先从几类专题实验脚本长出来, 然后逐步收敛成包结构.</p>
+        <p>XQT 不是靠某个单独示例脚本定义的. 从当前仓库能看出来, 它的长期形态是把压缩,导出,验证和 benchmark 收敛到包模块,recipe 和 manifest 主链路里.</p>
       </div>
       <table>
         <thead>
           <tr>
-            <th>来源</th>
-            <th>今天在 XQT 里的痕迹</th>
+            <th>主线</th>
+            <th>关键模块</th>
             <th>说明</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><code>xqt/torchao_vit.py</code></td>
+            <td>PyTorch runtime 量化</td>
             <td><code>xqt.quant.torchao_backend</code>, <code>xqt.quant.sensitivity</code>, <code>xqt.benchmark.latency</code></td>
-            <td>最早是 ViT + torchao FP8 实验, 里面已经有“选择量化哪些层”“逐层误差分析”“跑性能基准”这些核心想法. 现在这些能力被拆成了更通用的量化和 benchmark helper.</td>
+            <td>torchao,逐层误差分析和 latency benchmark 都作为通用 helper 存在. 顶层示例脚本只用于手动实验,不作为 XQT 项目能力边界.</td>
           </tr>
           <tr>
             <td>扩散推理实验脚本</td>
@@ -111,7 +111,7 @@ XQT_WRITE_MANIFEST=0 xqt-run-recipe</code></pre>
           <span class="tag">CLI</span>
           <h3><code>xqt-preflight</code></h3>
           <p>在真正执行前先做轻量检查. 它会检查 target 能不能 import, data root 在不在, 依赖包和可执行文件是否可用, CUDA 设备是否满足 recipe 要求, 最后输出 JSON.</p>
-          <pre><code>XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-preflight</code></pre>
+          <pre><code>XQT_CONFIG=xqt/recipes/image_resnet_onnx_qdq_int8.yaml xqt-preflight</code></pre>
         </article>
         <article class="card amber">
           <span class="tag">API</span>
@@ -263,12 +263,12 @@ export:
           <tr>
             <td><code>load_data</code></td>
             <td><code>LoadDataPass</code></td>
-            <td>当前内置只支持两类数据目标: <code>synthetic_classification</code> 和 <code>torchvision_image_classification</code>. 也就是说, 这条内置链路更偏 smoke 和通用视觉验证, 复杂数据一般靠你在调用 <code>run_xqt_recipe()</code> 时直接把 dataloader 注入 context.</td>
+            <td>当前内置已经覆盖分类和检测两类常用数据目标,包括 <code>synthetic_classification</code>, <code>synthetic_detection</code>, <code>torchvision_image_classification</code>, <code>xdl_detection</code> 和 <code>ultralytics_detection</code>. detection split 会把 class names 和 task metadata 回填到 config 与 manifest.</td>
           </tr>
           <tr>
             <td><code>baseline_eval</code></td>
             <td><code>BaselineEvalPass</code></td>
-            <td>调用 <code>xqt.eval.evaluate_pytorch_model()</code> 在 validation loader 上跑基线精度, 结果写到 <code>context.metrics["baseline"]</code> 和 manifest 指标里.</td>
+            <td>按 <code>task.type</code> 在分类和检测 evaluator 之间切换. 分类路径会调用 <code>xqt.eval.evaluate_pytorch_model()</code>, 检测路径会走 detection decode + mAP 评估, 结果都写到 <code>context.metrics["baseline"]</code> 和 manifest 指标里.</td>
           </tr>
           <tr>
             <td><code>distill</code></td>
@@ -278,17 +278,17 @@ export:
           <tr>
             <td><code>prune</code></td>
             <td><code>PrunePass</code></td>
-            <td>内置剪枝主线目前是 <code>global_l1_unstructured</code>. 它既支持一次性剪枝, 也支持带 schedule 的 prune + KD loop, 最后会固化 reparameterization 并汇总稀疏率.</td>
+            <td>内置剪枝主线目前是 <code>global_l1_unstructured</code>. 它既支持一次性剪枝, 也支持带 schedule 的 prune + KD loop, 最后会固化 reparameterization 并汇总稀疏率. Ultralytics YOLO 的结构化剪枝默认由 preflight guard, 当前 practice 只把非结构化剪枝作为 sparsity/report baseline.</td>
           </tr>
           <tr>
             <td><code>quant</code></td>
             <td><code>QuantPass</code></td>
-            <td>当前只支持两个 backend: <code>torchao</code> 和 <code>onnxruntime_qdq</code>. 前者直接在 PyTorch 模型上原地量化指定模块; 后者会先确保有 ONNX 图, 再做静态 QDQ 量化并把量化 ONNX 文件记到 artifact 里.</td>
+            <td>当前只支持两个 backend: <code>torchao</code> 和 <code>onnxruntime_qdq</code>. 前者直接在 PyTorch 模型上原地量化指定模块; 后者会先确保有 ONNX 图, 再做静态 QDQ 量化并把量化 ONNX 文件, calibration summary, QDQ 节点数和实际命中的量化 op types 记到 artifact/report 里.</td>
           </tr>
           <tr>
             <td><code>export</code></td>
             <td><code>ExportPass</code></td>
-            <td>按 <code>export.targets</code> 顺序导出. 目前能分支到 <code>torch_export</code>, <code>torchscript</code>, <code>onnx</code>, <code>tensorrt</code>, <code>executorch</code>, <code>ncnn</code>, <code>mnn</code>. 其中一些后端是纯 adapter 或 dry-run 命令生成器.</td>
+            <td>按 <code>export.targets</code> 顺序导出. 目前能分支到 <code>torch_export</code>, <code>torchscript</code>, <code>onnx</code>, <code>tensorrt</code>, <code>openvino</code>, <code>executorch</code>, <code>ncnn</code>, <code>mnn</code>. TensorRT 和 OpenVINO 支持从上游 ONNX/QDQ ONNX 构造 dry-run 命令;真实 engine/IR 仍依赖目标机器后端.</td>
           </tr>
           <tr>
             <td><code>benchmark</code></td>
@@ -352,7 +352,7 @@ context = run_xqt_recipe(
           <p>适合在真正跑量化或导出前先做环境体检. 它返回的是 <code>PreflightReport</code>, 里面每条检查都是 <code>PreflightCheck</code>.</p>
           <pre><code>from xqt import preflight_xqt_config
 
-report = preflight_xqt_config("xqt/recipes/image_vit_torchao_fp8.yaml")
+report = preflight_xqt_config("xqt/recipes/image_resnet_onnx_qdq_int8.yaml")
 print(report.passed)
 print(report.to_dict())</code></pre>
         </article>
@@ -467,9 +467,14 @@ context = xdl_setup_to_xqt_context(
             <td>它比纯 synthetic smoke 更接近真实数据, 但仍偏验证性质.</td>
           </tr>
           <tr>
-            <td><code>xqt/recipes/image_vit_torchao_fp8.yaml</code></td>
-            <td>ViT + torchao FP8 + CUDA benchmark.</td>
-            <td>这条 recipe 是早期 <code>torchao_vit.py</code> 实验向通用流水线收敛的直接体现.</td>
+            <td><code>xqt/recipes/yolo_detection_smoke.yaml</code></td>
+            <td>synthetic detection, toy detection model, baseline eval, prune 和 ONNX export.</td>
+            <td>这条 recipe 用最小依赖验证 detection schema 和 manifest 主链路, 不要求 Ultralytics 权重或外部数据.</td>
+          </tr>
+          <tr>
+            <td><code>xqt/recipes/yolo_detection_practice.yaml</code></td>
+            <td>Ultralytics YOLO detection baseline, FP32/FP16 ONNX, ONNX Runtime QDQ INT8, global L1 unstructured prune, torch.compile candidate, TensorRT/OpenVINO dry-run.</td>
+            <td>这条 recipe 现在和 <code>examples/yolo_detection_practice.py</code> 一起组成 scenario matrix 入口,覆盖 <code>baseline</code>, <code>quant_only</code>, <code>prune_only</code>, <code>operator_only</code>, <code>quant_export</code>, <code>prune_quant</code>, <code>full_chain</code>, 并汇总 runtime coverage, QDQ op types, calibration, export formats, operator fallback 和 prune sparsity.</td>
           </tr>
           <tr>
             <td><code>xqt/recipes/prune_finetune_cpu.yaml</code></td>
@@ -611,15 +616,15 @@ for capability in deployment_capability_matrix(implemented_only=True):
 python -m pytest tests/xqt tests/config/test_structured.py tests/utils/test_registry.py -q
 python -m ruff check xqt tests/xqt
 python -m compileall -q xqt tests/xqt
-XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-preflight
-XQT_CONFIG=xqt/recipes/image_vit_torchao_fp8.yaml xqt-run-recipe
+XQT_CONFIG=xqt/recipes/image_resnet_onnx_qdq_int8.yaml xqt-preflight
+XQT_CONFIG=xqt/recipes/image_resnet_onnx_qdq_int8.yaml xqt-run-recipe
 XQT_CONFIG=xqt/recipes/smoke_cpu.yaml xqt-run-recipe</code></pre>
     </section>
 
     <section class="section">
       <div class="section-head">
         <h2>十四. 最后怎么概括 XQT</h2>
-        <p>如果只用一句话概括当前 XQT, 可以这样理解: 它已经不是几个零散实验脚本, 但也还没到稳定公共子框架的阶段; 它最有价值的部分, 是已经把压缩与部署这条后处理链路收拢成了可配置, 可验证, 可落盘的一条 recipe 流水线.</p>
+        <p>如果只用一句话概括当前 XQT, 可以这样理解: 它已经不是零散的压缩部署实验需求, 但也还没到稳定公共子框架的阶段; 它最有价值的部分, 是已经把压缩与部署这条后处理链路收拢成了可配置, 可验证, 可落盘的一条 recipe 流水线.</p>
       </div>
       <p>今天最值得直接依赖的是顶层入口, recipe schema, runner, manifest, 以及几个已经较实用的量化/导出/评估 helper. 今天最需要保守对待的是子模块内部细节和具体实现形态, 因为这些仍在继续收敛.</p>
     </section>
