@@ -103,15 +103,15 @@
         <article class="card">
           <span class="tag">CLI</span>
           <h3><code>xqt-run-recipe</code></h3>
-          <p>读取环境变量 <code>XQT_CONFIG</code>, 默认跑 <code>xqt/recipes/smoke_cpu.yaml</code>. 它不解析命令行参数, 配置切换完全靠 YAML 或环境变量.</p>
-          <pre><code>XQT_CONFIG=xqt/recipes/smoke_cpu.yaml xqt-run-recipe
+          <p>读取环境变量 <code>XQT_CONFIG</code>, 默认跑 <code>xqt/recipes/smoke/smoke_cpu.yaml</code>. 它不解析命令行参数, 配置切换完全靠 YAML 或环境变量.</p>
+          <pre><code>XQT_CONFIG=xqt/recipes/smoke/smoke_cpu.yaml xqt-run-recipe
 XQT_WRITE_MANIFEST=0 xqt-run-recipe</code></pre>
         </article>
         <article class="card blue">
           <span class="tag">CLI</span>
           <h3><code>xqt-preflight</code></h3>
           <p>在真正执行前先做轻量检查. 它会检查 target 能不能 import, data root 在不在, 依赖包和可执行文件是否可用, CUDA 设备是否满足 recipe 要求, 最后输出 JSON.</p>
-          <pre><code>XQT_CONFIG=xqt/recipes/image_resnet_onnx_qdq_int8.yaml xqt-preflight</code></pre>
+          <pre><code>XQT_CONFIG=xqt/recipes/quant/int8/image_resnet_onnx_qdq_int8.yaml xqt-preflight</code></pre>
         </article>
         <article class="card amber">
           <span class="tag">API</span>
@@ -119,7 +119,7 @@ XQT_WRITE_MANIFEST=0 xqt-run-recipe</code></pre>
           <p>这是 Python 侧最核心的顶层入口. 它会装载 config, 创建 <code>XQTContext</code>, 构造 pass pipeline, 依次执行, 最后按需写出 manifest.</p>
           <pre><code>from xqt import run_xqt_recipe
 
-context = run_xqt_recipe("xqt/recipes/smoke_cpu.yaml")
+context = run_xqt_recipe("xqt/recipes/smoke/smoke_cpu.yaml")
 print(context.metrics)
 print(context.artifacts)</code></pre>
         </article>
@@ -238,7 +238,7 @@ export:
   targets:
     - format: torch_export
       output_path: artifacts/xqt/smoke_cpu/model.pt2</code></pre>
-      <p class="note">这个例子基本就是 <code>xqt/recipes/smoke_cpu.yaml</code> 的缩写版. 从它可以看出 XQT 的设计倾向: 尽量靠一份清晰的 YAML 把“目标模型是什么, 数据从哪来, 开哪些 pass, 输出写到哪”描述清楚.</p>
+      <p class="note">这个例子基本就是 <code>xqt/recipes/smoke/smoke_cpu.yaml</code> 的缩写版. 从它可以看出 XQT 的设计倾向: 尽量靠一份清晰的 YAML 把“目标模型是什么, 数据从哪来, 开哪些 pass, 输出写到哪”描述清楚.</p>
     </section>
 
     <section class="section">
@@ -263,7 +263,7 @@ export:
           <tr>
             <td><code>load_data</code></td>
             <td><code>LoadDataPass</code></td>
-            <td>当前内置已经覆盖分类和检测两类常用数据目标,包括 <code>synthetic_classification</code>, <code>synthetic_detection</code>, <code>torchvision_image_classification</code>, <code>xdl_detection</code> 和 <code>ultralytics_detection</code>. detection split 会把 class names 和 task metadata 回填到 config 与 manifest.</td>
+            <td>当前内置已经覆盖分类和检测两类常用数据目标,包括 <code>synthetic_classification</code>, <code>synthetic_detection</code>, <code>torchvision_image_classification</code> 和 <code>xdl_detection</code>. detection split 会把 class names 和 task metadata 回填到 config 与 manifest.</td>
           </tr>
           <tr>
             <td><code>baseline_eval</code></td>
@@ -316,7 +316,7 @@ export:
           <p><code>XQTConfig</code> 是 schema dataclass. <code>load_xqt_config()</code> 是最推荐的装载入口, 因为它会补默认值, 解析 OmegaConf resolver, 然后做基础校验.</p>
           <pre><code>from xqt import XQTConfig, load_xqt_config
 
-config = load_xqt_config("xqt/recipes/smoke_cpu.yaml")
+config = load_xqt_config("xqt/recipes/smoke/smoke_cpu.yaml")
 assert isinstance(config, XQTConfig)
 print(config.project.artifact_dir)</code></pre>
         </article>
@@ -327,7 +327,7 @@ print(config.project.artifact_dir)</code></pre>
           <pre><code>from xqt.pipeline import create_context
 
 context = create_context(
-    "xqt/recipes/smoke_cpu.yaml",
+    "xqt/recipes/smoke/smoke_cpu.yaml",
     model=my_model,
     data={"validation": my_loader},
 )
@@ -340,7 +340,7 @@ print(context.device)</code></pre>
           <pre><code>from xqt import run_xqt_recipe
 
 context = run_xqt_recipe(
-    "xqt/recipes/prune_finetune_cpu.yaml",
+    "xqt/recipes/prune/unstructured/prune_finetune_cpu.yaml",
     model=student,
     teacher=teacher,
     data={"train": train_loader, "validation": val_loader},
@@ -352,7 +352,7 @@ context = run_xqt_recipe(
           <p>适合在真正跑量化或导出前先做环境体检. 它返回的是 <code>PreflightReport</code>, 里面每条检查都是 <code>PreflightCheck</code>.</p>
           <pre><code>from xqt import preflight_xqt_config
 
-report = preflight_xqt_config("xqt/recipes/image_resnet_onnx_qdq_int8.yaml")
+report = preflight_xqt_config("xqt/recipes/quant/int8/image_resnet_onnx_qdq_int8.yaml")
 print(report.passed)
 print(report.to_dict())</code></pre>
         </article>
@@ -373,7 +373,7 @@ manifest.write_json("artifacts/demo/manifest.json")</code></pre>
 
 context = xdl_setup_to_xqt_context(
     setup,
-    "xqt/recipes/smoke_cpu.yaml",
+    "xqt/recipes/smoke/smoke_cpu.yaml",
 )</code></pre>
         </article>
       </div>
@@ -452,37 +452,37 @@ context = xdl_setup_to_xqt_context(
         </thead>
         <tbody>
           <tr>
-            <td><code>xqt/recipes/smoke_cpu.yaml</code></td>
+            <td><code>xqt/recipes/smoke/smoke_cpu.yaml</code></td>
             <td>最小 CPU 闭环: schema, load_model, synthetic data, prune, torch export, manifest.</td>
             <td>这是默认入口, 也是判断“基础 runner 还通不通”的第一份配方.</td>
           </tr>
           <tr>
-            <td><code>xqt/recipes/image_resnet_onnx_qdq_int8.yaml</code></td>
+            <td><code>xqt/recipes/quant/int8/image_resnet_onnx_qdq_int8.yaml</code></td>
             <td>ResNet 类模型的 ONNX 导出, ONNX Runtime QDQ INT8, TensorRT dry-run.</td>
             <td>这条 recipe 展示的是部署导向最强的那条路径: 先有 ONNX 图, 再量化, 再往 TensorRT 方向接.</td>
           </tr>
           <tr>
-            <td><code>xqt/recipes/image_resnet_cifar100_qdq_cpu.yaml</code></td>
+            <td><code>xqt/recipes/quant/int8/image_resnet_cifar100_qdq_cpu.yaml</code></td>
             <td>把上面的 ONNX QDQ 路径接到本地 CIFAR-100 数据上.</td>
             <td>它比纯 synthetic smoke 更接近真实数据, 但仍偏验证性质.</td>
           </tr>
           <tr>
-            <td><code>xqt/recipes/yolo_detection_smoke.yaml</code></td>
+            <td><code>xqt/recipes/detection/yolo_detection_smoke.yaml</code></td>
             <td>synthetic detection, toy detection model, baseline eval, prune 和 ONNX export.</td>
             <td>这条 recipe 用最小依赖验证 detection schema 和 manifest 主链路, 不要求 Ultralytics 权重或外部数据.</td>
           </tr>
           <tr>
-            <td><code>xqt/recipes/yolo_detection_practice.yaml</code></td>
-            <td>Ultralytics YOLO detection baseline, FP32/FP16 ONNX, ONNX Runtime QDQ INT8, global L1 unstructured prune, torch.compile candidate, TensorRT/OpenVINO dry-run.</td>
-            <td>这条 recipe 现在和 <code>examples/yolo_detection_practice.py</code> 一起组成 scenario matrix 入口,覆盖 <code>baseline</code>, <code>quant_only</code>, <code>prune_only</code>, <code>operator_only</code>, <code>quant_export</code>, <code>prune_quant</code>, <code>full_chain</code>, 并汇总 runtime coverage, QDQ op types, calibration, export formats, operator fallback 和 prune sparsity.</td>
+            <td><code>xqt/recipes/detection/yolo_detection_practice.yaml</code></td>
+            <td>Ultralytics YOLO detection stage workflow: baseline eval/latency, FP32 ONNX runtime eval, ONNX Runtime QDQ INT8, global L1 unstructured prune, torch.compile candidate, TensorRT/OpenVINO dry-run.</td>
+            <td>这条 recipe 现在和 <code>examples/yolo_detection_practice.py</code> 一起组成 stage-based detection practice 入口. 配置顶层使用 <code>model</code>, <code>task</code>, <code>data_splits</code> 和 <code>stages</code>,由 <code>xqt.workflows.optimize_model</code> 编排 baseline, runtime eval, quant, prune, operator 和 deploy 阶段. 示例入口只打印每个 stage 的 accepted/message/metrics/artifacts,不再维护 YOLO 专用场景矩阵或报告生成器.</td>
           </tr>
           <tr>
-            <td><code>xqt/recipes/prune_finetune_cpu.yaml</code></td>
+            <td><code>xqt/recipes/prune/unstructured/prune_finetune_cpu.yaml</code></td>
             <td>线性剪枝 schedule 和 teacher KD 微调组合.</td>
             <td>它说明 XQT 的剪枝不是只做一次掩码, 而是已经开始考虑“剪完怎么恢复”.</td>
           </tr>
           <tr>
-            <td><code>xqt/recipes/hf_text_kd_prune.yaml</code></td>
+            <td><code>xqt/recipes/distill/hf_text_kd_prune.yaml</code></td>
             <td>HuggingFace 文本分类 teacher-student bundle + KD + pruning.</td>
             <td>这条 recipe 证明 XQT 不只想做视觉部署, 也在尝试把 NLP 的蒸馏和剪枝流程 recipe 化.</td>
           </tr>
@@ -616,9 +616,9 @@ for capability in deployment_capability_matrix(implemented_only=True):
 python -m pytest tests/xqt tests/config/test_structured.py tests/utils/test_registry.py -q
 python -m ruff check xqt tests/xqt
 python -m compileall -q xqt tests/xqt
-XQT_CONFIG=xqt/recipes/image_resnet_onnx_qdq_int8.yaml xqt-preflight
-XQT_CONFIG=xqt/recipes/image_resnet_onnx_qdq_int8.yaml xqt-run-recipe
-XQT_CONFIG=xqt/recipes/smoke_cpu.yaml xqt-run-recipe</code></pre>
+XQT_CONFIG=xqt/recipes/quant/int8/image_resnet_onnx_qdq_int8.yaml xqt-preflight
+XQT_CONFIG=xqt/recipes/quant/int8/image_resnet_onnx_qdq_int8.yaml xqt-run-recipe
+XQT_CONFIG=xqt/recipes/smoke/smoke_cpu.yaml xqt-run-recipe</code></pre>
     </section>
 
     <section class="section">
