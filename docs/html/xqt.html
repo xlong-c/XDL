@@ -21,7 +21,7 @@
     <a class="back-link" href="index.html">返回文档阅读入口</a>
     <h1>XQT 模型优化阅读页</h1>
     <p class="subtitle">
-      XQT 只关注模型本身. 它接收 PyTorch 模型, checkpoint 或导出产物, 执行量化, 剪枝, 算子优化, 导出, 误差分析和运行时验证. 训练,QAT 训练,finetune,distillation 和 recovery 不属于 XQT.
+      XQT 只关注模型本身. 它接收 PyTorch 模型, checkpoint 或导出产物, 执行量化, 剪枝, 算子优化, 导出, 误差分析和 benchmark. 训练,QAT 训练,finetune,distillation,recovery,dataset 和 task validation 不属于 XQT.
     </p>
     <span class="note">事实源仍以 <a href="../md/XQT.md">docs/md/XQT.md</a> 和源码为准.</span>
   </header>
@@ -35,8 +35,8 @@
       <div class="flow" aria-label="xqt overview flow">
         <span>模型输入<br><code>module</code><br><code>checkpoint</code></span>
         <span>模型变换<br>quant<br>prune<br>operator</span>
-        <span>导出适配<br>onnx<br>torch.export<br>runtime diff</span>
-        <span>验证与基准<br>latency<br>memory<br>analysis</span>
+        <span>导出适配<br>onnx<br>torch.export<br>deploy</span>
+        <span>分析与基准<br>latency<br>memory<br>analysis</span>
         <span>落盘归档<br>manifest<br>artifacts</span>
       </div>
     </section>
@@ -65,7 +65,7 @@
         </div>
         <div class="card">
           <h3>eval / benchmark</h3>
-          <p>Model diff, runtime diff, layer analysis, latency, memory.</p>
+          <p>Tensor diff, layer analysis, latency, memory.</p>
         </div>
         <div class="card">
           <h3>model</h3>
@@ -81,6 +81,7 @@
       </div>
       <ul class="bullets">
         <li>training provider / evaluation provider.</li>
+        <li>dataset / dataloader 构建和 task-level validation.</li>
         <li>finetune / distill / QAT training / recovery training.</li>
         <li>teacher-student recipe, KD cache, diffusion distillation.</li>
       </ul>

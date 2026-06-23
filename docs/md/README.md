@@ -1384,7 +1384,7 @@ xdl-usage
 - 具体文件布局,例如 `coreModel.py`,`trainer.py` 内部实现函数.
 - 临时研究,实验,工具目录中的脚本入口.
 - `xqt` registry 细节,包括 `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()` 的具体行为,键空间约束和冲突处理策略.
-- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.operator_opt`, `xqt.export`, `xqt.eval`, `xqt.benchmark`, `xqt.data`, `xqt.model`, `xqt.integrations` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
+- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.operator_opt`, `xqt.export`, `xqt.eval`, `xqt.benchmark`, `xqt.model`, `xqt.integrations` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
 
 如果用户代码必须依赖 Internal API,建议先把需求提升为明确的公共 API,再补文档和测试.
 
