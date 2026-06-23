@@ -97,9 +97,7 @@ Documentation = "https://github.com/xlong/xdl#readme"
 
 [project.scripts]
 xdl-usage = "xdl.usage:main"
-xqt-preflight = "xqt.entrypoints.preflight:main"
-xqt-run-recipe = "xqt.entrypoints.run_recipe:main"
-xqt-run-workflow = "xqt.entrypoints.run_workflow:main"
+xqt-run-workflow = "xqt.run_workflow:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -107,7 +105,7 @@ include = ["xdl*", "xqt*"]
 
 [tool.setuptools.package-data]
 xdl = ["py.typed", "USAGE.md"]
-xqt = ["py.typed", "recipes/*.yaml"]
+xqt = ["py.typed", "recipes/*/*.yaml", "recipes/*/*/*.yaml"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

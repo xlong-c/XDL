@@ -1,4 +1,9 @@
-"""Detection output decoding adapters for task providers."""
+"""Detection output decoding utilities.
+
+These are task-provider-level helpers: decode raw model outputs into
+structured detection predictions (boxes / scores / labels). Moved out of
+xqt/integrations/ per xqt core contract — XQT does not own task provider logic.
+"""
 
 from __future__ import annotations
 
@@ -8,8 +13,40 @@ from typing import Any, Mapping, Optional, Sequence
 import torch
 from torchvision.ops import nms
 
-from xdl.metric.metrics import _boxes_to_xyxy
-from xqt.core.schema import DetectionPostprocessConfig
+
+def boxes_to_xyxy(boxes: torch.Tensor, box_format: str) -> torch.Tensor:
+    """Convert cxcywh boxes to xyxy format."""
+    if boxes.shape[-1] != 4:
+        raise ValueError("boxes must end with 4 coordinates")
+    if box_format == "xyxy":
+        return boxes
+    if box_format != "cxcywh":
+        raise ValueError("box_format must be 'xyxy' or 'cxcywh'")
+    cx, cy, width, height = boxes.unbind(dim=-1)
+    return torch.stack(
+        (
+            cx - width / 2.0,
+            cy - height / 2.0,
+            cx + width / 2.0,
+            cy + height / 2.0,
+        ),
+        dim=-1,
+    )
+
+
+@dataclass
+class DetectionPostprocessConfig:
+    """Postprocess settings for detection model outputs."""
+
+    format: str = "auto"
+    box_format: str = "xyxy"
+    score_threshold: float = 0.25
+    iou_threshold: float = 0.45
+    max_detections: int = 300
+    score_activation: str = "identity"
+    has_objectness: bool = False
+    class_agnostic_nms: bool = False
+    rescale_to_original: bool = True
 
 
 @dataclass
@@ -80,8 +117,17 @@ def decode_detection_output(
     *,
     image_sizes: Optional[Sequence[tuple[int, int]]] = None,
 ) -> list[DetectionPrediction]:
-    """Decode provider/model outputs into per-image detections."""
+    """Decode provider/model outputs into per-image detections.
 
+    Supports three input formats:
+
+    - **RT-DETR style**: ``{logits: [B,N,C], pred_boxes: [B,N,4]}`` dict.
+    - **end2end / [B,N,6]**: tensor with boxes + scores + labels per row.
+    - **yolo_raw / [B,channel,anchor]**: raw yolo grid output, with sigmoid /
+      softmax score activation and optional objectness.
+
+    All paths go through score-threshold -> NMS -> max_detections truncation.
+    """
     if isinstance(output, Mapping):
         if {"boxes", "scores", "labels"} <= set(output.keys()):
             return [
@@ -127,7 +173,7 @@ def decode_detection_output(
                         device=boxes_input.device,
                     )
                     boxes_input = boxes_input * scale
-                boxes = _boxes_to_xyxy(boxes_input, config.box_format)
+                boxes = boxes_to_xyxy(boxes_input, config.box_format)
                 keep = scores >= config.score_threshold
                 predictions.append(
                     _apply_nms(boxes[keep], scores[keep], labels[keep], config)
@@ -173,7 +219,7 @@ def decode_detection_output(
 
     batch_predictions = output.permute(0, 2, 1).contiguous()
     for image_output in batch_predictions:
-        boxes = _boxes_to_xyxy(image_output[:, :4].float(), config.box_format)
+        boxes = boxes_to_xyxy(image_output[:, :4].float(), config.box_format)
         class_logits = image_output[:, 4:].float()
         if config.has_objectness:
             objectness = class_logits[:, :1].sigmoid()
@@ -193,6 +239,8 @@ def decode_detection_output(
 
 
 __all__ = [
+    "DetectionPostprocessConfig",
     "DetectionPrediction",
+    "boxes_to_xyxy",
     "decode_detection_output",
 ]

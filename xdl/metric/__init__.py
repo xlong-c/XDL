@@ -1,4 +1,10 @@
 from ..utils.registry import register_metric
+from .detection_utils import (
+    DetectionPostprocessConfig,
+    DetectionPrediction,
+    boxes_to_xyxy,
+    decode_detection_output,
+)
 from .image_generation import (
     FrechetInceptionDistance,
     InceptionScore,
@@ -89,6 +95,10 @@ def _register_metrics():
 _register_metrics()
 
 __all__ = [
+    "DetectionPostprocessConfig",
+    "DetectionPrediction",
+    "boxes_to_xyxy",
+    "decode_detection_output",
     "Accuracy",
     "Precision",
     "Recall",

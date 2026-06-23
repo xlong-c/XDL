@@ -1360,9 +1360,8 @@ xdl-usage
 
 以下 API 当前可用,但仍处于演进期:
 
-- `xqt` 顶层实验入口: `load_xqt_config`, `run_xqt_recipe`, `preflight_xqt_config`, `optimize_model`, `load_optimization_config`, `XQTOptimizationSession`, `OptimizedModelResult`, `OptimizationConfig`, `OptimizationStageConfig`, `OptimizationStageResult`, `StageAcceptanceConfig`, `XQTConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`.
+- `xqt` 顶层实验入口: `optimize_model`, `load_optimization_config`, `XQTOptimizationSession`, `OptimizedModelResult`, `OptimizationConfig`, `OptimizationStageConfig`, `OptimizationStageResult`, `StageAcceptanceConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`.
 - `xqt` 到 XDL 的适配入口: `xdl_setup_to_xqt_context`, `xdl_checkpoint_to_xqt_context`, `load_checkpoint_into_model`.
-- `xqt` 包当前虽然也从顶层 re-export 了 `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()`, 但这些导出暂时只服务内部 recipe 和测试装配, 还不视为 Provisional 契约.
 - `xdl.config` 中的 schema dataclass,例如 `ConfigSchemaV1`,`RuntimeConfig`,`TrainerConfig`.
 - `xdl.config` 中的 resolver 工具,例如 `load_config_with_schema()`,`merge_with_schema()`,`resolve_config()`.
 - Accelerate,DeepSpeed,FSDP 相关配置字段和行为.
@@ -1383,8 +1382,8 @@ xdl-usage
 - `Trainer`,`CoreModel`,callback 内部状态字段,除公开 property 和文档明确说明的字段外.
 - 具体文件布局,例如 `coreModel.py`,`trainer.py` 内部实现函数.
 - 临时研究,实验,工具目录中的脚本入口.
-- `xqt` registry 细节,包括 `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()` 的具体行为,键空间约束和冲突处理策略.
-- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.operator_opt`, `xqt.export`, `xqt.eval`, `xqt.benchmark`, `xqt.model`, `xqt.integrations` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
+- `xqt` pass recipe 旧链路和 registry 细节,包括 `XQTConfig`, `load_xqt_config()`, `run_xqt_recipe()`, `preflight_xqt_config()`, `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()` 的具体行为,键空间约束和冲突处理策略.
+- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.operator_opt`, `xqt.export`, `xqt.analysis`, `xqt.benchmark`, `xqt.model`, `xqt.integrations` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
 
 如果用户代码必须依赖 Internal API,建议先把需求提升为明确的公共 API,再补文档和测试.
 
