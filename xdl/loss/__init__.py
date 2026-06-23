@@ -43,6 +43,15 @@ from .generative_loss import (
 # 对比学习损失
 from .contrastive_loss import InfoNCE, NTXentLoss
 
+# 知识蒸馏损失
+from .distillation_loss import (
+    DistillationLossBreakdown,
+    distillation_loss,
+    feature_distillation_loss,
+    kl_divergence_with_temperature,
+    relation_distillation_loss,
+)
+
 # 分割损失
 from .dice_loss import DiceLoss, GeneralizedDiceLoss
 from .segmentation_loss import (
@@ -98,6 +107,12 @@ def _register_losses():
     register_loss("InfoNCE")(InfoNCE)
     register_loss("NTXentLoss")(NTXentLoss)
 
+    # 知识蒸馏损失
+    register_loss("kl_divergence_with_temperature")(kl_divergence_with_temperature)
+    register_loss("distillation_loss")(distillation_loss)
+    register_loss("feature_distillation_loss")(feature_distillation_loss)
+    register_loss("relation_distillation_loss")(relation_distillation_loss)
+
     # 分割损失
     register_loss("DiceLoss")(DiceLoss)
     register_loss("GeneralizedDiceLoss")(GeneralizedDiceLoss)
@@ -142,6 +157,11 @@ __all__ = [
     "DiffusionPredictionLoss",
     "InfoNCE",
     "NTXentLoss",
+    "DistillationLossBreakdown",
+    "kl_divergence_with_temperature",
+    "distillation_loss",
+    "feature_distillation_loss",
+    "relation_distillation_loss",
     "DiceLoss",
     "GeneralizedDiceLoss",
     "JaccardLoss",

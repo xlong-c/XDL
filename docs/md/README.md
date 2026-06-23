@@ -1360,7 +1360,7 @@ xdl-usage
 
 以下 API 当前可用,但仍处于演进期:
 
-- `xqt` 顶层实验入口: `load_xqt_config`, `run_xqt_recipe`, `preflight_xqt_config`, `XQTConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`.
+- `xqt` 顶层实验入口: `load_xqt_config`, `run_xqt_recipe`, `preflight_xqt_config`, `optimize_model`, `load_optimization_config`, `XQTOptimizationSession`, `OptimizedModelResult`, `OptimizationConfig`, `OptimizationStageConfig`, `OptimizationStageResult`, `StageAcceptanceConfig`, `XQTConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`.
 - `xqt` 到 XDL 的适配入口: `xdl_setup_to_xqt_context`, `xdl_checkpoint_to_xqt_context`, `load_checkpoint_into_model`.
 - `xqt` 包当前虽然也从顶层 re-export 了 `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()`, 但这些导出暂时只服务内部 recipe 和测试装配, 还不视为 Provisional 契约.
 - `xdl.config` 中的 schema dataclass,例如 `ConfigSchemaV1`,`RuntimeConfig`,`TrainerConfig`.

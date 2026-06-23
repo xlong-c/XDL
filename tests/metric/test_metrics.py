@@ -16,6 +16,7 @@ from xdl.metric.metrics import (
     BalancedAccuracy,
     BoxIoU,
     ConfusionMatrix,
+    DetectionMeanAveragePrecision,
     DiceCoefficient,
     F1Score,
     FrequencyWeightedIoU,
@@ -254,6 +255,30 @@ class TestDetectionMetrics:
         target = torch.tensor([[0.0, 0.0, 2.0, 2.0], [1.0, 1.0, 2.0, 2.0]])
         iou = BoxIoU(reduction="none")(pred, target)
         assert torch.allclose(iou, torch.tensor([1.0, 0.0]))
+
+    def test_detection_mean_average_precision(self):
+        predictions = [
+            {
+                "boxes": torch.tensor([[0.0, 0.0, 2.0, 2.0]]),
+                "scores": torch.tensor([0.9]),
+                "labels": torch.tensor([1]),
+            }
+        ]
+        targets = [
+            {
+                "boxes": torch.tensor([[0.0, 0.0, 2.0, 2.0]]),
+                "labels": torch.tensor([1]),
+            }
+        ]
+
+        metrics = DetectionMeanAveragePrecision(iou_thresholds=[0.5, 0.75])(
+            predictions,
+            targets,
+        )
+
+        assert metrics["map50_95"] == 1.0
+        assert metrics["map50"] == 1.0
+        assert metrics["map75"] == 1.0
 
 
 class TestNLPAndRetrievalMetrics:

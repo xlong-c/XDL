@@ -11,6 +11,7 @@
 - `huber_loss.py`
 - `contrastive_loss.py`
 - `dice_loss.py`
+- `distillation_loss.py`
 
 ## 修改约束
 

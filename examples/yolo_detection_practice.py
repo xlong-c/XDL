@@ -1,9 +1,8 @@
 """Single-file XQT detection practice entry.
 
-This example intentionally does not import ultralytics.  The default path uses
-XQT's toy detection module and synthetic detection data to exercise the same
-stage workflow surface used by the heavier external-ONNX RT-DETR TensorRT
-recipes.
+The default path uses XQT's smoke detection module, synthetic detection data
+and the Pythonic ``XQTOptimizationSession`` API. It intentionally does not import
+ultralytics and does not embed a full JSON-shaped workflow dict in Python code.
 
 Set XQT_YOLO_PRACTICE_CONFIG to a YAML workflow path when you want to run a
 different workflow, for example:
@@ -23,9 +22,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from xqt import XQTOptimizationSession
+from xqt.data import (
+    SyntheticDetectionSpec,
+    build_synthetic_detection_loader,
+)
+from xqt.model import build_smoke_detection_module
 from xqt.workflows import OptimizedModelResult, optimize_model
 
-
+import ultralytics
 CONFIG_ENV = "XQT_YOLO_PRACTICE_CONFIG"
 
 
@@ -37,15 +42,37 @@ def _artifact_path(*parts: str) -> str:
     return str(_repo_root().joinpath("artifacts", "xqt", "detection", *parts))
 
 
-def _default_config() -> dict[str, Any]:
+def _default_detection_loader(
+    *,
+    sample_limit: int,
+    seed: int,
+) -> Any:
+    return build_synthetic_detection_loader(
+        SyntheticDetectionSpec(
+            sample_limit=sample_limit,
+            batch_size=1,
+            image_shape=[3, 64, 64],
+            num_classes=3,
+            boxes_per_image=2,
+            seed=seed,
+        )
+    )
+
+
+def _build_default_session() -> XQTOptimizationSession:
     artifact_dir = _artifact_path("yolo_practice_example")
-    return {
-        "project": {
+    model = build_smoke_detection_module(
+        num_classes=3,
+        boxes_per_image=2,
+        input_channels=3,
+    )
+    return XQTOptimizationSession(
+        project={
             "name": "yolo_detection_practice_example",
             "artifact_dir": artifact_dir,
         },
-        "model": {
-            "target": "xqt.model.build_toy_detection_module",
+        model=model,
+        model_config={
             "params": {
                 "num_classes": 3,
                 "boxes_per_image": 2,
@@ -54,7 +81,7 @@ def _default_config() -> dict[str, Any]:
             "dtype": "float32",
             "device": "cpu",
         },
-        "task": {
+        task={
             "type": "detection",
             "class_names": ["class_0", "class_1", "class_2"],
             "detection_postprocess": {
@@ -84,187 +111,141 @@ def _default_config() -> dict[str, Any]:
             },
             "params": {"imgsz": 64},
         },
-        "data_splits": {
-            "calibration": {
-                "target": "synthetic_detection",
-                "sample_limit": 2,
-                "batch_size": 1,
-                "params": {
-                    "image_shape": [3, 64, 64],
-                    "num_classes": 3,
-                    "boxes_per_image": 2,
-                    "seed": 42,
-                },
-            },
-            "validation": {
-                "target": "synthetic_detection",
-                "sample_limit": 4,
-                "batch_size": 1,
-                "params": {
-                    "image_shape": [3, 64, 64],
-                    "num_classes": 3,
-                    "boxes_per_image": 2,
-                    "seed": 2,
-                },
-            },
+        data_splits={
+            "calibration": _default_detection_loader(sample_limit=2, seed=42),
+            "validation": _default_detection_loader(sample_limit=4, seed=2),
         },
-        "stages": [
-            {
-                "name": "baseline_eval",
-                "kind": "eval",
-                "split": "validation",
-                "params": {"baseline": True},
-            },
-            {
-                "name": "baseline_latency",
-                "kind": "benchmark",
-                "split": "validation",
-                "params": {"warmup": 1, "iterations": 2},
-            },
-            {
-                "name": "export_fp32_onnx",
-                "kind": "export",
-                "split": "validation",
-                "save_model": False,
-                "params": {
-                    "targets": [
-                        {
-                            "format": "onnx",
-                            "output_path": _artifact_path(
-                                "yolo_practice_example",
-                                "export_fp32_onnx",
-                                "toy_detection_fp32.onnx",
-                            ),
-                            "opset": 18,
-                            "params": {
-                                "input_names": ["images"],
-                                "output_names": ["predictions"],
-                                "dynamo": False,
-                                "runtime_diff": False,
-                            },
-                        }
-                    ]
-                },
-            },
-            {
-                "name": "fp32_onnx_runtime",
-                "kind": "runtime_eval",
-                "split": "validation",
-                "compare_to": "baseline_eval",
-                "save_model": False,
-                "params": {
-                    "artifact": "last_onnx",
-                    "input_names": ["images"],
-                    "max_batches": 2,
-                    "warmup": 0,
-                    "iterations": 1,
-                },
-                "accept": {
-                    "metric": "map50_95",
-                    "max_drop": 0.20,
-                    "max_mean_abs": 0.05,
-                    "max_max_abs": 0.5,
-                },
-            },
-            {
-                "name": "quant_qdq",
-                "kind": "quant",
-                "calibration_split": "calibration",
-                "validation_split": "validation",
-                "save_model": False,
-                "params": {
-                    "backend": "onnxruntime_qdq",
-                    "strategy": "static_int8",
-                    "calibration_split": "calibration",
-                    "validation_split": "validation",
-                    "policy": {
-                        "source_name": "toy_detection_source.onnx",
-                        "output_path": _artifact_path(
-                            "yolo_practice_example",
-                            "quant_qdq",
-                            "toy_detection_qdq.onnx",
-                        ),
-                        "input_names": ["images"],
-                        "output_names": ["predictions"],
-                        "dynamo": False,
-                        "sample_limit": 2,
-                        "activation_type": "QUInt8",
-                        "weight_type": "QInt8",
-                        "op_types_to_quantize": ["Conv"],
-                        "extra_options": {"ActivationSymmetric": False},
-                    },
-                },
-            },
-            {
-                "name": "qdq_onnx_runtime",
-                "kind": "runtime_eval",
-                "split": "validation",
-                "compare_to": "baseline_eval",
-                "save_model": False,
-                "params": {
-                    "artifact": "quant_onnx",
-                    "input_names": ["images"],
-                    "max_batches": 2,
-                    "warmup": 0,
-                    "iterations": 1,
-                },
-                "accept": {
-                    "metric": "map50_95",
-                    "max_drop": 0.20,
-                    "max_mean_abs": 0.25,
-                    "max_max_abs": 2.5,
-                },
-            },
-            {
-                "name": "prune_sparse",
-                "kind": "prune",
-                "from_stage": "initial",
-                "split": "validation",
-                "params": {
-                    "method": "global_l1_unstructured",
-                    "target_sparsity": 0.2,
-                },
-            },
-            {
-                "name": "prune_eval",
-                "kind": "eval",
-                "split": "validation",
-                "compare_to": "baseline_eval",
-                "params": {"baseline": False},
-                "accept": {"metric": "map50_95", "max_drop": 0.20},
-            },
-            {
-                "name": "prune_latency",
-                "kind": "benchmark",
-                "split": "validation",
-                "compare_to": "baseline_latency",
-                "params": {"warmup": 1, "iterations": 2},
-            },
-            {
-                "name": "structured_prune_guard",
-                "kind": "prune",
-                "from_stage": "initial",
-                "split": "validation",
-                "save_model": False,
-                "params": {
-                    "method": "structured",
-                    "granularity": "channel",
-                    "target_sparsity": 0.5,
-                },
-                "accept": {"min_speedup": 1.01},
-            },
-        ],
-    }
+    )
 
 
-def _configured_workflow() -> str | dict[str, Any]:
+def _run_default_stages(session: XQTOptimizationSession) -> None:
+    session.eval(name="baseline_eval", split="validation", baseline=True)
+    session.benchmark(
+        name="baseline_latency",
+        split="validation",
+        warmup=1,
+        iterations=2,
+    )
+    session.export(
+        name="export_fp32_onnx",
+        split="validation",
+        format="onnx",
+        output_path=_artifact_path(
+            "yolo_practice_example",
+            "export_fp32_onnx",
+            "smoke_detection_fp32.onnx",
+        ),
+        opset=18,
+        target_params={
+            "input_names": ["images"],
+            "output_names": ["predictions"],
+            "dynamo": False,
+            "runtime_diff": False,
+        },
+    )
+    session.runtime_eval(
+        name="fp32_onnx_runtime",
+        split="validation",
+        compare_to="baseline_eval",
+        artifact="last_onnx",
+        input_names=["images"],
+        max_batches=2,
+        warmup=0,
+        iterations=1,
+        accept={
+            "metric": "map50_95",
+            "max_drop": 0.20,
+            "max_mean_abs": 0.05,
+            "max_max_abs": 0.5,
+        },
+    )
+    session.quant(
+        name="quant_qdq",
+        calibration_split="calibration",
+        validation_split="validation",
+        save_model=False,
+        backend="onnxruntime_qdq",
+        strategy="static_int8",
+        policy={
+            "source_name": "smoke_detection_source.onnx",
+            "output_path": _artifact_path(
+                "yolo_practice_example",
+                "quant_qdq",
+                "smoke_detection_qdq.onnx",
+            ),
+            "input_names": ["images"],
+            "output_names": ["predictions"],
+            "dynamo": False,
+            "sample_limit": 2,
+            "activation_type": "QUInt8",
+            "weight_type": "QInt8",
+            "op_types_to_quantize": ["Conv"],
+            "extra_options": {"ActivationSymmetric": False},
+        },
+    )
+    session.runtime_eval(
+        name="qdq_onnx_runtime",
+        split="validation",
+        compare_to="baseline_eval",
+        artifact="quant_onnx",
+        input_names=["images"],
+        max_batches=2,
+        warmup=0,
+        iterations=1,
+        accept={
+            "metric": "map50_95",
+            "max_drop": 0.20,
+            "max_mean_abs": 0.25,
+            "max_max_abs": 2.5,
+        },
+    )
+    session.prune(
+        name="prune_sparse",
+        from_stage="initial",
+        split="validation",
+        method="global_l1_unstructured",
+        target_sparsity=0.2,
+    )
+    session.eval(
+        name="prune_eval",
+        split="validation",
+        compare_to="baseline_eval",
+        baseline=False,
+        accept={"metric": "map50_95", "max_drop": 0.20},
+    )
+    session.benchmark(
+        name="prune_latency",
+        split="validation",
+        compare_to="baseline_latency",
+        warmup=1,
+        iterations=2,
+    )
+    session.prune(
+        name="structured_prune_guard",
+        from_stage="initial",
+        split="validation",
+        save_model=False,
+        method="structured",
+        granularity="channel",
+        target_sparsity=0.5,
+        accept={"min_speedup": 1.01},
+    )
+
+
+def _run_default_session() -> OptimizedModelResult:
+    session = _build_default_session()
+    _run_default_stages(session)
+    return session.result()
+
+
+def _configured_workflow_path() -> str | None:
     value = os.environ.get(CONFIG_ENV)
-    if value:
-        path = Path(value).expanduser()
-        if not path.is_absolute():
-            path = _repo_root() / path
-        return str(path)
-    return _default_config()
+    if not value:
+        return None
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = _repo_root() / path
+    return str(path)
 
 
 def _get_nested(mapping: Mapping[str, Any], *keys: str) -> Any:
@@ -341,12 +322,13 @@ def _print_result(result: OptimizedModelResult) -> None:
 
 
 def main() -> int:
-    workflow = _configured_workflow()
-    if isinstance(workflow, str):
-        print(f"workflow_config: {workflow}")
+    workflow_path = _configured_workflow_path()
+    if workflow_path is not None:
+        print(f"workflow_config: {workflow_path}")
+        result = optimize_model(workflow_path)
     else:
-        print("workflow_config: embedded lightweight detection practice")
-    result = optimize_model(workflow)
+        print("workflow_config: pythonic interactive detection practice")
+        result = _run_default_session()
     _print_result(result)
     return 0
 

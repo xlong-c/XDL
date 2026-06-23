@@ -13,6 +13,7 @@ from .metrics import (
     BalancedAccuracy,
     BoxIoU,
     ConfusionMatrix,
+    DetectionMeanAveragePrecision,
     DiceCoefficient,
     F1Score,
     FrequencyWeightedIoU,
@@ -59,6 +60,8 @@ def _register_metrics():
     register_metric("MeanIoU")(MeanIoU)
     register_metric("FrequencyWeightedIoU")(FrequencyWeightedIoU)
     register_metric("BoxIoU")(BoxIoU)
+    register_metric("DetectionMeanAveragePrecision")(DetectionMeanAveragePrecision)
+    register_metric("mAP")(DetectionMeanAveragePrecision)
     register_metric("TopKAccuracy")(TopKAccuracy)
     register_metric("MeanReciprocalRank")(MeanReciprocalRank)
     register_metric("HitRateAtK")(HitRateAtK)
@@ -103,6 +106,7 @@ __all__ = [
     "MeanIoU",
     "FrequencyWeightedIoU",
     "BoxIoU",
+    "DetectionMeanAveragePrecision",
     "TopKAccuracy",
     "MeanReciprocalRank",
     "HitRateAtK",

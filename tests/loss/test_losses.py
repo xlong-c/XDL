@@ -1,6 +1,5 @@
-"""损失函数测试。"""
-
 import torch
+import pytest
 
 from xdl.loss.box_loss import BoxIoULoss
 from xdl.loss.classification_loss import (
@@ -9,6 +8,12 @@ from xdl.loss.classification_loss import (
     SoftTargetCrossEntropy,
 )
 from xdl.loss.contrastive_loss import InfoNCE
+from xdl.loss.distillation_loss import (
+    distillation_loss,
+    feature_distillation_loss,
+    kl_divergence_with_temperature,
+    relation_distillation_loss,
+)
 from xdl.loss.dice_loss import DiceLoss, GeneralizedDiceLoss
 from xdl.loss.focal_loss import BinaryFocalLoss, FocalLoss
 from xdl.loss.huber_loss import HuberLoss
@@ -39,6 +44,7 @@ from xdl.loss.sequence_loss import (
     MaskedCrossEntropyLoss,
     TokenClassificationLoss,
 )
+from xdl.utils.registry import build_loss
 
 
 class TestClassificationLosses:
@@ -90,6 +96,54 @@ class TestHuberLoss:
         loss = loss_fn(pred, target)
         loss.backward()
         assert pred.grad is not None
+
+
+class TestDistillationLosses:
+    def test_kl_divergence_with_temperature_is_registered(self):
+        logits = torch.tensor([[1.0, 2.0], [0.5, -0.5]], requires_grad=True)
+        registry_loss = build_loss("kl_divergence_with_temperature")
+
+        loss = registry_loss(logits, logits.detach(), temperature=2.0)
+        loss.backward()
+
+        assert loss.item() == pytest.approx(0.0, abs=1e-6)
+        assert logits.grad is not None
+
+    def test_distillation_loss_combines_components(self):
+        student_logits = torch.tensor([[1.0, 0.0], [0.2, 0.8]], requires_grad=True)
+        teacher_logits = torch.tensor([[2.0, -1.0], [0.1, 1.4]])
+        targets = torch.tensor([0, 1])
+        student_features = torch.tensor([[1.0, 2.0], [3.0, 4.0]], requires_grad=True)
+        teacher_features = torch.tensor([[1.0, 2.5], [3.5, 4.0]])
+
+        breakdown = distillation_loss(
+            student_logits,
+            teacher_logits,
+            targets=targets,
+            temperature=2.0,
+            alpha=0.7,
+            feature_student=student_features,
+            feature_teacher=teacher_features,
+            feature_weight=0.2,
+            relation_student=student_features,
+            relation_teacher=teacher_features,
+            relation_weight=0.1,
+        )
+
+        breakdown.total.backward()
+
+        assert breakdown.total.ndim == 0
+        assert breakdown.soft_target.item() >= 0.0
+        assert breakdown.hard_target is not None
+        assert breakdown.feature is not None
+        assert breakdown.relation is not None
+        assert student_logits.grad is not None
+
+    def test_feature_and_relation_losses_match_identical_features(self):
+        features = torch.randn(4, 3, 2)
+
+        assert feature_distillation_loss(features, features).item() == pytest.approx(0.0)
+        assert relation_distillation_loss(features, features).item() == pytest.approx(0.0)
 
     def test_delta_behavior(self):
         """小误差用 MSE, 大误差用 MAE。"""
