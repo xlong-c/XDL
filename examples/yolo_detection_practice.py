@@ -1,6 +1,6 @@
 """Single-file XQT detection practice entry.
 
-The default path uses XQT's smoke detection module, synthetic detection data
+The default path uses XQT's smoke detection module, explicit example inputs,
 and the Pythonic ``XQTOptimizationSession`` API. It intentionally does not import
 ultralytics and does not embed a full JSON-shaped workflow dict in Python code.
 
@@ -18,19 +18,16 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
+import torch
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from xqt import XQTOptimizationSession
-from xqt.data import (
-    SyntheticDetectionSpec,
-    build_synthetic_detection_loader,
-)
 from xqt.model import build_smoke_detection_module
 from xqt.workflows import OptimizedModelResult, optimize_model
 
-import ultralytics
 CONFIG_ENV = "XQT_YOLO_PRACTICE_CONFIG"
 
 
@@ -42,21 +39,9 @@ def _artifact_path(*parts: str) -> str:
     return str(_repo_root().joinpath("artifacts", "xqt", "detection", *parts))
 
 
-def _default_detection_loader(
-    *,
-    sample_limit: int,
-    seed: int,
-) -> Any:
-    return build_synthetic_detection_loader(
-        SyntheticDetectionSpec(
-            sample_limit=sample_limit,
-            batch_size=1,
-            image_shape=[3, 64, 64],
-            num_classes=3,
-            boxes_per_image=2,
-            seed=seed,
-        )
-    )
+def _default_example_inputs() -> dict[str, torch.Tensor]:
+    generator = torch.Generator().manual_seed(42)
+    return {"images": torch.rand(1, 3, 64, 64, generator=generator)}
 
 
 def _build_default_session() -> XQTOptimizationSession:
@@ -66,6 +51,7 @@ def _build_default_session() -> XQTOptimizationSession:
         boxes_per_image=2,
         input_channels=3,
     )
+    example_inputs = _default_example_inputs()
     return XQTOptimizationSession(
         project={
             "name": "yolo_detection_practice_example",
@@ -94,41 +80,21 @@ def _build_default_session() -> XQTOptimizationSession:
                 "has_objectness": False,
                 "class_agnostic_nms": False,
             },
-            "detection_metric": {
-                "iou_thresholds": [
-                    0.5,
-                    0.55,
-                    0.6,
-                    0.65,
-                    0.7,
-                    0.75,
-                    0.8,
-                    0.85,
-                    0.9,
-                    0.95,
-                ],
-                "max_detections": 100,
-            },
             "params": {"imgsz": 64},
         },
-        data_splits={
-            "calibration": _default_detection_loader(sample_limit=2, seed=42),
-            "validation": _default_detection_loader(sample_limit=4, seed=2),
-        },
+        example_inputs=example_inputs,
+        calibration_inputs=[example_inputs],
     )
 
 
 def _run_default_stages(session: XQTOptimizationSession) -> None:
-    session.eval(name="baseline_eval", split="validation", baseline=True)
     session.benchmark(
         name="baseline_latency",
-        split="validation",
         warmup=1,
         iterations=2,
     )
     session.export(
         name="export_fp32_onnx",
-        split="validation",
         format="onnx",
         output_path=_artifact_path(
             "yolo_practice_example",
@@ -143,26 +109,8 @@ def _run_default_stages(session: XQTOptimizationSession) -> None:
             "runtime_diff": False,
         },
     )
-    session.runtime_eval(
-        name="fp32_onnx_runtime",
-        split="validation",
-        compare_to="baseline_eval",
-        artifact="last_onnx",
-        input_names=["images"],
-        max_batches=2,
-        warmup=0,
-        iterations=1,
-        accept={
-            "metric": "map50_95",
-            "max_drop": 0.20,
-            "max_mean_abs": 0.05,
-            "max_max_abs": 0.5,
-        },
-    )
     session.quant(
         name="quant_qdq",
-        calibration_split="calibration",
-        validation_split="validation",
         save_model=False,
         backend="onnxruntime_qdq",
         strategy="static_int8",
@@ -183,39 +131,14 @@ def _run_default_stages(session: XQTOptimizationSession) -> None:
             "extra_options": {"ActivationSymmetric": False},
         },
     )
-    session.runtime_eval(
-        name="qdq_onnx_runtime",
-        split="validation",
-        compare_to="baseline_eval",
-        artifact="quant_onnx",
-        input_names=["images"],
-        max_batches=2,
-        warmup=0,
-        iterations=1,
-        accept={
-            "metric": "map50_95",
-            "max_drop": 0.20,
-            "max_mean_abs": 0.25,
-            "max_max_abs": 2.5,
-        },
-    )
     session.prune(
         name="prune_sparse",
         from_stage="initial",
-        split="validation",
         method="global_l1_unstructured",
         target_sparsity=0.2,
     )
-    session.eval(
-        name="prune_eval",
-        split="validation",
-        compare_to="baseline_eval",
-        baseline=False,
-        accept={"metric": "map50_95", "max_drop": 0.20},
-    )
     session.benchmark(
         name="prune_latency",
-        split="validation",
         compare_to="baseline_latency",
         warmup=1,
         iterations=2,
@@ -223,7 +146,6 @@ def _run_default_stages(session: XQTOptimizationSession) -> None:
     session.prune(
         name="structured_prune_guard",
         from_stage="initial",
-        split="validation",
         save_model=False,
         method="structured",
         granularity="channel",
@@ -264,22 +186,6 @@ def _format_float(value: Any) -> str:
 
 
 def _stage_metric_summary(metrics: Mapping[str, Any]) -> str:
-    if "eval" in metrics:
-        report = metrics["eval"]
-        return (
-            "mAP50-95="
-            f"{_format_float(_get_nested(report, 'metrics', 'map50_95'))}, "
-            f"mAP50={_format_float(_get_nested(report, 'metrics', 'map50'))}"
-        )
-    if "runtime_eval" in metrics:
-        report = metrics["runtime_eval"]
-        runtime = report.get("runtime", "runtime")
-        mean_ms = _get_nested(report, "latency", "mean_ms")
-        return (
-            f"{runtime}: mAP50-95="
-            f"{_format_float(_get_nested(report, 'metrics', 'map50_95'))}, "
-            f"latency_ms={_format_float(mean_ms)}"
-        )
     if "quant" in metrics:
         report = metrics["quant"]
         return (

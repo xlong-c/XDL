@@ -329,11 +329,9 @@ def main():
     print(f"   dataset = load_from_disk('{CONFIG['save_path']}')")
 
     if CONFIG["convert"]:
-        print("\n2. torchvision 格式 (推荐用于 torchao_vit.py):")
+        print("\n2. torchvision 格式:")
         print("   from torchvision.datasets import ImageNet")
         print(f"   dataset = ImageNet(root='{CONFIG['torchvision_path']}', split='val')")
-        print("\n修改 torchao_vit.py 中的路径:")
-        print(f"   IMAGE_NET_ROOT = r'{os.path.join(CONFIG['torchvision_path'], 'val')}'")
 
 
 if __name__ == "__main__":
