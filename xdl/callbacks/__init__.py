@@ -9,6 +9,7 @@ from .logging_callback import LoggingCallback, SystemStatsCallback
 from .model_checkpoint import ModelCheckpoint
 from .model_summary import ModelSummary
 from .preview import PreviewCallback
+from .quantization import QATLifecycleCallback, QATLifecycleState
 from .sampling_animation_callback import SamplingAnimationCallback
 from .save_trainable_state import SaveTrainableStateCallback
 from .tensorboard_callback import TensorBoardCallback
@@ -26,6 +27,8 @@ __all__ = [
     "ModelCheckpoint",
     "ModelSummary",
     "PreviewCallback",
+    "QATLifecycleCallback",
+    "QATLifecycleState",
     "SamplingAnimationCallback",
     "SaveTrainableStateCallback",
     "ConsoleCallback",
