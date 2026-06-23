@@ -68,22 +68,8 @@ xqt = [
     "onnxruntime>=1.18.0",
 ]
 
-xqt-hf = [
-    "transformers>=4.40.0",
-    "datasets>=2.18.0",
-]
-
-xqt-diffusion = [
-    "diffusers>=0.30.0",
-    "transformers>=4.40.0",
-    "accelerate>=0.27.0",
-    "safetensors>=0.3.0",
-]
-
 xqt-all = [
     "xdl[xqt]",
-    "xdl[xqt-hf]",
-    "xdl[xqt-diffusion]",
 ]
 
 # 完整安装（所有功能）
