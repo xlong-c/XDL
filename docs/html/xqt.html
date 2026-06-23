@@ -473,8 +473,8 @@ context = xdl_setup_to_xqt_context(
           </tr>
           <tr>
             <td><code>xqt/recipes/detection/yolo_detection_practice.yaml</code></td>
-            <td>Ultralytics YOLO detection stage workflow: baseline eval/latency, FP32 ONNX runtime eval, ONNX Runtime QDQ INT8, global L1 unstructured prune, torch.compile candidate, TensorRT/OpenVINO dry-run.</td>
-            <td>这条 recipe 现在和 <code>examples/yolo_detection_practice.py</code> 一起组成 stage-based detection practice 入口. 配置顶层使用 <code>model</code>, <code>task</code>, <code>data_splits</code> 和 <code>stages</code>,由 <code>xqt.workflows.optimize_model</code> 编排 baseline, runtime eval, quant, prune, operator 和 deploy 阶段. 示例入口只打印每个 stage 的 accepted/message/metrics/artifacts,不再维护 YOLO 专用场景矩阵或报告生成器.</td>
+            <td>Synthetic detection stage workflow: baseline eval/latency, FP32 ONNX runtime eval, ONNX Runtime QDQ INT8, global L1 unstructured prune.</td>
+            <td>这条 recipe 现在和 <code>examples/yolo_detection_practice.py</code> 一起组成 stage-based detection practice 入口. 示例文件可直接运行,默认内嵌不依赖 <code>ultralytics</code> 的轻量 detection workflow,也可通过 <code>XQT_YOLO_PRACTICE_CONFIG</code> 切到 YAML 或真实 RT-DETR TensorRT workflow. 配置顶层使用 <code>model</code>, <code>task</code>, <code>data_splits</code> 和 <code>stages</code>,由 <code>xqt.workflows.optimize_model</code> 编排 baseline, runtime eval, quant 和 prune 阶段.</td>
           </tr>
           <tr>
             <td><code>xqt/recipes/prune/unstructured/prune_finetune_cpu.yaml</code></td>

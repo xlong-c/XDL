@@ -42,7 +42,7 @@
         </p>
         <div class="hero-actions">
           <a class="button primary" href="#route">开始阅读</a>
-          <a class="button" href="../md/README.md">打开 MD 索引</a>
+          <a class="button" href="../md/README_SUMMARY.md">打开 MD 摘要</a>
         </div>
       </div>
 
@@ -58,18 +58,18 @@
         <div class="map-row">
           <div class="map-kind">MD</div>
           <div class="map-links">
-            <a class="pill" href="../md/README.md#xdl-安装与验证">安装</a>
-            <a class="pill" href="../md/README.md#xdl-项目结构与使用说明">框架</a>
-            <a class="pill" href="../md/README.md#xdl-config-系统说明">配置</a>
-            <a class="pill" href="../md/README.md#xdl-dataset-模板规划">数据集</a>
-            <a class="pill" href="../md/README.md#xdl-api-稳定边界">API</a>
-            <a class="pill" href="../md/XQT.md">XQT</a>
+            <a class="pill" href="../md/README_SUMMARY.md#安装与验证摘要">安装</a>
+            <a class="pill" href="../md/README_SUMMARY.md#框架与训练摘要">框架</a>
+            <a class="pill" href="../md/README_SUMMARY.md#配置系统摘要">配置</a>
+            <a class="pill" href="../md/README_SUMMARY.md#dataset-摘要">数据集</a>
+            <a class="pill" href="../md/README_SUMMARY.md#api-与模块边界摘要">API</a>
+            <a class="pill" href="../md/XQT_SUMMARY.md">XQT</a>
           </div>
         </div>
         <div class="map-row">
           <div class="map-kind">XQT 专题</div>
           <div class="map-links">
-            <a class="pill" href="../md/XQT.md">压缩与部署</a>
+            <a class="pill" href="../md/XQT_SUMMARY.md">压缩与部署</a>
           </div>
         </div>
       </div>
@@ -89,7 +89,7 @@
           <p>
             位于 <code>docs/md/</code>. 面向写代码和维护框架,内容更密,更靠近源码契约,适合快速查入口,生命周期,配置字段,API 边界和测试要求.
           </p>
-          <a href="../md/README.md">查看 MD 索引</a>
+          <a href="../md/README_SUMMARY.md">查看 MD 摘要</a>
         </article>
         <article class="card blue">
           <span class="tag">User</span>
@@ -122,7 +122,7 @@
             <strong>安装和验证</strong>
             <span>确认环境,依赖,可运行入口和基础测试命令.</span>
           </div>
-          <a href="../md/README.md#xdl-安装与验证">README.md#安装</a>
+          <a href="../md/README_SUMMARY.md#安装与验证摘要">摘要#安装</a>
         </div>
         <div class="route-item">
           <div class="number">2</div>
@@ -130,7 +130,7 @@
             <strong>框架是什么</strong>
             <span>理解 XDL 的定位,核心分层,训练入口和生命周期.</span>
           </div>
-          <a href="../md/README.md#xdl-项目结构与使用说明">README.md#框架</a>
+          <a href="../md/README_SUMMARY.md#框架与训练摘要">摘要#框架</a>
         </div>
         <div class="route-item">
           <div class="number">3</div>
@@ -138,7 +138,7 @@
             <strong>怎样写 YAML</strong>
             <span>理解 <code>setup_from_yaml()</code>,schema v1 和 <code>target + params</code> 组织方式.</span>
           </div>
-          <a href="../md/README.md#xdl-config-系统说明">README.md#配置</a>
+          <a href="../md/README_SUMMARY.md#配置系统摘要">摘要#配置</a>
         </div>
         <div class="route-item">
           <div class="number">4</div>
@@ -146,7 +146,7 @@
             <strong>怎样接数据集</strong>
             <span>先看模板选择,再看通用 dataset 模块结构图.</span>
           </div>
-          <a href="../md/README.md#xdl-dataset-模板规划">README.md#数据集</a>
+          <a href="../md/README_SUMMARY.md#dataset-摘要">摘要#数据集</a>
         </div>
         <div class="route-item">
           <div class="number">5</div>
@@ -154,7 +154,7 @@
             <strong>哪些 API 稳定</strong>
             <span>区分 Stable, Provisional 和 Internal,避免依赖内部实现.</span>
           </div>
-          <a href="../md/README.md#xdl-api-稳定边界">README.md#API</a>
+          <a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#API</a>
         </div>
         <div class="route-item">
           <div class="number">6</div>
@@ -162,7 +162,7 @@
             <strong>模块边界和后续方向</strong>
             <span>查子模块职责,再看当前仍有效的优化计划.</span>
           </div>
-          <a href="../md/README.md#xdl-模块功能边界速查">README.md#边界</a>
+          <a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#边界</a>
         </div>
         <div class="route-item">
           <div class="number">7</div>
@@ -170,7 +170,7 @@
             <strong>XQT 压缩与部署</strong>
             <span>查看量化,蒸馏,剪枝,扩散少步蒸馏和部署导出的长期工作文档.</span>
           </div>
-          <a href="../md/XQT.md">XQT.md</a>
+          <a href="../md/XQT_SUMMARY.md">XQT 摘要</a>
         </div>
       </div>
     </section>
@@ -191,32 +191,32 @@
         <tbody>
           <tr>
             <td>训练生命周期,Trainer,CoreModel,Callback</td>
-            <td><a href="../md/README.md#xdl-项目结构与使用说明">README.md#框架</a></td>
+            <td><a href="../md/README_SUMMARY.md#框架与训练摘要">摘要#框架</a></td>
             <td>确认手动优化,batch 迁移,日志和回调顺序.</td>
           </tr>
           <tr>
             <td>YAML 配置,schema,<code>target + params</code></td>
-            <td><a href="../md/README.md#xdl-config-系统说明">README.md#配置</a></td>
+            <td><a href="../md/README_SUMMARY.md#配置系统摘要">摘要#配置</a></td>
             <td>确认配置主链路和 OmegaConf 约束.</td>
           </tr>
           <tr>
             <td>数据集模板,collate,manifest</td>
-            <td><a href="../md/README.md#xdl-dataset-模板规划">README.md#数据集</a></td>
+            <td><a href="../md/README_SUMMARY.md#dataset-摘要">摘要#数据集</a></td>
             <td>确认应该复用模板,新增 thin adapter,还是只新增 transform/collate.</td>
           </tr>
           <tr>
             <td>公开入口,导出符号,兼容策略</td>
-            <td><a href="../md/README.md#xdl-api-稳定边界">README.md#API</a></td>
+            <td><a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#API</a></td>
             <td>确认 Stable / Provisional / Internal API 边界.</td>
           </tr>
           <tr>
             <td>目录职责或模块迁移</td>
-            <td><a href="../md/README.md#xdl-模块功能边界速查">README.md#边界</a></td>
+            <td><a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#边界</a></td>
             <td>确认逻辑应该放在哪个子模块.</td>
           </tr>
           <tr>
             <td><code>xqt/</code> 量化,蒸馏,剪枝,扩散少步蒸馏和部署格式导出</td>
-            <td><a href="../md/XQT.md">XQT.md</a></td>
+            <td><a href="../md/XQT_SUMMARY.md">XQT 摘要</a></td>
             <td>确认工具链边界,模块拆分,产物规范和任务排期.</td>
           </tr>
         </tbody>

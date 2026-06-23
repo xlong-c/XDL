@@ -1,4 +1,6 @@
-# XDL MD 工作文档总览
+# XDL MD 详细版事实源
+
+先看低负担入口时,优先打开 [README_SUMMARY.md](README_SUMMARY.md). 本文保留为详细版事实源,负责完整章节正文,具体字段,边界,兼容规则和检查清单.
 
 ## 第一规则
 
@@ -49,6 +51,13 @@
 | 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 与 `docs/html/` 分层清楚. |
 | 中文文档,注释或研究草案 | [XDL 写作标点规范](#xdl-写作标点规范) | 对本次改动文件运行 `scripts/normalize_punctuation.py`,不要一次性重写大量历史文档. |
 | HTML 视觉系统,公共 CSS,主题交互 | [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) | 同步 `../html/assets/` 和 HTML 页面引用. |
+
+## XDL 知识图谱使用约定
+
+- 本仓库在 `codebase-memory-mcp` 中的项目名固定为 `root-workspace-xdl`.
+- 使用 `search_graph`, `trace_path`, `get_code_snippet`, `query_graph`, `get_architecture`, `detect_changes`, `index_status` 等 MCP 图谱工具时, `project` 参数统一传 `root-workspace-xdl`,不要写成 `xdl`.
+- 需要重建索引时,对仓库根目录 `/root/workspace/xdl` 运行 `index_repository`,生成的项目仍应视为同一个 `root-workspace-xdl`.
+- 完成新增/删除模块,公开符号重命名,模块调用关系调整等结构性改动后,应重建或刷新该项目索引,保持知识图谱和代码一致.
 
 ## 文档边界
 

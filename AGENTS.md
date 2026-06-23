@@ -16,6 +16,7 @@ PyTorch 深度学习框架, 组件注册系统 + 回调生命周期. Python 3.12
 - **文档第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档,`docs/html/` 是给人类用户阅读的可视化文档. 新增长期 MD 放 `docs/md/`,新增自有 HTML 放 `docs/html/`.
 - **HTML 阅读页样式**: 仓库自有 HTML 是给人类阅读的可视化层,新增或重构 `docs/html/`,`research/`,`learn/` 等目录下的 HTML/CSS 时,先遵循 [docs/md/README.md#xdl-html-阅读页样式规范](docs/md/README.md#xdl-html-阅读页样式规范). 项目自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板之一;`math-doc-page`,`research-page`,`flash-attention-page` 等只能作为语义叠加 class,不能成为第三套视觉模板. 默认复用 `docs/html/assets/xdl-doc.css` 的主题 token 和公共组件,不要复制大段内联 `<style>`,不要使用散落的 `style=`,不要复制公共版式或为单页另写一套主题系统;需要交互式主题切换时复用 `docs/html/assets/xdl-theme.js`.
 - **知识图谱更新**：完成大的代码改动（新增/删除模块、重命名公开符号、模块间调用关系变化等结构性变更）后，手动运行 `index_repository` 刷新知识图谱，保持图与代码一致。
+- **知识图谱项目名约定**：本仓库在 `codebase-memory-mcp` 中的项目名固定使用 `root-workspace-xdl`。运行 `index_status`、`search_graph`、`trace_path`、`get_code_snippet`、`query_graph` 等工具时，`project` 参数统一传 `root-workspace-xdl`，不要写成 `xdl`。
 
 ## 架构
 

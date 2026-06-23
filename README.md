@@ -68,15 +68,20 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 1. [docs/html/index.html](docs/html/index.html)
 2. [docs/html/dataset-structure.html](docs/html/dataset-structure.html)
 
-给 Codex 和开发者改代码前看的高密度 MD 正文已经收拢到 [docs/md/README.md](docs/md/README.md):
+给 Codex 和开发者改代码前看的 MD 入口分成两层:
 
-1. [安装与验证](docs/md/README.md#xdl-安装与验证)
-2. [项目结构与使用说明](docs/md/README.md#xdl-项目结构与使用说明)
-3. [Config 系统说明](docs/md/README.md#xdl-config-系统说明)
-4. [Dataset 模板规划](docs/md/README.md#xdl-dataset-模板规划)
-5. [API 稳定边界](docs/md/README.md#xdl-api-稳定边界)
-6. [模块功能边界速查](docs/md/README.md#xdl-模块功能边界速查)
-7. [当前优化方向](docs/md/README.md#xdl-当前优化方向)
+1. 摘要入口: [docs/md/README_SUMMARY.md](docs/md/README_SUMMARY.md)
+2. 详细事实源: [docs/md/README.md](docs/md/README.md)
+
+先看摘要版时,可以按这个顺序进入:
+
+1. [安装与验证摘要](docs/md/README_SUMMARY.md#安装与验证摘要)
+2. [框架与训练摘要](docs/md/README_SUMMARY.md#框架与训练摘要)
+3. [配置系统摘要](docs/md/README_SUMMARY.md#配置系统摘要)
+4. [Dataset 摘要](docs/md/README_SUMMARY.md#dataset-摘要)
+5. [API 与模块边界摘要](docs/md/README_SUMMARY.md#api-与模块边界摘要)
+6. [文档与 HTML 规范摘要](docs/md/README_SUMMARY.md#文档与-html-规范摘要)
+7. [优化方向摘要](docs/md/README_SUMMARY.md#优化方向摘要)
 
 ## 稳定公共入口
 
