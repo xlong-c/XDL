@@ -1369,6 +1369,7 @@ xdl-usage
 - 具体内置模型,数据集,loss,metric,optimizer,scheduler 的注册名称和参数细节.
 - `RecordDatasetBase` 等 dataset 扩展基类.
 - 新增 dataset 模板的字段细节与返回结构, 包括 `ImageFolderDataset`, `ImageTextSidecarDataset`, `ImageMaskSidecarDataset`, `RecordMultiLabelClassificationDataset`, `RecordTextDataset`, `RecordTripletDataset`.
+- `QATLifecycleCallback` 和 QAT lifecycle 相关 callback 行为.
 - 复杂 callback 的完整构造参数,例如监控,日志,采样,设备统计类回调.
 
 使用这些 API 时,建议通过测试固定自己的项目契约.
@@ -1383,7 +1384,7 @@ xdl-usage
 - 具体文件布局,例如 `coreModel.py`,`trainer.py` 内部实现函数.
 - 临时研究,实验,工具目录中的脚本入口.
 - `xqt` registry 细节,包括 `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()` 的具体行为,键空间约束和冲突处理策略.
-- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.distill`, `xqt.diffusion_distill`, `xqt.export` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
+- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.operator_opt`, `xqt.export`, `xqt.eval`, `xqt.benchmark`, `xqt.data`, `xqt.model`, `xqt.integrations` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
 
 如果用户代码必须依赖 Internal API,建议先把需求提升为明确的公共 API,再补文档和测试.
 
