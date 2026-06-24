@@ -21,7 +21,7 @@
     <a class="back-link" href="index.html">返回文档阅读入口</a>
     <h1>XQT 模型优化阅读页</h1>
     <p class="subtitle">
-      XQT 只关注模型本身. 它接收 PyTorch 模型, checkpoint 或导出产物, 执行量化, 剪枝, 算子优化, 导出, 误差分析和 benchmark. 训练,QAT 训练,finetune,distillation,recovery,dataset 和 task validation 不属于 XQT.
+      XQT 只关注模型本身. 它接收 PyTorch 模型, checkpoint 或导出产物, 执行量化, 剪枝, 算子优化, 导出, 误差分析和 benchmark. 训练,QAT,finetune,distillation,recovery,dataset / dataloader 和 task-level validation 不属于 XQT.
     </p>
     <span class="note">事实源仍以 <a href="../md/XQT.md">docs/md/XQT.md</a> 和源码为准.</span>
   </header>
@@ -85,6 +85,30 @@
         <li>finetune / distill / QAT training / recovery training.</li>
         <li>teacher-student recipe, KD cache, diffusion distillation.</li>
       </ul>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>四. 性能分析工具</h2>
+        <p>Benchmark 给基线, profiler 给瓶颈归因.</p>
+      </div>
+      <div class="grid three">
+        <div class="card">
+          <h3>NVIDIA</h3>
+          <p><code>nsys</code> 看系统级 timeline,<code>ncu</code> 看 kernel 级 counters 和瓶颈.</p>
+        </div>
+        <div class="card">
+          <h3>ROCm / oneAPI</h3>
+          <p>AMD 用 <code>rocprof-sys</code> / <code>rocprof</code>,Intel 用 VTune GPU Hotspots / Offload.</p>
+        </div>
+        <div class="card">
+          <h3>NPU / 移动端</h3>
+          <p>Ascend 用 <code>msprof</code>,TPU 用 XProf,Arm / Qualcomm / Apple 使用各自官方 profiler.</p>
+        </div>
+      </div>
+      <p>
+        XQT 只记录 profiler 上下文和产物到 manifest,例如 <code>.ncu-rep</code>,<code>.nsys-rep</code>,ROCm trace,VTune result 或 <code>msprof</code> 目录;不接管工具安装,权限,驱动版本或 GUI 工作流.
+      </p>
     </section>
   </main>
 

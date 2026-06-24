@@ -17,12 +17,12 @@
 | --- | --- |
 | [../html/index.html](../html/index.html) | 阅读版总入口,按安装,理解框架,写配置,扩展数据集和 API 边界组织阅读路线. |
 | [../html/dataset-structure.html](../html/dataset-structure.html) | 通用 dataset 模块结构图和文件职责说明,不包含 hair 特殊数据集. |
-| [../html/xqt.html](../html/xqt.html) | XQT 压缩与部署工具链阅读页,提炼当前模块地图,recipe 状态和验证命令. |
+| [../html/xqt.html](../html/xqt.html) | XQT 压缩与部署工具链阅读页,提炼模型优化,导出,分析和 benchmark 的当前状态. |
 | [../html/style-showcase.html](../html/style-showcase.html) | HTML 阅读页两种固定模板和组件展示,用于维护视觉系统. |
 
 ## 给 agents 写代码看的 MD
 
-`README.md` 是 `docs/md/` 的正文事实源. 下面这些主题直接链接到本文章节;不再为这些 XDL 主题保留同名短文件.
+`README.md` 是 `docs/md/` 的正文事实源,下面这些主题直接链接到本文章节.
 
 | 顺序 | 章节 | 负责内容 |
 | --- | --- | --- |
@@ -35,7 +35,7 @@
 | 7 | [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
 | 8 | [XDL 模块功能边界速查](#xdl-模块功能边界速查) | 各源码子模块职责速查. |
 | 9 | [XDL 当前优化方向](#xdl-当前优化方向) | 当前仍有效的后续优化方向. |
-| 10 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署工具链的唯一长期 MD 入口,覆盖模块边界,数据角色,分析,量化,剪枝,蒸馏,导出,算子优化,recipe 和任务状态. |
+| 10 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署工具链的唯一长期 MD 入口. |
 
 ## 改动前必读
 
@@ -45,7 +45,7 @@
 | 训练生命周期,`CoreModel`,`Trainer`,Callback | [XDL 项目结构与使用说明](#xdl-项目结构与使用说明),[../../xdl/trainer/README.md](../../xdl/trainer/README.md) | 同步说明手动优化,batch 迁移,日志和回调顺序. |
 | YAML 配置,schema,`target + params` | [XDL Config 系统说明](#xdl-config-系统说明) | 同步字段,示例和配置主链路. |
 | 数据集模板,collate,manifest | [XDL Dataset 模板规划](#xdl-dataset-模板规划) | 同步模板选择表,注册名和测试要求. |
-| `xqt/` 模型压缩,部署,数据角色,分析,误差诊断,量化,剪枝,蒸馏,导出前融合,算子优化,recipe 或任务状态 | [XQT.md](XQT.md) | 同步唯一 XQT 长期 MD 入口,不要重新拆出阶段性专项文档. |
+| `xqt/` 模型压缩,导出,分析,benchmark | [XQT.md](XQT.md) | 同步唯一 XQT 长期 MD 入口. |
 | 安装,依赖,wheel,运行入口 | [XDL 安装与验证](#xdl-安装与验证),[../../xdl/USAGE.md](../../xdl/USAGE.md) | 同步安装命令和包内用法入口. |
 | 子模块职责,目录迁移 | [XDL 模块功能边界速查](#xdl-模块功能边界速查) | 同步目录职责和依赖方向. |
 | 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 与 `docs/html/` 分层清楚. |
@@ -69,7 +69,7 @@
 - [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) 只讲自有 HTML 阅读页的视觉系统和样式维护规则,不定义框架行为.
 - [XDL 模块功能边界速查](#xdl-模块功能边界速查) 只做模块职责速查,不重复写长篇使用指南.
 - [XDL 当前优化方向](#xdl-当前优化方向) 只保留仍然有效的待办,不复述现状说明.
-- `XQT.md` 是 `xqt/` 唯一长期 MD 入口,只讲压缩与部署工具链的事实边界,模块状态,分析与误差诊断,recipe 和仍有效任务;阶段性研究和完成后失效的任务清单不要继续拆到 `docs/md/`.
+- `XQT.md` 是 `xqt/` 唯一长期 MD 入口,只讲压缩与部署工具链的事实边界,配置方式,现有能力和现状约束;阶段性研究和完成后失效的任务清单不要继续拆到 `docs/md/`.
 
 ## XDL 写作标点规范
 
@@ -1383,8 +1383,7 @@ xdl-usage
 - `Trainer`,`CoreModel`,callback 内部状态字段,除公开 property 和文档明确说明的字段外.
 - 具体文件布局,例如 `coreModel.py`,`trainer.py` 内部实现函数.
 - 临时研究,实验,工具目录中的脚本入口.
-- `xqt` pass recipe 旧链路和 registry 细节,包括 `XQTConfig`, `load_xqt_config()`, `run_xqt_recipe()`, `preflight_xqt_config()`, `XQTRegistry`, `PASS_REGISTRY`, `RECIPE_REGISTRY`, `EXPORTER_REGISTRY`, `register_pass()`, `register_recipe()`, `register_exporter()` 的具体行为,键空间约束和冲突处理策略.
-- 未列入 Provisional 的 `xqt` 子模块细节,包括 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.operator_opt`, `xqt.export`, `xqt.analysis`, `xqt.benchmark`, `xqt.model`, `xqt.integrations` 内部类和函数.这些接口仍需经过真实 recipe,测试和文档验证后再提升.
+- `xqt` 旧 pass recipe 链路和 registry 细节,以及未列入 Provisional 的 `xqt.core`, `xqt.pipeline`, `xqt.quant`, `xqt.prune`, `xqt.operator_opt`, `xqt.export`, `xqt.analysis`, `xqt.benchmark`, `xqt.model`, `xqt.integrations` 内部实现.
 
 如果用户代码必须依赖 Internal API,建议先把需求提升为明确的公共 API,再补文档和测试.
 
