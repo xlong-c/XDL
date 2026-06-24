@@ -1360,7 +1360,8 @@ xdl-usage
 
 以下 API 当前可用,但仍处于演进期:
 
-- `xqt` 顶层实验入口: `optimize_model`, `load_optimization_config`, `XQTOptimizationSession`, `OptimizedModelResult`, `OptimizationConfig`, `OptimizationStageConfig`, `OptimizationStageResult`, `StageAcceptanceConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`.
+- `xqt` 顶层实验入口: `optimize_model`, `load_optimization_config`, `XQTOptimizationSession`, `OptimizedModelResult`, `OptimizationConfig`, `OptimizationStageConfig`, `OptimizationStageResult`, `StageAcceptanceConfig`, `ArtifactManifest`, `ArtifactRecord`, `MetricRecord`, `assess_xqt_readiness`, `XQTReadinessReport`, `XQTReadinessScenario`.
+- `xqt.export` 中的 TensorRT plugin 轻量验证入口: `validate_tensorrt_plugin_libraries`, `TensorRTPluginValidationResult`, `TensorRTPluginLibraryCheck`.
 - `xqt` 到 XDL 的适配入口: `xdl_setup_to_xqt_context`, `xdl_checkpoint_to_xqt_context`, `load_checkpoint_into_model`.
 - `xdl.config` 中的 schema dataclass,例如 `ConfigSchemaV1`,`RuntimeConfig`,`TrainerConfig`.
 - `xdl.config` 中的 resolver 工具,例如 `load_config_with_schema()`,`merge_with_schema()`,`resolve_config()`.
