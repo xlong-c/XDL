@@ -124,8 +124,8 @@ artifacts/xqt/
 # data/ 存放本地数据集和样本数据(MNIST/FashionMNIST/CIFAR-100/coco8 等),默认整体忽略.
 # data/AGENTS.md 是给 agent 和开发者看的目录说明,用 !data/AGENTS.md 例外保留入库,
 # 其余数据文件继续忽略, 不跟踪任何数据本体.
-data
-datasets
+data/
+datasets/
 !data/AGENTS.md
 raw_data/
 rawdata/
