@@ -52,6 +52,18 @@ from .distillation_loss import (
     relation_distillation_loss,
 )
 
+# 扩散模型步数蒸馏损失
+from .diffusion_distillation_loss import tdm_loss, tdm_loss_weighted
+
+# 偏好优化损失 (DPO / STPO / GRPO)
+from .preference_loss import (
+    GRPOLossBreakdown,
+    STPOLossBreakdown,
+    dpo_loss,
+    grpo_loss,
+    stpo_loss,
+)
+
 # 分割损失
 from .dice_loss import DiceLoss, GeneralizedDiceLoss
 from .segmentation_loss import (
@@ -113,6 +125,15 @@ def _register_losses():
     register_loss("feature_distillation_loss")(feature_distillation_loss)
     register_loss("relation_distillation_loss")(relation_distillation_loss)
 
+    # 扩散模型步数蒸馏损失
+    register_loss("tdm_loss")(tdm_loss)
+    register_loss("tdm_loss_weighted")(tdm_loss_weighted)
+
+    # 偏好优化损失
+    register_loss("dpo_loss")(dpo_loss)
+    register_loss("stpo_loss")(stpo_loss)
+    register_loss("grpo_loss")(grpo_loss)
+
     # 分割损失
     register_loss("DiceLoss")(DiceLoss)
     register_loss("GeneralizedDiceLoss")(GeneralizedDiceLoss)
@@ -173,4 +194,11 @@ __all__ = [
     "SequenceCrossEntropyLoss",
     "TokenClassificationLoss",
     "CausalLanguageModelingLoss",
+    "dpo_loss",
+    "stpo_loss",
+    "grpo_loss",
+    "STPOLossBreakdown",
+    "GRPOLossBreakdown",
+    "tdm_loss",
+    "tdm_loss_weighted",
 ]

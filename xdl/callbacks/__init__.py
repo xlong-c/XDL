@@ -7,9 +7,12 @@ from .layer_monitor import LayerMonitor
 from .learning_rate_monitor import LearningRateMonitor
 from .logging_callback import LoggingCallback, SystemStatsCallback
 from .model_checkpoint import ModelCheckpoint
+from .model_merge import ModelMergeCallback
 from .model_summary import ModelSummary
 from .preview import PreviewCallback
 from .quantization import QATLifecycleCallback, QATLifecycleState
+from .reference_model import ReferenceModelCallback
+from .rollout import RolloutBatch, RolloutCallback
 from .sampling_animation_callback import SamplingAnimationCallback
 from .save_trainable_state import SaveTrainableStateCallback
 from .tensorboard_callback import TensorBoardCallback
@@ -37,5 +40,9 @@ __all__ = [
     "TensorBoardCallback",
     "Timer",
     "TqdmCallback",
+    "ModelMergeCallback",
+    "ReferenceModelCallback",
+    "RolloutBatch",
+    "RolloutCallback",
     "WandbCallback",
 ]
