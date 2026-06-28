@@ -17,6 +17,7 @@ from .sampling_animation_callback import SamplingAnimationCallback
 from .save_trainable_state import SaveTrainableStateCallback
 from .tensorboard_callback import TensorBoardCallback
 from .timer import Timer
+from .torch_profiler import TorchProfilerCallback
 from .tqdm_callback import TqdmCallback
 from .wandb_callback import WandbCallback
 
@@ -39,6 +40,7 @@ __all__ = [
     "SystemStatsCallback",
     "TensorBoardCallback",
     "Timer",
+    "TorchProfilerCallback",
     "TqdmCallback",
     "ModelMergeCallback",
     "ReferenceModelCallback",

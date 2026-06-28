@@ -6,7 +6,19 @@ xdl 框架初始化模块。
 """
 
 from importlib import import_module
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from . import callbacks as callbacks
+    from . import config as config
+    from . import dataset as dataset
+    from . import loss as loss
+    from . import metric as metric
+    from . import model as model
+    from . import optimizer as optimizer
+    from . import scheduler as scheduler
+    from . import trainer as trainer
+    from . import utils as utils
 
 _LAZY_SUBMODULES = {
     "callbacks",

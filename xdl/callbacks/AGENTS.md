@@ -19,6 +19,7 @@
 - `learning_rate_monitor.py`:学习率监控
 - `device_stats_monitor.py`:设备资源监控
 - `timer.py`:计时
+- `torch_profiler.py`: PyTorch profiler trace 导出
 - `model_summary.py`:模型结构摘要
 - `lambda_callback.py`:轻量钩子封装
 - `logging_callback.py`:通用日志回调
@@ -27,7 +28,7 @@
 - `preview.py`: 任务预览采样触发
 - `quantization.py`: QAT observer/fake-quant/BN lifecycle callback
 
-当前 `xdl.callbacks.__all__` 导出 **20** 个名称.
+当前 `xdl.callbacks.__all__` 导出 **25** 个名称.
 
 ## 核心约束
 
@@ -49,6 +50,7 @@ from xdl.callbacks import (
     ModelCheckpoint,
     SaveTrainableStateCallback,
     TensorBoardCallback,
+    TorchProfilerCallback,
     TqdmCallback,
 )
 from xdl.trainer import Trainer
@@ -58,6 +60,7 @@ trainer = Trainer(
         TqdmCallback(),
         ModelCheckpoint(dirpath="checkpoints", monitor="val_loss"),
         TensorBoardCallback(log_dir="logs"),
+        TorchProfilerCallback(log_dir="logs/profiler"),
     ]
 )
 ```
