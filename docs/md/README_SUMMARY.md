@@ -1,11 +1,11 @@
 # XDL MD 摘要入口
 
-本文是 `docs/md/README.md` 的摘要版入口,用于先给 agents 和开发者一个低负担地图,再按需进入详细事实源. 行为,字段,API 和兼容承诺仍以 [README.md](README.md) 及源码为准.
+本文保留为 `XDL` 的兼容摘要入口. 新的 Markdown 主导航已经迁到 [index.md](index.md), 并按架构 / 说明 / 使用三层组织. 行为,字段,API 和兼容承诺仍以 [README.md](README.md) 及源码为准.
 
 ## 这篇摘要负责什么
 
-- 先说明 `docs/md/README.md` 各章节分别解决什么问题.
-- 给出推荐阅读顺序和常见改动的跳转入口.
+- 指向新的三层入口和旧总文档之间的关系.
+- 保留低负担阅读地图,帮助现有链接平滑过渡.
 - 提醒哪些主题必须直接看详细版.
 
 ## 这篇摘要不负责什么
@@ -15,26 +15,32 @@
 
 ## 推荐阅读顺序
 
-1. [安装与验证摘要](#安装与验证摘要)
-2. [框架与训练摘要](#框架与训练摘要)
-3. [配置系统摘要](#配置系统摘要)
-4. [Dataset 摘要](#dataset-摘要)
-5. [API 与模块边界摘要](#api-与模块边界摘要)
-6. [文档与 HTML 规范摘要](#文档与-html-规范摘要)
-7. [优化方向摘要](#优化方向摘要)
+1. [index.md](index.md)
+2. [architecture/xdl.md](architecture/xdl.md)
+3. [explanation/xdl-concepts.md](explanation/xdl-concepts.md)
+4. [usage/xdl-install-and-verify.md](usage/xdl-install-and-verify.md)
+5. [usage/xdl-config-workflows.md](usage/xdl-config-workflows.md)
+6. [usage/xdl-workflows.md](usage/xdl-workflows.md)
+7. [README.md](README.md)
+
+## 三层入口
+
+- 架构层: [architecture/index.md](architecture/index.md)
+- 说明层: [explanation/index.md](explanation/index.md)
+- 使用层: [usage/index.md](usage/index.md)
 
 ## 常见改动先看哪里
 
 | 改动范围 | 先看摘要 | 再进详细版 |
 | --- | --- | --- |
-| 安装,依赖,wheel,运行验证 | [安装与验证摘要](#安装与验证摘要) | [README.md#xdl-安装与验证](README.md#xdl-安装与验证) |
-| `Trainer`,`CoreModel`,回调,手动优化 | [框架与训练摘要](#框架与训练摘要) | [README.md#xdl-项目结构与使用说明](README.md#xdl-项目结构与使用说明), [../../xdl/trainer/README.md](../../xdl/trainer/README.md) |
-| YAML 配置,schema,`target + params` | [配置系统摘要](#配置系统摘要) | [README.md#xdl-config-系统说明](README.md#xdl-config-系统说明) |
-| 数据集模板,manifest,collate | [Dataset 摘要](#dataset-摘要) | [README.md#xdl-dataset-模板规划](README.md#xdl-dataset-模板规划) |
-| 公开 API,导出符号,兼容策略 | [API 与模块边界摘要](#api-与模块边界摘要) | [README.md#xdl-api-稳定边界](README.md#xdl-api-稳定边界) |
-| 子模块职责或目录迁移 | [API 与模块边界摘要](#api-与模块边界摘要) | [README.md#xdl-模块功能边界速查](README.md#xdl-模块功能边界速查) |
-| 文档结构,HTML 视觉系统 | [文档与 HTML 规范摘要](#文档与-html-规范摘要) | [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范), [../AGENTS.md](../AGENTS.md) |
-| 框架后续待办 | [优化方向摘要](#优化方向摘要) | [README.md#xdl-当前优化方向](README.md#xdl-当前优化方向) |
+| 安装,依赖,wheel,运行验证 | [usage/xdl-install-and-verify.md](usage/xdl-install-and-verify.md) | [README.md#xdl-安装与验证](README.md#xdl-安装与验证) |
+| `Trainer`,`CoreModel`,回调,手动优化 | [architecture/xdl.md](architecture/xdl.md) | [README.md#xdl-项目结构与使用说明](README.md#xdl-项目结构与使用说明), [../../xdl/trainer/README.md](../../xdl/trainer/README.md) |
+| YAML 配置,schema,`target + params` | [usage/xdl-config-workflows.md](usage/xdl-config-workflows.md) | [README.md#xdl-config-系统说明](README.md#xdl-config-系统说明) |
+| 数据集模板,manifest,collate | [architecture/dataset-policy.md](architecture/dataset-policy.md) | [README.md#xdl-dataset-模板规划](README.md#xdl-dataset-模板规划) |
+| 公开 API,导出符号,兼容策略 | [architecture/api-boundary.md](architecture/api-boundary.md) | [README.md#xdl-api-稳定边界](README.md#xdl-api-稳定边界) |
+| 子模块职责或目录迁移 | [architecture/module-boundaries.md](architecture/module-boundaries.md) | [README.md#xdl-模块功能边界速查](README.md#xdl-模块功能边界速查) |
+| 文档结构,HTML 视觉系统 | [architecture/html-style-policy.md](architecture/html-style-policy.md) | [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范), [../AGENTS.md](../AGENTS.md) |
+| 框架后续待办 | [architecture/roadmap.md](architecture/roadmap.md) | [README.md#xdl-当前优化方向](README.md#xdl-当前优化方向) |
 | XQT 压缩与部署 | [XQT 摘要入口](XQT_SUMMARY.md) | [XQT.md](XQT.md) |
 
 ## 安装与验证摘要
@@ -71,7 +77,7 @@ XDL 的核心是三层:
 - YAML 组织方式以 `target + params` 为主.
 - 加载,合并,插值和容器转换优先交给 `OmegaConf`.
 
-不要在训练入口散落手写 `yaml.safe_load` 合并逻辑. 具体 schema 结构,字段职责和 `setup_from_yaml()` 边界见 [README.md#xdl-config-系统说明](README.md#xdl-config-系统说明).
+不要在训练入口散落手写 `yaml.safe_load` 合并逻辑. 当前 canonical 页面先看 [usage/xdl-config-workflows.md](usage/xdl-config-workflows.md); 兼容锚点和详细承接见 [README.md#xdl-config-系统说明](README.md#xdl-config-系统说明).
 
 ## Dataset 摘要
 
@@ -81,7 +87,7 @@ XDL 的核心是三层:
 - dataset 能力通过注册系统接入.
 - 模板选择,磁盘组织和扩展流程在详细版统一维护.
 
-改 manifest,loader,collate 或新 dataset 模板时,直接看 [README.md#xdl-dataset-模板规划](README.md#xdl-dataset-模板规划).
+改 manifest,loader,collate 或新 dataset 模板时,当前 canonical 页面先看 [architecture/dataset-policy.md](architecture/dataset-policy.md); 兼容锚点见 [README.md#xdl-dataset-模板规划](README.md#xdl-dataset-模板规划).
 
 ## API 与模块边界摘要
 
@@ -109,7 +115,7 @@ from xdl.callbacks import Callback
 - `docs/html/`: 给人类读者的阅读版.
 - 同一主题先改 MD,再同步 HTML.
 
-HTML 自有页面统一复用 `docs/html/assets/xdl-doc.css` 和 `docs/html/assets/xdl-theme.js`,并遵循固定模板约束. 详细规范见 [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范).
+HTML 自有页面统一复用 `docs/html/assets/xdl-doc.css` 和 `docs/html/assets/xdl-theme.js`,并遵循固定模板约束. 当前 canonical 页面见 [architecture/html-style-policy.md](architecture/html-style-policy.md),兼容锚点见 [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范).
 
 ## 优化方向摘要
 

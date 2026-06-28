@@ -14,7 +14,7 @@
       <a class="brand" href="../../README.md">XDL Docs</a>
       <div class="topbar-cluster">
         <nav aria-label="文档导航">
-          <a href="#split">两类文档</a>
+          <a href="#split">三层文档</a>
           <a href="#route">阅读路线</a>
           <a href="#work">写代码前</a>
           <a href="#html-pages">HTML 页面</a>
@@ -38,38 +38,38 @@
         <p class="eyebrow">XDL documentation</p>
         <h1>XDL 文档阅读入口</h1>
         <p class="lead">
-          这里是给用户看的阅读版入口. <code>docs/html/</code> 用来阅读和理解,<code>docs/md/</code> 用来让 agents 和开发者确认事实边界并改代码.
+          这里是给用户看的阅读版入口. `XDL` 与 `XQT` 的长期文档已经按架构,说明,使用三层组织; <code>docs/html/</code> 负责阅读体验,<code>docs/md/</code> 负责事实源和实现导航.
         </p>
         <div class="hero-actions">
           <a class="button primary" href="#route">开始阅读</a>
-          <a class="button" href="../md/README_SUMMARY.md">打开 MD 摘要</a>
+          <a class="button" href="../md/index.md">打开 MD 总入口</a>
         </div>
       </div>
 
       <div class="map-panel" aria-label="XDL 文档地图">
         <div class="map-title">文档分层</div>
         <div class="map-row">
-          <div class="map-kind">HTML</div>
+          <div class="map-kind">Architecture</div>
           <div class="map-links">
-            <a class="pill" href="index.html">阅读入口</a>
-            <a class="pill" href="dataset-structure.html">Dataset 结构</a>
+            <a class="pill" href="../md/architecture/xdl.md">XDL</a>
+            <a class="pill" href="../md/architecture/api-boundary.md">API</a>
+            <a class="pill" href="../md/architecture/xqt.md">XQT</a>
           </div>
         </div>
         <div class="map-row">
-          <div class="map-kind">MD</div>
+          <div class="map-kind">Explanation</div>
           <div class="map-links">
-            <a class="pill" href="../md/README_SUMMARY.md#安装与验证摘要">安装</a>
-            <a class="pill" href="../md/README_SUMMARY.md#框架与训练摘要">框架</a>
-            <a class="pill" href="../md/README_SUMMARY.md#配置系统摘要">配置</a>
-            <a class="pill" href="../md/README_SUMMARY.md#dataset-摘要">数据集</a>
-            <a class="pill" href="../md/README_SUMMARY.md#api-与模块边界摘要">API</a>
-            <a class="pill" href="../md/XQT_SUMMARY.md">XQT</a>
+            <a class="pill" href="../md/explanation/xdl-concepts.md">XDL 概念</a>
+            <a class="pill" href="dataset-structure.html">Dataset</a>
+            <a class="pill" href="../md/explanation/xqt-concepts.md">XQT 概念</a>
           </div>
         </div>
         <div class="map-row">
-          <div class="map-kind">XQT 专题</div>
+          <div class="map-kind">Usage</div>
           <div class="map-links">
-            <a class="pill" href="../md/XQT_SUMMARY.md">压缩与部署</a>
+            <a class="pill" href="../md/usage/xdl-install-and-verify.md">安装</a>
+            <a class="pill" href="../md/usage/xdl-workflows.md">XDL 工作流</a>
+            <a class="pill" href="../md/usage/xqt-workflows.md">XQT 工作流</a>
           </div>
         </div>
       </div>
@@ -79,33 +79,33 @@
   <main>
     <section id="split">
       <div class="section-head">
-        <h2>两类文档</h2>
-        <p>同一套事实,两种读法. <code>docs/md/</code> 是工作台,<code>docs/html/</code> 是阅读地图.</p>
+        <h2>三层文档</h2>
+        <p>同一套事实,三种正文职责. 架构管边界,说明管概念,使用管动作; HTML 负责把这三层讲得更好读.</p>
       </div>
       <div class="card-grid">
         <article class="card">
-          <span class="tag">Codex</span>
-          <h3>MD 工作文档</h3>
+          <span class="tag">Architecture</span>
+          <h3>架构层</h3>
           <p>
-            位于 <code>docs/md/</code>. 面向写代码和维护框架,内容更密,更靠近源码契约,适合快速查入口,生命周期,配置字段,API 边界和测试要求.
+            定义系统边界,模块关系,生命周期和 API 稳定性. 改行为,改边界,改导出符号时优先回到这一层.
           </p>
-          <a href="../md/README_SUMMARY.md">查看 MD 摘要</a>
+          <a href="../md/architecture/index.md">查看架构入口</a>
         </article>
         <article class="card blue">
-          <span class="tag">User</span>
-          <h3>HTML 阅读版</h3>
+          <span class="tag">Explanation</span>
+          <h3>说明层</h3>
           <p>
-            位于 <code>docs/html/</code>. 面向顺畅阅读和整体理解,用更清楚的结构,卡片和表格解释概念,帮助你先看懂框架,再决定要深入哪篇 MD.
+            解释概念,术语和理解路径. 适合先建立认知,再进入架构正文或工作流.
           </p>
-          <a href="#html-pages">查看 HTML 页面</a>
+          <a href="../md/explanation/index.md">查看说明入口</a>
         </article>
         <article class="card amber">
-          <span class="tag">Rule</span>
-          <h3>事实源规则</h3>
+          <span class="tag">Usage</span>
+          <h3>使用层</h3>
           <p>
-            行为,字段,API 和兼容承诺以源码和对应 MD 为准. HTML 可以提炼和重排,但不能和 MD 或源码产生冲突.
+            提供安装,命令,workflow,验证和 handoff. 这是给下一个人或 agent 直接照着做的层.
           </p>
-          <a href="../AGENTS.md">查看文档约束</a>
+          <a href="../md/usage/index.md">查看使用入口</a>
         </article>
       </div>
     </section>
@@ -113,7 +113,7 @@
     <section id="route">
       <div class="section-head">
         <h2>推荐阅读路线</h2>
-        <p>第一次看 XDL 时,按这条路走. 每一步都可以直接跳到高密度 MD.</p>
+        <p>第一次看 XDL / XQT 时,按这条路走. 每一步都可以直接跳到对应层级的 Markdown 正文.</p>
       </div>
       <div class="route">
         <div class="route-item">
@@ -122,7 +122,7 @@
             <strong>安装和验证</strong>
             <span>确认环境,依赖,可运行入口和基础测试命令.</span>
           </div>
-          <a href="../md/README_SUMMARY.md#安装与验证摘要">摘要#安装</a>
+          <a href="../md/usage/xdl-install-and-verify.md">使用#安装</a>
         </div>
         <div class="route-item">
           <div class="number">2</div>
@@ -130,7 +130,7 @@
             <strong>框架是什么</strong>
             <span>理解 XDL 的定位,核心分层,训练入口和生命周期.</span>
           </div>
-          <a href="../md/README_SUMMARY.md#框架与训练摘要">摘要#框架</a>
+          <a href="../md/architecture/xdl.md">架构#XDL</a>
         </div>
         <div class="route-item">
           <div class="number">3</div>
@@ -138,7 +138,7 @@
             <strong>怎样写 YAML</strong>
             <span>理解 <code>setup_from_yaml()</code>,schema v1 和 <code>target + params</code> 组织方式.</span>
           </div>
-          <a href="../md/README_SUMMARY.md#配置系统摘要">摘要#配置</a>
+          <a href="../md/usage/xdl-config-workflows.md">使用#配置</a>
         </div>
         <div class="route-item">
           <div class="number">4</div>
@@ -146,7 +146,7 @@
             <strong>怎样接数据集</strong>
             <span>先看模板选择,再看通用 dataset 模块结构图.</span>
           </div>
-          <a href="../md/README_SUMMARY.md#dataset-摘要">摘要#数据集</a>
+          <a href="dataset-structure.html">阅读#Dataset</a>
         </div>
         <div class="route-item">
           <div class="number">5</div>
@@ -154,7 +154,7 @@
             <strong>哪些 API 稳定</strong>
             <span>区分 Stable, Provisional 和 Internal,避免依赖内部实现.</span>
           </div>
-          <a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#API</a>
+          <a href="../md/architecture/api-boundary.md">架构#API</a>
         </div>
         <div class="route-item">
           <div class="number">6</div>
@@ -162,7 +162,7 @@
             <strong>模块边界和后续方向</strong>
             <span>查子模块职责,再看当前仍有效的优化计划.</span>
           </div>
-          <a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#边界</a>
+          <a href="../md/usage/xdl-workflows.md">使用#工作流</a>
         </div>
         <div class="route-item">
           <div class="number">7</div>
@@ -170,7 +170,7 @@
             <strong>XQT 压缩与部署</strong>
             <span>查看量化,剪枝,算子优化,导出和分析的长期工作文档.</span>
           </div>
-          <a href="../md/XQT_SUMMARY.md">XQT 摘要</a>
+          <a href="../md/architecture/xqt.md">架构#XQT</a>
         </div>
       </div>
     </section>
@@ -178,7 +178,7 @@
     <section id="work">
       <div class="section-head">
         <h2>写代码前看什么</h2>
-        <p>改动不同区域时,优先回到对应 MD. 这也是 Codex 修改代码前应使用的路线.</p>
+        <p>改动不同区域时,优先回到对应层级的 MD. 这也是 Codex 修改代码前应使用的路线.</p>
       </div>
       <table>
         <thead>
@@ -191,32 +191,32 @@
         <tbody>
           <tr>
             <td>训练生命周期,Trainer,CoreModel,Callback</td>
-            <td><a href="../md/README_SUMMARY.md#框架与训练摘要">摘要#框架</a></td>
+            <td><a href="../md/architecture/xdl.md">架构#XDL</a></td>
             <td>确认手动优化,batch 迁移,日志和回调顺序.</td>
           </tr>
           <tr>
             <td>YAML 配置,schema,<code>target + params</code></td>
-            <td><a href="../md/README_SUMMARY.md#配置系统摘要">摘要#配置</a></td>
+            <td><a href="../md/usage/xdl-config-workflows.md">使用#配置</a></td>
             <td>确认配置主链路和 OmegaConf 约束.</td>
           </tr>
           <tr>
             <td>数据集模板,collate,manifest</td>
-            <td><a href="../md/README_SUMMARY.md#dataset-摘要">摘要#数据集</a></td>
+            <td><a href="dataset-structure.html">阅读#Dataset</a></td>
             <td>确认应该复用模板,新增 thin adapter,还是只新增 transform/collate.</td>
           </tr>
           <tr>
             <td>公开入口,导出符号,兼容策略</td>
-            <td><a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#API</a></td>
+            <td><a href="../md/architecture/api-boundary.md">架构#API</a></td>
             <td>确认 Stable / Provisional / Internal API 边界.</td>
           </tr>
           <tr>
             <td>目录职责或模块迁移</td>
-            <td><a href="../md/README_SUMMARY.md#api-与模块边界摘要">摘要#边界</a></td>
+            <td><a href="../md/architecture/xdl.md">架构#XDL</a></td>
             <td>确认逻辑应该放在哪个子模块.</td>
           </tr>
           <tr>
             <td><code>xqt/</code> 模型压缩,图变换,导出适配和 benchmark</td>
-            <td><a href="../md/XQT_SUMMARY.md">XQT 摘要</a></td>
+            <td><a href="../md/architecture/xqt.md">架构#XQT</a></td>
             <td>确认工具链边界,配置方式,现有能力和现状约束.</td>
           </tr>
         </tbody>
@@ -232,7 +232,7 @@
         <article class="card blue">
           <span class="tag">Index</span>
           <h3>文档阅读入口</h3>
-          <p>当前页面. 用来从阅读版进入各个长期文档,并说明 MD/HTML 的职责分层.</p>
+          <p>当前页面. 用来从阅读版进入三层 Markdown 正文,并说明 HTML 与 Markdown 的职责分层.</p>
           <a href="index.html">打开当前页</a>
         </article>
         <article class="card">
@@ -254,7 +254,7 @@
       <div class="fact-box">
         <h2>维护规则</h2>
         <p>
-          当框架行为,配置字段,注册名称或 API 边界变化时,先更新对应 MD 和测试. 如果 HTML 页面覆盖了同一主题,再同步更新 HTML,确保好读版不漂离真实实现.
+          当框架行为,配置字段,注册名称或 API 边界变化时,先更新对应 Markdown 正文和测试. 如果 HTML 页面覆盖了同一主题,再同步更新 HTML,确保好读版不漂离真实实现.
         </p>
       </div>
     </section>
@@ -262,7 +262,7 @@
 
   <footer>
     <div class="inner">
-      XDL docs. MD 用于实现和维护,HTML 用于阅读和理解.
+      XDL docs. Markdown 按架构 / 说明 / 使用分层, HTML 用于阅读和理解.
     </div>
   </footer>
 </body>
