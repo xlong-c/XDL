@@ -41,6 +41,20 @@ def get_usage_text() -> str:
     return _get_usage_text()
 
 
+def get_usage_payload() -> Any:
+    """返回结构化的 usage 内容, 便于 agent 或外部工具直接消费。"""
+    from .usage import get_usage_payload as _get_usage_payload
+
+    return _get_usage_payload()
+
+
+def get_usage_questions() -> Any:
+    """返回编写功能前建议先确认的问答清单。"""
+    from .usage import get_usage_questions as _get_usage_questions
+
+    return _get_usage_questions()
+
+
 def print_usage() -> None:
     """打印随 wheel 分发的 XDL 单文件使用说明。"""
     from .usage import print_usage as _print_usage
@@ -68,5 +82,7 @@ __all__ = [
     "trainer",
     "utils",
     "get_usage_text",
+    "get_usage_payload",
+    "get_usage_questions",
     "print_usage",
 ]

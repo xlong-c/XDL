@@ -7,7 +7,10 @@ import sys
 def test_top_level_usage_api_is_lightweight() -> None:
     script = (
         "import xdl; "
-        "assert xdl.get_usage_text().startswith('# XDL'); "
+        "text = xdl.get_usage_text(); "
+        "assert text.startswith('# XDL Agent Usage'); "
+        "assert '先做什么' in text; "
+        "assert '推荐默认' in text; "
         "assert 'trainer' not in xdl.__dict__"
     )
 
