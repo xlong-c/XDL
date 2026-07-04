@@ -18,6 +18,8 @@
 
 - [xdl-concepts.md](xdl-concepts.md): `XDL` 的概念地图和理解路径.
 - [xqt-concepts.md](xqt-concepts.md): `XQT` 的概念地图和边界理解.
+- [backends/index.md](backends/index.md): XQT 导出, runtime 和 operator optimization 后端分文档入口.
+- [inference-backends-primer.md](inference-backends-primer.md): 推理后端和模型部署格式的基础介绍, 不绑定 `XQT` 实现.
 - [dataset-structure.md](dataset-structure.md): dataset 模块的概念说明和阅读路径.
 - [html-style.md](html-style.md): HTML 阅读页的分层说明.
 - `HTML`: 阅读版入口见 [../../html/index.html](../../html/index.html) 和 [../../html/xqt.html](../../html/xqt.html).
@@ -34,5 +36,7 @@
 ### XQT
 
 1. [xqt-concepts.md](xqt-concepts.md)
-2. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
-3. [../../html/xqt.html](../../html/xqt.html)
+2. [backends/index.md](backends/index.md)
+3. [inference-backends-primer.md](inference-backends-primer.md)
+4. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
+5. [../../html/xqt.html](../../html/xqt.html)
