@@ -87,7 +87,6 @@ def build_tilelang_flashatt(
                 q_shared = T.alloc_shared([block_m, head_dim], dtype)
                 k_shared = T.alloc_shared([block_n, head_dim], dtype)
                 v_shared = T.alloc_shared([block_n, head_dim], dtype)
-                o_shared = T.alloc_shared([block_m, head_dim], dtype)
 
                 acc_s = T.alloc_fragment([block_m, block_n], accum_dtype)
                 acc_s_cast = T.alloc_fragment([block_m, block_n], dtype)
@@ -185,8 +184,7 @@ def build_tilelang_flashatt(
                 for i, j in T.Parallel(block_m, head_dim):
                     acc_o[i, j] /= logsum[i]
 
-                T.copy(acc_o, o_shared)
-                T.copy(o_shared, out[bz, by, bx * block_m : (bx + 1) * block_m, :])
+                T.copy(acc_o, out[bz, by, bx * block_m : (bx + 1) * block_m, :])
 
         return main
 
