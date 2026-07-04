@@ -39,7 +39,9 @@
 
 1. [architecture/xqt.md](architecture/xqt.md)
 2. [explanation/xqt-concepts.md](explanation/xqt-concepts.md)
-3. [usage/xqt-workflows.md](usage/xqt-workflows.md)
+3. [explanation/backends/index.md](explanation/backends/index.md)
+4. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
+5. [usage/xqt-workflows.md](usage/xqt-workflows.md)
 
 ## 当前兼容入口
 

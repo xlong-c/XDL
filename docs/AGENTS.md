@@ -40,6 +40,8 @@
 - `explanation/index.md`: 说明文档入口.
 - `explanation/xdl-concepts.md`: XDL 概念说明与理解路径.
 - `explanation/xqt-concepts.md`: XQT 概念说明与能力理解地图.
+- `explanation/backends/`: XQT 导出,runtime 和 operator optimization 后端分文档.
+- `explanation/inference-backends-primer.md`: 推理后端和模型部署格式的基础介绍.
 - `usage/index.md`: 使用文档入口.
 - `usage/xdl-install-and-verify.md`: XDL 安装与验证.
 - `usage/xdl-config-workflows.md`: XDL 配置工作流入口.
