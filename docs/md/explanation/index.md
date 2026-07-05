@@ -19,6 +19,8 @@
 - [xdl-concepts.md](xdl-concepts.md): `XDL` 的概念地图和理解路径.
 - [xqt-concepts.md](xqt-concepts.md): `XQT` 的概念地图和边界理解.
 - [backends/index.md](backends/index.md): XQT 导出, runtime 和 operator optimization 后端分文档入口.
+- [flux2-klein-nvfp4-backends.md](flux2-klein-nvfp4-backends.md): FLUX.2 klein NVFP4 的 `cutedsl`, `cutile`, `tilelang` 三类 XQT 后端推理接入.
+- [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md): 手写 CUDA / CUTLASS / CuTe DSL 算子的调优方法论, 覆盖 GEMM, Conv, Linear, Attention, Norm, 访存, 通信和低精度.
 - [inference-backends-primer.md](inference-backends-primer.md): 推理后端和模型部署格式的基础介绍, 不绑定 `XQT` 实现.
 - [dataset-structure.md](dataset-structure.md): dataset 模块的概念说明和阅读路径.
 - [html-style.md](html-style.md): HTML 阅读页的分层说明.
@@ -37,6 +39,7 @@
 
 1. [xqt-concepts.md](xqt-concepts.md)
 2. [backends/index.md](backends/index.md)
-3. [inference-backends-primer.md](inference-backends-primer.md)
-4. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
-5. [../../html/xqt.html](../../html/xqt.html)
+3. [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md)
+4. [inference-backends-primer.md](inference-backends-primer.md)
+5. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
+6. [../../html/xqt.html](../../html/xqt.html)

@@ -40,8 +40,10 @@
 1. [architecture/xqt.md](architecture/xqt.md)
 2. [explanation/xqt-concepts.md](explanation/xqt-concepts.md)
 3. [explanation/backends/index.md](explanation/backends/index.md)
-4. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
-5. [usage/xqt-workflows.md](usage/xqt-workflows.md)
+4. [explanation/flux2-klein-nvfp4-backends.md](explanation/flux2-klein-nvfp4-backends.md)
+5. [explanation/operator-kernel-tuning-guide.md](explanation/operator-kernel-tuning-guide.md)
+6. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
+7. [usage/xqt-workflows.md](usage/xqt-workflows.md)
 
 ## 当前兼容入口
 
