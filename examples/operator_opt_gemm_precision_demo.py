@@ -3,6 +3,7 @@
 import torch
 
 from xqt.operator_opt.backends.gemm_precision import (
+    MatmulPrecisionSpec,
     describe_gemm_precision_capability,
     gemm_with_precision,
     list_available_precisions,
@@ -10,7 +11,7 @@ from xqt.operator_opt.backends.gemm_precision import (
 from xqt.operator_opt.kernels.triton.mxfp_gemm import pack_mxfp
 
 
-def main():
+def main() -> None:
     print("=" * 80)
     print("XQT Multi-Precision GEMM Demo")
     print("=" * 80)
@@ -26,11 +27,11 @@ def main():
     print("\n" + "-" * 80)
     print("Precision Capabilities:")
     print("-" * 80)
-    for precision in ["fp16", "bf16", "int8", "fp8", "int4", "mxfp8"]:
+    for precision in ["fp16", "bf16", "int8", "fp8", "int4", "fp4", "nvfp4", "mxfp8"]:
         cap = describe_gemm_precision_capability(precision, device)
         status = "✓" if cap["available"] else "✗"
         native = "native" if cap.get("hardware_native") else "emulated"
-        print(f"{status} {precision:8s} - {cap['backend']:8s} ({native})")
+        print(f"{status} {precision:8s} - {cap['engine']:8s} ({native})")
         if cap.get("notes"):
             for note in cap["notes"]:
                 print(f"           {note}")
@@ -74,9 +75,18 @@ def main():
 
         # Run GEMM
         output = gemm_with_precision(
-            a_p, b_p, bias_p,
-            precision=precision,
-            backend="triton",
+            a_p,
+            b_p,
+            bias_p,
+            precision=MatmulPrecisionSpec(
+                activation=precision,
+                weight=precision,
+                bias=precision,
+                mma=precision,
+                accum="fp32",
+                output=precision,
+            ),
+            engine="triton",
             transpose_b=True,
         )
 
@@ -99,7 +109,10 @@ def main():
 
         for precision in [8, 6, 4]:
             packed, scales = pack_mxfp(tensor, precision=precision, block_size=32)
-            packed_size = packed.numel() * packed.element_size() + scales.numel() * scales.element_size()
+            packed_size = (
+                packed.numel() * packed.element_size()
+                + scales.numel() * scales.element_size()
+            )
             compression = tensor.numel() * tensor.element_size() / packed_size
 
             print(f"\nMXFP{precision}:")
