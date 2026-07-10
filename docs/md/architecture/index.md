@@ -23,6 +23,8 @@
 - [html-style-policy.md](html-style-policy.md): `XDL` 自有 HTML 阅读页长期规范.
 - [roadmap.md](roadmap.md): `XDL` 当前仍有效的优化方向.
 - [xqt.md](xqt.md): `XQT` 定位, 模型侧边界, Stage 约定, profiling 约定.
+- [xqt-config-unification-todo.md](xqt-config-unification-todo.md): `XQT` 配置单轨化和架构重构执行清单.
+- [xqt-realignment-guide.md](xqt-realignment-guide.md): `XQT` 现状诊断 1-8 的落地状态和长期矫正准则.
 
 ## 当前兼容事实源
 
@@ -44,4 +46,6 @@
 ### XQT
 
 1. [xqt.md](xqt.md)
-2. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)
+2. [xqt-config-unification-todo.md](xqt-config-unification-todo.md)
+3. [xqt-realignment-guide.md](xqt-realignment-guide.md)
+4. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)

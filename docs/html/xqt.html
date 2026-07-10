@@ -134,6 +134,22 @@
         XQT 只记录 profiler 上下文和产物到 manifest,例如 <code>.ncu-rep</code>,<code>.nsys-rep</code>,ROCm trace,VTune result 或 <code>msprof</code> 目录;不接管工具安装,权限,驱动版本或 GUI 工作流.
       </p>
     </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>五. 代际与低精度速记</h2>
+        <p>先看 GPU 代际, 再决定 `INT8`, `FP8`, `FP4 / FP6` 还是 `FP16 / BF16`.</p>
+      </div>
+      <ul class="bullets">
+        <li>NVIDIA: `Volta` 从 `FP16` 起步, `Turing` 把 `INT8 / INT4` 带进主流推理, `Ampere` 把 `BF16 / TF32` 变成工程主力, `Ada / Hopper` 进入 `FP8`, `Blackwell` 再上 `FP4 / FP6 microscaling`.</li>
+        <li>AMD Instinct: `CDNA1 / CDNA2` 以 `FP16 / BF16 / INT8` 为主, `CDNA3` 进入 `FP8`, `CDNA4` 再进入 `FP4 / FP6 / FP8` 原生 matrix core 区间.</li>
+        <li>AMD Radeon: `RDNA3` 的矩阵主路径仍以 `FP16 / INT8` 为主, `RDNA4` 才把 `FP8` 带进更实用的 `WMMA` 路线.</li>
+        <li>通用部署先看 `INT8`, 新平台 Transformer / LLM 先看 `FP8`, `Blackwell` / `CDNA4` 冲峰值再看 `FP4 / FP6`, `FP16 / BF16` 负责 fallback.</li>
+      </ul>
+      <p>
+        完整代际表和 `MMA` 指令口径见 <a href="../md/explanation/operator-kernel-tuning-guide.md">operator-kernel-tuning-guide.md</a>.
+      </p>
+    </section>
   </main>
 
   <footer>

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-accent="blue">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hadamard 变换与大模型量化可视化教程</title>
+  <link rel="stylesheet" href="hadamard_quant.css">
+  <script defer src="../../docs/html/assets/xdl-theme.js"></script>
+</head>
+<body class="xdl-style-ledger hadamard-quant-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../../docs/html/index.html">
+        <span class="brand-mark">X</span>
+        <span>XDL Learn</span>
+      </a>
+      <div class="topbar-cluster">
+        <nav aria-label="页面导航">
+          <a href="#problem">问题</a>
+          <a href="#demo">交互演示</a>
+          <a href="#linear">Linear 等价</a>
+          <a href="#code">代码</a>
+          <a href="#practice">实战位置</a>
+        </nav>
+        <div class="theme-switcher" role="group" aria-label="页面主题">
+          <button type="button" data-theme-value="system">系统</button>
+          <button type="button" data-theme-value="light">日间</button>
+          <button type="button" data-theme-value="dark">夜间</button>
+          <button type="button" data-theme-value="sepia">暖纸</button>
+          <button type="button" data-accent-value="blue">蓝</button>
+          <button type="button" data-accent-value="green">绿</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout layout-docked-toc">
+    <details class="toc toc-docked" aria-label="学习路线导航" open>
+      <summary>
+        <span class="toc-summary-copy">
+          <span class="toc-summary-title">学习路线</span>
+          <span class="toc-summary-meta">9 节导航</span>
+        </span>
+      </summary>
+      <nav class="toc-list" aria-label="目录">
+        <a href="#start">0. 这页解决什么</a>
+        <a href="#problem">1. 量化为什么怕 outlier</a>
+        <a href="#hadamard">2. Hadamard 是什么</a>
+        <a href="#demo">3. 拖动 outlier 看变化</a>
+        <a href="#linear">4. 为什么能塞进 Linear</a>
+        <a href="#where">5. LLM 里放在哪里</a>
+        <a href="#code">6. PyTorch 最小实验</a>
+        <a href="#practice">7. 工程注意事项</a>
+        <a href="#summary">8. 一句话记住</a>
+      </nav>
+    </details>
+
+    <div class="page-column">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Quantization / Orthogonal Rotation / Hadamard</p>
+          <h1>Hadamard 变换: 把难量化的 outlier 打散</h1>
+          <p class="lead">
+            这份教程用一个可拖动的小实验解释 Hadamard 在低比特大模型量化里的作用:
+            它不是量化器本身, 而是在量化前换一个坐标系, 让 activation 和 weight 的数值分布更均匀.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#demo">打开交互演示</a>
+            <a class="button" href="#code">看 PyTorch 实验</a>
+            <a class="button" href="README_SD35.md">量化笔记</a>
+          </div>
+        </div>
+        <div class="hero-panel" aria-label="教程摘要">
+          <div class="hero-stat">
+            <strong>核心问题</strong>
+            <span>INT4/INT8 的 scale 被极端值拉大, 普通值会被压扁.</span>
+          </div>
+          <div class="hero-stat">
+            <strong>核心操作</strong>
+            <span>用归一化 Hadamard 矩阵做正交旋转, 再量化旋转后的张量.</span>
+          </div>
+          <div class="hero-stat">
+            <strong>核心保证</strong>
+            <span>不量化时 <code>xW = (xH)(HᵀW)</code>, 数学输出不变.</span>
+          </div>
+        </div>
+      </section>
+
+      <main id="main" class="content">
+        <section id="start" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Start</p>
+            <h2>0. 这页解决什么</h2>
+            <p>
+              低比特量化最难的地方之一不是公式复杂, 而是数值分布太偏. LLM 的部分 activation channel 会出现特别大的值,
+              少数 outlier 直接决定量化 scale, 导致大多数普通值的有效精度很差. Hadamard 变换常被用来做量化前的数值整形.
+            </p>
+          </div>
+
+          <div class="card-grid">
+            <div class="card">
+              <span class="tag">直觉</span>
+              <h3>先看 scale 怎么被绑架</h3>
+              <p>用一个 4 维向量演示 INT4 对称量化, 观察 outlier 如何把小值量化成 0.</p>
+            </div>
+            <div class="card blue">
+              <span class="tag">数学</span>
+              <h3>再看正交旋转为什么安全</h3>
+              <p>Hadamard 保持整体能量, 并且能把逆变换吸收到相邻 Linear 权重里.</p>
+            </div>
+            <div class="card amber">
+              <span class="tag">工程</span>
+              <h3>最后看应该放在哪里</h3>
+              <p>Linear 输入, attention value/output, MLP 中间激活和权重量化前都可能出现它.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="problem" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Problem</p>
+            <h2>1. 量化为什么怕 outlier</h2>
+            <p>
+              对称 per-tensor INT4 量化通常会让最大绝对值决定 scale. 如果一个向量里有一个特别大的值,
+              scale 会变大, 其他普通值除以 scale 后接近 0, round 之后直接丢信息.
+            </p>
+          </div>
+
+          <div class="formula-box">qmax = 2^(bits - 1) - 1
+scale = max(abs(x)) / qmax
+q = clamp(round(x / scale), -qmax - 1, qmax)
+x_hat = q * scale</div>
+
+          <div class="callout danger">
+            <strong>关键风险:</strong> INT4 只有很少的离散档位. 一个 outlier 会让档位间距变大, 小值会被粗暴地挤到同一个量化桶里.
+          </div>
+        </section>
+
+        <section id="hadamard" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Hadamard</p>
+            <h2>2. Hadamard 是什么</h2>
+            <p>
+              Hadamard 矩阵只由 <code>+1</code> 和 <code>-1</code> 组成. 归一化后它是正交矩阵:
+              <code>HᵀH = I</code>. 它会把每个输出维度写成多个输入维度的加减组合, 所以能把集中在单个 channel 的大值分散出去.
+            </p>
+          </div>
+
+          <div class="matrix-wrap" aria-label="四维 Hadamard 变换示意">
+            <div class="matrix-flow">
+              <div class="matrix-box">
+                <h3>输入 x</h3>
+                <div class="matrix">
+                  <span>80</span><span>1.2</span><span>-0.7</span><span>0.5</span>
+                </div>
+              </div>
+              <div class="arrow">×</div>
+              <div class="matrix-box">
+                <h3>H4 / 2</h3>
+                <div class="matrix">
+                  <span>+1</span><span>+1</span><span>+1</span><span>+1</span>
+                  <span>+1</span><span>-1</span><span>+1</span><span>-1</span>
+                  <span>+1</span><span>+1</span><span>-1</span><span>-1</span>
+                  <span>+1</span><span>-1</span><span>-1</span><span>+1</span>
+                </div>
+              </div>
+              <div class="arrow">=</div>
+              <div class="matrix-box">
+                <h3>旋转后 xH</h3>
+                <div class="matrix">
+                  <span>40.5</span><span>39.3</span><span>40.7</span><span>39.5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout ok">
+            <strong>直觉:</strong> Hadamard 没有删除信息, 只是把坐标轴换掉. 原来一个维度特别尖, 旋转后多个维度一起承担这部分能量.
+          </div>
+        </section>
+
+        <section id="demo" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Interactive</p>
+            <h2>3. 拖动 outlier 看量化误差怎么变</h2>
+            <p>
+              下面固定一个 4 维向量 <code>[outlier, 1.2, -0.7, 0.5]</code>. 拖动 outlier 和 bit 数,
+              对比直接量化与先 Hadamard 旋转再量化的平均误差.
+            </p>
+          </div>
+
+          <div class="viz-grid">
+            <div class="mini-lab">
+              <div class="control-grid">
+                <div class="control-row">
+                  <label for="outlier-slider">outlier 大小 <output id="outlier-value">80</output></label>
+                  <input id="outlier-slider" type="range" min="4" max="120" step="1" value="80">
+                </div>
+                <div class="control-row">
+                  <label for="bits-slider">量化 bit 数 <output id="bits-value">4</output></label>
+                  <input id="bits-slider" type="range" min="2" max="8" step="1" value="4">
+                </div>
+              </div>
+
+              <div class="metric-grid" aria-label="量化指标">
+                <div class="metric-card">
+                  <strong id="raw-scale">-</strong>
+                  <span>直接量化 scale</span>
+                </div>
+                <div class="metric-card">
+                  <strong id="rot-scale">-</strong>
+                  <span>旋转后 scale</span>
+                </div>
+                <div class="metric-card">
+                  <strong id="raw-error">-</strong>
+                  <span>直接量化 MAE</span>
+                </div>
+                <div class="metric-card">
+                  <strong id="rot-error">-</strong>
+                  <span>Hadamard MAE</span>
+                </div>
+              </div>
+
+              <p class="tiny-note">
+                注: 这是教学级 per-tensor 对称量化 toy case. 真实 LLM 会结合 calibration, group-wise scale, per-token 或 per-channel scale.
+              </p>
+            </div>
+
+            <div class="chart-stack">
+              <div class="chart">
+                <h3>原始向量 x</h3>
+                <div id="raw-chart" class="bar-chart" aria-label="原始向量柱状图"></div>
+              </div>
+              <div class="chart">
+                <h3>Hadamard 后 xH</h3>
+                <div id="rot-chart" class="bar-chart" aria-label="Hadamard 后向量柱状图"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="linear" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Linear</p>
+            <h2>4. 为什么能塞进 Linear 层</h2>
+            <p>
+              Transformer 里大量计算都是 Linear. 对任意正交矩阵 <code>R</code>, 都有 <code>RRᵀ = I</code>.
+              因此可以把原始 <code>xW</code> 改写成 <code>(xR)(RᵀW)</code>.
+            </p>
+          </div>
+
+          <div class="formula-box">y = xW
+  = xIR
+  = xRRᵀW
+  = (xR)(RᵀW)</div>
+
+          <div class="lane">
+            <strong>不量化时</strong>
+            <p>两条路径数学等价, 输出完全一样. Hadamard 只是换坐标系.</p>
+          </div>
+          <div class="lane">
+            <strong>量化时</strong>
+            <p><code>quantize(x)</code> 和 <code>quantize(xH)</code> 的误差不同. 如果 <code>xH</code> 更均匀, 量化误差通常更小.</p>
+          </div>
+          <div class="lane">
+            <strong>工程上</strong>
+            <p><code>HᵀW</code> 可以离线预处理到权重里; 但 activation 上的 Hadamard 仍可能需要高效在线 kernel.</p>
+          </div>
+        </section>
+
+        <section id="where" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Placement</p>
+            <h2>5. LLM 里通常放在哪里</h2>
+            <p>
+              Hadamard 不能随便跨过非线性, softmax, RoPE 或归一化层. 它通常放在能保持线性等价的位置,
+              或作为权重量化前的离线预处理.
+            </p>
+          </div>
+
+          <div class="step-list">
+            <div class="step-item">
+              <div class="step-number">1</div>
+              <div>
+                <h3>Linear 输入 activation 前</h3>
+                <p>用 <code>xH</code> 替代 <code>x</code>, 同时把 <code>Hᵀ</code> 吸收到权重左侧, 缓解 activation outlier.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-number">2</div>
+              <div>
+                <h3>Attention value / output 路径</h3>
+                <p>对 value 或 attention output 做旋转, 再在相邻投影权重中抵消逆变换.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-number">3</div>
+              <div>
+                <h3>MLP 中间激活</h3>
+                <p>在 down projection 之前处理中间激活, 但必须避开无法线性穿越的 activation function 边界.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-number">4</div>
+              <div>
+                <h3>权重量化前</h3>
+                <p>把权重分布旋转得更均匀, 再结合 GPTQ, AWQ, group-wise quantization 等方法做低比特压缩.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="code" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Code</p>
+            <h2>6. PyTorch 最小实验</h2>
+            <p>
+              下面这段代码复现页面里的逻辑. 它不是生产级 kernel, 只是用来验证:
+              <code>xW</code> 与 <code>(xH)(HᵀW)</code> 等价, 以及量化误差如何受分布影响.
+            </p>
+          </div>
+
+          <div class="formula-box">import torch
+
+
+def hadamard_matrix(n: int, device=None, dtype=None) -> torch.Tensor:
+    assert n > 0 and (n & (n - 1)) == 0, "n must be power of 2"
+    h = torch.tensor([[1.0]], device=device, dtype=dtype)
+    while h.shape[0] < n:
+        h = torch.cat(
+            [torch.cat([h, h], dim=1), torch.cat([h, -h], dim=1)],
+            dim=0,
+        )
+    return h / (n ** 0.5)
+
+
+def quantize_dequant_symmetric(x: torch.Tensor, bits: int = 4) -> torch.Tensor:
+    qmax = 2 ** (bits - 1) - 1
+    scale = torch.clamp(x.abs().max() / qmax, min=1e-8)
+    q = torch.round(x / scale).clamp(-qmax - 1, qmax)
+    return q * scale
+
+
+torch.manual_seed(0)
+batch, hidden, out_features = 128, 1024, 1024
+x = torch.randn(batch, hidden)
+W = torch.randn(hidden, out_features)
+x[:, :8] *= 40
+
+H = hadamard_matrix(hidden, dtype=x.dtype)
+y_ref = x @ W
+
+y_raw = quantize_dequant_symmetric(x, bits=4) @ W
+y_rot = quantize_dequant_symmetric(x @ H, bits=4) @ (H.T @ W)
+
+print((y_raw - y_ref).abs().mean())
+print((y_rot - y_ref).abs().mean())</div>
+
+          <div class="code-map">
+            <div class="code-map-item">
+              <code>hadamard_matrix</code>
+              <p>递归构造 <code>H2, H4, H8...</code>, 并除以 <code>sqrt(n)</code> 保证正交.</p>
+            </div>
+            <div class="code-map-item">
+              <code>quantize_dequant_symmetric</code>
+              <p>教学版对称量化: 先量化到整数桶, 再反量化回浮点以比较误差.</p>
+            </div>
+            <div class="code-map-item">
+              <code>H.T @ W</code>
+              <p>把逆旋转折叠进权重, 保持不量化时的 Linear 输出等价.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="practice" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Practice</p>
+            <h2>7. 工程注意事项</h2>
+            <p>真实大模型里直接把这个 toy 公式塞进去还不够. 下面这些点通常决定收益和代价.</p>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>问题</th>
+                  <th>原因</th>
+                  <th>常见处理</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>hidden size 不是 2 的幂</td>
+                  <td>标准 Hadamard 递归最自然支持 <code>2^k</code></td>
+                  <td>分块 Hadamard, padding, 或换其他结构化正交旋转</td>
+                </tr>
+                <tr>
+                  <td>在线旋转有额外延迟</td>
+                  <td>activation 旋转无法全部离线折叠</td>
+                  <td>使用 Fast Walsh-Hadamard Transform 或 fused kernel</td>
+                </tr>
+                <tr>
+                  <td>不能跨过任意算子</td>
+                  <td>非线性和 softmax 通常不保持旋转等价</td>
+                  <td>只在可证明等价的 Linear 边界插入旋转</td>
+                </tr>
+                <tr>
+                  <td>不是万能降误差</td>
+                  <td>收益依赖校准数据, 分布和量化粒度</td>
+                  <td>结合 group-wise scale, clipping, mixed precision fallback</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="summary" class="section">
+          <div class="section-head">
+            <p class="section-kicker">Summary</p>
+            <h2>8. 一句话记住</h2>
+            <p>
+              Hadamard 变换是低成本的正交数值整形工具. 它把集中在少数维度的 outlier 混合到更多维度,
+              让低比特量化更容易; 它不负责压缩参数, 而是帮助量化器看到一个更友好的分布.
+            </p>
+          </div>
+
+          <div class="callout tip">
+            <strong>记忆版:</strong> 量化前先旋转, outlier 被打散; 不量化时等价, 量化时误差可能更小.
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const H4 = [
+      [0.5, 0.5, 0.5, 0.5],
+      [0.5, -0.5, 0.5, -0.5],
+      [0.5, 0.5, -0.5, -0.5],
+      [0.5, -0.5, -0.5, 0.5],
+    ];
+
+    const outlierSlider = document.querySelector("#outlier-slider");
+    const bitsSlider = document.querySelector("#bits-slider");
+    const outlierValue = document.querySelector("#outlier-value");
+    const bitsValue = document.querySelector("#bits-value");
+    const rawChart = document.querySelector("#raw-chart");
+    const rotChart = document.querySelector("#rot-chart");
+    const rawScaleNode = document.querySelector("#raw-scale");
+    const rotScaleNode = document.querySelector("#rot-scale");
+    const rawErrorNode = document.querySelector("#raw-error");
+    const rotErrorNode = document.querySelector("#rot-error");
+
+    function matmulVec(vec, mat) {
+      return mat[0].map((_, col) =>
+        vec.reduce((sum, value, row) => sum + value * mat[row][col], 0)
+      );
+    }
+
+    function quantizeDequant(vec, bits) {
+      const qmax = (2 ** (bits - 1)) - 1;
+      const scale = Math.max(Math.max(...vec.map((value) => Math.abs(value))) / qmax, 1e-8);
+      const dequant = vec.map((value) => {
+        const q = Math.max(-qmax - 1, Math.min(qmax, Math.round(value / scale)));
+        return q * scale;
+      });
+      return { dequant, scale };
+    }
+
+    function mae(left, right) {
+      return left.reduce((sum, value, index) => sum + Math.abs(value - right[index]), 0) / left.length;
+    }
+
+    function format(value) {
+      return Math.abs(value) >= 10 ? value.toFixed(1) : value.toFixed(2);
+    }
+
+    function renderChart(node, vec, maxAbs) {
+      node.innerHTML = "";
+      vec.forEach((value, index) => {
+        const row = document.createElement("div");
+        row.className = "bar-row";
+
+        const label = document.createElement("div");
+        label.className = "bar-label";
+        label.textContent = `x${index}`;
+
+        const track = document.createElement("div");
+        track.className = "bar-track";
+
+        const fill = document.createElement("div");
+        const isNegative = value < 0;
+        fill.className = `bar-fill${isNegative ? " negative" : ""}${Math.abs(value) > maxAbs * 0.72 ? " outlier" : ""}`;
+        fill.style.width = `${Math.max(1, (Math.abs(value) / maxAbs) * 50)}%`;
+        track.appendChild(fill);
+
+        const valueNode = document.createElement("div");
+        valueNode.className = "bar-value";
+        valueNode.textContent = format(value);
+
+        row.append(label, track, valueNode);
+        node.appendChild(row);
+      });
+    }
+
+    function updateDemo() {
+      const outlier = Number(outlierSlider.value);
+      const bits = Number(bitsSlider.value);
+      const x = [outlier, 1.2, -0.7, 0.5];
+      const xRot = matmulVec(x, H4);
+      const raw = quantizeDequant(x, bits);
+      const rot = quantizeDequant(xRot, bits);
+      const xRecovered = matmulVec(rot.dequant, H4);
+      const maxAbs = Math.max(...x.map((value) => Math.abs(value)), ...xRot.map((value) => Math.abs(value)));
+
+      outlierValue.textContent = outlier.toFixed(0);
+      bitsValue.textContent = bits.toFixed(0);
+      rawScaleNode.textContent = format(raw.scale);
+      rotScaleNode.textContent = format(rot.scale);
+      rawErrorNode.textContent = format(mae(raw.dequant, x));
+      rotErrorNode.textContent = format(mae(xRecovered, x));
+
+      renderChart(rawChart, x, maxAbs);
+      renderChart(rotChart, xRot, maxAbs);
+    }
+
+    outlierSlider.addEventListener("input", updateDemo);
+    bitsSlider.addEventListener("input", updateDemo);
+    updateDemo();
+  </script>
+</body>
+</html>

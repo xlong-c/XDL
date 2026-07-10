@@ -12,7 +12,7 @@
 - `xqt.model.flux2_klein_nvfp4.materialize_flux2_klein_nvfp4_engine`
 - `xqt.model.flux2_klein_nvfp4.run_flux2_klein_nvfp4_inference`
 
-新调用统一使用 `engine`, 不保留 `backend` alias. 当前支持三个类别:
+该 FLUX.2 专用 materialize 接口的新调用统一使用 `engine`, 不保留旧接口里的 `backend` alias. 这里的约束只适用于 operator engine 选择, 不改变 XQT 全局对 quant/export/runtime `backend` 的术语定义. 当前支持三个类别:
 
 - `tilelang`
 - `cutile`
