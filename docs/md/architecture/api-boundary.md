@@ -116,6 +116,7 @@ xdl-usage
 
 以下 API 当前可用, 但仍处于演进期:
 
+- `xdl.analysis` 中的中间表征解析与可解释性工具, 包括 activation capture, linear probe, concept probe / TCAV, Grad-CAM 和 attention rollout.
 - `xqt` 顶层实验入口及其结果对象.
 - `xqt` 到 `XDL` 的适配入口.
 - `xdl.config` 中的 schema dataclass 与 resolver 工具.

@@ -16,6 +16,8 @@
 - `tensorboard_callback.py`:TensorBoard
 - `wandb_callback.py`:W&B
 - `layer_monitor.py`:层激活与梯度统计
+- `feature_capture.py`:验证期中间特征抓取与落盘
+- `attention_rollout.py`:验证期 attention rollout 计算与落盘
 - `learning_rate_monitor.py`:学习率监控
 - `device_stats_monitor.py`:设备资源监控
 - `timer.py`:计时
@@ -28,7 +30,7 @@
 - `preview.py`: 任务预览采样触发
 - `quantization.py`: QAT observer/fake-quant/BN lifecycle callback
 
-当前 `xdl.callbacks.__all__` 导出 **25** 个名称.
+当前 `xdl.callbacks.__all__` 导出 **27** 个名称.
 
 ## 核心约束
 

@@ -9,6 +9,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from . import analysis as analysis
     from . import callbacks as callbacks
     from . import config as config
     from . import dataset as dataset
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
     from . import utils as utils
 
 _LAZY_SUBMODULES = {
+    "analysis",
     "callbacks",
     "config",
     "dataset",
@@ -71,6 +73,7 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = [
+    "analysis",
     "callbacks",
     "config",
     "dataset",

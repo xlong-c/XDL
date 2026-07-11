@@ -18,6 +18,7 @@
 
 ```text
 xdl/
+  analysis/    中间表征解析与可解释性分析
   callbacks/   训练生命周期扩展
   config/      YAML 到 TrainSetup 的构建链
   dataset/     数据集, transform, collate
@@ -30,12 +31,34 @@ xdl/
   utils/       registry, checkpoint, 通用工具
 ```
 
+## `xdl/analysis`
+
+职责:
+
+- 提供离线分析和研究脚本可复用的模型中间表征解析工具
+- 承载 activation capture, linear probe, concept probe / TCAV, Grad-CAM, attention rollout 这类不接管训练主逻辑的分析能力
+
+不负责:
+
+- 训练主循环
+- 数据集构建
+- 作为 callback 直接接管训练期逻辑
+
+关键点:
+
+- 这里优先放纯 PyTorch、轻依赖的分析 API
+- 训练期如需抓特征, 应通过 callback 或 forward hook 采样后再调用这里的工具
+- 这层更接近研究和诊断基座, 不是稳定冻结的训练主入口
+- callback 侧如果需要在验证期自动落分析产物, 例如 feature capture 或 attention rollout, 只负责时机和落盘; 具体算法仍应复用 `xdl.analysis`
+- 结果导出也保持轻量, 只提供 JSON / CSV / Markdown 写出 helpers, 不引入新的 report 框架
+
 ## `xdl/callbacks`
 
 职责:
 
 - 日志, 进度条, 检查点, 早停, 监控等横切逻辑
 - 跟随训练生命周期执行
+- 训练期或验证期的轻量观测与产物落盘,例如 preview, feature capture
 
 不负责:
 
@@ -47,6 +70,7 @@ xdl/
 
 - 优先级数值越小越先执行
 - callback 更适合作为观察者, 不应承载主训练逻辑
+- 中间特征抓取这类能力如果需要训练期时机, 放 callback; 真正的分析算法留在 `xdl.analysis`
 
 ## `xdl/config`
 

@@ -1,7 +1,9 @@
 from .base import Callback
+from .attention_rollout import AttentionRolloutCallback
 from .console_callback import ConsoleCallback
 from .device_stats_monitor import DeviceStatsMonitor
 from .early_stopping import EarlyStopping
+from .feature_capture import FeatureCaptureCallback
 from .lambda_callback import LambdaCallback
 from .layer_monitor import LayerMonitor
 from .learning_rate_monitor import LearningRateMonitor
@@ -23,8 +25,10 @@ from .wandb_callback import WandbCallback
 
 __all__ = [
     "Callback",
+    "AttentionRolloutCallback",
     "DeviceStatsMonitor",
     "EarlyStopping",
+    "FeatureCaptureCallback",
     "LambdaCallback",
     "LayerMonitor",
     "LearningRateMonitor",

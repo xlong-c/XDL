@@ -53,6 +53,7 @@ class MultiHeadAttention(nn.Module):
         self.attn_dropout = nn.Dropout(dropout)
         self.proj = nn.Linear(embed_dim, embed_dim)
         self.proj_dropout = nn.Dropout(dropout)
+        self.last_attention_weights: Optional[torch.Tensor] = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, N, C = x.shape
@@ -66,6 +67,7 @@ class MultiHeadAttention(nn.Module):
         attn = (q @ k.transpose(-2, -1)) * self.scale  # [B, num_heads, N, N]
         attn = F.softmax(attn, dim=-1)
         attn = self.attn_dropout(attn)
+        self.last_attention_weights = attn
 
         # 应用注意力
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)  # [B, N, C]
