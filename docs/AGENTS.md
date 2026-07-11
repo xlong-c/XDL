@@ -51,7 +51,8 @@
 - `README_SUMMARY.md`: XDL 的兼容摘要入口,用于渐进式披露和阅读路线引导.
 - `README.md`: XDL 兼容详细版事实源,保留完整章节正文和旧链接承接.
 - `XQT_SUMMARY.md`: `xqt/` 的兼容摘要入口,指向新三层结构.
-- `HTML_STYLE.md`: 自有 HTML 阅读页样式规范,主题 token 和交互约束的兼容跳转页.
+- `explanation/html-style.md`: HTML 阅读页分层说明.
+- `architecture/html-style-policy.md`: 自有 HTML 阅读页样式规范与维护边界.
 - `XQT.md`: `xqt/` 的兼容长期事实源,覆盖模型优化工具链完整正文并承接旧链接.
 
 ### `docs/html/`
@@ -63,6 +64,11 @@
 - `assets/xdl-doc.css`: 自有 HTML 阅读页统一样式入口.
 - `assets/xdl-theme.js`: HTML 阅读页主题和强调色切换脚本.
 - `assets/xdl-style-showcase.css`: 样式展示页的局部 CSS.
+- `resume.*` 已迁到 `../others/resume/`: 独立简历资产,当前不纳入 `XDL` / `XQT` 项目文档导航,也不作为事实源.
+
+### `docs/superpowers/`
+
+- `plans/`: agent 执行计划和阶段性跟踪文档. 不属于 `XDL` / `XQT` 长期事实源,不进入主文档导航; 完成后应及时归档或删除.
 
 ## 修改约束
 
@@ -75,6 +81,7 @@
 - `docs/` 只保留长期有效内容;阶段性调研优先放 `research/`.
 - 新增普通 MD 只能放在 `docs/md/`;不要继续把长期文档散放在 `docs/` 根目录.
 - 新增 HTML 页面默认放在 `docs/html/`,保持静态自包含,避免依赖外部 CDN.
+- 与项目无关的独立 HTML / PDF 资产不要混入主导航,也不要在规范文档里当作项目阅读页列出.
 - HTML 页面是阅读层,不是唯一事实源;同一主题的 MD 事实变化时,必须同步对应 HTML.
 - 新增或重构自有 HTML 时必须先遵循 `md/architecture/html-style-policy.md`: 页面 body 必须且只能包含 `xdl-style-atlas` 或 `xdl-style-ledger` 两种模板之一,默认引用 `html/assets/xdl-doc.css`,不要复制大段内联 `<style>` 或散落 `style=`.
 - 需要主题交互时使用 `html/assets/xdl-theme.js` 和 `data-theme-value` / `data-accent-value`,不要为单页另写一套主题脚本.

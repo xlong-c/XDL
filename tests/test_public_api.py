@@ -46,11 +46,45 @@ def test_legacy_trainer_import_paths_still_work() -> None:
 
 
 def test_stable_callback_api_imports() -> None:
-    from xdl.callbacks import Callback, ModelCheckpoint, TqdmCallback
+    from xdl.callbacks import (
+        AttentionRolloutCallback,
+        Callback,
+        FeatureCaptureCallback,
+        ModelCheckpoint,
+        TqdmCallback,
+    )
 
+    assert AttentionRolloutCallback is not None
     assert Callback is not None
+    assert FeatureCaptureCallback is not None
     assert ModelCheckpoint is not None
     assert TqdmCallback is not None
+
+
+def test_stable_analysis_api_imports() -> None:
+    from xdl.analysis import (
+        attention_rollout,
+        attention_rollout_for_model,
+        capture_activations,
+        capture_attention_maps,
+        fit_concept_probe,
+        compute_module_tcav,
+        compute_grad_cam,
+        fit_linear_probe,
+        tcav_score,
+        write_analysis_bundle,
+    )
+
+    assert attention_rollout is not None
+    assert attention_rollout_for_model is not None
+    assert capture_activations is not None
+    assert capture_attention_maps is not None
+    assert compute_module_tcav is not None
+    assert fit_concept_probe is not None
+    assert compute_grad_cam is not None
+    assert fit_linear_probe is not None
+    assert tcav_score is not None
+    assert write_analysis_bundle is not None
 
 
 def test_stable_registry_api_imports() -> None:
@@ -83,3 +117,21 @@ def test_stable_utils_api_imports() -> None:
     assert resolve_dtype is not None
     assert save_yaml is not None
     assert seed_everything is not None
+
+
+def test_flux2_klein_model_api_imports() -> None:
+    from xqt.model.flux2_klein import (
+        load_and_quantize_flux2_klein_bf16_pipeline_to_convrot_4bit,
+        load_flux2_klein_bf16_pipeline,
+        load_flux2_klein_bf16_transformer,
+        quantize_flux2_klein_bf16_pipeline_to_convrot_4bit,
+        quantize_flux2_klein_bf16_transformer_to_convrot_4bit,
+        run_flux2_klein_bf16_convrot_4bit_inference,
+    )
+
+    assert load_and_quantize_flux2_klein_bf16_pipeline_to_convrot_4bit is not None
+    assert load_flux2_klein_bf16_pipeline is not None
+    assert load_flux2_klein_bf16_transformer is not None
+    assert quantize_flux2_klein_bf16_pipeline_to_convrot_4bit is not None
+    assert quantize_flux2_klein_bf16_transformer_to_convrot_4bit is not None
+    assert run_flux2_klein_bf16_convrot_4bit_inference is not None

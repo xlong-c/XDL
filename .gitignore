@@ -167,6 +167,13 @@ tmp/
 
 # Project specific
 others/
+!others/
+others/*
+!others/AGENTS.md
+!others/resume/
+others/resume/*
+!others/resume/resume.html
+!others/resume/resume.pdf
 
 # Third party
 third_party/
