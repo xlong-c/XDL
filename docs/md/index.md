@@ -38,13 +38,15 @@
 ### XQT
 
 1. [architecture/xqt.md](architecture/xqt.md)
-2. [architecture/xqt-realignment-guide.md](architecture/xqt-realignment-guide.md)
-3. [explanation/xqt-concepts.md](explanation/xqt-concepts.md)
-4. [explanation/backends/index.md](explanation/backends/index.md)
-5. [explanation/flux2-klein-nvfp4-backends.md](explanation/flux2-klein-nvfp4-backends.md)
-6. [explanation/operator-kernel-tuning-guide.md](explanation/operator-kernel-tuning-guide.md)
-7. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
-8. [usage/xqt-workflows.md](usage/xqt-workflows.md)
+2. [architecture/xqt-kernel-wrapper-nn-boundary.md](architecture/xqt-kernel-wrapper-nn-boundary.md)
+3. [architecture/xqt-realignment-guide.md](architecture/xqt-realignment-guide.md)
+4. [explanation/xqt-concepts.md](explanation/xqt-concepts.md)
+5. [explanation/xqt-kernel-guidance.md](explanation/xqt-kernel-guidance.md)
+6. [explanation/backends/index.md](explanation/backends/index.md)
+7. [explanation/flux2-klein-nvfp4-backends.md](explanation/flux2-klein-nvfp4-backends.md)
+8. [explanation/operator-kernel-tuning-guide.md](explanation/operator-kernel-tuning-guide.md)
+9. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
+10. [usage/xqt-workflows.md](usage/xqt-workflows.md)
 
 ## 当前兼容入口
 

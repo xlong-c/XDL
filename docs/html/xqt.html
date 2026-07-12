@@ -155,13 +155,13 @@
             <tr>
               <td><strong>operator_opt</strong></td>
               <td><code>xqt/operator_opt/</code></td>
-              <td>算子优化, engine capability, kernel materialize, fallback report.</td>
+              <td>算子优化, engine capability, materialize, wrapper, kernel 与 fallback report.</td>
               <td><code>execute.py</code>, <code>capability.py</code>, <code>materialize.py</code>, <code>backends/</code>, <code>kernels/</code>, <code>wrappers/</code></td>
             </tr>
             <tr>
               <td><strong>nn</strong></td>
               <td><code>xqt/nn/</code></td>
-              <td>语义 facade: 保留 module/state_dict 语义, 承载 engine 与 precision intent.</td>
+              <td>语义 facade: 保留 module/state_dict 语义, 承载 engine 与 precision intent, 但不直接等于某个 kernel pattern.</td>
               <td>已导出: <code>Linear</code>, <code>Conv2d</code>, <code>LayerNorm</code>, <code>FeedForward</code>, <code>RMSNorm</code>, <code>Attention</code>, <code>TransformerBlock</code>. 文件: <code>linear.py</code>, <code>attention.py</code>, <code>feedforward.py</code>, <code>norm.py</code>, <code>block.py</code></td>
             </tr>
             <tr>
@@ -268,11 +268,11 @@
         </div>
         <div class="card">
           <h3>kernels/</h3>
-          <p>pattern 级实现: attention, conv, linear, gemm, prepack; 以及各 engine 子目录.</p>
+          <p>pattern 级实现: attention, conv, linear, gemm, prepack; 只处理 tensor 计算与 pattern metadata, 不直接承载语义 facade.</p>
         </div>
         <div class="card">
-          <h3>编排面</h3>
-          <p><code>execute.py</code>, <code>materialize.py</code>, <code>capability.py</code>, <code>plan.py</code>, <code>reference_wrappers.py</code>, <code>triton_wrappers.py</code>.</p>
+          <h3>wrapper/materialize</h3>
+          <p><code>execute.py</code>, <code>materialize.py</code>, <code>capability.py</code>, <code>plan.py</code>, <code>reference_wrappers.py</code>, <code>triton_wrappers.py</code>. 它们是 facade 和 kernel 之间的边界翻译层.</p>
         </div>
       </div>
 
@@ -610,7 +610,7 @@ stages:
             </tr>
             <tr>
               <td><code>xqt.nn.Linear / Conv2d / LayerNorm / FeedForward / RMSNorm / Attention / TransformerBlock</code></td>
-              <td>带 engine / precision intent 的 facade. Attention / TransformerBlock 当前 engine 以 <code>torch</code> / <code>tilelang</code> 为主, 不是完整 block-level 生产 megakernel.</td>
+              <td>带 engine / precision intent 的 facade. 它们不是 kernel catalog, 真正的 engine 执行仍经 materialize / wrapper 进入 pattern 级 kernel. Attention / TransformerBlock 当前 engine 以 <code>torch</code> / <code>tilelang</code> 为主, 不是完整 block-level 生产 megakernel.</td>
             </tr>
             <tr>
               <td><code>assess_xqt_readiness()</code></td>

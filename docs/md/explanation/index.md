@@ -18,7 +18,9 @@
 
 - [xdl-concepts.md](xdl-concepts.md): `XDL` 的概念地图和理解路径.
 - [xqt-concepts.md](xqt-concepts.md): `XQT` 的概念地图和边界理解.
+- [../architecture/xqt-kernel-wrapper-nn-boundary.md](../architecture/xqt-kernel-wrapper-nn-boundary.md): `kernel` / `wrapper/materialize` / `xqt.nn` 三层边界.
 - [xqt-engines.md](xqt-engines.md): 对照代码的 operator engine 能力矩阵 (pattern, maturity).
+- [xqt-kernel-guidance.md](xqt-kernel-guidance.md): 面向 YOLO / DiT / MoE LLM 的细粒度 kernel 指导表, 以及 `fusion layer` / `fusion kernel` 边界.
 - [xqt-quant.md](xqt-quant.md): quant backend / method / strategy 写法与实现入口.
 - [xqt-inference.md](xqt-inference.md): 对照代码的推理路径说明 (hybrid engine, 模型包, export/deploy).
 - [backends/index.md](backends/index.md): XQT 导出 / runtime backend 和 operator optimization engine 分文档入口.
@@ -43,14 +45,16 @@
 ### XQT
 
 1. [xqt-concepts.md](xqt-concepts.md)
-2. [../architecture/xqt-engine-quant-boundary.md](../architecture/xqt-engine-quant-boundary.md)
-3. [xqt-engines.md](xqt-engines.md)
-4. [xqt-quant.md](xqt-quant.md)
-5. [xqt-inference.md](xqt-inference.md)
-6. [backends/index.md](backends/index.md)
-7. [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md)
-8. [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md)
-9. [mma-weight-prepack.md](mma-weight-prepack.md)
-10. [inference-backends-primer.md](inference-backends-primer.md)
-11. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
-12. [../../html/xqt.html](../../html/xqt.html)
+2. [../architecture/xqt-kernel-wrapper-nn-boundary.md](../architecture/xqt-kernel-wrapper-nn-boundary.md)
+3. [../architecture/xqt-engine-quant-boundary.md](../architecture/xqt-engine-quant-boundary.md)
+4. [xqt-engines.md](xqt-engines.md)
+5. [xqt-kernel-guidance.md](xqt-kernel-guidance.md)
+6. [xqt-quant.md](xqt-quant.md)
+7. [xqt-inference.md](xqt-inference.md)
+8. [backends/index.md](backends/index.md)
+9. [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md)
+10. [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md)
+11. [mma-weight-prepack.md](mma-weight-prepack.md)
+12. [inference-backends-primer.md](inference-backends-primer.md)
+13. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
+14. [../../html/xqt.html](../../html/xqt.html)
