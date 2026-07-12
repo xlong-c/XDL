@@ -23,7 +23,9 @@
 - [html-style-policy.md](html-style-policy.md): `XDL` 自有 HTML 阅读页长期规范.
 - [roadmap.md](roadmap.md): `XDL` 当前仍有效的优化方向.
 - [xqt.md](xqt.md): `XQT` 定位, 模型侧边界, Stage 约定, profiling 约定.
-- [xqt-config-unification-todo.md](xqt-config-unification-todo.md): `XQT` 配置单轨化和架构重构执行清单.
+- [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md): `engine` / `quant` 词表, 三轴, 禁止项与配置语义.
+- [xqt-infer-handoff.md](xqt-infer-handoff.md): quant→infer 交接面 (`model` + `compute_config`).
+- [xqt-design-debt.md](xqt-design-debt.md): `XQT` 设计债台账, 只累计问题, 后面统一做方案.
 - [xqt-realignment-guide.md](xqt-realignment-guide.md): `XQT` 现状诊断 1-8 的落地状态和长期矫正准则.
 
 ## 当前兼容事实源
@@ -46,6 +48,8 @@
 ### XQT
 
 1. [xqt.md](xqt.md)
-2. [xqt-config-unification-todo.md](xqt-config-unification-todo.md)
-3. [xqt-realignment-guide.md](xqt-realignment-guide.md)
-4. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)
+2. [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md)
+3. [xqt-infer-handoff.md](xqt-infer-handoff.md)
+4. [xqt-design-debt.md](xqt-design-debt.md)
+5. [xqt-realignment-guide.md](xqt-realignment-guide.md)
+6. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)

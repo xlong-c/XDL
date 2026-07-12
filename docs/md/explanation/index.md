@@ -18,6 +18,9 @@
 
 - [xdl-concepts.md](xdl-concepts.md): `XDL` 的概念地图和理解路径.
 - [xqt-concepts.md](xqt-concepts.md): `XQT` 的概念地图和边界理解.
+- [xqt-engines.md](xqt-engines.md): 对照代码的 operator engine 能力矩阵 (pattern, maturity).
+- [xqt-quant.md](xqt-quant.md): quant backend / method / strategy 写法与实现入口.
+- [xqt-inference.md](xqt-inference.md): 对照代码的推理路径说明 (hybrid engine, 模型包, export/deploy).
 - [backends/index.md](backends/index.md): XQT 导出 / runtime backend 和 operator optimization engine 分文档入口.
 - [flux2-klein-nvfp4-backends.md](flux2-klein-nvfp4-backends.md): FLUX.2 klein NVFP4 的 `cutedsl`, `cutile`, `tilelang` 三类 XQT engine 推理接入.
 - [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md): 手写 CUDA / CUTLASS / CuTe DSL 算子的调优方法论, 覆盖 GEMM, Conv, Linear, Attention, Norm, 访存, 通信, 低精度, 以及 NVIDIA / AMD 代际 `MMA` / `Matrix Core` 总表.
@@ -40,10 +43,14 @@
 ### XQT
 
 1. [xqt-concepts.md](xqt-concepts.md)
-2. [backends/index.md](backends/index.md)
-3. [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md)
-4. [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md)
-5. [mma-weight-prepack.md](mma-weight-prepack.md)
-6. [inference-backends-primer.md](inference-backends-primer.md)
-7. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
-8. [../../html/xqt.html](../../html/xqt.html)
+2. [../architecture/xqt-engine-quant-boundary.md](../architecture/xqt-engine-quant-boundary.md)
+3. [xqt-engines.md](xqt-engines.md)
+4. [xqt-quant.md](xqt-quant.md)
+5. [xqt-inference.md](xqt-inference.md)
+6. [backends/index.md](backends/index.md)
+7. [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md)
+8. [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md)
+9. [mma-weight-prepack.md](mma-weight-prepack.md)
+10. [inference-backends-primer.md](inference-backends-primer.md)
+11. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
+12. [../../html/xqt.html](../../html/xqt.html)
