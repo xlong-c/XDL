@@ -21,6 +21,7 @@
 - [xdl-workflows.md](xdl-workflows.md): `XDL` 工作流入口.
 - [xdl-agent-handoff.md](xdl-agent-handoff.md): `XDL` agent / handoff 落点.
 - [xqt-workflows.md](xqt-workflows.md): `XQT` 工作流入口.
+- [xqt-hunyuan-ocr.md](xqt-hunyuan-ocr.md): HunyuanOCR SVDQuant FP4 storage 到 INT8 MMA inference.
 
 ## 当前兼容入口
 
@@ -40,4 +41,5 @@
 ### XQT
 
 1. [xqt-workflows.md](xqt-workflows.md)
-2. [../../../xqt/README.md](../../../xqt/README.md)
+2. [xqt-hunyuan-ocr.md](xqt-hunyuan-ocr.md)
+3. [../../../xqt/README.md](../../../xqt/README.md)
