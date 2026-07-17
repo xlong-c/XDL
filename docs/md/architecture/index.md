@@ -24,6 +24,7 @@
 - [roadmap.md](roadmap.md): `XDL` 当前仍有效的优化方向.
 - [xqt.md](xqt.md): `XQT` 定位, 模型侧边界, Stage 约定, profiling 约定.
 - [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md): `kernel` / `wrapper/materialize` / `xqt.nn` 三层边界.
+- [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md): `single_kernel` / `block_kernel` 分层, block 准入和手写融合路径.
 - [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md): `engine` / `quant` 词表, 三轴, 禁止项与配置语义.
 - [xqt-infer-handoff.md](xqt-infer-handoff.md): quant→infer 交接面 (`model` + `compute_config`).
 - [xqt-design-debt.md](xqt-design-debt.md): `XQT` 设计债台账, 只累计问题, 后面统一做方案.
@@ -50,8 +51,9 @@
 
 1. [xqt.md](xqt.md)
 2. [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md)
-3. [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md)
-4. [xqt-infer-handoff.md](xqt-infer-handoff.md)
-5. [xqt-design-debt.md](xqt-design-debt.md)
-6. [xqt-realignment-guide.md](xqt-realignment-guide.md)
-7. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)
+3. [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md)
+4. [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md)
+5. [xqt-infer-handoff.md](xqt-infer-handoff.md)
+6. [xqt-design-debt.md](xqt-design-debt.md)
+7. [xqt-realignment-guide.md](xqt-realignment-guide.md)
+8. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)
