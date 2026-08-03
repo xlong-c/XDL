@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="数理统计第十章教程: 回归, 方差分析与广义线性模型初步 HTML 教程">
+  <title>数理统计第十章教程: 回归, 方差分析与广义线性模型初步</title>
+  <link rel="stylesheet" href="probability_statistics.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      }
+    });
+  </script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="outline.md">
+        <span class="brand-mark">P</span>
+        <span>概率统计教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="outline.md">总纲</a>
+        <a class="nav-link" href="todo.html">进度</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Chapter 10</p>
+        <h1>数理统计第十章教程: 回归, 方差分析与广义线性模型初步</h1>
+        <p class="lead">前面三章已经建立了数理统计的基本推断语言: - 第七章: 样本, 统计量与抽样分布 - 第八章: 估计与置信区间 - 第九章: 假设检验与 p 值 第十章把这些工具放进更真实的建模问题里:</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#route-panel">阅读路径</a>
+        </div>
+      </div>
+      <aside id="route-panel" class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>页面概览</strong>
+          <span class="tag">公式 + 图示 + 主线</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>81</strong></div>
+          <div class="stat-card"><span>公式</span><strong>112</strong></div>
+          <div class="stat-card"><span>配图</span><strong>4</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 先看全章主线</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 回归到底在问什么</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 一元线性回归</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 最小二乘法</strong><span>本节是页面阅读路径中的关键节点.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-先看全章主线">0. 先看全章主线</a>
+<a href="#02-1-回归到底在问什么">1. 回归到底在问什么</a>
+<a href="#03-11-从相关关系到条件均值">1.1 从相关关系到条件均值</a>
+<a href="#04-12-预测和解释是两个目标">1.2 预测和解释是两个目标</a>
+<a href="#05-13-回归不是因果推断">1.3 回归不是因果推断</a>
+<a href="#06-2-一元线性回归">2. 一元线性回归</a>
+<a href="#07-21-模型形式">2.1 模型形式</a>
+<a href="#08-22-图像直觉">2.2 图像直觉</a>
+<a href="#09-23-截距和斜率">2.3 截距和斜率</a>
+<a href="#10-24-外推风险">2.4 外推风险</a>
+<a href="#11-3-最小二乘法">3. 最小二乘法</a>
+<a href="#12-31-残差">3.1 残差</a>
+<a href="#13-32-残差平方和">3.2 残差平方和</a>
+<a href="#14-33-一元回归闭式解">3.3 一元回归闭式解</a>
+<a href="#15-34-最小二乘和极大似然">3.4 最小二乘和极大似然</a>
+<a href="#16-4-回归系数的推断">4. 回归系数的推断</a>
+<a href="#17-41-系数也是估计量">4.1 系数也是估计量</a>
+<a href="#18-42-斜率的假设检验">4.2 斜率的假设检验</a>
+<a href="#19-43-t-统计量">4.3 t 统计量</a>
+<a href="#20-44-解释-p-值时要谨慎">4.4 解释 p 值时要谨慎</a>
+<a href="#21-5-残差分析">5. 残差分析</a>
+<a href="#22-51-为什么残差分析不能省">5.1 为什么残差分析不能省</a>
+<a href="#23-52-常见检查点">5.2 常见检查点</a>
+<a href="#24-53-残差图常见形状">5.3 残差图常见形状</a>
+<a href="#25-54-残差不是误差">5.4 残差不是误差</a>
+<a href="#26-6-多元线性回归">6. 多元线性回归</a>
+<a href="#27-61-模型形式">6.1 模型形式</a>
+<a href="#28-62-最小二乘矩阵解">6.2 最小二乘矩阵解</a>
+<a href="#29-63-系数解释">6.3 系数解释</a>
+<a href="#30-64-多重共线性">6.4 多重共线性</a>
+<a href="#31-65-遗漏变量偏差">6.5 遗漏变量偏差</a>
+<a href="#32-7-模型拟合优度与模型选择">7. 模型拟合优度与模型选择</a>
+<a href="#33-71-r-squared">7.1 R-squared</a>
+<a href="#34-72-r-squared-的限制">7.2 R-squared 的限制</a>
+<a href="#35-73-预测模型选择">7.3 预测模型选择</a>
+<a href="#36-74-解释模型选择">7.4 解释模型选择</a>
+<a href="#37-8-方差分析-anova-的基本思想">8. 方差分析 ANOVA 的基本思想</a>
+<a href="#38-81-从总波动拆解开始">8.1 从总波动拆解开始</a>
+<a href="#39-82-f-检验">8.2 F 检验</a>
+<a href="#40-83-anova-和回归不是两套完全分离的东西">8.3 ANOVA 和回归不是两套完全分离的东西</a>
+<a href="#41-9-单因素方差分析">9. 单因素方差分析</a>
+<a href="#42-91-问题形式">9.1 问题形式</a>
+<a href="#43-92-组间波动和组内波动">9.2 组间波动和组内波动</a>
+<a href="#44-93-拒绝原假设后怎么办">9.3 拒绝原假设后怎么办</a>
+<a href="#45-10-多因素方差分析与交互作用">10. 多因素方差分析与交互作用</a>
+<a href="#46-101-多因素问题">10.1 多因素问题</a>
+<a href="#47-102-主效应">10.2 主效应</a>
+<a href="#48-103-交互作用">10.3 交互作用</a>
+<a href="#49-104-交互项和回归">10.4 交互项和回归</a>
+<a href="#50-11-logistic-回归-分类问题的入口">11. Logistic 回归: 分类问题的入口</a>
+<a href="#51-111-为什么不能直接用线性回归">11.1 为什么不能直接用线性回归</a>
+<a href="#52-112-logistic-函数">11.2 Logistic 函数</a>
+<a href="#53-113-logit-链接函数">11.3 logit 链接函数</a>
+<a href="#54-114-似然和交叉熵">11.4 似然和交叉熵</a>
+<a href="#55-12-广义线性模型-glm-初步">12. 广义线性模型 GLM 初步</a>
+<a href="#56-121-glm-解决什么">12.1 GLM 解决什么</a>
+<a href="#57-122-三个组成部分">12.2 三个组成部分</a>
+<a href="#58-123-常见-glm">12.3 常见 GLM</a>
+<a href="#59-124-指数族入口">12.4 指数族入口</a>
+<a href="#60-13-线性回归-anova-glm-的统一视角">13. 线性回归, ANOVA, GLM 的统一视角</a>
+<a href="#61-131-共同点">13.1 共同点</a>
+<a href="#62-132-差异点">13.2 差异点</a>
+<a href="#63-133-统计建模的基本流程">13.3 统计建模的基本流程</a>
+<a href="#64-14-本章主线总结">14. 本章主线总结</a>
+<a href="#65-15-典型题型与实战清单">15. 典型题型与实战清单</a>
+<a href="#66-151-典型题型">15.1 典型题型</a>
+<a href="#67-152-实战清单">15.2 实战清单</a>
+<a href="#68-16-典型误区">16. 典型误区</a>
+<a href="#69-误区-1-把相关性说成因果性">误区 1: 把相关性说成因果性</a>
+<a href="#70-误区-2-只看拟合优度-不看残差结构">误区 2: 只看拟合优度, 不看残差结构</a>
+<a href="#71-误区-3-把预测目标和解释目标混在一起">误区 3: 把预测目标和解释目标混在一起</a>
+<a href="#72-误区-4-忽略多重共线性">误区 4: 忽略多重共线性</a>
+<a href="#73-误区-5-把-logistic-回归当成普通线性回归">误区 5: 把 Logistic 回归当成普通线性回归</a>
+<a href="#74-误区-6-忽略分类变量编码">误区 6: 忽略分类变量编码</a>
+<a href="#75-误区-7-拒绝-anova-后直接说所有组都不同">误区 7: 拒绝 ANOVA 后直接说所有组都不同</a>
+<a href="#76-17-和前后章节的连接点">17. 和前后章节的连接点</a>
+<a href="#77-171-和第八章的连接">17.1 和第八章的连接</a>
+<a href="#78-172-和第九章的连接">17.2 和第九章的连接</a>
+<a href="#79-173-和第十一章的连接">17.3 和第十一章的连接</a>
+<a href="#80-174-和统计学习章节的连接">17.4 和统计学习章节的连接</a>
+<a href="#81-18-本章收尾">18. 本章收尾</a>
+    </aside>
+    <div class="content">
+      <article class="article">
+        <div class="chapter-note">
+          <strong>HTML 阅读版</strong>
+          本页由同名 Markdown 自动转换生成, 保留原文结构, 并增强目录, 图表, 公式和重点提示的阅读体验.
+        </div>
+        <div class="source-title"><h2>数理统计第十章教程: 回归, 方差分析与广义线性模型初步</h2></div>
+<blockquote class="callout warn"><p>前面三章已经建立了数理统计的基本推断语言:</p><p>- 第七章: 样本, 统计量与抽样分布<br>- 第八章: 估计与置信区间<br>- 第九章: 假设检验与 p 值</p><p>第十章把这些工具放进更真实的建模问题里:</p><p>1. 一个变量怎样随另一个变量变化?<br>2. 多个解释变量同时出现时, 怎样拆开它们的影响?<br>3. 多组均值差异能否用同一套方差分解思想理解?<br>4. 分类问题为什么不能直接用普通线性回归?</p><p>这一章是经典统计建模的主干, 也是机器学习监督学习的统计入口.</p></blockquote>
+<hr class="divider">
+<h2 id="01-0-先看全章主线">0. 先看全章主线</h2>
+<p>第十章的主线可以压成下面这张图:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A[&quot;数据&lt;br/&gt;(x_i, y_i)&quot;] --&gt; B[&quot;线性回归&lt;br/&gt;条件均值模型&quot;]
+    B --&gt; C[&quot;最小二乘&lt;br/&gt;最小化残差平方和&quot;]
+    B --&gt; D[&quot;系数解释&lt;br/&gt;控制其他变量后的边际变化&quot;]
+    C --&gt; E[&quot;残差分析&lt;br/&gt;检查模型假设&quot;]
+    B --&gt; F[&quot;多元回归&lt;br/&gt;多个解释变量&quot;]
+    F --&gt; G[&quot;模型选择&lt;br/&gt;拟合, 复杂度, 泛化&quot;]
+    C --&gt; H[&quot;方差分析 ANOVA&lt;br/&gt;拆解总波动&quot;]
+    H --&gt; I[&quot;单因素和多因素&lt;br/&gt;主效应与交互&quot;]
+    A --&gt; J[&quot;广义线性模型 GLM&lt;br/&gt;响应变量不必正态&quot;]
+    J --&gt; K[&quot;Logistic 回归&lt;br/&gt;分类概率模型&quot;]</pre></div>
+<p>一句话概括这一章:</p>
+<blockquote class="callout"><p>回归分析是在随机波动中寻找变量关系,<br>方差分析是在总波动中拆解来源,<br>广义线性模型则把这套思想推广到更广的响应变量类型.</p></blockquote>
+<hr class="divider">
+<h2 id="02-1-回归到底在问什么">1. 回归到底在问什么</h2>
+<h3 id="03-11-从相关关系到条件均值">1.1 从相关关系到条件均值</h3>
+<p>回归问题通常从一组配对数据开始:</p>
+<div class="math-block">$$
+(x_1,y_1),\dots,(x_n,y_n)
+$$</div>
+<p>我们想知道:</p>
+<blockquote class="callout"><p>当 $x$ 变化时, $y$ 的平均水平怎样变化?</p></blockquote>
+<p>所以回归不是只画一条线, 它本质上是在建模条件分布:</p>
+<div class="math-block">$$
+Y\mid X=x
+$$</div>
+<p>最常见的第一步是建模条件均值:</p>
+<div class="math-block">$$
+E[Y\mid X=x]
+$$</div>
+<h3 id="04-12-预测和解释是两个目标">1.2 预测和解释是两个目标</h3>
+<p>回归有两个常见目标:</p>
+<ol><li><strong>预测</strong><ul><li>给定新的 $x$, 预测未来的 $y$</li>
+<li>更关心泛化误差</li>
+<li>允许使用复杂模型, 只要预测稳定</li></ul></li></ol>
+<ol><li><strong>解释</strong><ul><li>研究某个变量和响应变量的关系</li>
+<li>更关心系数含义, 混杂因素, 不确定性</li>
+<li>不能轻易把相关关系说成因果关系</li></ul></li></ol>
+<p>这两个目标都重要, 但评价标准不同.</p>
+<h3 id="05-13-回归不是因果推断">1.3 回归不是因果推断</h3>
+<p>普通回归可以描述关联, 但不能自动证明因果.</p>
+<p>例如:</p>
+<div class="math-block">$$
+\text{ice cream sales} \uparrow,\quad \text{drowning incidents} \uparrow
+$$</div>
+<p>这两个变量可能正相关, 但原因可能是共同受天气温度影响.</p>
+<p>要做因果解释, 需要额外条件, 如随机实验, 自然实验, 控制混杂, 工具变量或因果图等.</p>
+<hr class="divider">
+<h2 id="06-2-一元线性回归">2. 一元线性回归</h2>
+<h3 id="07-21-模型形式">2.1 模型形式</h3>
+<p>一元线性回归写作:</p>
+<div class="math-block">$$
+Y_i=\beta_0+\beta_1 x_i+\varepsilon_i
+$$</div>
+<p>其中:</p>
+<ul><li>$Y_i$ 是响应变量</li>
+<li>$x_i$ 是解释变量</li>
+<li>$\beta_0$ 是截距</li>
+<li>$\beta_1$ 是斜率</li>
+<li>$\varepsilon_i$ 是随机误差</li></ul>
+<p>常见假设是:</p>
+<div class="math-block">$$
+E[\varepsilon_i\mid x_i]=0
+$$</div>
+<p>这意味着:</p>
+<div class="math-block">$$
+E[Y_i\mid x_i]=\beta_0+\beta_1 x_i
+$$</div>
+<h3 id="08-22-图像直觉">2.2 图像直觉</h3>
+<figure class="figure"><img src="assets/ps_ch10_linear_fit.png" alt="散点图与最小二乘拟合直线"><figcaption>散点图与最小二乘拟合直线</figcaption></figure>
+<p>图中的散点不是完全落在直线上, 因为响应变量带随机误差.<br> 回归线描述的是平均趋势, 不是每个样本点都必须满足的确定规律.</p>
+<h3 id="09-23-截距和斜率">2.3 截距和斜率</h3>
+<p>截距 $\beta_0$ 表示当 $x=0$ 时的条件均值:</p>
+<div class="math-block">$$
+E[Y\mid X=0]=\beta_0
+$$</div>
+<p>斜率 $\beta_1$ 表示 $x$ 增加 1 个单位时, $Y$ 的条件均值变化:</p>
+<div class="math-block">$$
+E[Y\mid X=x+1]-E[Y\mid X=x]=\beta_1
+$$</div>
+<p>解释斜率时要注意单位.<br> 如果 $x$ 是广告预算, 单位从元改成万元, 斜率数值会随之改变.</p>
+<h3 id="10-24-外推风险">2.4 外推风险</h3>
+<p>回归线只在数据覆盖的 $x$ 范围内相对可信.<br> 如果训练数据只覆盖 $x\in[0,10]$, 用模型预测 $x=100$ 的结果就是外推.</p>
+<p>外推通常很危险, 因为线性关系可能只在局部成立.</p>
+<hr class="divider">
+<h2 id="11-3-最小二乘法">3. 最小二乘法</h2>
+<h3 id="12-31-残差">3.1 残差</h3>
+<p>给定参数估计 $\hat\beta_0,\hat\beta_1$, 拟合值为:</p>
+<div class="math-block">$$
+\hat y_i=\hat\beta_0+\hat\beta_1 x_i
+$$</div>
+<p>残差为:</p>
+<div class="math-block">$$
+e_i=y_i-\hat y_i
+$$</div>
+<p>残差是观察值和模型拟合值之间的差.</p>
+<h3 id="13-32-残差平方和">3.2 残差平方和</h3>
+<p>最小二乘法选择参数使残差平方和最小:</p>
+<div class="math-block">$$
+\mathrm{RSS}(\beta_0,\beta_1)
+=
+\sum_{i=1}^{n}(y_i-\beta_0-\beta_1x_i)^2
+$$</div>
+<p>即:</p>
+<div class="math-block">$$
+(\hat\beta_0,\hat\beta_1)
+=
+\arg\min_{\beta_0,\beta_1}
+\sum_{i=1}^{n}(y_i-\beta_0-\beta_1x_i)^2
+$$</div>
+<h3 id="14-33-一元回归闭式解">3.3 一元回归闭式解</h3>
+<p>令:</p>
+<div class="math-block">$$
+\bar x=\frac{1}{n}\sum_{i=1}^{n}x_i,\quad
+\bar y=\frac{1}{n}\sum_{i=1}^{n}y_i
+$$</div>
+<p>则:</p>
+<div class="math-block">$$
+\hat\beta_1=
+\frac{\sum_{i=1}^{n}(x_i-\bar x)(y_i-\bar y)}
+{\sum_{i=1}^{n}(x_i-\bar x)^2}
+$$</div>
+<div class="math-block">$$
+\hat\beta_0=\bar y-\hat\beta_1\bar x
+$$</div>
+<p>这个式子揭示了斜率和协方差的关系:</p>
+<div class="math-block">$$
+\hat\beta_1=\frac{\widehat{\mathrm{Cov}}(X,Y)}{\widehat{\mathrm{Var}}(X)}
+$$</div>
+<h3 id="15-34-最小二乘和极大似然">3.4 最小二乘和极大似然</h3>
+<p>若误差满足:</p>
+<div class="math-block">$$
+\varepsilon_i\overset{i.i.d.}{\sim}\mathcal{N}(0,\sigma^2)
+$$</div>
+<p>则:</p>
+<div class="math-block">$$
+Y_i\mid x_i\sim \mathcal{N}(\beta_0+\beta_1x_i,\sigma^2)
+$$</div>
+<p>最大化正态似然等价于最小化:</p>
+<div class="math-block">$$
+\sum_{i=1}^{n}(y_i-\beta_0-\beta_1x_i)^2
+$$</div>
+<p>所以:</p>
+<blockquote class="callout"><p>正态误差假设下, 最小二乘估计就是极大似然估计.</p></blockquote>
+<p>这连接了第八章的似然方法和本章的回归.</p>
+<hr class="divider">
+<h2 id="16-4-回归系数的推断">4. 回归系数的推断</h2>
+<h3 id="17-41-系数也是估计量">4.1 系数也是估计量</h3>
+<p>回归系数 $\hat\beta_0,\hat\beta_1$ 由样本计算得到, 所以它们也是随机变量.</p>
+<p>因此我们同样关心:</p>
+<ul><li>标准误</li>
+<li>置信区间</li>
+<li>t 检验</li>
+<li>p 值</li></ul>
+<h3 id="18-42-斜率的假设检验">4.2 斜率的假设检验</h3>
+<p>常见检验是:</p>
+<div class="math-block">$$
+H_0:\beta_1=0
+$$</div>
+<div class="math-block">$$
+H_1:\beta_1\ne 0
+$$</div>
+<p>如果 $H_0$ 不被拒绝, 说明样本证据不足以支持线性关系.<br> 如果拒绝 $H_0$, 说明在模型假设下, 斜率不为 0 的证据较强.</p>
+<h3 id="19-43-t-统计量">4.3 t 统计量</h3>
+<p>斜率的 t 统计量形式为:</p>
+<div class="math-block">$$
+t=
+\frac{\hat\beta_1-0}{\mathrm{SE}(\hat\beta_1)}
+$$</div>
+<p>在经典正态误差假设下, 若 $H_0$ 成立:</p>
+<div class="math-block">$$
+t\sim t_{n-2}
+$$</div>
+<p>自由度是 $n-2$, 因为一元线性回归估计了两个参数: 截距和斜率.</p>
+<h3 id="20-44-解释-p-值时要谨慎">4.4 解释 p 值时要谨慎</h3>
+<p>斜率 p 值小, 只能说明在模型假设下, 斜率为 0 与数据不太相容.<br> 它不自动说明:</p>
+<ul><li>关系是因果的</li>
+<li>效应大小很重要</li>
+<li>模型形式正确</li>
+<li>预测效果一定好</li></ul>
+<p>回归推断的语言仍然要遵守第九章的规则.</p>
+<hr class="divider">
+<h2 id="21-5-残差分析">5. 残差分析</h2>
+<h3 id="22-51-为什么残差分析不能省">5.1 为什么残差分析不能省</h3>
+<p>模型假设往往不会直接写在数据表里.<br> 它们通常藏在残差结构中.</p>
+<p>残差分析要问:</p>
+<blockquote class="callout"><p>模型没有解释掉的部分, 是否还残留系统结构?</p></blockquote>
+<figure class="figure"><img src="assets/ps_ch10_residual_diagnostics.png" alt="残差诊断图"><figcaption>残差诊断图</figcaption></figure>
+<p>图中左侧看残差是否围绕 0 随机散开.<br> 右侧看残差分布是否大致对称, 是否有明显异常值.</p>
+<h3 id="23-52-常见检查点">5.2 常见检查点</h3>
+<p>线性回归常见诊断包括:</p>
+<ol><li><strong>线性性</strong><ul><li>残差图中不应出现明显曲线结构</li></ul></li></ol>
+<ol><li><strong>同方差性</strong><ul><li>残差波动规模不应随拟合值明显变大或变小</li></ul></li></ol>
+<ol><li><strong>独立性</strong><ul><li>时间序列或空间数据中残差可能相关</li></ul></li></ol>
+<ol><li><strong>异常值和高杠杆点</strong><ul><li>少数点可能强烈影响回归线</li></ul></li></ol>
+<ol><li><strong>正态性</strong><ul><li>主要影响小样本下 t 检验和区间推断的精确性</li></ul></li></ol>
+<h3 id="24-53-残差图常见形状">5.3 残差图常见形状</h3>
+<p>如果残差图呈弯曲形状, 可能说明:</p>
+<ul><li>线性形式不够</li>
+<li>需要加入非线性项</li>
+<li>需要变换变量</li></ul>
+<p>如果残差图呈漏斗形, 可能说明:</p>
+<ul><li>方差随均值变化</li>
+<li>需要加权最小二乘</li>
+<li>需要建模异方差</li></ul>
+<p>如果残差随时间成串偏正或偏负, 可能说明:</p>
+<ul><li>样本不独立</li>
+<li>存在时间趋势或自相关</li></ul>
+<h3 id="25-54-残差不是误差">5.4 残差不是误差</h3>
+<p>误差 $\varepsilon_i$ 是理论模型中的未知随机项.<br> 残差 $e_i$ 是用样本拟合后计算出来的剩余.</p>
+<p>残差可以观察, 误差不能直接观察.</p>
+<hr class="divider">
+<h2 id="26-6-多元线性回归">6. 多元线性回归</h2>
+<h3 id="27-61-模型形式">6.1 模型形式</h3>
+<p>当解释变量有多个时, 模型写作:</p>
+<div class="math-block">$$
+Y_i=\beta_0+\beta_1x_{i1}+\cdots+\beta_px_{ip}+\varepsilon_i
+$$</div>
+<p>矩阵形式为:</p>
+<div class="math-block">$$
+\mathbf{y}=X\beta+\varepsilon
+$$</div>
+<p>其中:</p>
+<ul><li>$\mathbf{y}$ 是 $n\times 1$ 响应向量</li>
+<li>$X$ 是 $n\times (p+1)$ 设计矩阵, 第一列通常全为 1</li>
+<li>$\beta$ 是系数向量</li></ul>
+<h3 id="28-62-最小二乘矩阵解">6.2 最小二乘矩阵解</h3>
+<p>最小化:</p>
+<div class="math-block">$$
+\|\mathbf{y}-X\beta\|_2^2
+$$</div>
+<p>在 $X^TX$ 可逆时, 解为:</p>
+<div class="math-block">$$
+\hat\beta=(X^TX)^{-1}X^T\mathbf{y}
+$$</div>
+<p>实际计算中通常不用显式求逆, 而使用 QR 分解, SVD 或数值线性代数求解.</p>
+<h3 id="29-63-系数解释">6.3 系数解释</h3>
+<p>多元回归中, $\beta_j$ 的解释是:</p>
+<blockquote class="callout"><p>在其他变量保持不变时, $x_j$ 增加 1 个单位, $Y$ 的条件均值变化 $\beta_j$.</p></blockquote>
+<p>这句里最关键的是:</p>
+<blockquote class="callout"><p>其他变量保持不变.</p></blockquote>
+<p>如果变量之间高度相关, 这个解释可能很脆弱.</p>
+<h3 id="30-64-多重共线性">6.4 多重共线性</h3>
+<p>多重共线性指解释变量之间高度相关.<br> 它会导致:</p>
+<ul><li>系数估计不稳定</li>
+<li>标准误变大</li>
+<li>单个变量的解释变困难</li></ul>
+<p>但它不一定严重影响整体预测.<br> 预测和解释的要求在这里再次分开.</p>
+<h3 id="31-65-遗漏变量偏差">6.5 遗漏变量偏差</h3>
+<p>如果遗漏了同时影响 $X$ 和 $Y$ 的变量, 回归系数可能带有系统偏差.</p>
+<p>例如估计教育年限对收入的影响时, 如果遗漏家庭背景, 地区, 能力等因素, 系数可能混入这些因素的影响.</p>
+<p>这也是为什么普通回归不自动等于因果推断.</p>
+<hr class="divider">
+<h2 id="32-7-模型拟合优度与模型选择">7. 模型拟合优度与模型选择</h2>
+<h3 id="33-71-r-squared">7.1 R-squared</h3>
+<p>线性回归中常用:</p>
+<div class="math-block">$$
+R^2=1-\frac{\mathrm{SSE}}{\mathrm{SST}}
+$$</div>
+<p>其中:</p>
+<div class="math-block">$$
+\mathrm{SST}=\sum_{i=1}^{n}(y_i-\bar y)^2
+$$</div>
+<div class="math-block">$$
+\mathrm{SSE}=\sum_{i=1}^{n}(y_i-\hat y_i)^2
+$$</div>
+<p>$R^2$ 表示总波动中被模型解释的比例.</p>
+<h3 id="34-72-r-squared-的限制">7.2 R-squared 的限制</h3>
+<p>$R^2$ 增大不一定代表模型更好.<br> 加入更多变量通常不会降低训练集 $R^2$, 即使这些变量没有真实意义.</p>
+<p>因此还要看:</p>
+<ul><li>调整 $R^2$</li>
+<li>AIC/BIC</li>
+<li>交叉验证误差</li>
+<li>残差结构</li>
+<li>变量是否有可解释性</li>
+<li>模型是否能在未来数据上稳定表现</li></ul>
+<h3 id="35-73-预测模型选择">7.3 预测模型选择</h3>
+<p>如果目标是预测, 应更重视验证集或交叉验证:</p>
+<div class="math-block">$$
+\text{train error} \ne \text{test error}
+$$</div>
+<p>训练误差低可能只是过拟合.<br> 模型选择不能只看训练集拟合优度.</p>
+<h3 id="36-74-解释模型选择">7.4 解释模型选择</h3>
+<p>如果目标是解释, 变量选择要基于问题结构:</p>
+<ul><li>哪些变量是混杂因素?</li>
+<li>哪些变量是中介变量?</li>
+<li>哪些变量不能在因果解释中随便控制?</li>
+<li>系数解释的目标人群是什么?</li></ul>
+<p>解释型建模不能只靠自动逐步回归.</p>
+<hr class="divider">
+<h2 id="37-8-方差分析-anova-的基本思想">8. 方差分析 ANOVA 的基本思想</h2>
+<h3 id="38-81-从总波动拆解开始">8.1 从总波动拆解开始</h3>
+<p>方差分析的核心思想是:</p>
+<blockquote class="callout"><p>把响应变量的总波动拆成不同来源.</p></blockquote>
+<p>在线性回归中, 总平方和可拆为:</p>
+<div class="math-block">$$
+\mathrm{SST}=\mathrm{SSR}+\mathrm{SSE}
+$$</div>
+<p>其中:</p>
+<ul><li>SST: total sum of squares, 总波动</li>
+<li>SSR: regression sum of squares, 模型解释的波动</li>
+<li>SSE: error sum of squares, 残差波动</li></ul>
+<figure class="figure"><img src="assets/ps_ch10_variance_decomposition.png" alt="回归中的方差分解示意图"><figcaption>回归中的方差分解示意图</figcaption></figure>
+<p>图中绿色部分表示模型解释的偏离, 黄色部分表示残差偏离.<br> 右侧柱状图显示了总波动如何被拆解.</p>
+<h3 id="39-82-f-检验">8.2 F 检验</h3>
+<p>回归整体显著性常用 F 统计量:</p>
+<div class="math-block">$$
+F=
+\frac{\mathrm{SSR}/p}{\mathrm{SSE}/(n-p-1)}
+$$</div>
+<p>其中 $p$ 是解释变量个数, 不含截距.</p>
+<p>在经典线性模型假设下, 若所有斜率都为 0:</p>
+<div class="math-block">$$
+F\sim F_{p,n-p-1}
+$$</div>
+<p>这个检验问的是:</p>
+<blockquote class="callout"><p>模型整体是否比只用均值预测更能解释波动?</p></blockquote>
+<h3 id="40-83-anova-和回归不是两套完全分离的东西">8.3 ANOVA 和回归不是两套完全分离的东西</h3>
+<p>单因素方差分析可以看成带分类变量的线性回归.<br> 回归可以看成更一般的线性模型.</p>
+<p>二者共享:</p>
+<ul><li>平方和分解</li>
+<li>F 检验</li>
+<li>残差方差估计</li>
+<li>线性模型框架</li></ul>
+<hr class="divider">
+<h2 id="41-9-单因素方差分析">9. 单因素方差分析</h2>
+<h3 id="42-91-问题形式">9.1 问题形式</h3>
+<p>单因素 ANOVA 比较多个组的均值是否相同.</p>
+<p>例如有 $k$ 组:</p>
+<div class="math-block">$$
+Y_{ij}=\mu_i+\varepsilon_{ij}
+$$</div>
+<p>原假设为:</p>
+<div class="math-block">$$
+H_0:\mu_1=\mu_2=\cdots=\mu_k
+$$</div>
+<p>备择假设是至少有一组均值不同.</p>
+<h3 id="43-92-组间波动和组内波动">9.2 组间波动和组内波动</h3>
+<p>ANOVA 比较两种波动:</p>
+<ol><li><strong>组间波动</strong><ul><li>各组均值彼此差多少</li>
+<li>如果组均值差异大, 说明因素可能有影响</li></ul></li></ol>
+<ol><li><strong>组内波动</strong><ul><li>同一组内部样本波动多大</li>
+<li>如果组内噪声大, 组间差异更难判断</li></ul></li></ol>
+<p>F 统计量本质上是:</p>
+<div class="math-block">$$
+F=\frac{\text{组间均方}}{\text{组内均方}}
+$$</div>
+<p>如果组间差异远大于组内噪声, F 值就会大.</p>
+<h3 id="44-93-拒绝原假设后怎么办">9.3 拒绝原假设后怎么办</h3>
+<p>ANOVA 拒绝 $H_0$ 只说明:</p>
+<blockquote class="callout"><p>至少有一组均值不同.</p></blockquote>
+<p>它不直接告诉你哪两组不同.<br> 要进一步比较, 需要事后检验或多重比较控制, 如 Tukey HSD, Bonferroni 校正等.</p>
+<hr class="divider">
+<h2 id="45-10-多因素方差分析与交互作用">10. 多因素方差分析与交互作用</h2>
+<h3 id="46-101-多因素问题">10.1 多因素问题</h3>
+<p>现实中常有多个因素同时影响响应变量.</p>
+<p>例如学习成绩可能受:</p>
+<ul><li>教学方法</li>
+<li>班级规模</li>
+<li>是否有辅导</li></ul>
+<p>共同影响.</p>
+<p>多因素 ANOVA 可以同时研究多个因素.</p>
+<h3 id="47-102-主效应">10.2 主效应</h3>
+<p>主效应问的是:</p>
+<blockquote class="callout"><p>某个因素平均而言是否影响响应变量?</p></blockquote>
+<p>例如教学方法的主效应, 是在平均掉其他因素后, 比较不同教学方法的均值差异.</p>
+<h3 id="48-103-交互作用">10.3 交互作用</h3>
+<p>交互作用问的是:</p>
+<blockquote class="callout"><p>一个因素的效果是否取决于另一个因素的水平?</p></blockquote>
+<p>例如某种教学方法可能只在小班里有效, 在大班里无效.<br> 这就是教学方法和班级规模之间的交互作用.</p>
+<h3 id="49-104-交互项和回归">10.4 交互项和回归</h3>
+<p>在线性模型中, 交互作用常通过乘积项表达:</p>
+<div class="math-block">$$
+Y=\beta_0+\beta_1X_1+\beta_2X_2+\beta_3X_1X_2+\varepsilon
+$$</div>
+<p>如果 $\beta_3\ne 0$, 说明 $X_1$ 的效应随 $X_2$ 变化.</p>
+<p>解释带交互项的模型时, 不要只看主效应系数.</p>
+<hr class="divider">
+<h2 id="50-11-logistic-回归-分类问题的入口">11. Logistic 回归: 分类问题的入口</h2>
+<h3 id="51-111-为什么不能直接用线性回归">11.1 为什么不能直接用线性回归</h3>
+<p>分类问题中, 响应变量常是:</p>
+<div class="math-block">$$
+Y\in\{0,1\}
+$$</div>
+<p>如果直接用线性回归预测 $Y$, 可能出现:</p>
+<ul><li>预测值小于 0 或大于 1</li>
+<li>误差方差不恒定</li>
+<li>正态误差假设不合理</li></ul>
+<p>更自然的目标是建模概率:</p>
+<div class="math-block">$$
+p(x)=P(Y=1\mid X=x)
+$$</div>
+<h3 id="52-112-logistic-函数">11.2 Logistic 函数</h3>
+<p>Logistic 回归使用 sigmoid 函数把线性预测值压到 $(0,1)$:</p>
+<div class="math-block">$$
+p(x)=\frac{1}{1+\exp[-(\beta_0+\beta_1x)]}
+$$</div>
+<figure class="figure"><img src="assets/ps_ch10_logistic_curve.png" alt="Logistic 回归概率曲线图"><figcaption>Logistic 回归概率曲线图</figcaption></figure>
+<p>图中曲线始终位于 0 和 1 之间, 因此可以解释为概率.</p>
+<h3 id="53-113-logit-链接函数">11.3 logit 链接函数</h3>
+<p>Logistic 回归也可写成:</p>
+<div class="math-block">$$
+\log\frac{p(x)}{1-p(x)}=\beta_0+\beta_1x
+$$</div>
+<p>左侧称为 log odds 或 logit.</p>
+<p>因此 $\beta_1$ 的解释是:</p>
+<blockquote class="callout"><p>$x$ 增加 1 个单位时, log odds 增加 $\beta_1$.</p></blockquote>
+<p>如果取指数:</p>
+<div class="math-block">$$
+\exp(\beta_1)
+$$</div>
+<p>就是 odds ratio.</p>
+<h3 id="54-114-似然和交叉熵">11.4 似然和交叉熵</h3>
+<p>对二分类数据:</p>
+<div class="math-block">$$
+y_i\in\{0,1\}
+$$</div>
+<p>若模型预测概率为 $p_i$, Bernoulli 似然为:</p>
+<div class="math-block">$$
+L(\beta)=\prod_{i=1}^{n}p_i^{y_i}(1-p_i)^{1-y_i}
+$$</div>
+<p>对数似然为:</p>
+<div class="math-block">$$
+\ell(\beta)=
+\sum_{i=1}^{n}
+\left[
+y_i\log p_i+(1-y_i)\log(1-p_i)
+\right]
+$$</div>
+<p>最大化对数似然等价于最小化负对数似然:</p>
+<div class="math-block">$$
+-\ell(\beta)
+=
+-\sum_{i=1}^{n}
+\left[
+y_i\log p_i+(1-y_i)\log(1-p_i)
+\right]
+$$</div>
+<p>这正是二分类交叉熵.</p>
+<p>所以:</p>
+<blockquote class="callout"><p>Logistic 回归把分类, 似然和交叉熵放在同一条线上.</p></blockquote>
+<hr class="divider">
+<h2 id="55-12-广义线性模型-glm-初步">12. 广义线性模型 GLM 初步</h2>
+<h3 id="56-121-glm-解决什么">12.1 GLM 解决什么</h3>
+<p>普通线性回归默认响应变量是连续型, 且常配合正态误差.<br> 但现实里响应变量可能是:</p>
+<ul><li>二分类结果</li>
+<li>计数</li>
+<li>比例</li>
+<li>正值连续量</li></ul>
+<p>广义线性模型允许响应变量来自更广的分布族, 同时保持线性预测器:</p>
+<div class="math-block">$$
+\eta=X\beta
+$$</div>
+<h3 id="57-122-三个组成部分">12.2 三个组成部分</h3>
+<p>GLM 通常由三部分组成:</p>
+<ol><li><strong>随机成分</strong><ul><li>响应变量的分布, 如 Normal, Bernoulli, Poisson</li></ul></li></ol>
+<ol><li><strong>系统成分</strong><ul><li>线性预测器 $\eta=X\beta$</li></ul></li></ol>
+<ol><li><strong>链接函数</strong><ul><li>把均值 $\mu=E[Y\mid X]$ 和线性预测器连接起来:</li></ul></li></ol>
+<div class="math-block">$$
+g(\mu)=\eta
+$$</div>
+<h3 id="58-123-常见-glm">12.3 常见 GLM</h3>
+<div class="table-wrap"><table><thead><tr><th>响应变量</th><th>分布</th><th>链接函数</th><th>模型</th></tr></thead><tbody><tr><td>连续值</td><td>Normal</td><td>identity</td><td>线性回归</td></tr>
+<tr><td>二分类</td><td>Bernoulli</td><td>logit</td><td>Logistic 回归</td></tr>
+<tr><td>计数</td><td>Poisson</td><td>log</td><td>Poisson 回归</td></tr></tbody></table></div>
+<p>这说明线性回归和 Logistic 回归不是孤立技巧, 而是 GLM 框架下的两个特例.</p>
+<h3 id="59-124-指数族入口">12.4 指数族入口</h3>
+<p>许多 GLM 使用指数族分布.<br> 指数族的好处是:</p>
+<ul><li>似然结构统一</li>
+<li>均值和方差关系清晰</li>
+<li>优化和推断有通用形式</li></ul>
+<p>本章只需要知道 GLM 的框架.<br> 指数族的更深入内容会在后续概率模型章节继续出现.</p>
+<hr class="divider">
+<h2 id="60-13-线性回归-anova-glm-的统一视角">13. 线性回归, ANOVA, GLM 的统一视角</h2>
+<h3 id="61-131-共同点">13.1 共同点</h3>
+<p>它们都在做同一件事:</p>
+<blockquote class="callout"><p>用解释变量描述响应变量的系统变化, 再把未解释部分留给随机误差.</p></blockquote>
+<p>共同元素包括:</p>
+<ul><li>参数</li>
+<li>估计</li>
+<li>残差或偏差</li>
+<li>标准误</li>
+<li>置信区间</li>
+<li>假设检验</li>
+<li>模型诊断</li></ul>
+<h3 id="62-132-差异点">13.2 差异点</h3>
+<p>差异主要在:</p>
+<ul><li>响应变量类型不同</li>
+<li>分布假设不同</li>
+<li>链接函数不同</li>
+<li>损失函数或似然不同</li></ul>
+<p>普通线性回归适合连续响应.<br> Logistic 回归适合二分类概率.<br> Poisson 回归适合计数均值.</p>
+<h3 id="63-133-统计建模的基本流程">13.3 统计建模的基本流程</h3>
+<p>一个稳妥的建模流程可以写成:</p>
+<ol><li>明确研究问题: 预测还是解释?</li>
+<li>明确响应变量类型</li>
+<li>选择合适的模型族</li>
+<li>拟合参数</li>
+<li>做残差或诊断检查</li>
+<li>评估不确定性</li>
+<li>检查泛化能力</li>
+<li>报告限制和假设</li></ol>
+<hr class="divider">
+<h2 id="64-14-本章主线总结">14. 本章主线总结</h2>
+<p>第十章可以压成几句话:</p>
+<ol><li>一元线性回归建模 $E[Y\mid X=x]$ 的线性变化</li>
+<li>最小二乘通过最小化残差平方和估计参数</li>
+<li>正态误差假设下, 最小二乘等价于极大似然</li>
+<li>回归系数是估计量, 可以做标准误, 区间和检验</li>
+<li>残差分析用于检查模型假设是否合理</li>
+<li>多元回归中系数解释是控制其他变量后的边际变化</li>
+<li>ANOVA 通过平方和分解研究波动来源</li>
+<li>Logistic 回归建模分类概率, 与 Bernoulli 似然和交叉熵相连</li>
+<li>GLM 把响应变量分布, 线性预测器和链接函数统一起来</li></ol>
+<p>这章最重要的提醒是:</p>
+<blockquote class="callout"><p>回归不只是画线,<br>它是一套带假设, 估计, 诊断和解释边界的统计建模框架.</p></blockquote>
+<hr class="divider">
+<h2 id="65-15-典型题型与实战清单">15. 典型题型与实战清单</h2>
+<h3 id="66-151-典型题型">15.1 典型题型</h3>
+<ol><li><strong>写出回归模型</strong><ul><li>明确响应变量</li>
+<li>明确解释变量</li>
+<li>写出误差项</li></ul></li></ol>
+<ol><li><strong>求一元 OLS 估计</strong><ul><li>计算 $\hat\beta_1$</li>
+<li>计算 $\hat\beta_0$</li></ul></li></ol>
+<ol><li><strong>解释回归系数</strong><ul><li>注意单位</li>
+<li>注意是否控制其他变量</li>
+<li>不轻易说因果</li></ul></li></ol>
+<ol><li><strong>判断残差图</strong><ul><li>是否有曲线结构</li>
+<li>是否异方差</li>
+<li>是否有异常点</li></ul></li></ol>
+<ol><li><strong>计算或解释 $R^2$</strong><ul><li>说明解释波动比例</li>
+<li>不把高 $R^2$ 当成模型正确</li></ul></li></ol>
+<ol><li><strong>识别 ANOVA 问题</strong><ul><li>多组均值比较</li>
+<li>组间和组内波动</li>
+<li>F 检验</li></ul></li></ol>
+<ol><li><strong>写 Logistic 回归模型</strong><ul><li>写概率形式</li>
+<li>写 logit 形式</li>
+<li>解释 odds ratio</li></ul></li></ol>
+<h3 id="67-152-实战清单">15.2 实战清单</h3>
+<p>建模前先问:</p>
+<ol><li>目标是预测还是解释?</li>
+<li>响应变量是什么类型?</li>
+<li>解释变量是否有清晰含义?</li>
+<li>样本是否独立?</li>
+<li>是否有明显混杂因素?</li>
+<li>是否存在异常值或数据质量问题?</li></ol>
+<p>建模后再问:</p>
+<ol><li>残差图是否有结构?</li>
+<li>是否存在异方差?</li>
+<li>系数是否稳定?</li>
+<li>标准误和置信区间多大?</li>
+<li>预测误差在验证集上如何?</li>
+<li>结论是否被外推到数据范围之外?</li>
+<li>是否把相关误说成因果?</li></ol>
+<hr class="divider">
+<h2 id="68-16-典型误区">16. 典型误区</h2>
+<h3 id="69-误区-1-把相关性说成因果性">误区 1: 把相关性说成因果性</h3>
+<p>回归系数描述的是模型中的条件关联.<br> 没有额外设计或假设, 它不自动表示因果效应.</p>
+<h3 id="70-误区-2-只看拟合优度-不看残差结构">误区 2: 只看拟合优度, 不看残差结构</h3>
+<p>高 $R^2$ 不代表模型形式正确.<br> 残差图可能显示非线性, 异方差或异常点.</p>
+<h3 id="71-误区-3-把预测目标和解释目标混在一起">误区 3: 把预测目标和解释目标混在一起</h3>
+<p>预测模型可以使用复杂特征提高泛化.<br> 解释模型则更强调变量含义, 混杂控制和推断语义.</p>
+<h3 id="72-误区-4-忽略多重共线性">误区 4: 忽略多重共线性</h3>
+<p>解释变量高度相关时, 单个系数可能非常不稳定.<br> 这时不要过度解读某个系数的符号和 p 值.</p>
+<h3 id="73-误区-5-把-logistic-回归当成普通线性回归">误区 5: 把 Logistic 回归当成普通线性回归</h3>
+<p>Logistic 回归建模的是概率和 log odds, 不是直接拟合连续响应.<br> 它的损失来自 Bernoulli 负对数似然, 也就是二分类交叉熵.</p>
+<h3 id="74-误区-6-忽略分类变量编码">误区 6: 忽略分类变量编码</h3>
+<p>分类变量进入回归通常需要哑变量编码.<br> 基准组不同, 系数解释也会改变.</p>
+<h3 id="75-误区-7-拒绝-anova-后直接说所有组都不同">误区 7: 拒绝 ANOVA 后直接说所有组都不同</h3>
+<p>ANOVA 显著只说明至少有一组均值不同.<br> 具体哪几组不同, 需要进一步比较并控制多重比较风险.</p>
+<hr class="divider">
+<h2 id="76-17-和前后章节的连接点">17. 和前后章节的连接点</h2>
+<h3 id="77-171-和第八章的连接">17.1 和第八章的连接</h3>
+<p>回归系数估计, 标准误和置信区间都来自第八章的估计思想.<br> 最小二乘和极大似然也在本章正式连接起来.</p>
+<h3 id="78-172-和第九章的连接">17.2 和第九章的连接</h3>
+<p>回归中的 t 检验, F 检验, p 值和模型整体显著性都直接使用第九章的假设检验语言.</p>
+<h3 id="79-173-和第十一章的连接">17.3 和第十一章的连接</h3>
+<p>如果残差严重非正态, 有离群点或模型假设不可靠, 就需要非参数, 重抽样或稳健方法.<br> 这正是第十一章要处理的问题.</p>
+<h3 id="80-174-和统计学习章节的连接">17.4 和统计学习章节的连接</h3>
+<p>线性回归和 Logistic 回归会在统计学习中再次出现:</p>
+<ul><li>经验风险最小化</li>
+<li>正则化</li>
+<li>泛化误差</li>
+<li>分类交叉熵</li>
+<li>模型选择</li></ul>
+<p>所以本章是传统统计建模和机器学习之间的桥.</p>
+<hr class="divider">
+<h2 id="81-18-本章收尾">18. 本章收尾</h2>
+<p>第十章把前面估计和检验的工具放入模型中.<br> 从现在开始, 统计问题不再只是一个均值或一个比例, 而是变量之间的系统关系.</p>
+<p>但建模越强大, 越要谨慎:</p>
+<blockquote class="callout"><p>模型给出的是有条件的简化描述,<br>不是对现实机制的自动证明.</p></blockquote>
+<p>下一章会继续处理一个现实问题:<br> 当参数模型假设不可靠, 或数据含有异常值和厚尾结构时, 我们怎样用非参数, 重抽样和稳健方法继续推断.</p>
+      </article>
+      <nav class="chapter-nav" aria-label="前后页面">
+        <a class="prev" href="chapter09_hypothesis_testing_p_value_power_experiment.html"><span>上一页</span><strong>Chapter 09: 数理统计第九章教程: 假设检验, p 值, 功效与实验设计</strong></a>
+        <a class="next" href="chapter11_nonparametric_resampling_robust_methods.html"><span>下一页</span><strong>Chapter 11: 数理统计第十一章教程: 非参数统计, 重抽样与稳健方法</strong></a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="footer">
+    由 build_probability_statistics_html.py 生成. 样式文件: probability_statistics.css.
+  </footer>
+</body>
+</html>

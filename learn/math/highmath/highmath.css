@@ -1,0 +1,7 @@
+@import "../../../docs/html/assets/xdl-doc.css";
+
+/*
+  Highmath pages use the shared math reading components from xdl-doc.css.
+  Keep this file for course-only additions; do not copy topbar, hero, layout,
+  card, table, formula, practice, or chapter navigation styles here.
+*/

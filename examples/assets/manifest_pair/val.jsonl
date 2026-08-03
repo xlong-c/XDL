@@ -1,0 +1,2 @@
+{"image_a": "images/red_b.png", "image_b": "images/red_a.png", "label": 1, "sample_id": "pair-val-pos"}
+{"image_a": "images/blue_b.png", "image_b": "images/green_a.png", "label": 0, "sample_id": "pair-val-neg"}

@@ -1,0 +1,4 @@
+{"image_a": "images/red_a.png", "image_b": "images/red_b.png", "label": 1, "sample_id": "pair-train-pos-1"}
+{"image_a": "images/red_a.png", "image_b": "images/blue_a.png", "label": 0, "sample_id": "pair-train-neg-1"}
+{"image_a": "images/blue_a.png", "image_b": "images/blue_b.png", "label": 1, "sample_id": "pair-train-pos-2"}
+{"image_a": "images/green_a.png", "image_b": "images/red_b.png", "label": 0, "sample_id": "pair-train-neg-2"}

@@ -1,0 +1,2 @@
+{"image": "images/train_a.png", "mask": "masks/train_a.png", "sample_id": "train-a"}
+{"image": "images/train_b.png", "mask": "masks/train_b.png", "sample_id": "train-b"}

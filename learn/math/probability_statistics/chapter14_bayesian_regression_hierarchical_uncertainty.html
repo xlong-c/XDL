@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="贝叶斯统计第十四章教程: 贝叶斯回归, 层次模型与不确定性估计 HTML 教程">
+  <title>贝叶斯统计第十四章教程: 贝叶斯回归, 层次模型与不确定性估计</title>
+  <link rel="stylesheet" href="probability_statistics.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      }
+    });
+  </script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="outline.md">
+        <span class="brand-mark">P</span>
+        <span>概率统计教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="outline.md">总纲</a>
+        <a class="nav-link" href="todo.html">进度</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Chapter 14</p>
+        <h1>贝叶斯统计第十四章教程: 贝叶斯回归, 层次模型与不确定性估计</h1>
+        <p class="lead">第十二章讲贝叶斯更新, 第十三章讲后验计算. 这一章把贝叶斯思想放进建模和预测: 1. 回归模型怎样给出参数后验和预测区间? 2. 参数不确定性和观测噪声有什么区别?</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#route-panel">阅读路径</a>
+        </div>
+      </div>
+      <aside id="route-panel" class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>页面概览</strong>
+          <span class="tag">公式 + 图示 + 主线</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>41</strong></div>
+          <div class="stat-card"><span>公式</span><strong>44</strong></div>
+          <div class="stat-card"><span>配图</span><strong>4</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 先看全章主线</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 贝叶斯线性回归</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 后验均值, 后验方差与预测区间</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 两类不确定性</strong><span>本节是页面阅读路径中的关键节点.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-先看全章主线">0. 先看全章主线</a>
+<a href="#02-1-贝叶斯线性回归">1. 贝叶斯线性回归</a>
+<a href="#03-11-从普通线性回归开始">1.1 从普通线性回归开始</a>
+<a href="#04-12-正态-正态共轭形式">1.2 正态-正态共轭形式</a>
+<a href="#05-13-图像直觉">1.3 图像直觉</a>
+<a href="#06-2-后验均值-后验方差与预测区间">2. 后验均值, 后验方差与预测区间</a>
+<a href="#07-21-参数后验摘要">2.1 参数后验摘要</a>
+<a href="#08-22-新输入点的均值预测">2.2 新输入点的均值预测</a>
+<a href="#09-23-新观测的预测分布">2.3 新观测的预测分布</a>
+<a href="#10-24-预测区间不是置信带">2.4 预测区间不是置信带</a>
+<a href="#11-3-两类不确定性">3. 两类不确定性</a>
+<a href="#12-31-epistemic-uncertainty">3.1 Epistemic uncertainty</a>
+<a href="#13-32-aleatoric-uncertainty">3.2 Aleatoric uncertainty</a>
+<a href="#14-33-分解图">3.3 分解图</a>
+<a href="#15-4-层次模型初步">4. 层次模型初步</a>
+<a href="#16-41-为什么需要层次模型">4.1 为什么需要层次模型</a>
+<a href="#17-42-基本结构">4.2 基本结构</a>
+<a href="#18-43-三种估计方式">4.3 三种估计方式</a>
+<a href="#19-44-部分池化的价值">4.4 部分池化的价值</a>
+<a href="#20-5-贝叶斯分类初步">5. 贝叶斯分类初步</a>
+<a href="#21-51-分类输出应该是概率">5.1 分类输出应该是概率</a>
+<a href="#22-52-与-logistic-回归的关系">5.2 与 Logistic 回归的关系</a>
+<a href="#23-53-分类中的不确定性">5.3 分类中的不确定性</a>
+<a href="#24-6-校准与概率可靠性">6. 校准与概率可靠性</a>
+<a href="#25-61-什么是校准">6.1 什么是校准</a>
+<a href="#26-62-校准曲线">6.2 校准曲线</a>
+<a href="#27-63-高准确率不等于校准">6.3 高准确率不等于校准</a>
+<a href="#28-7-高斯过程回归入口">7. 高斯过程回归入口</a>
+<a href="#29-71-从参数到函数">7.1 从参数到函数</a>
+<a href="#30-72-核函数表达相似性">7.2 核函数表达相似性</a>
+<a href="#31-73-gp-的价值">7.3 GP 的价值</a>
+<a href="#32-8-贝叶斯神经网络直觉">8. 贝叶斯神经网络直觉</a>
+<a href="#33-81-给神经网络权重放后验">8.1 给神经网络权重放后验</a>
+<a href="#34-82-为什么难">8.2 为什么难</a>
+<a href="#35-83-bnn-解决什么">8.3 BNN 解决什么</a>
+<a href="#36-9-本章主线总结">9. 本章主线总结</a>
+<a href="#37-10-实战清单与典型误区">10. 实战清单与典型误区</a>
+<a href="#38-101-实战清单">10.1 实战清单</a>
+<a href="#39-102-典型误区">10.2 典型误区</a>
+<a href="#40-11-和前后章节的连接点">11. 和前后章节的连接点</a>
+<a href="#41-12-本章收尾">12. 本章收尾</a>
+    </aside>
+    <div class="content">
+      <article class="article">
+        <div class="chapter-note">
+          <strong>HTML 阅读版</strong>
+          本页由同名 Markdown 自动转换生成, 保留原文结构, 并增强目录, 图表, 公式和重点提示的阅读体验.
+        </div>
+        <div class="source-title"><h2>贝叶斯统计第十四章教程: 贝叶斯回归, 层次模型与不确定性估计</h2></div>
+<blockquote class="callout warn"><p>第十二章讲贝叶斯更新, 第十三章讲后验计算.<br>这一章把贝叶斯思想放进建模和预测:</p><p>1. 回归模型怎样给出参数后验和预测区间?<br>2. 参数不确定性和观测噪声有什么区别?<br>3. 多个相关群体的数据能不能共享信息?<br>4. 分类概率怎样检查是否可信?</p><p>贝叶斯建模的独特价值在于, 它不只输出一个最优参数, 还把不确定性作为结果的一部分.</p></blockquote>
+<hr class="divider">
+<h2 id="01-0-先看全章主线">0. 先看全章主线</h2>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A[&quot;贝叶斯建模&quot;] --&gt; B[&quot;贝叶斯线性回归&quot;]
+    B --&gt; C[&quot;参数后验&lt;br/&gt;beta 的均值和方差&quot;]
+    B --&gt; D[&quot;后验预测&lt;br/&gt;均值和预测区间&quot;]
+    D --&gt; E[&quot;不确定性分解&lt;br/&gt;epistemic + aleatoric&quot;]
+    A --&gt; F[&quot;层次模型&quot;]
+    F --&gt; G[&quot;组级参数&quot;]
+    F --&gt; H[&quot;总体级参数&quot;]
+    H --&gt; I[&quot;部分池化&lt;br/&gt;共享信息&quot;]
+    A --&gt; J[&quot;贝叶斯分类&quot;]
+    J --&gt; K[&quot;概率预测&quot;]
+    K --&gt; L[&quot;校准&quot;]
+    A --&gt; M[&quot;更复杂模型入口&lt;br/&gt;GP, BNN&quot;]</pre></div>
+<p>一句话概括:</p>
+<blockquote class="callout"><p>贝叶斯建模不是只把参数换成随机变量,<br>而是把参数不确定性, 预测不确定性和层次结构一起纳入模型.</p></blockquote>
+<hr class="divider">
+<h2 id="02-1-贝叶斯线性回归">1. 贝叶斯线性回归</h2>
+<h3 id="03-11-从普通线性回归开始">1.1 从普通线性回归开始</h3>
+<p>普通线性回归写作:</p>
+<div class="math-block">$$
+y=X\beta+\varepsilon
+$$</div>
+<p>其中常假设:</p>
+<div class="math-block">$$
+\varepsilon\sim \mathcal{N}(0,\sigma^2I)
+$$</div>
+<p>频率学派通常估计一个点:</p>
+<div class="math-block">$$
+\hat\beta
+$$</div>
+<p>贝叶斯线性回归则给系数加先验:</p>
+<div class="math-block">$$
+\beta\sim \mathcal{N}(\beta_0,\Sigma_0)
+$$</div>
+<p>于是数据后得到:</p>
+<div class="math-block">$$
+p(\beta\mid X,y)
+$$</div>
+<p>这是一整条后验分布, 而不是一个点.</p>
+<h3 id="04-12-正态-正态共轭形式">1.2 正态-正态共轭形式</h3>
+<p>若 $\sigma^2$ 已知, 且:</p>
+<div class="math-block">$$
+y\mid \beta\sim \mathcal{N}(X\beta,\sigma^2I)
+$$</div>
+<div class="math-block">$$
+\beta\sim \mathcal{N}(\beta_0,\Sigma_0)
+$$</div>
+<p>则后验仍为正态:</p>
+<div class="math-block">$$
+\beta\mid X,y\sim \mathcal{N}(\beta_n,\Sigma_n)
+$$</div>
+<p>其中:</p>
+<div class="math-block">$$
+\Sigma_n^{-1}=\Sigma_0^{-1}+\frac{1}{\sigma^2}X^TX
+$$</div>
+<div class="math-block">$$
+\beta_n=\Sigma_n\left(\Sigma_0^{-1}\beta_0+\frac{1}{\sigma^2}X^Ty\right)
+$$</div>
+<p>这和第十二章 Normal-Normal 更新一致: 后验精度 = 先验精度 + 数据信息.</p>
+<h3 id="05-13-图像直觉">1.3 图像直觉</h3>
+<figure class="figure"><img src="assets/ps_ch14_bayesian_regression_band.png" alt="贝叶斯线性回归预测带图"><figcaption>贝叶斯线性回归预测带图</figcaption></figure>
+<p>图中蓝色线是后验均值.<br> 蓝色带表示参数不确定性, 黄色带表示加入观测噪声后的预测区间.</p>
+<p>这张图要留下的直觉是:</p>
+<blockquote class="callout"><p>参数后验越不确定, 均值函数越不确定.<br>即使参数非常确定, 新观测仍然会有观测噪声.</p></blockquote>
+<hr class="divider">
+<h2 id="06-2-后验均值-后验方差与预测区间">2. 后验均值, 后验方差与预测区间</h2>
+<h3 id="07-21-参数后验摘要">2.1 参数后验摘要</h3>
+<p>对每个系数 $\beta_j$, 可以报告:</p>
+<ul><li>后验均值</li>
+<li>后验标准差</li>
+<li>可信区间</li>
+<li>$P(\beta_j&gt;0\mid D)$</li></ul>
+<p>这些量都来自后验分布:</p>
+<div class="math-block">$$
+p(\beta\mid D)
+$$</div>
+<h3 id="08-22-新输入点的均值预测">2.2 新输入点的均值预测</h3>
+<p>给定新输入 $x_*$, 条件均值是:</p>
+<div class="math-block">$$
+f_* = x_*^T\beta
+$$</div>
+<p>由于 $\beta$ 有后验分布, $f_*$ 也有后验分布:</p>
+<div class="math-block">$$
+p(f_*\mid D)
+$$</div>
+<p>若 $\beta\mid D\sim \mathcal{N}(\beta_n,\Sigma_n)$, 则:</p>
+<div class="math-block">$$
+f_*\mid D\sim \mathcal{N}(x_*^T\beta_n,\ x_*^T\Sigma_nx_*)
+$$</div>
+<h3 id="09-23-新观测的预测分布">2.3 新观测的预测分布</h3>
+<p>新观测还包含噪声:</p>
+<div class="math-block">$$
+y_*=f_*+\varepsilon_*
+$$</div>
+<p>所以:</p>
+<div class="math-block">$$
+y_*\mid D\sim \mathcal{N}(x_*^T\beta_n,\ x_*^T\Sigma_nx_*+\sigma^2)
+$$</div>
+<p>这比均值函数后验更宽.</p>
+<h3 id="10-24-预测区间不是置信带">2.4 预测区间不是置信带</h3>
+<p>预测区间包含未来观测噪声.<br> 均值函数可信带只描述平均关系的不确定性.</p>
+<p>不要把二者混在一起:</p>
+<ul><li>均值可信带: 模型平均函数在哪里</li>
+<li>预测区间: 下一个观测值可能在哪里</li></ul>
+<hr class="divider">
+<h2 id="11-3-两类不确定性">3. 两类不确定性</h2>
+<h3 id="12-31-epistemic-uncertainty">3.1 Epistemic uncertainty</h3>
+<p>Epistemic uncertainty 是认知不确定性, 来自信息不足.</p>
+<p>在贝叶斯回归中, 它对应参数不确定性:</p>
+<div class="math-block">$$
+x_*^T\Sigma_nx_*
+$$</div>
+<p>样本更多, 覆盖更充分时, 它通常会下降.</p>
+<h3 id="13-32-aleatoric-uncertainty">3.2 Aleatoric uncertainty</h3>
+<p>Aleatoric uncertainty 是数据本身的随机噪声.</p>
+<p>例如:</p>
+<ul><li>传感器噪声</li>
+<li>同一输入下响应本来就波动</li>
+<li>标签存在天然随机性</li></ul>
+<p>即使无限多数据, 这部分也不会完全消失.</p>
+<h3 id="14-33-分解图">3.3 分解图</h3>
+<figure class="figure"><img src="assets/ps_ch14_uncertainty_decomposition.png" alt="参数不确定性与观测噪声分解图"><figcaption>参数不确定性与观测噪声分解图</figcaption></figure>
+<p>图中训练数据范围外, epistemic uncertainty 变大.<br> aleatoric uncertainty 由观测噪声给定, 在这个例子里保持稳定.</p>
+<p>核心结论:</p>
+<blockquote class="callout"><p>模型不知道和世界本来就随机, 是两种不同的不确定性.</p></blockquote>
+<hr class="divider">
+<h2 id="15-4-层次模型初步">4. 层次模型初步</h2>
+<h3 id="16-41-为什么需要层次模型">4.1 为什么需要层次模型</h3>
+<p>现实数据常有分组结构:</p>
+<ul><li>不同城市的转化率</li>
+<li>不同学校的学生成绩</li>
+<li>不同用户群体的留存率</li>
+<li>不同医院的治疗效果</li></ul>
+<p>每组数据量可能不同.<br> 如果完全分开估计, 小组样本会很不稳定.<br> 如果完全合并估计, 又会抹掉组间差异.</p>
+<p>层次模型提供第三条路:</p>
+<blockquote class="callout"><p>各组有自己的参数, 但这些参数来自共同的总体分布.</p></blockquote>
+<h3 id="17-42-基本结构">4.2 基本结构</h3>
+<p>设第 $j$ 组有参数 $\theta_j$:</p>
+<div class="math-block">$$
+y_{ij}\mid \theta_j\sim p(y_{ij}\mid \theta_j)
+$$</div>
+<p>组级参数来自总体层:</p>
+<div class="math-block">$$
+\theta_j\sim \mathcal{N}(\mu,\tau^2)
+$$</div>
+<p>总体层参数也可以有先验:</p>
+<div class="math-block">$$
+\mu,\tau\sim p(\mu,\tau)
+$$</div>
+<p>这就是层次结构.</p>
+<figure class="figure"><img src="assets/ps_ch14_hierarchical_partial_pooling.png" alt="层次模型与部分池化结构图"><figcaption>层次模型与部分池化结构图</figcaption></figure>
+<h3 id="18-43-三种估计方式">4.3 三种估计方式</h3>
+<p>面对多个组, 有三种常见做法:</p>
+<ol><li><strong>完全合并 pooling</strong><ul><li>所有组共用一个参数</li>
+<li>稳定但忽略组差异</li></ul></li></ol>
+<ol><li><strong>完全分开 no pooling</strong><ul><li>每组独立估计</li>
+<li>保留差异但小样本组很不稳定</li></ul></li></ol>
+<ol><li><strong>部分池化 partial pooling</strong><ul><li>每组有自己的参数</li>
+<li>小样本组被拉向总体平均</li>
+<li>大样本组更多由自己数据决定</li></ul></li></ol>
+<h3 id="19-44-部分池化的价值">4.4 部分池化的价值</h3>
+<p>部分池化能在稳定性和差异性之间折中.</p>
+<p>直觉上:</p>
+<blockquote class="callout"><p>对证据少的组, 多借一点总体信息.<br>对证据多的组, 多相信自己的数据.</p></blockquote>
+<p>这也是层次模型比简单分组估计更有力量的地方.</p>
+<hr class="divider">
+<h2 id="20-5-贝叶斯分类初步">5. 贝叶斯分类初步</h2>
+<h3 id="21-51-分类输出应该是概率">5.1 分类输出应该是概率</h3>
+<p>二分类问题中:</p>
+<div class="math-block">$$
+Y\in\{0,1\}
+$$</div>
+<p>我们关心:</p>
+<div class="math-block">$$
+P(Y=1\mid x,D)
+$$</div>
+<p>贝叶斯分类不是只学习一个固定权重, 而是对权重后验平均:</p>
+<div class="math-block">$$
+P(Y=1\mid x,D)=\int P(Y=1\mid x,\theta)p(\theta\mid D)d\theta
+$$</div>
+<h3 id="22-52-与-logistic-回归的关系">5.2 与 Logistic 回归的关系</h3>
+<p>贝叶斯 Logistic 回归可以写成:</p>
+<div class="math-block">$$
+P(Y=1\mid x,\beta)=\sigma(x^T\beta)
+$$</div>
+<p>并对 $\beta$ 给先验:</p>
+<div class="math-block">$$
+\beta\sim p(\beta)
+$$</div>
+<p>由于后验通常没有闭式形式, 常用第十三章的方法:</p>
+<ul><li>MAP</li>
+<li>MCMC</li>
+<li>VI</li>
+<li>Laplace 近似</li></ul>
+<h3 id="23-53-分类中的不确定性">5.3 分类中的不确定性</h3>
+<p>分类概率不确定性来自:</p>
+<ul><li>类别本身重叠</li>
+<li>数据噪声</li>
+<li>参数不确定</li>
+<li>训练数据覆盖不足</li></ul>
+<p>只输出类别标签会丢掉这些信息.</p>
+<hr class="divider">
+<h2 id="24-6-校准与概率可靠性">6. 校准与概率可靠性</h2>
+<h3 id="25-61-什么是校准">6.1 什么是校准</h3>
+<p>如果模型对一批样本都预测概率约为 0.8, 那么其中真实为正类的比例也应约为 0.8.</p>
+<p>这叫校准.</p>
+<h3 id="26-62-校准曲线">6.2 校准曲线</h3>
+<figure class="figure"><img src="assets/ps_ch14_calibration_curve.png" alt="校准曲线图"><figcaption>校准曲线图</figcaption></figure>
+<p>横轴是模型预测概率, 纵轴是实际发生频率.<br> 完美校准应落在对角线上.</p>
+<p>图中红线代表过度自信模型: 它给出的极端概率比真实频率更激进.</p>
+<h3 id="27-63-高准确率不等于校准">6.3 高准确率不等于校准</h3>
+<p>一个分类器可能 accuracy 很高, 但概率不可靠.<br> 例如它总是把 0.7 的事件预测成 0.95, 排序可能不错, 但概率语义坏了.</p>
+<p>校准对下面场景尤其重要:</p>
+<ul><li>医疗风险评估</li>
+<li>金融风控</li>
+<li>自动驾驶安全</li>
+<li>成本敏感决策</li>
+<li>人机协作系统</li></ul>
+<hr class="divider">
+<h2 id="28-7-高斯过程回归入口">7. 高斯过程回归入口</h2>
+<h3 id="29-71-从参数到函数">7.1 从参数到函数</h3>
+<p>贝叶斯线性回归给参数 $\beta$ 放先验.<br> 高斯过程回归更进一步, 直接给函数 $f(x)$ 放先验:</p>
+<div class="math-block">$$
+f\sim \mathcal{GP}(m(x),k(x,x&#x27;))
+$$</div>
+<p>其中:</p>
+<ul><li>$m(x)$ 是均值函数</li>
+<li>$k(x,x&#x27;)$ 是核函数或协方差函数</li></ul>
+<h3 id="30-72-核函数表达相似性">7.2 核函数表达相似性</h3>
+<p>核函数描述:</p>
+<blockquote class="callout"><p>两个输入点越相似, 它们的函数值越相关.</p></blockquote>
+<p>常见 RBF 核中, 距离越近, 相关性越高.</p>
+<h3 id="31-73-gp-的价值">7.3 GP 的价值</h3>
+<p>高斯过程天然给出:</p>
+<ul><li>预测均值</li>
+<li>预测方差</li>
+<li>远离数据处更大的不确定性</li></ul>
+<p>它适合小到中等规模数据, 贝叶斯优化和不确定性敏感任务.</p>
+<p>限制是计算代价通常较高, 朴素实现需要处理 $n\times n$ 协方差矩阵.</p>
+<hr class="divider">
+<h2 id="32-8-贝叶斯神经网络直觉">8. 贝叶斯神经网络直觉</h2>
+<h3 id="33-81-给神经网络权重放后验">8.1 给神经网络权重放后验</h3>
+<p>普通神经网络学习一个权重:</p>
+<div class="math-block">$$
+w
+$$</div>
+<p>贝叶斯神经网络把权重视为不确定:</p>
+<div class="math-block">$$
+p(w\mid D)
+$$</div>
+<p>预测时做后验平均:</p>
+<div class="math-block">$$
+p(y\mid x,D)=\int p(y\mid x,w)p(w\mid D)dw
+$$</div>
+<h3 id="34-82-为什么难">8.2 为什么难</h3>
+<p>神经网络参数维度很高, 后验非常复杂.<br> 精确贝叶斯推断几乎不可行.</p>
+<p>常见近似包括:</p>
+<ul><li>变分推断</li>
+<li>Laplace 近似</li>
+<li>Monte Carlo Dropout</li>
+<li>深度集成</li>
+<li>SWAG 等近似后验方法</li></ul>
+<h3 id="35-83-bnn-解决什么">8.3 BNN 解决什么</h3>
+<p>贝叶斯神经网络主要希望解决:</p>
+<ul><li>参数不确定性</li>
+<li>分布外样本风险</li>
+<li>小数据下的过度自信</li>
+<li>预测区间和风险控制</li></ul>
+<p>它不是自动提升准确率的工具.<br> 它更重要的价值是不确定性表达.</p>
+<hr class="divider">
+<h2 id="36-9-本章主线总结">9. 本章主线总结</h2>
+<p>第十四章可以压成几句话:</p>
+<ol><li>贝叶斯回归给参数后验, 不只给一个点估计.</li>
+<li>后验预测同时包含参数不确定性和观测噪声.</li>
+<li>Epistemic uncertainty 来自信息不足, 数据增加后可降低.</li>
+<li>Aleatoric uncertainty 来自数据本身随机性, 不会靠更多同类数据完全消失.</li>
+<li>层次模型通过部分池化在组间共享信息.</li>
+<li>贝叶斯分类输出的是后验平均后的概率.</li>
+<li>校准检查预测概率是否可信.</li>
+<li>高斯过程给函数放先验, 贝叶斯神经网络给权重放后验.</li></ol>
+<p>核心提醒:</p>
+<blockquote class="callout"><p>预测均值不是全部结果.<br>一个模型还应告诉我们它什么时候知道, 什么时候不知道.</p></blockquote>
+<hr class="divider">
+<h2 id="37-10-实战清单与典型误区">10. 实战清单与典型误区</h2>
+<h3 id="38-101-实战清单">10.1 实战清单</h3>
+<p>做贝叶斯建模时, 先问:</p>
+<ol><li>响应变量是什么类型?</li>
+<li>先验是否表达了合理尺度?</li>
+<li>目标是参数解释还是预测?</li>
+<li>是否需要层次结构?</li>
+<li>组间是否可以共享信息?</li>
+<li>后验预测是否覆盖观测数据?</li>
+<li>参数不确定性和观测噪声是否分开报告?</li>
+<li>分类概率是否校准?</li>
+<li>模型在数据范围外是否过度自信?</li>
+<li>推断方法是否经过诊断?</li></ol>
+<h3 id="39-102-典型误区">10.2 典型误区</h3>
+<ol><li><strong>把预测均值当全部结果</strong>  </li></ol>
+<p>贝叶斯模型还应报告不确定性范围.</p>
+<ol><li><strong>混淆两类不确定性</strong>  </li></ol>
+<p>Epistemic 和 aleatoric 的来源不同, 应对方式也不同.</p>
+<ol><li><strong>以为层次模型只是复杂先验</strong>  </li></ol>
+<p>它的核心价值是相关群体之间的信息共享.</p>
+<ol><li><strong>把校准当成 accuracy</strong>  </li></ol>
+<p>校准关心概率语义, accuracy 关心分类是否正确.</p>
+<ol><li><strong>以为贝叶斯模型自动保守</strong>  </li></ol>
+<p>先验, 似然和推断近似不合理时, 贝叶斯模型也会过度自信.</p>
+<hr class="divider">
+<h2 id="40-11-和前后章节的连接点">11. 和前后章节的连接点</h2>
+<p>第十二章提供先验, 后验和后验预测语言.<br> 第十三章提供 MAP, MCMC 和 VI 等计算方法.<br> 本章把它们落到回归, 分类和层次模型中.</p>
+<p>往后看, 统计学习和深度学习中的不确定性估计, 校准, 集成方法, 贝叶斯神经网络, 都可以回到本章语言理解.</p>
+<hr class="divider">
+<h2 id="41-12-本章收尾">12. 本章收尾</h2>
+<p>贝叶斯建模的价值不只是让公式更复杂.<br> 它真正提供的是一套表达不确定性的方式:</p>
+<blockquote class="callout"><p>参数有不确定性,<br>预测有不确定性,<br>群体之间可以共享信息,<br>概率输出需要校准.</p></blockquote>
+<p>下一章开始进入统计学习.<br> 重点会从&quot;参数后验&quot;转向&quot;模型能否泛化到未来数据&quot;.</p>
+      </article>
+      <nav class="chapter-nav" aria-label="前后页面">
+        <a class="prev" href="chapter13_bayesian_inference_map_mcmc_vi.html"><span>上一页</span><strong>Chapter 13: 贝叶斯统计第十三章教程: 贝叶斯推断, MAP, MCMC 与变分推断</strong></a>
+        <a class="next" href="chapter15_statistical_learning_risk_generalization.html"><span>下一页</span><strong>Chapter 15: 统计学习第十五章教程: 统计学习基础, 经验风险与泛化</strong></a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="footer">
+    由 build_probability_statistics_html.py 生成. 样式文件: probability_statistics.css.
+  </footer>
+</body>
+</html>

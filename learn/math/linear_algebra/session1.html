@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN" data-accent="blue">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="第一章: 线性方程组与消元法 HTML 教程">
+  <title>第一章: 线性方程组与消元法</title>
+  <link rel="stylesheet" href="linear_algebra.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">L</span>
+        <span>线性代数教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="index.html">首页</a>
+        <a class="nav-link" href="outline.md">总纲</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Session 1</p>
+        <h1>第一章: 线性方程组与消元法</h1>
+        <p class="lead">从多个线性约束能否同时满足开始, 学会用增广矩阵和初等行变换把问题化成容易读解的标准形.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#01-0-全章主线">看主线</a>
+          <a class="button" href="#07-6-实战清单与易错点">实战清单</a>
+        </div>
+      </div>
+      <aside class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>本章定位</strong>
+          <span class="tag">约束与求解</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>7</strong></div>
+          <div class="stat-card"><span>公式块</span><strong>4</strong></div>
+          <div class="stat-card"><span>配图</span><strong>2</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 全章主线</strong><span>先把方程组看成约束, 再把消元看成保持解集不变的整理过程.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 线性方程组先代表什么</strong><span>每一条线性方程都是一个限制条件, 解就是所有限制同时满足的位置.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 增广矩阵与初等行变换</strong><span>增广矩阵把方程组压缩成数字表, 行变换对应对方程做等价改写.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 高斯消元怎样读解</strong><span>消元的目标是得到阶梯形, 让主元, 自由变量和矛盾行一眼可见.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-全章主线">0. 全章主线</a>
+<a href="#02-1-线性方程组先代表什么">1. 线性方程组先代表什么</a>
+<a href="#03-2-增广矩阵与初等行变换">2. 增广矩阵与初等行变换</a>
+<a href="#04-3-高斯消元怎样读解">3. 高斯消元怎样读解</a>
+<a href="#05-4-几何图像-交点就是解">4. 几何图像: 交点就是解</a>
+<a href="#06-5-物理问题-受力平衡就是线性约束">5. 物理问题: 受力平衡就是线性约束</a>
+<a href="#07-6-实战清单与易错点">6. 实战清单与易错点</a>
+    </aside>
+    <div class="content">
+      <section id="01-0-全章主线" class="section"><div class="section-header"><p class="section-kicker">Route</p><h2>0. 全章主线</h2><p>先把方程组看成约束, 再把消元看成保持解集不变的整理过程.</p></div><div class="section-body wide"><div class="flow"><div class="flow-item"><strong>真实问题</strong><span>多个条件同时成立.</span></div>
+<div class="flow-item"><strong>方程组</strong><span>把条件写成线性等式.</span></div>
+<div class="flow-item"><strong>增广矩阵</strong><span>只保留系数和常数项.</span></div>
+<div class="flow-item"><strong>行变换</strong><span>保持解集不变地整理约束.</span></div>
+<div class="flow-item"><strong>读解</strong><span>从阶梯形判断解的个数.</span></div></div>
+                    <div class="summary"><strong>本章核心</strong>消元法不是技巧表演, 它是在不改变解集的前提下, 把一组复杂约束改写成更透明的约束.</div>
+                    </div></section>
+<section id="02-1-线性方程组先代表什么" class="section"><div class="section-header"><p class="section-kicker">Problem</p><h2>1. 线性方程组先代表什么</h2><p>每一条线性方程都是一个限制条件, 解就是所有限制同时满足的位置.</p></div><div class="section-body wide">
+                    <p>二元方程 $a x+b y=c$ 在平面中是一条直线. 三元方程 $a x+b y+c z=d$ 在空间中是一个平面. 多个方程放在一起, 就是在问这些直线或平面有没有公共交集.</p>
+                    <div class="formula">$$
+                    \begin{cases}
+                    a_{11}x_1+a_{12}x_2+\cdots+a_{1n}x_n=b_1\\
+                    a_{21}x_1+a_{22}x_2+\cdots+a_{2n}x_n=b_2\\
+                    \cdots\\
+                    a_{m1}x_1+a_{m2}x_2+\cdots+a_{mn}x_n=b_m
+                    \end{cases}
+                    $$</div>
+                    <div class="grid three">
+                      <div class="card"><strong>唯一解</strong>约束刚好交于一个点.</div>
+                      <div class="card"><strong>无解</strong>约束彼此冲突, 没有公共位置.</div>
+                      <div class="card"><strong>无穷多解</strong>约束有冗余, 公共交集是一条线, 一个平面或更高维对象.</div>
+                    </div>
+                    </div></section>
+<section id="03-2-增广矩阵与初等行变换" class="section"><div class="section-header"><p class="section-kicker">Algebra</p><h2>2. 增广矩阵与初等行变换</h2><p>增广矩阵把方程组压缩成数字表, 行变换对应对方程做等价改写.</p></div><div class="section-body wide">
+                    <p>把未知数按固定顺序排好, 方程组就可以写成 $Ax=b$. 计算时常把系数矩阵和右端向量放在一起:</p>
+                    <div class="formula">$$
+                    \left[
+                    \begin{array}{cccc|c}
+                    a_{11}&a_{12}&\cdots&a_{1n}&b_1\\
+                    a_{21}&a_{22}&\cdots&a_{2n}&b_2\\
+                    \vdots&\vdots&&\vdots&\vdots\\
+                    a_{m1}&a_{m2}&\cdots&a_{mn}&b_m
+                    \end{array}
+                    \right]
+                    $$</div>
+                    <div class="table-wrap"><table><thead><tr><th>行操作</th><th>方程视角</th><th>为什么可用</th></tr></thead><tbody>
+                    <tr><td>交换两行</td><td>交换两条方程顺序</td><td>约束集合没有变化</td></tr>
+                    <tr><td>某行乘非零数</td><td>等式两边同乘非零数</td><td>同一条约束的等价写法</td></tr>
+                    <tr><td>一行加另一行的倍数</td><td>用约束的线性组合替换约束</td><td>新旧方程组互相推出</td></tr>
+                    </tbody></table></div>
+                    <div class="note"><strong>边界</strong>初等行变换保持解集不变. 初学阶段不要随意做列变换, 因为列变换会改变未知量的含义.</div>
+                    </div></section>
+<section id="04-3-高斯消元怎样读解" class="section"><div class="section-header"><p class="section-kicker">Elimination</p><h2>3. 高斯消元怎样读解</h2><p>消元的目标是得到阶梯形, 让主元, 自由变量和矛盾行一眼可见.</p></div><div class="section-body wide">
+                    <p>阶梯形矩阵里, 每个非零行最左侧的非零元素叫主元. 主元所在列对应主变量, 其他未知数通常是自由变量.</p>
+                    <div class="formula">$$
+                    \left[
+                    \begin{array}{ccc|c}
+                    1&2&-1&3\\
+                    0&1&4&5\\
+                    0&0&0&0
+                    \end{array}
+                    \right]
+                    \Rightarrow
+                    x_3=t,\quad x_2=5-4t,\quad x_1=-7+9t
+                    $$</div>
+                    <ol>
+                      <li>先找主元列, 判断哪些变量被约束住.</li>
+                      <li>再看是否出现 $0=非零数$ 的矛盾行.</li>
+                      <li>若没有矛盾行, 用自由变量参数化全部解.</li>
+                    </ol>
+                    <div class="warning"><strong>常见误区</strong>出现一整行零不代表无解, 它通常表示这条方程是冗余约束. 真正的无解信号是 $[0\ 0\ \cdots\ 0\ |\ c]$ 且 $c\ne0$.</div>
+                    </div></section>
+<section id="05-4-几何图像-交点就是解" class="section"><div class="section-header"><p class="section-kicker">Geometry</p><h2>4. 几何图像: 交点就是解</h2><p>图像能帮助我们理解解的个数, 也能提醒代数运算背后是什么对象.</p></div><div class="section-body wide"><div class="figure-grid"><figure><img src="assets/la_ch01_line_intersection.png" alt="两条线性约束相交于唯一解"><figcaption>两个二元一次方程对应两条直线. 交点就是两个约束同时成立的唯一解.</figcaption></figure><figure><img src="assets/la_ch01_force_equilibrium.png" alt="结点受力平衡转化为线性方程组"><figcaption>静力学中结点不动意味着横向和纵向合力都为零. 两个平衡方程可以求出两根绳子的张力.</figcaption></figure></div>
+                    <p>如果两条直线平行且不同, 方程组无解. 如果两条直线重合, 方程组有无穷多解. 在三维中, 同样的逻辑会变成平面之间的相交, 平行和重合.</p>
+                    </div></section>
+<section id="06-5-物理问题-受力平衡就是线性约束" class="section"><div class="section-header"><p class="section-kicker">Physics</p><h2>5. 物理问题: 受力平衡就是线性约束</h2><p>静力平衡给出本章最自然的物理模型: 总力为零.</p></div><div class="section-body wide">
+                    <div class="physics"><strong>问题</strong>一个重物挂在两根斜绳连接的结点上. 若结点保持静止, 两根绳子的张力 $T_1,T_2$ 必须让水平和竖直方向的合力都为零.</div>
+                    <div class="formula">$$
+                    \begin{cases}
+                    T_1\cos\alpha - T_2\cos\beta = 0\\
+                    T_1\sin\alpha + T_2\sin\beta = mg
+                    \end{cases}
+                    $$</div>
+                    <p>这不是把物理问题"套公式", 而是把守恒或平衡规律翻译成线性约束. 当结构里有更多结点和杆件时, 方程数量会增加, 但核心仍是 $Ax=b$.</p>
+                    </div></section>
+<section id="07-6-实战清单与易错点" class="section"><div class="section-header"><p class="section-kicker">Checklist</p><h2>6. 实战清单与易错点</h2><p>做方程组题时, 先判断结构, 再计算, 最后回到原问题解释.</p></div><div class="section-body wide">
+                    <div class="grid">
+                      <div class="card"><strong>实战清单</strong><ol><li>未知量顺序是否固定?</li><li>每行代表哪条约束?</li><li>行变换是否只对方程做等价改写?</li><li>主元列和自由变量是否读全?</li><li>结论能否解释原问题?</li></ol></div>
+                      <div class="card"><strong>高频错误</strong><ol><li>把列变换当成普通消元步骤.</li><li>无穷多解时漏写参数.</li><li>看到零行就判断无解.</li><li>回代时把主变量和自由变量混掉.</li></ol></div>
+                    </div>
+                    <div class="summary"><strong>记住</strong>线性方程组的本质是约束系统. 消元法的本质是把约束改写到更容易读解的形态.</div>
+                    </div></section>
+      <nav class="pager" aria-label="章节翻页"><a class="prev" href="index.html"><span>课程首页</span><strong>线性代数教程总览</strong></a><a class="next" href="session2.html"><span>下一章</span><strong>第二章: 矩阵运算与逆矩阵</strong></a></nav>
+    </div>
+  </main>
+
+  <footer class="footer-note">
+    本页为 XDL learn/math/linear_algebra 的静态 HTML 教程页面. 数学公式由 MathJax 渲染, 配图由本目录 assets 下的 Python 脚本生成.
+  </footer>
+</body>
+</html>

@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="贝叶斯统计第十二章教程: 贝叶斯视角, 先验, 后验与共轭族 HTML 教程">
+  <title>贝叶斯统计第十二章教程: 贝叶斯视角, 先验, 后验与共轭族</title>
+  <link rel="stylesheet" href="probability_statistics.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      }
+    });
+  </script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="outline.md">
+        <span class="brand-mark">P</span>
+        <span>概率统计教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="outline.md">总纲</a>
+        <a class="nav-link" href="todo.html">进度</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Chapter 12</p>
+        <h1>贝叶斯统计第十二章教程: 贝叶斯视角, 先验, 后验与共轭族</h1>
+        <p class="lead">前面几章主要采用频率学派视角: 参数是固定但未知的, 样本是随机的. 贝叶斯统计换一个角度: 参数虽然在现实中有一个真实值, 但我们对它不知道, 所以可以用概率分布表达这种认知不确定性.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#route-panel">阅读路径</a>
+        </div>
+      </div>
+      <aside id="route-panel" class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>页面概览</strong>
+          <span class="tag">公式 + 图示 + 主线</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>64</strong></div>
+          <div class="stat-card"><span>公式</span><strong>71</strong></div>
+          <div class="stat-card"><span>配图</span><strong>4</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 先看全章主线</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 贝叶斯视角与频率学视角</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 参数为什么可以被视作随机变量</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 先验, 似然, 后验</strong><span>本节是页面阅读路径中的关键节点.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-先看全章主线">0. 先看全章主线</a>
+<a href="#02-1-贝叶斯视角与频率学视角">1. 贝叶斯视角与频率学视角</a>
+<a href="#03-11-频率学派的基本视角">1.1 频率学派的基本视角</a>
+<a href="#04-12-贝叶斯的基本视角">1.2 贝叶斯的基本视角</a>
+<a href="#05-13-两种视角不是谁完全替代谁">1.3 两种视角不是谁完全替代谁</a>
+<a href="#06-2-参数为什么可以被视作随机变量">2. 参数为什么可以被视作随机变量</a>
+<a href="#07-21-不是说真实世界在反复抽参数">2.1 不是说真实世界在反复抽参数</a>
+<a href="#08-22-数据会改变认知状态">2.2 数据会改变认知状态</a>
+<a href="#09-3-先验-似然-后验">3. 先验, 似然, 后验</a>
+<a href="#10-31-贝叶斯公式">3.1 贝叶斯公式</a>
+<a href="#11-32-先验-prior">3.2 先验 prior</a>
+<a href="#12-33-似然-likelihood">3.3 似然 likelihood</a>
+<a href="#13-34-后验-posterior">3.4 后验 posterior</a>
+<a href="#14-4-后验预测分布">4. 后验预测分布</a>
+<a href="#15-41-为什么不只预测参数">4.1 为什么不只预测参数</a>
+<a href="#16-42-后验预测图">4.2 后验预测图</a>
+<a href="#17-43-和机器学习预测的关系">4.3 和机器学习预测的关系</a>
+<a href="#18-5-共轭先验">5. 共轭先验</a>
+<a href="#19-51-什么是共轭">5.1 什么是共轭</a>
+<a href="#20-52-共轭的价值">5.2 共轭的价值</a>
+<a href="#21-53-共轭不是唯一合理选择">5.3 共轭不是唯一合理选择</a>
+<a href="#22-6-beta-binomial-模型">6. Beta-Binomial 模型</a>
+<a href="#23-61-模型设定">6.1 模型设定</a>
+<a href="#24-62-伪计数直觉">6.2 伪计数直觉</a>
+<a href="#25-63-不同先验的影响">6.3 不同先验的影响</a>
+<a href="#26-7-gamma-poisson-模型">7. Gamma-Poisson 模型</a>
+<a href="#27-71-计数问题">7.1 计数问题</a>
+<a href="#28-72-gamma-先验">7.2 Gamma 先验</a>
+<a href="#29-73-直觉">7.3 直觉</a>
+<a href="#30-8-normal-normal-模型">8. Normal-Normal 模型</a>
+<a href="#31-81-已知方差的正态均值问题">8.1 已知方差的正态均值问题</a>
+<a href="#32-82-精度加权平均">8.2 精度加权平均</a>
+<a href="#33-83-直觉">8.3 直觉</a>
+<a href="#34-9-先验选择">9. 先验选择</a>
+<a href="#35-91-先验不是装饰">9.1 先验不是装饰</a>
+<a href="#36-92-主观先验">9.2 主观先验</a>
+<a href="#37-93-弱信息先验">9.3 弱信息先验</a>
+<a href="#38-94-客观先验初步">9.4 客观先验初步</a>
+<a href="#39-10-可信区间与置信区间">10. 可信区间与置信区间</a>
+<a href="#40-101-可信区间">10.1 可信区间</a>
+<a href="#41-102-置信区间">10.2 置信区间</a>
+<a href="#42-103-区分语言">10.3 区分语言</a>
+<a href="#43-11-后验摘要">11. 后验摘要</a>
+<a href="#44-111-后验均值">11.1 后验均值</a>
+<a href="#45-112-后验中位数">11.2 后验中位数</a>
+<a href="#46-113-map">11.3 MAP</a>
+<a href="#47-114-不要只报一个点">11.4 不要只报一个点</a>
+<a href="#48-12-本章主线总结">12. 本章主线总结</a>
+<a href="#49-13-典型题型与实战清单">13. 典型题型与实战清单</a>
+<a href="#50-131-典型题型">13.1 典型题型</a>
+<a href="#51-132-实战清单">13.2 实战清单</a>
+<a href="#52-14-典型误区">14. 典型误区</a>
+<a href="#53-误区-1-把先验理解成主观乱猜">误区 1: 把先验理解成主观乱猜</a>
+<a href="#54-误区-2-只会写后验比例式">误区 2: 只会写后验比例式</a>
+<a href="#55-误区-3-把后验预测当成-plug-in-预测">误区 3: 把后验预测当成 plug-in 预测</a>
+<a href="#56-误区-4-把共轭先验当成唯一合理先验">误区 4: 把共轭先验当成唯一合理先验</a>
+<a href="#57-误区-5-把-map-当成完整贝叶斯">误区 5: 把 MAP 当成完整贝叶斯</a>
+<a href="#58-误区-6-混淆可信区间和置信区间">误区 6: 混淆可信区间和置信区间</a>
+<a href="#59-15-和前后章节的连接点">15. 和前后章节的连接点</a>
+<a href="#60-151-和第二章的连接">15.1 和第二章的连接</a>
+<a href="#61-152-和第八章的连接">15.2 和第八章的连接</a>
+<a href="#62-153-和第十三章的连接">15.3 和第十三章的连接</a>
+<a href="#63-154-和机器学习的连接">15.4 和机器学习的连接</a>
+<a href="#64-16-本章收尾">16. 本章收尾</a>
+    </aside>
+    <div class="content">
+      <article class="article">
+        <div class="chapter-note">
+          <strong>HTML 阅读版</strong>
+          本页由同名 Markdown 自动转换生成, 保留原文结构, 并增强目录, 图表, 公式和重点提示的阅读体验.
+        </div>
+        <div class="source-title"><h2>贝叶斯统计第十二章教程: 贝叶斯视角, 先验, 后验与共轭族</h2></div>
+<blockquote class="callout"><p>前面几章主要采用频率学派视角:</p><p>参数是固定但未知的, 样本是随机的.</p><p>贝叶斯统计换一个角度:</p><p>参数虽然在现实中有一个真实值, 但我们对它不知道,<br>所以可以用概率分布表达这种认知不确定性.</p><p>这一章要解决四个问题:</p><p>1. 贝叶斯视角和频率学视角到底差在哪里?<br>2. 先验, 似然, 后验分别在模型中扮演什么角色?<br>3. 共轭先验为什么常见, 它是不是唯一选择?<br>4. 后验预测分布为什么比只报一个参数点估计更接近真实预测?</p></blockquote>
+<hr class="divider">
+<h2 id="01-0-先看全章主线">0. 先看全章主线</h2>
+<p>第十二章的主线可以压成下面这张图:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A[&quot;未知参数 theta&quot;] --&gt; B[&quot;先验 p(theta)&lt;br/&gt;数据前的不确定性&quot;]
+    C[&quot;样本数据 D&quot;] --&gt; D[&quot;似然 p(D|theta)&lt;br/&gt;数据对参数的支持&quot;]
+    B --&gt; E[&quot;贝叶斯更新&quot;]
+    D --&gt; E
+    E --&gt; F[&quot;后验 p(theta|D)&lt;br/&gt;数据后的不确定性&quot;]
+    F --&gt; G[&quot;后验摘要&lt;br/&gt;均值, 区间, MAP&quot;]
+    F --&gt; H[&quot;后验预测&lt;br/&gt;p(new data|D)&quot;]
+    E --&gt; I[&quot;共轭先验&lt;br/&gt;计算更方便&quot;]</pre></div>
+<p>一句话概括这一章:</p>
+<blockquote class="callout tip"><p>贝叶斯统计的核心不是某个单独公式,<br>而是把认知不确定性显式写进模型,<br>再让数据一步步更新它.</p></blockquote>
+<hr class="divider">
+<h2 id="02-1-贝叶斯视角与频率学视角">1. 贝叶斯视角与频率学视角</h2>
+<h3 id="03-11-频率学派的基本视角">1.1 频率学派的基本视角</h3>
+<p>频率学派通常把参数看成固定但未知的常数:</p>
+<div class="math-block">$$
+\theta \text{ fixed but unknown}
+$$</div>
+<p>样本是随机的:</p>
+<div class="math-block">$$
+X_1,\dots,X_n\sim P_\theta
+$$</div>
+<p>因此它研究的是:</p>
+<ul><li>估计量在重复抽样中怎样波动</li>
+<li>置信区间构造方法的长期覆盖率</li>
+<li>检验规则的第一类错误和第二类错误</li></ul>
+<h3 id="04-12-贝叶斯的基本视角">1.2 贝叶斯的基本视角</h3>
+<p>贝叶斯统计把参数的不确定性也写成概率分布:</p>
+<div class="math-block">$$
+\theta\sim p(\theta)
+$$</div>
+<p>观察数据后, 用贝叶斯公式更新为:</p>
+<div class="math-block">$$
+p(\theta\mid D)
+$$</div>
+<p>这里的概率表达的是:</p>
+<blockquote class="callout"><p>在已有信息下, 我们对参数取值的不确定性.</p></blockquote>
+<h3 id="05-13-两种视角不是谁完全替代谁">1.3 两种视角不是谁完全替代谁</h3>
+<p>频率学派强调长期重复抽样性质.<br> 贝叶斯强调条件于当前数据和先验信息后的不确定性.</p>
+<p>实际工作中, 两种视角都常用:</p>
+<ul><li>用频率学派方法做 A/B 测试和错误控制</li>
+<li>用贝叶斯方法表达先验知识和后验预测</li>
+<li>用模拟检查贝叶斯方法的频率学性质</li></ul>
+<p>重要的是知道自己在说哪一种概率.</p>
+<hr class="divider">
+<h2 id="06-2-参数为什么可以被视作随机变量">2. 参数为什么可以被视作随机变量</h2>
+<h3 id="07-21-不是说真实世界在反复抽参数">2.1 不是说真实世界在反复抽参数</h3>
+<p>贝叶斯里说参数有分布, 不一定意味着真实世界每次都重新抽一个参数.<br> 更准确地说:</p>
+<blockquote class="callout"><p>参数分布表达的是我们对参数的认知状态.</p></blockquote>
+<p>例如一个硬币的真实正面概率可能固定为某个值 $p$.<br> 但在抛之前, 我们不知道它是多少, 可以用一个分布表达这种不知道.</p>
+<h3 id="08-22-数据会改变认知状态">2.2 数据会改变认知状态</h3>
+<p>抛硬币之前, 我们可能认为:</p>
+<div class="math-block">$$
+p \sim \mathrm{Beta}(2,2)
+$$</div>
+<p>看到 18 次中有 13 次正面后, 我们对 $p$ 的判断应该向较大的值移动.</p>
+<p>这就是贝叶斯更新.</p>
+<figure class="figure"><img src="assets/ps_ch12_prior_to_posterior_update.png" alt="先验, 似然与后验更新图"><figcaption>先验, 似然与后验更新图</figcaption></figure>
+<p>图中蓝线是先验, 黄线是缩放后的似然, 红线是后验.<br> 后验同时受到先验和数据影响.</p>
+<hr class="divider">
+<h2 id="09-3-先验-似然-后验">3. 先验, 似然, 后验</h2>
+<h3 id="10-31-贝叶斯公式">3.1 贝叶斯公式</h3>
+<p>贝叶斯公式写作:</p>
+<div class="math-block">$$
+p(\theta\mid D)=\frac{p(D\mid \theta)p(\theta)}{p(D)}
+$$</div>
+<p>其中:</p>
+<ul><li>$p(\theta)$ 是先验</li>
+<li>$p(D\mid \theta)$ 是似然</li>
+<li>$p(\theta\mid D)$ 是后验</li>
+<li>$p(D)$ 是证据或边际似然</li></ul>
+<p>在参数推断中常写成比例式:</p>
+<div class="math-block">$$
+p(\theta\mid D)\propto p(D\mid \theta)p(\theta)
+$$</div>
+<p>因为 $p(D)$ 对 $\theta$ 来说只是归一化常数.</p>
+<h3 id="11-32-先验-prior">3.2 先验 prior</h3>
+<p>先验描述看到当前数据之前对参数的认知.</p>
+<p>先验可以来自:</p>
+<ul><li>过往实验</li>
+<li>领域知识</li>
+<li>物理约束</li>
+<li>保守假设</li>
+<li>弱信息设定</li></ul>
+<p>先验不是乱猜.<br> 好的先验应当可解释, 可检查, 并尽量做敏感性分析.</p>
+<h3 id="12-33-似然-likelihood">3.3 似然 likelihood</h3>
+<p>似然描述在给定参数下, 观察到当前数据的支持程度:</p>
+<div class="math-block">$$
+p(D\mid \theta)
+$$</div>
+<p>它和第八章极大似然中的似然是同一个对象.<br> 区别在于贝叶斯会把似然和先验相乘, 得到整条后验分布.</p>
+<h3 id="13-34-后验-posterior">3.4 后验 posterior</h3>
+<p>后验是看到数据后的参数不确定性:</p>
+<div class="math-block">$$
+p(\theta\mid D)
+$$</div>
+<p>后验可以用来计算:</p>
+<ul><li>后验均值</li>
+<li>后验中位数</li>
+<li>MAP</li>
+<li>可信区间</li>
+<li>后验预测分布</li></ul>
+<p>它不是一个单点答案, 而是一整条分布.</p>
+<hr class="divider">
+<h2 id="14-4-后验预测分布">4. 后验预测分布</h2>
+<h3 id="15-41-为什么不只预测参数">4.1 为什么不只预测参数</h3>
+<p>很多实际问题关心的是未来数据, 不是参数本身.</p>
+<p>例如:</p>
+<blockquote class="callout"><p>已经观察到 18 次试验 13 次成功, 下一批 20 次大概会成功几次?</p></blockquote>
+<p>如果只用一个点估计 $\hat p$ 做预测, 会忽略参数不确定性.<br> 贝叶斯的后验预测会把参数不确定性积分掉:</p>
+<div class="math-block">$$
+p(\tilde y\mid D)=\int p(\tilde y\mid \theta)p(\theta\mid D)d\theta
+$$</div>
+<p>这句话非常关键:</p>
+<blockquote class="callout"><p>预测时不是只代入一个参数, 而是对所有可能参数按后验权重平均.</p></blockquote>
+<h3 id="16-42-后验预测图">4.2 后验预测图</h3>
+<figure class="figure"><img src="assets/ps_ch12_posterior_predictive.png" alt="后验预测分布示意图"><figcaption>后验预测分布示意图</figcaption></figure>
+<p>图中蓝色是 Beta-Binomial 后验预测分布.<br> 黄色是把后验均值当作固定参数的 plug-in Binomial 分布.</p>
+<p>后验预测通常更宽, 因为它额外考虑了参数不确定性.</p>
+<h3 id="17-43-和机器学习预测的关系">4.3 和机器学习预测的关系</h3>
+<p>机器学习中也常问:</p>
+<blockquote class="callout"><p>对新样本, 模型预测的不确定性有多大?</p></blockquote>
+<p>贝叶斯后验预测直接回答这个问题.<br> 它把参数不确定性和观测噪声一起纳入预测.</p>
+<hr class="divider">
+<h2 id="18-5-共轭先验">5. 共轭先验</h2>
+<h3 id="19-51-什么是共轭">5.1 什么是共轭</h3>
+<p>如果先验和后验属于同一分布族, 就称这个先验是该似然的共轭先验.</p>
+<p>例如:</p>
+<div class="math-block">$$
+\mathrm{Beta} + \mathrm{Binomial} \rightarrow \mathrm{Beta}
+$$</div>
+<p>观察数据前是 Beta 分布, 观察数据后仍然是 Beta 分布, 只是参数更新了.</p>
+<figure class="figure"><img src="assets/ps_ch12_conjugate_update_flow.png" alt="共轭更新流程图"><figcaption>共轭更新流程图</figcaption></figure>
+<h3 id="20-52-共轭的价值">5.2 共轭的价值</h3>
+<p>共轭先验的价值是计算方便:</p>
+<ul><li>更新公式简单</li>
+<li>后验形式清楚</li>
+<li>容易做教学和手算</li>
+<li>容易解释先验参数的含义</li></ul>
+<p>但共轭不是必须的.<br> 真实问题中, 更重要的是模型是否表达了合理的不确定性.</p>
+<h3 id="21-53-共轭不是唯一合理选择">5.3 共轭不是唯一合理选择</h3>
+<p>如果非共轭先验更符合领域知识, 完全可以使用.<br> 只是后验可能没有闭式形式, 需要数值积分, MCMC 或变分推断.</p>
+<p>这会在第十三章继续展开.</p>
+<hr class="divider">
+<h2 id="22-6-beta-binomial-模型">6. Beta-Binomial 模型</h2>
+<h3 id="23-61-模型设定">6.1 模型设定</h3>
+<p>设成功概率为 $p$, 数据为 $n$ 次试验中的成功次数 $x$:</p>
+<div class="math-block">$$
+X\mid p\sim \mathrm{Binomial}(n,p)
+$$</div>
+<p>选择先验:</p>
+<div class="math-block">$$
+p\sim \mathrm{Beta}(\alpha,\beta)
+$$</div>
+<p>Beta 密度为:</p>
+<div class="math-block">$$
+\pi(p)\propto p^{\alpha-1}(1-p)^{\beta-1}
+$$</div>
+<p>似然为:</p>
+<div class="math-block">$$
+L(p)\propto p^x(1-p)^{n-x}
+$$</div>
+<p>所以后验:</p>
+<div class="math-block">$$
+\pi(p\mid x)\propto p^{\alpha+x-1}(1-p)^{\beta+n-x-1}
+$$</div>
+<p>即:</p>
+<div class="math-block">$$
+p\mid x\sim \mathrm{Beta}(\alpha+x,\beta+n-x)
+$$</div>
+<h3 id="24-62-伪计数直觉">6.2 伪计数直觉</h3>
+<p>Beta 先验参数可以理解成伪计数:</p>
+<ul><li>$\alpha-1$ 像先验成功次数</li>
+<li>$\beta-1$ 像先验失败次数</li></ul>
+<p>也常把 $\alpha+\beta$ 看作先验强度.</p>
+<p>例如:</p>
+<div class="math-block">$$
+\mathrm{Beta}(1,1)
+$$</div>
+<p>是均匀先验.<br></p>
+<div class="math-block">$$
+\mathrm{Beta}(20,20)
+$$</div>
+<p>表达很强的先验, 认为 $p$ 接近 0.5.</p>
+<h3 id="25-63-不同先验的影响">6.3 不同先验的影响</h3>
+<figure class="figure"><img src="assets/ps_ch12_prior_influence.png" alt="不同先验对后验影响图"><figcaption>不同先验对后验影响图</figcaption></figure>
+<p>同一份数据下, 弱先验会更快跟随数据, 强先验会让后验移动得更慢.</p>
+<p>因此报告贝叶斯结果时, 最好说明:</p>
+<ul><li>使用了什么先验</li>
+<li>先验强度多大</li>
+<li>换合理先验后结论是否稳定</li></ul>
+<hr class="divider">
+<h2 id="26-7-gamma-poisson-模型">7. Gamma-Poisson 模型</h2>
+<h3 id="27-71-计数问题">7.1 计数问题</h3>
+<p>Poisson 分布常用于单位时间或单位空间内的计数:</p>
+<div class="math-block">$$
+X_i\mid \lambda\sim \mathrm{Poisson}(\lambda)
+$$</div>
+<p>例如:</p>
+<ul><li>每小时请求数</li>
+<li>每天故障数</li>
+<li>每页错别字数</li></ul>
+<h3 id="28-72-gamma-先验">7.2 Gamma 先验</h3>
+<p>Poisson 速率 $\lambda&gt;0$, 因此常用 Gamma 先验:</p>
+<div class="math-block">$$
+\lambda\sim \mathrm{Gamma}(\alpha,\beta)
+$$</div>
+<p>这里采用 rate 参数化:</p>
+<div class="math-block">$$
+\pi(\lambda)\propto \lambda^{\alpha-1}e^{-\beta\lambda}
+$$</div>
+<p>若观察到 $n$ 个计数, 总和为:</p>
+<div class="math-block">$$
+s=\sum_{i=1}^{n}x_i
+$$</div>
+<p>似然为:</p>
+<div class="math-block">$$
+L(\lambda)\propto \lambda^s e^{-n\lambda}
+$$</div>
+<p>后验为:</p>
+<div class="math-block">$$
+\lambda\mid D\sim \mathrm{Gamma}(\alpha+s,\beta+n)
+$$</div>
+<h3 id="29-73-直觉">7.3 直觉</h3>
+<p>先验中的 $\alpha$ 像先验事件数, $\beta$ 像先验观测时长.<br> 数据把事件数加到 $\alpha$ 上, 把曝光量加到 $\beta$ 上.</p>
+<p>这对流量, 故障率和稀有事件建模很有用.</p>
+<hr class="divider">
+<h2 id="30-8-normal-normal-模型">8. Normal-Normal 模型</h2>
+<h3 id="31-81-已知方差的正态均值问题">8.1 已知方差的正态均值问题</h3>
+<p>设:</p>
+<div class="math-block">$$
+X_i\mid \mu\sim \mathcal{N}(\mu,\sigma^2)
+$$</div>
+<p>且 $\sigma^2$ 已知.<br> 对均值设正态先验:</p>
+<div class="math-block">$$
+\mu\sim \mathcal{N}(\mu_0,\tau_0^2)
+$$</div>
+<p>则后验仍是正态:</p>
+<div class="math-block">$$
+\mu\mid D\sim \mathcal{N}(\mu_n,\tau_n^2)
+$$</div>
+<h3 id="32-82-精度加权平均">8.2 精度加权平均</h3>
+<p>后验精度为:</p>
+<div class="math-block">$$
+\frac{1}{\tau_n^2}=\frac{1}{\tau_0^2}+\frac{n}{\sigma^2}
+$$</div>
+<p>后验均值为:</p>
+<div class="math-block">$$
+\mu_n=
+\tau_n^2
+\left(
+\frac{\mu_0}{\tau_0^2}+\frac{n\bar x}{\sigma^2}
+\right)
+$$</div>
+<p>这说明后验均值是先验均值和样本均值的精度加权平均.</p>
+<h3 id="33-83-直觉">8.3 直觉</h3>
+<p>如果先验很确定, 即 $\tau_0^2$ 很小, 后验会更靠近 $\mu_0$.<br> 如果数据量大或观测噪声小, 后验会更靠近 $\bar x$.</p>
+<p>贝叶斯更新不是简单平均, 而是按信息精度加权.</p>
+<hr class="divider">
+<h2 id="34-9-先验选择">9. 先验选择</h2>
+<h3 id="35-91-先验不是装饰">9.1 先验不是装饰</h3>
+<p>先验会影响后验, 尤其在样本量小的时候.<br> 因此先验选择必须透明.</p>
+<p>常见做法:</p>
+<ul><li>使用领域知识构造信息先验</li>
+<li>使用弱信息先验约束合理范围</li>
+<li>使用参考先验或近似客观先验</li>
+<li>做先验敏感性分析</li></ul>
+<h3 id="36-92-主观先验">9.2 主观先验</h3>
+<p>主观先验来自专家知识或历史经验.</p>
+<p>例如某系统历史转化率长期在 2% 到 4% 之间, 新实验转化率先验可以围绕这个范围设定.</p>
+<p>主观不等于随意.<br> 它需要:</p>
+<ul><li>说明来源</li>
+<li>转换成可解释参数</li>
+<li>接受他人检查</li>
+<li>做敏感性分析</li></ul>
+<h3 id="37-93-弱信息先验">9.3 弱信息先验</h3>
+<p>弱信息先验不强行给出精确答案, 但排除明显不合理区域.</p>
+<p>例如正尺度参数必须为正, 回归系数不应大到离谱.<br> 弱信息先验能帮助模型稳定, 尤其在数据稀少或分离问题中.</p>
+<h3 id="38-94-客观先验初步">9.4 客观先验初步</h3>
+<p>客观先验试图减少主观影响, 如均匀先验或 Jeffreys 先验.</p>
+<p>但&quot;客观&quot;并不意味着没有选择.<br> 不同参数化下的均匀先验可能对应不同含义.</p>
+<p>所以更稳妥的态度是:</p>
+<blockquote class="callout"><p>明确先验含义, 检查先验影响, 而不是宣称先验不存在.</p></blockquote>
+<hr class="divider">
+<h2 id="39-10-可信区间与置信区间">10. 可信区间与置信区间</h2>
+<h3 id="40-101-可信区间">10.1 可信区间</h3>
+<p>贝叶斯后验中, $95%$ 可信区间表示:</p>
+<div class="math-block">$$
+P(\theta\in [a,b]\mid D)=0.95
+$$</div>
+<p>这是在给定数据和先验后, 参数落在区间内的后验概率.</p>
+<h3 id="41-102-置信区间">10.2 置信区间</h3>
+<p>频率学派 $95%$ 置信区间表示:</p>
+<blockquote class="callout"><p>重复抽样并重复构造区间时, 约 95% 的区间覆盖真实参数.</p></blockquote>
+<p>它不是对某个固定区间内部参数概率的陈述.</p>
+<h3 id="42-103-区分语言">10.3 区分语言</h3>
+<p>两种区间形式可能数值相近, 但解释不同:</p>
+<ul><li>credible interval: 条件于数据和先验的参数概率陈述</li>
+<li>confidence interval: 构造方法的长期覆盖率陈述</li></ul>
+<p>报告时不要混用.</p>
+<hr class="divider">
+<h2 id="43-11-后验摘要">11. 后验摘要</h2>
+<h3 id="44-111-后验均值">11.1 后验均值</h3>
+<p>后验均值:</p>
+<div class="math-block">$$
+E[\theta\mid D]
+$$</div>
+<p>常作为平方损失下的贝叶斯估计.</p>
+<h3 id="45-112-后验中位数">11.2 后验中位数</h3>
+<p>后验中位数满足:</p>
+<div class="math-block">$$
+P(\theta\le m\mid D)=0.5
+$$</div>
+<p>它在偏态后验中可能比均值更稳健.</p>
+<h3 id="46-113-map">11.3 MAP</h3>
+<p>MAP 是后验密度最大的位置:</p>
+<div class="math-block">$$
+\hat\theta_{\mathrm{MAP}}=\arg\max_\theta p(\theta\mid D)
+$$</div>
+<p>它是点估计, 不是完整贝叶斯推断.</p>
+<h3 id="47-114-不要只报一个点">11.4 不要只报一个点</h3>
+<p>贝叶斯的优势在于保留整条不确定性分布.<br> 如果只报 MAP, 很多时候会丢掉后验宽度, 偏态和多峰结构.</p>
+<hr class="divider">
+<h2 id="48-12-本章主线总结">12. 本章主线总结</h2>
+<p>第十二章可以压成几句话:</p>
+<ol><li>频率学派把参数看成固定未知量, 贝叶斯用分布表达参数不确定性.</li>
+<li>先验表示数据前认知, 似然表示数据支持, 后验表示数据后认知.</li>
+<li>贝叶斯更新公式是 $p(\theta|D)\propto p(D|\theta)p(\theta)$.</li>
+<li>后验预测分布通过积分平均参数不确定性.</li>
+<li>共轭先验让后验更新保持同一分布族, 但不是唯一合理选择.</li>
+<li>Beta-Binomial, Gamma-Poisson, Normal-Normal 是三类基础共轭模型.</li>
+<li>先验选择应透明, 可解释, 可做敏感性分析.</li>
+<li>可信区间和置信区间解释不同, 不能混用.</li></ol>
+<p>本章最重要的提醒是:</p>
+<blockquote class="callout"><p>贝叶斯统计不是把贝叶斯公式背下来,<br>而是把不确定性建模, 更新和预测连成一套推断语言.</p></blockquote>
+<hr class="divider">
+<h2 id="49-13-典型题型与实战清单">13. 典型题型与实战清单</h2>
+<h3 id="50-131-典型题型">13.1 典型题型</h3>
+<ol><li><strong>写出贝叶斯更新</strong><ul><li>写先验</li>
+<li>写似然</li>
+<li>写后验比例式</li></ul></li></ol>
+<ol><li><strong>Beta-Binomial 更新</strong><ul><li>先验 $\mathrm{Beta}(\alpha,\beta)$</li>
+<li>成功 $x$, 失败 $n-x$</li>
+<li>后验 $\mathrm{Beta}(\alpha+x,\beta+n-x)$</li></ul></li></ol>
+<ol><li><strong>Gamma-Poisson 更新</strong><ul><li>先验 $\mathrm{Gamma}(\alpha,\beta)$</li>
+<li>总计数 $s$, 曝光量 $n$</li>
+<li>后验 $\mathrm{Gamma}(\alpha+s,\beta+n)$</li></ul></li></ol>
+<ol><li><strong>Normal-Normal 更新</strong><ul><li>后验精度等于先验精度加数据信息</li>
+<li>后验均值是精度加权平均</li></ul></li></ol>
+<ol><li><strong>解释后验预测</strong><ul><li>写积分</li>
+<li>说明对参数不确定性求平均</li></ul></li></ol>
+<ol><li><strong>区分可信区间和置信区间</strong><ul><li>可信区间是后验概率陈述</li>
+<li>置信区间是长期覆盖率陈述</li></ul></li></ol>
+<h3 id="51-132-实战清单">13.2 实战清单</h3>
+<p>做贝叶斯建模时, 可以按下面顺序检查:</p>
+<ol><li>参数是什么?</li>
+<li>数据似然是什么?</li>
+<li>先验表达了什么信息?</li>
+<li>先验强度相当于多少数据?</li>
+<li>后验是否有闭式形式?</li>
+<li>如果没有闭式形式, 用什么计算方法?</li>
+<li>结果对先验是否敏感?</li>
+<li>需要参数后验, 还是后验预测?</li>
+<li>是否报告了后验区间?</li>
+<li>是否清楚区分了贝叶斯解释和频率学解释?</li></ol>
+<hr class="divider">
+<h2 id="52-14-典型误区">14. 典型误区</h2>
+<h3 id="53-误区-1-把先验理解成主观乱猜">误区 1: 把先验理解成主观乱猜</h3>
+<p>先验可以来自历史数据, 专家知识, 物理约束或弱信息约束.<br> 关键是透明, 可解释, 可检查.</p>
+<h3 id="54-误区-2-只会写后验比例式">误区 2: 只会写后验比例式</h3>
+<p>比例式只是第一步.<br> 真正的贝叶斯推断还要归一化, 总结后验, 做预测和检查先验敏感性.</p>
+<h3 id="55-误区-3-把后验预测当成-plug-in-预测">误区 3: 把后验预测当成 plug-in 预测</h3>
+<p>plug-in 预测只代入一个参数估计.<br> 后验预测会对参数后验积分, 通常更能反映不确定性.</p>
+<h3 id="56-误区-4-把共轭先验当成唯一合理先验">误区 4: 把共轭先验当成唯一合理先验</h3>
+<p>共轭先验计算方便, 但现实建模应优先考虑表达是否合理.</p>
+<h3 id="57-误区-5-把-map-当成完整贝叶斯">误区 5: 把 MAP 当成完整贝叶斯</h3>
+<p>MAP 是一个点.<br> 完整贝叶斯推断关心整条后验分布和后验预测.</p>
+<h3 id="58-误区-6-混淆可信区间和置信区间">误区 6: 混淆可信区间和置信区间</h3>
+<p>可信区间允许说后验概率.<br> 置信区间说的是长期覆盖率.<br> 两者语言不能混用.</p>
+<hr class="divider">
+<h2 id="59-15-和前后章节的连接点">15. 和前后章节的连接点</h2>
+<h3 id="60-151-和第二章的连接">15.1 和第二章的连接</h3>
+<p>第二章讲贝叶斯公式.<br> 本章把公式扩展成完整的参数推断框架.</p>
+<h3 id="61-152-和第八章的连接">15.2 和第八章的连接</h3>
+<p>MLE 最大化似然.<br> MAP 最大化先验乘似然.<br> 贝叶斯后验则保留整条参数分布.</p>
+<h3 id="62-153-和第十三章的连接">15.3 和第十三章的连接</h3>
+<p>本章主要讲有闭式形式或易解释的模型.<br> 第十三章会处理后验算不出来时怎么办, 包括 MAP, MCMC 和变分推断.</p>
+<h3 id="63-154-和机器学习的连接">15.4 和机器学习的连接</h3>
+<p>后验预测, 先验正则化, 不确定性估计, 贝叶斯模型平均, 都是机器学习中的重要思想.</p>
+<hr class="divider">
+<h2 id="64-16-本章收尾">16. 本章收尾</h2>
+<p>贝叶斯统计把不确定性从参数估计一路带到预测.<br> 它的基本姿态是:</p>
+<blockquote class="callout"><p>先承认我们不知道,<br>再用先验表达不知道的方式,<br>最后用数据更新这种不知道.</p></blockquote>
+<p>下一章会进入更实际的问题:<br> 当后验分布没有闭式答案时, 我们怎样用 MAP, MCMC 和变分推断去近似它.</p>
+      </article>
+      <nav class="chapter-nav" aria-label="前后页面">
+        <a class="prev" href="chapter11_nonparametric_resampling_robust_methods.html"><span>上一页</span><strong>Chapter 11: 数理统计第十一章教程: 非参数统计, 重抽样与稳健方法</strong></a>
+        <a class="next" href="chapter13_bayesian_inference_map_mcmc_vi.html"><span>下一页</span><strong>Chapter 13: 贝叶斯统计第十三章教程: 贝叶斯推断, MAP, MCMC 与变分推断</strong></a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="footer">
+    由 build_probability_statistics_html.py 生成. 样式文件: probability_statistics.css.
+  </footer>
+</body>
+</html>

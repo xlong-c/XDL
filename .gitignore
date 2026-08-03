@@ -1,0 +1,179 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Dot-directories (all folders starting with ".")
+.*/
+
+# Dot-files (individual files starting with ".")
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.coverage
+.coverage.*
+.python-version
+.installed.cfg
+.dmypy.json
+.clangd
+*.swp
+*.swo
+
+# Distribution / packaging
+artifacts/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff
+instance/
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+./build-linux-clang/
+./build-linux-gcc/
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mkdocs documentation
+/site
+
+# mypy
+dmypy.json
+
+# Deep Learning specific
+# Model files
+artifacts/xqt/
+*.pth
+*.pt
+*.h5
+*.hdf5
+*.pb
+*.onnx
+*.tflite
+*.pkl
+*.pickle
+
+# Dataset folders
+# data/ 存放本地数据集和样本数据(MNIST/FashionMNIST/CIFAR-100/coco8 等),默认整体忽略.
+# data/AGENTS.md 是给 agent 和开发者看的目录说明,用 !data/AGENTS.md 例外保留入库,
+# 其余数据文件继续忽略, 不跟踪任何数据本体.
+data/
+datasets/
+!data/AGENTS.md
+raw_data/
+rawdata/
+processed_data/
+images/
+videos/
+annotations/
+
+# Experiment outputs
+experiments/
+outputs/
+results/
+runs/
+logs/
+checkpoints/
+saved_models/
+weights/
+
+# TensorBoard logs
+tensorboard/
+tb_logs/
+lightning_logs/
+
+# Weights & Biases
+wandb/
+
+# MLflow
+mlruns/
+
+# OS generated files
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Project specific
+others/
+!others/
+others/*
+!others/AGENTS.md
+!others/resume/
+others/resume/*
+!others/resume/resume.html
+!others/resume/resume.pdf
+
+# Third party
+third_party/

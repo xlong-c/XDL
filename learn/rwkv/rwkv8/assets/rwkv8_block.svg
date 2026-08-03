@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 420" role="img" aria-labelledby="title desc">
+  <title id="title">RWKV8 ROSA block</title>
+  <desc id="desc">A pure ROSA block applies LayerNorm, time-shifted QKV projections, ROSA symbolic memory, output projection, then a squared ReLU FFN.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 8; }
+      .node { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 2; rx: 8; }
+      .accent { fill: #ccfbf1; stroke: #0f766e; }
+      .blue { fill: #dbeafe; stroke: #2563eb; }
+      .amber { fill: #fef3c7; stroke: #b45309; }
+      .title { fill: #0f172a; font: 800 24px system-ui, sans-serif; }
+      .label { fill: #0f172a; font: 800 16px system-ui, sans-serif; }
+      .small { fill: #64748b; font: 600 13px system-ui, sans-serif; }
+      .arrow { stroke: #0f766e; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .thin { stroke: #64748b; stroke-width: 2.5; fill: none; marker-end: url(#arrowGray); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/>
+    </marker>
+    <marker id="arrowGray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1040" height="420"/>
+  <rect class="panel" x="28" y="24" width="984" height="372"/>
+  <text class="title" x="56" y="64">Pure RWKV8/ROSA block used by the tutorial code</text>
+  <text class="small" x="56" y="92">The TileLang operator only replaces the discrete ROSA memory lookup. Projections, residuals, norms and FFN stay in PyTorch.</text>
+
+  <rect class="node" x="70" y="172" width="90" height="58"/><text class="label" x="97" y="206">x</text>
+  <path class="arrow" d="M 160 201 L 222 201"/>
+  <rect class="node blue" x="230" y="156" width="118" height="90"/><text class="label" x="258" y="190">LayerNorm</text><text class="small" x="254" y="216">rosa path</text>
+  <path class="arrow" d="M 348 201 L 414 201"/>
+  <rect class="node" x="422" y="132" width="128" height="58"/><text class="label" x="448" y="166">time mix</text>
+  <rect class="node" x="422" y="212" width="128" height="58"/><text class="label" x="451" y="246">q,k,v</text>
+  <path class="thin" d="M 486 190 L 486 212"/>
+  <path class="arrow" d="M 550 201 L 620 201"/>
+  <rect class="node accent" x="628" y="156" width="142" height="90"/><text class="label" x="672" y="190">ROSA</text><text class="small" x="656" y="216">TileLang lookup</text>
+  <path class="arrow" d="M 770 201 L 828 201"/>
+  <rect class="node" x="836" y="172" width="104" height="58"/><text class="label" x="860" y="206">out proj</text>
+
+  <path class="thin" d="M 118 230 C 120 310, 884 314, 888 232"/>
+  <text class="small" x="438" y="336">residual add</text>
+
+  <rect class="node amber" x="312" y="288" width="142" height="58"/><text class="label" x="350" y="322">FFN</text>
+  <rect class="node blue" x="496" y="288" width="142" height="58"/><text class="label" x="520" y="322">squared ReLU</text>
+  <path class="thin" d="M 454 317 L 496 317"/>
+  <text class="small" x="706" y="326">then second residual add</text>
+</svg>

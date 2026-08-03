@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN" data-accent="teal">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="XDL HTML 阅读页的两种固定样式模板: Atlas 和 Ledger">
+  <title>XDL HTML 样式模板</title>
+  <link rel="stylesheet" href="assets/xdl-style-showcase.css">
+  <script defer src="assets/xdl-theme.js"></script>
+</head>
+<body class="xdl-style-atlas style-showcase-body">
+  <a class="skip-link" href="#main">跳到正文</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">X</span>
+        <span>XDL Docs</span>
+      </a>
+      <div class="theme-switcher" role="group" aria-label="页面主题">
+        <button type="button" data-theme-value="system">系统</button>
+        <button type="button" data-theme-value="light">日间</button>
+        <button type="button" data-theme-value="dark">夜间</button>
+        <button type="button" data-theme-value="sepia">暖纸</button>
+        <button type="button" data-accent-value="teal">青</button>
+        <button type="button" data-accent-value="blue">蓝</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout layout-docked-toc">
+    <details class="toc toc-docked" aria-label="样式展示目录" open>
+      <summary>
+        <span class="toc-summary-copy">
+          <span class="toc-summary-title">页面目录</span>
+          <span class="toc-summary-meta">4 节内容</span>
+        </span>
+      </summary>
+      <nav class="toc-list" aria-label="样式模板目录">
+        <a href="#overview">总览</a>
+        <a href="#atlas">Atlas 模板</a>
+        <a href="#ledger">Ledger 模板</a>
+        <a href="#rules">检查项</a>
+      </nav>
+    </details>
+
+    <div class="page-column">
+      <header id="overview" class="showcase-header">
+        <section class="hero">
+          <div class="showcase-hero-grid">
+            <div class="showcase-hero-copy">
+              <p class="eyebrow">HTML Style Templates</p>
+              <h1>XDL HTML 只保留两种样式模板</h1>
+              <p class="lead">
+                本页展示仓库自有 HTML 阅读页允许使用的两种 body 模板:
+                <strong class="inline-key">xdl-style-atlas</strong> 和
+                <strong class="inline-key">xdl-style-ledger</strong>. 目录专属 class 只能叠加语义和局部组件,不能另起视觉系统.
+              </p>
+              <div class="hero-actions">
+                <a class="button primary" href="../md/README.md#xdl-html-阅读页样式规范">阅读规范</a>
+                <a class="button" href="#rules">查看检查项</a>
+              </div>
+            </div>
+            <aside class="hero-panel" aria-label="模板概览">
+              <div class="panel-head">
+                <strong>固定模板</strong>
+                <span class="tag">2 styles</span>
+              </div>
+              <div class="stat-grid">
+                <div class="stat-card"><span>入口/导航</span><strong>Atlas</strong></div>
+                <div class="stat-card"><span>长文/教程</span><strong>Ledger</strong></div>
+                <div class="stat-card"><span>公共入口</span><strong>CSS</strong></div>
+              </div>
+              <div class="emphasis-strip">
+                <span><b>Rule</b> 每个长期 HTML 必须选择 atlas 或 ledger.</span>
+                <span><b>CSS</b> 局部 CSS 第一行导入 xdl-doc.css.</span>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </header>
+
+      <main id="main" class="content">
+        <section id="atlas" class="section">
+      <div class="section-head">
+        <p class="section-kicker">Template 01</p>
+        <h2>Atlas: 入口页,导航页,速查页和交互实验页</h2>
+        <p>Atlas 强调模块边界和快速跳转,适合总入口,状态面板,路线图,训练链路说明和交互式学习页面.</p>
+      </div>
+      <div class="template-grid">
+        <article class="card template-card">
+          <div class="template-card-head">
+            <span class="tag">body</span>
+            <code>xdl-style-atlas</code>
+          </div>
+          <p>
+            页面通常使用 `.topbar`,`.hero`,`.section`,`.card`,`.route`,`.stat-card` 和 `.button`.
+            如果是交互实验页,可以叠加 `flash-attention-page` 这类语义 class 来补充局部组件.
+          </p>
+          <div class="template-mini atlas-mini" aria-label="Atlas 模板示意">
+            <div class="atlas-mini-nav">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="atlas-mini-main">
+              <div class="atlas-mini-title"></div>
+              <div class="atlas-mini-stats">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="atlas-mini-grid">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <h3>推荐使用场景</h3>
+          <ul>
+            <li>文档入口和阅读路线,例如 `docs/html/index.html`.</li>
+            <li>实验性教程或可视化工具,例如 Flash Attention 交互页.</li>
+            <li>需要并列展示多个模块,状态,路径或检查项的页面.</li>
+          </ul>
+        </article>
+      </div>
+        </section>
+
+        <section id="ledger" class="section">
+      <div class="section-head">
+        <p class="section-kicker">Template 02</p>
+        <h2>Ledger: 长文,教程,调研报告和结构说明页</h2>
+        <p>Ledger 强调正文阅读节奏和纸面感,适合概念解释,研究报告,数学教程,表格,公式和长段落.</p>
+      </div>
+      <div class="template-grid">
+        <article class="card template-card">
+          <div class="template-card-head">
+            <span class="tag">body</span>
+            <code>xdl-style-ledger</code>
+          </div>
+          <p>
+            长文页面通常叠加 `math-doc-page` 或 `research-page` 这类语义 class.
+            语义 class 只能扩展课程图示,研究页特殊图表或少量页面专属组件.
+          </p>
+          <div class="template-mini ledger-mini" aria-label="Ledger 模板示意">
+            <div class="ledger-mini-title"></div>
+            <div class="ledger-mini-lines">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="ledger-mini-callout"></div>
+          </div>
+        </article>
+        <article class="card">
+          <h3>推荐使用场景</h3>
+          <ul>
+            <li>结构说明页,例如 `docs/html/dataset-structure.html`.</li>
+            <li>数学教程和课程章节,例如 `learn/math/**/*.html`.</li>
+            <li>研究报告和方案讨论,例如 `research/**/*.html`.</li>
+          </ul>
+        </article>
+      </div>
+        </section>
+
+        <section id="rules" class="section">
+      <div class="section-head">
+        <p class="section-kicker">Checklist</p>
+        <h2>新增或修正 HTML 的最低检查项</h2>
+        <p>下面的检查项用于防止仓库再次出现第三套页面样式.</p>
+      </div>
+      <div class="grid three">
+        <article class="card">
+          <h3>模板</h3>
+          <p>每个长期 HTML 的 body class 必须包含 `xdl-style-atlas` 或 `xdl-style-ledger` 之一.</p>
+        </article>
+        <article class="card">
+          <h3>样式入口</h3>
+          <p>页面必须直接引用 `xdl-doc.css`,或引用第一行 `@import` 它的目录专属 CSS.</p>
+        </article>
+        <article class="card">
+          <h3>局部扩展</h3>
+          <p>目录 CSS 只能写命名空间明确的局部组件,不得复制公共版式,主题变量和通用阅读组件.</p>
+        </article>
+      </div>
+      <div class="callout">
+        <strong>验证建议</strong>
+        使用搜索命令检查页面模板,内联样式属性和 CSS 入口,避免第三套视觉系统重新出现.
+      </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

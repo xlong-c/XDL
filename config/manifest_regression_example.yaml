@@ -1,0 +1,79 @@
+# Manifest regression example (schema v1)
+
+config_version: 1
+
+runtime:
+  device: "cpu"
+  experiment_name: "manifest_regression_example"
+  output_dir: ${xdl.abspath:${xdl.config_dir},../others}
+
+trainer:
+  max_epochs: 1
+  batch_size: 2
+
+train_transforms:
+  target: "torchvision.transforms:Compose"
+  params:
+    transforms:
+      - target: "torchvision.transforms:Resize"
+        params:
+          size: [16, 16]
+      - target: "torchvision.transforms:ToTensor"
+        params: {}
+
+val_transforms:
+  target: "torchvision.transforms:Compose"
+  params:
+    transforms:
+      - target: "torchvision.transforms:Resize"
+        params:
+          size: [16, 16]
+      - target: "torchvision.transforms:ToTensor"
+        params: {}
+
+task:
+  target: "xdl.trainer.example_tasks:TinyRegressionTask"
+  params:
+    input_channels: 3
+    lr: 0.001
+
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 0
+  pin_memory: false
+
+train_dataset:
+  target: "registry:ManifestRegressionDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},../examples/assets/manifest_regression/train.jsonl}
+    transform: ${train_transforms}
+
+val_dataset:
+  target: "registry:ManifestRegressionDataset"
+  params:
+    manifest_path: ${xdl.abspath:${xdl.config_dir},../examples/assets/manifest_regression/val.jsonl}
+    transform: ${val_transforms}
+
+train_dataloader:
+  dataset: ${train_dataset}
+  params:
+    shuffle: true
+    drop_last: false
+
+val_dataloader:
+  dataset: ${val_dataset}
+  params:
+    shuffle: false
+    drop_last: false
+
+logging:
+  enable_console: false
+  enable_tensorboard: false
+
+checkpoint:
+  dirpath: ${xdl.abspath:${xdl.config_dir},../others/manifest_regression_example}
+  save_last: false
+  save_top_k: 1
+  monitor: "val_MeanAbsoluteError"
+  mode: "min"
+  every_n_epochs: 1

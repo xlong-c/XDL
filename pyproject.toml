@@ -1,0 +1,143 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xdl"
+version = "0.1.0"
+description = "基于 PyTorch 的模块化深度学习框架"
+readme = "README.md"
+authors = [
+    { name = "Developer" }
+]
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = ["deep-learning", "pytorch", "computer-vision", "machine-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "torch>=1.12.0",
+    "torchvision>=0.13.0",
+    "numpy>=1.21.0",
+    "omegaconf>=2.3.0",
+    "pyyaml>=5.4.0",
+    "tqdm>=4.62.0",
+    "typing-extensions>=4.0.0",
+    "loguru>=0.7.0",
+    "Pillow>=10.0.0",
+    "einops>=0.6.0",
+    "timm>=0.9.0",
+]
+
+[project.optional-dependencies]
+# 计算机视觉增强
+cv = [
+    "opencv-python>=4.5.0",
+    "albumentations>=1.0.0",
+    "matplotlib>=3.5.0",
+    "scikit-image>=0.19.0",
+]
+
+# 实验管理和日志
+logging = [
+    "tensorboard>=2.10.0",
+    "wandb>=0.13.0",
+]
+
+# 模型优化和加速
+accelerate = [
+    "accelerate>=0.12.0",
+    "safetensors>=0.3.0",
+]
+
+# 高级优化（可选）
+optimization = [
+    "torchao>=0.1.0",
+    "triton>=2.0.0",
+    "tilelang>=0.1.11",
+    "apache-tvm-ffi>=0.1.11,<0.1.12",
+    "cuda-tile>=1.4.0",
+    "nvidia-cutlass-dsl>=4.6.0",
+]
+
+# XQT 压缩与部署可选依赖
+xqt = [
+    "torchao>=0.1.0",
+    "onnx>=1.16.0",
+    "onnxconverter-common>=1.14.0",
+    "onnxruntime>=1.18.0",
+    "pandas>=2.0.0",
+]
+
+xqt-all = [
+    "xdl[xqt]",
+]
+
+# 完整安装（所有功能）
+all = [
+    "xdl[cv]",
+    "xdl[logging]",
+    "xdl[accelerate]",
+    "xdl[optimization]",
+    "xdl[xqt-all]",
+]
+
+# 开发和测试
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.8.0",
+    "pyright>=1.1.389",
+    "pre-commit>=2.20.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/xlong/xdl"
+Repository = "https://gitee.com/xlong_t/xdl"
+Documentation = "https://github.com/xlong/xdl#readme"
+
+[project.scripts]
+xdl-usage = "xdl.usage:main"
+xqt-run-workflow = "xqt.run_workflow:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xdl*", "xqt*"]
+
+[tool.setuptools.package-data]
+xdl = ["py.typed", "USAGE.md"]
+xqt = ["py.typed", "recipes/*/*.yaml", "recipes/*/*/*.yaml"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = [
+    "data",
+    "downloads",
+    "learn",
+    "third_party",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F821"]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

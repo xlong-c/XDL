@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="概率论第二章教程: 条件概率, 独立性与贝叶斯公式 HTML 教程">
+  <title>概率论第二章教程: 条件概率, 独立性与贝叶斯公式</title>
+  <link rel="stylesheet" href="probability_statistics.css">
+  <script defer src="../../../docs/html/assets/xdl-theme.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      }
+    });
+  </script>
+</head>
+<body class="xdl-style-ledger math-doc-page">
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="outline.md">
+        <span class="brand-mark">P</span>
+        <span>概率统计教程</span>
+      </a>
+      <nav class="top-actions" aria-label="章节导航">
+        <a class="nav-link" href="outline.md">总纲</a>
+        <a class="nav-link" href="todo.html">进度</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Chapter 02</p>
+        <h1>概率论第二章教程: 条件概率, 独立性与贝叶斯公式</h1>
+        <p class="lead">第一章解决的是&quot;有哪些可能, 哪些情况算作事件, 概率如何赋值&quot;. 这一章要更进一步, 回答三个更尖锐的问题: 1. 当额外信息出现以后, 概率应该怎样更新? 2. 两个事件之间到底有没有关系, 怎样判断?</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#main">进入正文</a>
+          <a class="button" href="#route-panel">阅读路径</a>
+        </div>
+      </div>
+      <aside id="route-panel" class="hero-panel" aria-label="页面概览">
+        <div class="panel-head">
+          <strong>页面概览</strong>
+          <span class="tag">公式 + 图示 + 主线</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span>小节</span><strong>63</strong></div>
+          <div class="stat-card"><span>公式</span><strong>201</strong></div>
+          <div class="stat-card"><span>配图</span><strong>4</strong></div>
+        </div>
+        <div class="route"><div class="route-step"><div class="route-index">01</div><div class="route-body"><strong>0. 先看全章主线</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">02</div><div class="route-body"><strong>1. 为什么信息一变, 概率也要跟着变</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">03</div><div class="route-body"><strong>2. 条件概率: 在新的信息下重新看事件大小</strong><span>本节是页面阅读路径中的关键节点.</span></div></div>
+<div class="route-step"><div class="route-index">04</div><div class="route-body"><strong>3. 乘法公式: 把联合事件拆成分步概率</strong><span>本节是页面阅读路径中的关键节点.</span></div></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <main id="main" class="layout">
+    <aside class="toc" aria-label="页面目录">
+      <div class="toc-title">本页目录</div>
+<a href="#01-0-先看全章主线">0. 先看全章主线</a>
+<a href="#02-1-为什么信息一变-概率也要跟着变">1. 为什么信息一变, 概率也要跟着变</a>
+<a href="#03-11-一个很简单但很关键的例子">1.1 一个很简单但很关键的例子</a>
+<a href="#04-12-这一变化到底在说什么">1.2 这一变化到底在说什么</a>
+<a href="#05-2-条件概率-在新的信息下重新看事件大小">2. 条件概率: 在新的信息下重新看事件大小</a>
+<a href="#06-21-定义">2.1 定义</a>
+<a href="#07-22-为什么分母一定是条件事件">2.2 为什么分母一定是条件事件</a>
+<a href="#08-23-一个纸牌例子">2.3 一个纸牌例子</a>
+<a href="#09-24-pa-mid-b-和-pb-mid-a-完全不是一回事">2.4 $P(A mid B)$ 和 $P(B mid A)$ 完全不是一回事</a>
+<a href="#10-25-这一章默认只讨论-pb0">2.5 这一章默认只讨论 $P(B)&gt;0$</a>
+<a href="#11-3-乘法公式-把联合事件拆成分步概率">3. 乘法公式: 把联合事件拆成分步概率</a>
+<a href="#12-31-从定义直接推出来">3.1 从定义直接推出来</a>
+<a href="#13-32-一个抽球例子">3.2 一个抽球例子</a>
+<a href="#14-33-多个事件的链式分解">3.3 多个事件的链式分解</a>
+<a href="#15-4-全概率公式-把结果按原因拆开">4. 全概率公式: 把结果按原因拆开</a>
+<a href="#16-41-为什么需要它">4.1 为什么需要它</a>
+<a href="#17-42-公式背后的意思">4.2 公式背后的意思</a>
+<a href="#18-43-一个工厂质检例子">4.3 一个工厂质检例子</a>
+<a href="#19-44-全概率公式真正训练的思维">4.4 全概率公式真正训练的思维</a>
+<a href="#20-5-贝叶斯公式-从结果反推原因">5. 贝叶斯公式: 从结果反推原因</a>
+<a href="#21-51-从乘法公式到贝叶斯公式">5.1 从乘法公式到贝叶斯公式</a>
+<a href="#22-52-四个词一定要分开">5.2 四个词一定要分开</a>
+<a href="#23-53-医学筛查的经典例子">5.3 医学筛查的经典例子</a>
+<a href="#24-54-为什么这个结果很多人会觉得反直觉">5.4 为什么这个结果很多人会觉得反直觉</a>
+<a href="#25-55-从贝叶斯公式看推断的本质">5.5 从贝叶斯公式看推断的本质</a>
+<a href="#26-6-独立性-怎样判断两个事件是否真的有关">6. 独立性: 怎样判断两个事件是否真的有关</a>
+<a href="#27-61-定义">6.1 定义</a>
+<a href="#28-62-一个真正独立的例子">6.2 一个真正独立的例子</a>
+<a href="#29-63-一个不独立的例子">6.3 一个不独立的例子</a>
+<a href="#30-64-独立不是没关系的口语版">6.4 独立不是&quot;没关系&quot;的口语版</a>
+<a href="#31-7-独立和互斥一定要分开">7. 独立和互斥一定要分开</a>
+<a href="#32-71-互斥说的是不能同时发生">7.1 互斥说的是不能同时发生</a>
+<a href="#33-72-独立说的是彼此不提供信息">7.2 独立说的是彼此不提供信息</a>
+<a href="#34-73-为什么正概率互斥事件不可能独立">7.3 为什么正概率互斥事件不可能独立</a>
+<a href="#35-74-一个最简单的例子">7.4 一个最简单的例子</a>
+<a href="#36-8-两两独立和相互独立-多个事件时关系会更复杂">8. 两两独立和相互独立: 多个事件时关系会更复杂</a>
+<a href="#37-81-为什么两个事件的定义不够用了">8.1 为什么两个事件的定义不够用了</a>
+<a href="#38-82-两两独立">8.2 两两独立</a>
+<a href="#39-83-相互独立">8.3 相互独立</a>
+<a href="#40-84-一个经典反例">8.4 一个经典反例</a>
+<a href="#41-85-这一节的真正提醒">8.5 这一节的真正提醒</a>
+<a href="#42-9-条件独立性-隐藏原因下的关系结构">9. 条件独立性: 隐藏原因下的关系结构</a>
+<a href="#43-91-定义">9.1 定义</a>
+<a href="#44-92-为什么条件独立性很重要">9.2 为什么条件独立性很重要</a>
+<a href="#45-93-一个带数字的直觉例子">9.3 一个带数字的直觉例子</a>
+<a href="#46-94-这和机器学习有什么关系">9.4 这和机器学习有什么关系</a>
+<a href="#47-10-诊断-筛查与分类-本章概念怎样落地">10. 诊断, 筛查与分类: 本章概念怎样落地</a>
+<a href="#48-101-医学筛查">10.1 医学筛查</a>
+<a href="#49-102-垃圾邮件分类">10.2 垃圾邮件分类</a>
+<a href="#50-103-目标识别与多传感器判断">10.3 目标识别与多传感器判断</a>
+<a href="#51-11-从条件概率走向后验更新">11. 从条件概率走向后验更新</a>
+<a href="#52-12-本章主线总结">12. 本章主线总结</a>
+<a href="#53-13-典型题型与实战清单">13. 典型题型与实战清单</a>
+<a href="#54-14-典型误区">14. 典型误区</a>
+<a href="#55-误区-1-条件概率分母写错">误区 1: 条件概率分母写错</a>
+<a href="#56-误区-2-把-pa-mid-b-和-pb-mid-a-当成一回事">误区 2: 把 $P(A mid B)$ 和 $P(B mid A)$ 当成一回事</a>
+<a href="#57-误区-3-把互斥误认为独立">误区 3: 把互斥误认为独立</a>
+<a href="#58-误区-4-只记住贝叶斯公式-不理解四个角色">误区 4: 只记住贝叶斯公式, 不理解四个角色</a>
+<a href="#59-误区-5-只检查两两独立-就宣称全部独立">误区 5: 只检查两两独立, 就宣称全部独立</a>
+<a href="#60-误区-6-看到相关就忘记共同原因">误区 6: 看到相关就忘记共同原因</a>
+<a href="#61-15-和前后章节的连接点">15. 和前后章节的连接点</a>
+<a href="#62-16-和机器学习-数据分析-科研实践的连接点">16. 和机器学习, 数据分析, 科研实践的连接点</a>
+<a href="#63-17-本章收尾">17. 本章收尾</a>
+    </aside>
+    <div class="content">
+      <article class="article">
+        <div class="chapter-note">
+          <strong>HTML 阅读版</strong>
+          本页由同名 Markdown 自动转换生成, 保留原文结构, 并增强目录, 图表, 公式和重点提示的阅读体验.
+        </div>
+        <div class="source-title"><h2>概率论第二章教程: 条件概率, 独立性与贝叶斯公式</h2></div>
+<blockquote class="callout warn"><p>第一章解决的是&quot;有哪些可能, 哪些情况算作事件, 概率如何赋值&quot;.<br>这一章要更进一步, 回答三个更尖锐的问题:</p><p>1. 当额外信息出现以后, 概率应该怎样更新?<br>2. 两个事件之间到底有没有关系, 怎样判断?<br>3. 如果我们看到的是结果, 能不能反过来推最可能的原因?</p><p>这三件事合在一起, 就是条件概率, 独立性与贝叶斯公式的核心.</p></blockquote>
+<hr class="divider">
+<h2 id="01-0-先看全章主线">0. 先看全章主线</h2>
+<p>第二章的主线可以压成下面这张图:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A[&quot;信息更新&lt;br/&gt;额外条件出现&quot;] --&gt; B[&quot;条件概率&lt;br/&gt;把参考空间缩到条件事件内&quot;]
+    B --&gt; C[&quot;乘法公式&lt;br/&gt;把联合事件拆成分步概率&quot;]
+    C --&gt; D[&quot;全概率公式&lt;br/&gt;把结果按原因分解&quot;]
+    D --&gt; E[&quot;贝叶斯公式&lt;br/&gt;从结果反推原因&quot;]
+    B --&gt; F[&quot;独立性&lt;br/&gt;判断两个事件是否真的有关&quot;]
+    F --&gt; G[&quot;两两独立 vs 相互独立&lt;br/&gt;厘清更高层关系&quot;]
+    F --&gt; H[&quot;条件独立性&lt;br/&gt;隐藏原因下的关系结构&quot;]
+    E --&gt; I[&quot;诊断, 筛查, 分类&lt;br/&gt;走向统计与机器学习&quot;]
+    H --&gt; I</pre></div>
+<p>一句话概括这一章:</p>
+<blockquote class="callout"><p>条件概率回答&quot;信息变了以后概率怎样变&quot;,<br>独立性回答&quot;两个事件到底有没有关系&quot;,<br>贝叶斯公式回答&quot;已知结果时怎样反推原因&quot;.</p></blockquote>
+<hr class="divider">
+<h2 id="02-1-为什么信息一变-概率也要跟着变">1. 为什么信息一变, 概率也要跟着变</h2>
+<h3 id="03-11-一个很简单但很关键的例子">1.1 一个很简单但很关键的例子</h3>
+<p>掷一枚公平骰子, 设</p>
+<ul><li>$A$ = &quot;点数为偶数&quot;</li>
+<li>$B$ = &quot;点数大于 3&quot;</li></ul>
+<p>在没有额外信息时,</p>
+<div class="math-block">$$
+P(A)=\frac{3}{6}=\frac{1}{2}
+$$</div>
+<p>因为偶数有 $\{2,4,6\}$ 三种.</p>
+<p>但如果现在有人告诉你:</p>
+<blockquote class="callout"><p>已知这次掷出的点数大于 3</p></blockquote>
+<p>那你眼前的可能结果就不再是 $\{1,2,3,4,5,6\}$, 而变成</p>
+<div class="math-block">$$
+\{4,5,6\}
+$$</div>
+<p>在这个缩小后的空间里, 偶数只有 $\{4,6\}$ 两种, 所以</p>
+<div class="math-block">$$
+P(A \mid B)=\frac{2}{3}
+$$</div>
+<p>这和原来的 $P(A)=1/2$ 已经不一样了.</p>
+<h3 id="04-12-这一变化到底在说什么">1.2 这一变化到底在说什么</h3>
+<p>最关键的直觉是:</p>
+<blockquote class="callout"><p>条件概率不是给事件重新发明一套概率,<br>而是把参考空间缩到了条件事件内部, 然后在新的参考空间里重新归一化.</p></blockquote>
+<p>也就是说, 你并不是在问:</p>
+<blockquote class="callout"><p>&quot;$A$ 本身有多大?&quot;</p></blockquote>
+<p>而是在问:</p>
+<blockquote class="callout"><p>&quot;既然已经知道 $B$ 发生了, 那么在 $B$ 这个局部世界里, $A$ 占多大比例?&quot;</p></blockquote>
+<p>这就是条件概率的真正出发点.</p>
+<hr class="divider">
+<h2 id="05-2-条件概率-在新的信息下重新看事件大小">2. 条件概率: 在新的信息下重新看事件大小</h2>
+<h3 id="06-21-定义">2.1 定义</h3>
+<p>若 $P(B)&gt;0$, 则事件 $A$ 在事件 $B$ 已发生条件下的概率定义为</p>
+<div class="math-block">$$
+P(A \mid B)=\frac{P(A \cap B)}{P(B)}
+$$</div>
+<p>这里有三层意思:</p>
+<ol><li>只讨论 $B$ 已经发生的情形</li>
+<li>在这些情形里, 真正对 $A$ 有利的是 $A \cap B$</li>
+<li>最后要除以 $P(B)$, 因为我们已经把总量缩到了 $B$</li></ol>
+<figure class="figure"><img src="assets/ps_ch02_conditional_probability.png" alt="条件概率图"><figcaption>条件概率图</figcaption></figure>
+<p>图中右侧最关键:</p>
+<ul><li>原来的参考空间是 $\Omega$</li>
+<li>条件化以后, 新参考空间变成 $B$</li>
+<li>所以条件概率比较的是 $A \cap B$ 与 $B$ 的比例</li></ul>
+<h3 id="07-22-为什么分母一定是条件事件">2.2 为什么分母一定是条件事件</h3>
+<p>很多人刚学时会把分母写乱, 根源通常是没有想清楚:</p>
+<blockquote class="callout"><p>现在我们到底把谁当成&quot;总盘子&quot;?</p></blockquote>
+<p>一旦题目说&quot;已知 $B$ 发生&quot;, 那么总盘子就是 $B$, 不是 $\Omega$, 也不是 $A$.</p>
+<p>所以:</p>
+<div class="math-block">$$
+P(A \mid B)=\frac{\text{在 } B \text{ 中同时满足 } A \text{ 的部分}}{\text{全部 } B}
+$$</div>
+<p>这不是死记公式, 而是定义本身.</p>
+<h3 id="08-23-一个纸牌例子">2.3 一个纸牌例子</h3>
+<p>从一副标准扑克牌中随机抽一张, 设</p>
+<ul><li>$A$ = &quot;抽到红桃&quot;</li>
+<li>$B$ = &quot;抽到人头牌(J,Q,K)&quot;</li></ul>
+<p>则</p>
+<div class="math-block">$$
+P(B)=\frac{12}{52}
+$$</div>
+<p>而 $A \cap B$ 表示&quot;红桃 J,Q,K&quot;, 共 3 张, 所以</p>
+<div class="math-block">$$
+P(A \cap B)=\frac{3}{52}
+$$</div>
+<p>因此</p>
+<div class="math-block">$$
+P(A \mid B)=\frac{P(A \cap B)}{P(B)}
+=\frac{3/52}{12/52}
+=\frac{3}{12}
+=\frac{1}{4}
+$$</div>
+<p>你也可以直接在条件空间里数:</p>
+<ul><li>已知是人头牌后, 一共只剩 12 张可能</li>
+<li>其中红桃人头牌有 3 张</li></ul>
+<p>所以答案就是 $3/12$.</p>
+<h3 id="09-24-pa-mid-b-和-pb-mid-a-完全不是一回事">2.4 $P(A \mid B)$ 和 $P(B \mid A)$ 完全不是一回事</h3>
+<p>这也是高频误区.</p>
+<p>依然用刚才的纸牌例子:</p>
+<div class="math-block">$$
+P(A \mid B)=\frac{1}{4}
+$$</div>
+<p>但</p>
+<div class="math-block">$$
+P(B \mid A)=\frac{3}{13}
+$$</div>
+<p>因为:</p>
+<ul><li>已知是人头牌时, 看它是红桃的概率</li>
+<li>已知是红桃时, 看它是人头牌的概率</li></ul>
+<p>这两个问题条件不同, 所以答案往往不同.</p>
+<h3 id="10-25-这一章默认只讨论-pb0">2.5 这一章默认只讨论 $P(B)&gt;0$</h3>
+<p>如果 $P(B)=0$, 上面的定义不能直接用.<br> 更一般的零概率条件化需要更高级的测度论工具.</p>
+<p>本教程这一层先不展开. 你现在只要先稳住:</p>
+<blockquote class="callout"><p>条件概率 = 在条件事件内部做归一化.</p></blockquote>
+<hr class="divider">
+<h2 id="11-3-乘法公式-把联合事件拆成分步概率">3. 乘法公式: 把联合事件拆成分步概率</h2>
+<h3 id="12-31-从定义直接推出来">3.1 从定义直接推出来</h3>
+<p>由条件概率定义</p>
+<div class="math-block">$$
+P(A \mid B)=\frac{P(A \cap B)}{P(B)}
+$$</div>
+<p>可直接改写为</p>
+<div class="math-block">$$
+P(A \cap B)=P(B)P(A \mid B)
+$$</div>
+<p>同理也有</p>
+<div class="math-block">$$
+P(A \cap B)=P(A)P(B \mid A)
+$$</div>
+<p>这就是<strong>乘法公式</strong>.</p>
+<p>它的直觉是:</p>
+<blockquote class="callout"><p>先走进某个条件世界, 再在这个世界里看另一个事件发生的概率.</p></blockquote>
+<h3 id="13-32-一个抽球例子">3.2 一个抽球例子</h3>
+<p>袋中有 3 个红球, 2 个蓝球. 不放回地连续抽两次, 求&quot;两次都抽到红球&quot;的概率.</p>
+<p>设</p>
+<ul><li>$A$ = &quot;第一次抽到红球&quot;</li>
+<li>$B$ = &quot;第二次抽到红球&quot;</li></ul>
+<p>则</p>
+<div class="math-block">$$
+P(A)=\frac{3}{5}
+$$</div>
+<p>而在第一次已经抽到红球的条件下, 袋中还剩 2 红 2 蓝, 所以</p>
+<div class="math-block">$$
+P(B \mid A)=\frac{2}{4}=\frac{1}{2}
+$$</div>
+<p>于是</p>
+<div class="math-block">$$
+P(A \cap B)=P(A)P(B \mid A)=\frac{3}{5}\cdot\frac{1}{2}=\frac{3}{10}
+$$</div>
+<p>这就是为什么分步试验里树状图特别有用:<br> 每一条路径的概率, 通常就是一路条件相乘.</p>
+<h3 id="14-33-多个事件的链式分解">3.3 多个事件的链式分解</h3>
+<p>三个事件时, 可以继续写成</p>
+<div class="math-block">$$
+P(A \cap B \cap C)=P(A)P(B \mid A)P(C \mid A \cap B)
+$$</div>
+<p>更一般地:</p>
+<div class="math-block">$$
+P\left(\bigcap_{k=1}^{n} A_k\right)
+=P(A_1)P(A_2 \mid A_1)\cdots P\left(A_n \mid \bigcap_{k=1}^{n-1} A_k\right)
+$$</div>
+<p>这条公式以后在:</p>
+<ul><li>序列建模</li>
+<li>图模型</li>
+<li>语言模型</li>
+<li>贝叶斯网络</li></ul>
+<p>里都会反复出现.</p>
+<hr class="divider">
+<h2 id="15-4-全概率公式-把结果按原因拆开">4. 全概率公式: 把结果按原因拆开</h2>
+<h3 id="16-41-为什么需要它">4.1 为什么需要它</h3>
+<p>很多时候我们想算一个事件 $A$ 的概率, 但它本身不好直接算.<br> 这时可以换个角度:</p>
+<blockquote class="callout"><p>把 $A$ 按不同来源, 不同路径, 不同原因分开统计, 再把它们加起来.</p></blockquote>
+<p>如果 $B_1,B_2,\dots,B_n$ 构成样本空间的一个划分, 即:</p>
+<ol><li>$B_i$ 两两互斥</li>
+<li>$\bigcup_{i=1}^{n} B_i=\Omega$</li>
+<li>每个 $P(B_i)&gt;0$</li></ol>
+<p>那么对任意事件 $A$,</p>
+<div class="math-block">$$
+P(A)=\sum_{i=1}^{n} P(A \mid B_i)P(B_i)
+$$</div>
+<p>这就是<strong>全概率公式</strong>.</p>
+<h3 id="17-42-公式背后的意思">4.2 公式背后的意思</h3>
+<p>每一项</p>
+<div class="math-block">$$
+P(A \mid B_i)P(B_i)
+$$</div>
+<p>表示:</p>
+<blockquote class="callout"><p>先走到第 $i$ 类原因 $B_i$, 再在这个原因下发生 $A$</p></blockquote>
+<p>因为这些 $B_i$ 互斥且覆盖全部可能, 所以把所有路径加起来, 就得到总的 $P(A)$.</p>
+<h3 id="18-43-一个工厂质检例子">4.3 一个工厂质检例子</h3>
+<p>某工厂有三条生产线:</p>
+<ul><li>$B_1$: 产量占 50%, 次品率 1%</li>
+<li>$B_2$: 产量占 30%, 次品率 2%</li>
+<li>$B_3$: 产量占 20%, 次品率 4%</li></ul>
+<p>设 $A$ = &quot;抽到一件次品&quot;.</p>
+<p>则</p>
+<div class="math-block">$$
+P(B_1)=0.5,\quad P(B_2)=0.3,\quad P(B_3)=0.2
+$$</div>
+<div class="math-block">$$
+P(A \mid B_1)=0.01,\quad P(A \mid B_2)=0.02,\quad P(A \mid B_3)=0.04
+$$</div>
+<p>于是</p>
+<div class="math-block">$$
+P(A)=0.01 \times 0.5 + 0.02 \times 0.3 + 0.04 \times 0.2
+$$</div>
+<div class="math-block">$$
+=0.005+0.006+0.008=0.019
+$$</div>
+<p>所以总体次品率是</p>
+<div class="math-block">$$
+1.9\%
+$$</div>
+<h3 id="19-44-全概率公式真正训练的思维">4.4 全概率公式真正训练的思维</h3>
+<p>它训练的是一种非常重要的分解习惯:</p>
+<blockquote class="callout ok"><p>总结果 = 沿着一组互斥且完备的路径逐项求和</p></blockquote>
+<p>后面做:</p>
+<ul><li>医学筛查</li>
+<li>用户转化分析</li>
+<li>分类模型后验计算</li>
+<li>混合模型推断</li></ul>
+<p>几乎都在重复这个套路.</p>
+<hr class="divider">
+<h2 id="20-5-贝叶斯公式-从结果反推原因">5. 贝叶斯公式: 从结果反推原因</h2>
+<h3 id="21-51-从乘法公式到贝叶斯公式">5.1 从乘法公式到贝叶斯公式</h3>
+<p>对两个事件 $A,B$, 有</p>
+<div class="math-block">$$
+P(A \cap B)=P(B)P(A \mid B)=P(A)P(B \mid A)
+$$</div>
+<p>若 $P(A)&gt;0$, 则</p>
+<div class="math-block">$$
+P(B \mid A)=\frac{P(A \mid B)P(B)}{P(A)}
+$$</div>
+<p>这就是最基本的<strong>贝叶斯公式</strong>.</p>
+<p>如果 $\{B_1,\dots,B_n\}$ 是一个划分, 则更常用的版本是</p>
+<div class="math-block">$$
+P(B_j \mid A)=
+\frac{P(A \mid B_j)P(B_j)}
+{\sum_{i=1}^{n} P(A \mid B_i)P(B_i)}
+$$</div>
+<p>分子是:</p>
+<blockquote class="callout"><p>第 $j$ 个原因产生当前证据的路径概率</p></blockquote>
+<p>分母是:</p>
+<blockquote class="callout"><p>当前证据出现的总概率</p></blockquote>
+<h3 id="22-52-四个词一定要分开">5.2 四个词一定要分开</h3>
+<p>贝叶斯公式里最常见的四个词是:</p>
+<ul><li><strong>先验 prior</strong>: $P(B)$  </li></ul>
+<p>看到新证据之前, 我们对原因 $B$ 的原始判断</p>
+<ul><li><strong>似然 likelihood</strong>: $P(A \mid B)$  </li></ul>
+<p>如果原因 $B$ 为真, 看到证据 $A$ 的可能性</p>
+<ul><li><strong>证据 evidence</strong>: $P(A)$  </li></ul>
+<p>不管原因是什么, 证据 $A$ 最终出现的总概率</p>
+<ul><li><strong>后验 posterior</strong>: $P(B \mid A)$  </li></ul>
+<p>看到证据以后, 对原因 $B$ 的更新判断</p>
+<figure class="figure"><img src="assets/ps_ch02_bayes_update.png" alt="贝叶斯更新图"><figcaption>贝叶斯更新图</figcaption></figure>
+<p>如果只会把公式抄出来, 但说不清这四个量各自代表什么, 基本就还没有真正理解贝叶斯更新.</p>
+<h3 id="23-53-医学筛查的经典例子">5.3 医学筛查的经典例子</h3>
+<p>设:</p>
+<ul><li>某疾病患病率为 1%, 即 $P(D)=0.01$</li>
+<li>检测灵敏度为 95%, 即 $P(+ \mid D)=0.95$</li>
+<li>假阳性率为 5%, 即 $P(+ \mid D^c)=0.05$</li></ul>
+<p>现在问:</p>
+<blockquote class="callout"><p>如果某人检测结果为阳性, 他真的患病的概率是多少?</p></blockquote>
+<p>这就是求</p>
+<div class="math-block">$$
+P(D \mid +)
+$$</div>
+<p>由贝叶斯公式:</p>
+<div class="math-block">$$
+P(D \mid +)=\frac{P(+ \mid D)P(D)}{P(+)}
+$$</div>
+<p>而由全概率公式:</p>
+<div class="math-block">$$
+P(+)=P(+ \mid D)P(D)+P(+ \mid D^c)P(D^c)
+$$</div>
+<p>所以</p>
+<div class="math-block">$$
+P(+)=0.95 \times 0.01 + 0.05 \times 0.99
+$$</div>
+<div class="math-block">$$
+=0.0095+0.0495=0.059
+$$</div>
+<p>于是</p>
+<div class="math-block">$$
+P(D \mid +)=\frac{0.95 \times 0.01}{0.059}
+=\frac{0.0095}{0.059}
+\approx 0.161
+$$</div>
+<p>也就是大约</p>
+<div class="math-block">$$
+16.1\%
+$$</div>
+<h3 id="24-54-为什么这个结果很多人会觉得反直觉">5.4 为什么这个结果很多人会觉得反直觉</h3>
+<p>因为很多人下意识只盯着:</p>
+<div class="math-block">$$
+P(+ \mid D)=95\%
+$$</div>
+<p>但真正想知道的是</p>
+<div class="math-block">$$
+P(D \mid +)
+$$</div>
+<p>这是反过来的条件概率, 完全不是同一个量.</p>
+<p>这里最大的影响因素是<strong>基准率</strong>:</p>
+<ul><li>患病率本来很低</li>
+<li>即使假阳性率只有 5%, 乘在庞大的健康人群上, 也会产生不少假阳性</li></ul>
+<p>如果用 10000 人来想:</p>
+<ul><li>真患病者约 100 人, 其中约 95 人测阳</li>
+<li>健康者约 9900 人, 其中约 495 人假阳</li></ul>
+<p>于是阳性总人数大约是</p>
+<div class="math-block">$$
+95+495=590
+$$</div>
+<p>真正患病者只占</p>
+<div class="math-block">$$
+\frac{95}{590}\approx 16.1\%
+$$</div>
+<p>这就是所谓的<strong>基准率效应</strong>.</p>
+<h3 id="25-55-从贝叶斯公式看推断的本质">5.5 从贝叶斯公式看推断的本质</h3>
+<p>贝叶斯公式最重要的意义不是会不会套数值, 而是它提供了一条统一的思路:</p>
+<blockquote class="callout"><p>用先验表达原始认知, 用似然表达数据证据, 再把两者合成后验判断.</p></blockquote>
+<p>这条线会一直通向后面的:</p>
+<ul><li>贝叶斯统计</li>
+<li>朴素贝叶斯分类</li>
+<li>概率图模型</li>
+<li>后验推断</li></ul>
+<hr class="divider">
+<h2 id="26-6-独立性-怎样判断两个事件是否真的有关">6. 独立性: 怎样判断两个事件是否真的有关</h2>
+<h3 id="27-61-定义">6.1 定义</h3>
+<p>若两个事件 $A,B$ 满足</p>
+<div class="math-block">$$
+P(A \cap B)=P(A)P(B)
+$$</div>
+<p>则称 $A$ 与 $B$ <strong>独立</strong>.</p>
+<p>直觉上, 它的意思是:</p>
+<blockquote class="callout"><p>知道 $B$ 是否发生, 不会改变 $A$ 的概率</p></blockquote>
+<p>若 $P(B)&gt;0$, 这一定义等价于</p>
+<div class="math-block">$$
+P(A \mid B)=P(A)
+$$</div>
+<p>同理, 若 $P(A)&gt;0$, 也等价于</p>
+<div class="math-block">$$
+P(B \mid A)=P(B)
+$$</div>
+<h3 id="28-62-一个真正独立的例子">6.2 一个真正独立的例子</h3>
+<p>同时做两件互不影响的试验:</p>
+<ul><li>掷一枚公平硬币</li>
+<li>掷一枚公平骰子</li></ul>
+<p>设</p>
+<ul><li>$A$ = &quot;硬币为正面&quot;</li>
+<li>$B$ = &quot;骰子点数为偶数&quot;</li></ul>
+<p>则</p>
+<div class="math-block">$$
+P(A)=\frac{1}{2},\quad P(B)=\frac{1}{2}
+$$</div>
+<p>而</p>
+<div class="math-block">$$
+P(A \cap B)=\frac{3}{12}=\frac{1}{4}
+$$</div>
+<p>正好等于</p>
+<div class="math-block">$$
+P(A)P(B)=\frac{1}{2}\cdot\frac{1}{2}=\frac{1}{4}
+$$</div>
+<p>所以 $A,B$ 独立.</p>
+<h3 id="29-63-一个不独立的例子">6.3 一个不独立的例子</h3>
+<p>还是掷一枚骰子, 设</p>
+<ul><li>$A$ = &quot;点数为偶数&quot; = $\{2,4,6\}$</li>
+<li>$B$ = &quot;点数大于 3&quot; = $\{4,5,6\}$</li></ul>
+<p>则</p>
+<div class="math-block">$$
+P(A)=\frac{1}{2},\quad P(B)=\frac{1}{2}
+$$</div>
+<p>但</p>
+<div class="math-block">$$
+P(A \cap B)=\frac{2}{6}=\frac{1}{3}
+$$</div>
+<p>而</p>
+<div class="math-block">$$
+P(A)P(B)=\frac{1}{4}
+$$</div>
+<p>两者不相等, 所以它们不独立.</p>
+<p>更直观地看:</p>
+<div class="math-block">$$
+P(A \mid B)=\frac{2}{3}\ne \frac{1}{2}=P(A)
+$$</div>
+<p>说明知道 $B$ 发生以后, 我们对 $A$ 的判断确实被改变了.</p>
+<h3 id="30-64-独立不是没关系的口语版">6.4 独立不是&quot;没关系&quot;的口语版</h3>
+<p>数学里的独立比日常语言更严格.</p>
+<p>它不是说两个事件&quot;看起来不像有关&quot;, 而是要求:</p>
+<blockquote class="callout"><p>联合概率恰好分解成边缘概率的乘积</p></blockquote>
+<p>这是一条定量条件, 不是模糊感觉.</p>
+<figure class="figure"><img src="assets/ps_ch02_independence_heatmaps.png" alt="独立与相关对比图"><figcaption>独立与相关对比图</figcaption></figure>
+<p>图中左边是独立情形: 联合分布完全等于边缘分布乘积.<br> 右边虽然边缘分布相同, 但联合分布已经偏向对角线, 表明二者存在依赖.</p>
+<hr class="divider">
+<h2 id="31-7-独立和互斥一定要分开">7. 独立和互斥一定要分开</h2>
+<h3 id="32-71-互斥说的是不能同时发生">7.1 互斥说的是不能同时发生</h3>
+<p>若</p>
+<div class="math-block">$$
+A \cap B=\varnothing
+$$</div>
+<p>则 $A,B$ 互斥.</p>
+<h3 id="33-72-独立说的是彼此不提供信息">7.2 独立说的是彼此不提供信息</h3>
+<p>若</p>
+<div class="math-block">$$
+P(A \cap B)=P(A)P(B)
+$$</div>
+<p>则 $A,B$ 独立.</p>
+<p>这两件事完全不是一回事.</p>
+<h3 id="34-73-为什么正概率互斥事件不可能独立">7.3 为什么正概率互斥事件不可能独立</h3>
+<p>若 $A,B$ 互斥, 则</p>
+<div class="math-block">$$
+P(A \cap B)=0
+$$</div>
+<p>如果它们还独立, 就必须有</p>
+<div class="math-block">$$
+0=P(A)P(B)
+$$</div>
+<p>这意味着至少有一个事件概率为 0.</p>
+<p>所以:</p>
+<blockquote class="callout"><p>只要 $P(A)&gt;0$ 且 $P(B)&gt;0$, 互斥事件一定不独立.</p></blockquote>
+<h3 id="35-74-一个最简单的例子">7.4 一个最简单的例子</h3>
+<p>掷一枚骰子, 设</p>
+<ul><li>$A$ = &quot;点数为偶数&quot;</li>
+<li>$B$ = &quot;点数为奇数&quot;</li></ul>
+<p>它们显然互斥, 但绝不独立.<br> 因为一旦知道 $A$ 发生, 你立刻知道 $B$ 不会发生.</p>
+<p>换句话说:</p>
+<blockquote class="callout"><p>互斥意味着&quot;信息量极强&quot;,<br>独立意味着&quot;信息量为零&quot;.</p></blockquote>
+<p>二者恰好是不同方向的概念.</p>
+<hr class="divider">
+<h2 id="36-8-两两独立和相互独立-多个事件时关系会更复杂">8. 两两独立和相互独立: 多个事件时关系会更复杂</h2>
+<h3 id="37-81-为什么两个事件的定义不够用了">8.1 为什么两个事件的定义不够用了</h3>
+<p>当事件不止两个时, 只检查每一对是否独立, 还不够.</p>
+<p>因为:</p>
+<blockquote class="callout"><p>每对都看起来独立, 并不保证放在一起仍然独立.</p></blockquote>
+<h3 id="38-82-两两独立">8.2 两两独立</h3>
+<p>三个事件 $A,B,C$ 若满足</p>
+<div class="math-block">$$
+P(A \cap B)=P(A)P(B),\quad
+P(A \cap C)=P(A)P(C),\quad
+P(B \cap C)=P(B)P(C)
+$$</div>
+<p>则称它们<strong>两两独立</strong>.</p>
+<h3 id="39-83-相互独立">8.3 相互独立</h3>
+<p>若除了两两独立外, 还满足</p>
+<div class="math-block">$$
+P(A \cap B \cap C)=P(A)P(B)P(C)
+$$</div>
+<p>则称它们<strong>相互独立</strong>.</p>
+<p>更一般地, 任意若干个事件的交概率都应分解成各自概率乘积.</p>
+<h3 id="40-84-一个经典反例">8.4 一个经典反例</h3>
+<p>做两次公平抛硬币, 样本空间为</p>
+<div class="math-block">$$
+\Omega=\{\text{HH},\text{HT},\text{TH},\text{TT}\}
+$$</div>
+<p>定义三个事件:</p>
+<ul><li>$A$ = &quot;第一枚是正面&quot; = $\{\text{HH},\text{HT}\}$</li>
+<li>$B$ = &quot;第二枚是正面&quot; = $\{\text{HH},\text{TH}\}$</li>
+<li>$C$ = &quot;两枚结果相同&quot; = $\{\text{HH},\text{TT}\}$</li></ul>
+<p>则</p>
+<div class="math-block">$$
+P(A)=P(B)=P(C)=\frac{1}{2}
+$$</div>
+<p>并且</p>
+<div class="math-block">$$
+P(A \cap B)=P(A \cap C)=P(B \cap C)=\frac{1}{4}
+=\frac{1}{2}\cdot\frac{1}{2}
+$$</div>
+<p>所以它们两两独立.</p>
+<p>但</p>
+<div class="math-block">$$
+A \cap B \cap C=\{\text{HH}\}
+$$</div>
+<p>因此</p>
+<div class="math-block">$$
+P(A \cap B \cap C)=\frac{1}{4}
+$$</div>
+<p>而</p>
+<div class="math-block">$$
+P(A)P(B)P(C)=\frac{1}{8}
+$$</div>
+<p>二者不相等, 所以它们<strong>不是相互独立</strong>.</p>
+<h3 id="41-85-这一节的真正提醒">8.5 这一节的真正提醒</h3>
+<p>多个事件的关系, 比两个事件时复杂得多.<br> 所以以后看到&quot;独立&quot;这两个字, 一定要留意:</p>
+<ul><li>说的是两两独立?</li>
+<li>还是相互独立?</li></ul>
+<p>这两个结论强度不同, 不能混用.</p>
+<hr class="divider">
+<h2 id="42-9-条件独立性-隐藏原因下的关系结构">9. 条件独立性: 隐藏原因下的关系结构</h2>
+<h3 id="43-91-定义">9.1 定义</h3>
+<p>若在事件 $C$ 已知的条件下,</p>
+<div class="math-block">$$
+P(A \cap B \mid C)=P(A \mid C)P(B \mid C)
+$$</div>
+<p>则称 $A$ 和 $B$ 在条件 $C$ 下独立, 记作</p>
+<div class="math-block">$$
+A \perp B \mid C
+$$</div>
+<p>它的意思是:</p>
+<blockquote class="callout"><p>一旦知道了 $C$, 再知道 $A$ 是否发生, 对判断 $B$ 已经没有额外帮助.</p></blockquote>
+<h3 id="44-92-为什么条件独立性很重要">9.2 为什么条件独立性很重要</h3>
+<p>现实里很多相关性, 其实是由共同原因驱动的.</p>
+<p>例如:</p>
+<ul><li>疾病会同时影响发烧和咳嗽</li>
+<li>用户兴趣会同时影响点击和停留时长</li>
+<li>场景类别会同时影响多个视觉特征</li></ul>
+<p>在这种情况下, 不加条件时这些现象看起来相关;<br> 但一旦把共同原因固定住, 关系可能会明显简化.</p>
+<figure class="figure"><img src="assets/ps_ch02_conditional_independence.png" alt="条件独立结构图"><figcaption>条件独立结构图</figcaption></figure>
+<h3 id="45-93-一个带数字的直觉例子">9.3 一个带数字的直觉例子</h3>
+<p>设 $D$ 表示患病, $F$ 表示发烧, $C$ 表示咳嗽.</p>
+<p>假设:</p>
+<ul><li>$P(D)=0.1$</li>
+<li>$P(F \mid D)=0.8,\quad P(C \mid D)=0.7$</li>
+<li>$P(F \mid D^c)=0.1,\quad P(C \mid D^c)=0.2$</li></ul>
+<p>再进一步假设:</p>
+<blockquote class="callout"><p>在给定是否患病以后, 发烧和咳嗽条件独立</p></blockquote>
+<p>也就是</p>
+<div class="math-block">$$
+P(F \cap C \mid D)=P(F \mid D)P(C \mid D)=0.56
+$$</div>
+<div class="math-block">$$
+P(F \cap C \mid D^c)=P(F \mid D^c)P(C \mid D^c)=0.02
+$$</div>
+<p>但在不加条件时, 它们一般并不独立.</p>
+<p>先由全概率公式算:</p>
+<div class="math-block">$$
+P(F)=0.8 \times 0.1 + 0.1 \times 0.9 = 0.17
+$$</div>
+<div class="math-block">$$
+P(C)=0.7 \times 0.1 + 0.2 \times 0.9 = 0.25
+$$</div>
+<p>再算联合概率:</p>
+<div class="math-block">$$
+P(F \cap C)=0.56 \times 0.1 + 0.02 \times 0.9 = 0.074
+$$</div>
+<p>而</p>
+<div class="math-block">$$
+P(F)P(C)=0.17 \times 0.25=0.0425
+$$</div>
+<p>显然</p>
+<div class="math-block">$$
+0.074 \ne 0.0425
+$$</div>
+<p>所以 $F,C$ 在整体上并不独立.</p>
+<h3 id="46-94-这和机器学习有什么关系">9.4 这和机器学习有什么关系</h3>
+<p>条件独立是很多模型的结构核心, 比如:</p>
+<ul><li>朴素贝叶斯: 给定类别后, 多个特征近似条件独立</li>
+<li>隐变量模型: 给定隐藏状态后, 观测量之间关系被简化</li>
+<li>图模型: 通过条件独立结构压缩联合分布</li></ul>
+<p>所以这一节不是抽象修辞, 而是在为后面的概率建模打底.</p>
+<hr class="divider">
+<h2 id="47-10-诊断-筛查与分类-本章概念怎样落地">10. 诊断, 筛查与分类: 本章概念怎样落地</h2>
+<h3 id="48-101-医学筛查">10.1 医学筛查</h3>
+<p>医学筛查几乎是本章所有概念的集中演示:</p>
+<ul><li>检测阳性/阴性是事件</li>
+<li>患病/未患病是原因划分</li>
+<li>条件概率描述测试在不同人群中的表现</li>
+<li>全概率公式计算总体阳性率</li>
+<li>贝叶斯公式把阳性结果转成后验患病概率</li></ul>
+<p>所以很多现实误判都不是算错了公式, 而是混淆了:</p>
+<ul><li>$P(+ \mid D)$</li>
+<li>$P(D \mid +)$</li></ul>
+<h3 id="49-102-垃圾邮件分类">10.2 垃圾邮件分类</h3>
+<p>在垃圾邮件分类中:</p>
+<ul><li>$H$ = &quot;邮件是垃圾邮件&quot;</li>
+<li>$E$ = &quot;邮件里出现某些关键词&quot;</li></ul>
+<p>那么</p>
+<div class="math-block">$$
+P(H \mid E)
+$$</div>
+<p>就是看到这些词后, 该邮件属于垃圾邮件的后验概率.</p>
+<p>如果再把多个词特征近似看成在类别条件下独立, 就会走到朴素贝叶斯分类器.</p>
+<h3 id="50-103-目标识别与多传感器判断">10.3 目标识别与多传感器判断</h3>
+<p>在目标识别或传感器融合里:</p>
+<ul><li>某个目标类型是隐藏原因</li>
+<li>不同传感器读数是证据</li>
+<li>后验概率用于做最终决策</li></ul>
+<p>本章这套语言一旦熟练, 后面进入统计推断和机器学习时会省很多理解成本.</p>
+<hr class="divider">
+<h2 id="51-11-从条件概率走向后验更新">11. 从条件概率走向后验更新</h2>
+<p>把本章的公式链压成一条最短主线, 就是:</p>
+<ol><li>条件概率:</li></ol>
+<div class="math-block">$$
+P(A \mid B)=\frac{P(A \cap B)}{P(B)}
+$$</div>
+<ol><li>乘法公式:</li></ol>
+<div class="math-block">$$
+P(A \cap B)=P(B)P(A \mid B)
+$$</div>
+<ol><li>全概率公式:</li></ol>
+<div class="math-block">$$
+P(A)=\sum_i P(A \mid B_i)P(B_i)
+$$</div>
+<ol><li>贝叶斯公式:</li></ol>
+<div class="math-block">$$
+P(B_j \mid A)=
+\frac{P(A \mid B_j)P(B_j)}
+{\sum_i P(A \mid B_i)P(B_i)}
+$$</div>
+<p>你会发现它们其实是同一件事不断展开:</p>
+<blockquote class="callout"><p>先在条件事件里重新计量,<br>再把联合概率拆开,<br>再把结果按原因求和,<br>最后实现从证据到原因的反推.</p></blockquote>
+<p>这条线会一直通向整套贝叶斯统计.</p>
+<hr class="divider">
+<h2 id="52-12-本章主线总结">12. 本章主线总结</h2>
+<p>第二章真正要留下来的, 是下面五句话:</p>
+<ol><li>条件概率是在条件事件内部重新归一化</li>
+<li>乘法公式把联合事件写成分步概率</li>
+<li>全概率公式把总结果拆成互斥路径求和</li>
+<li>贝叶斯公式把证据转成对原因的后验更新</li>
+<li>独立性说的是信息不改变判断, 不是口语上的&quot;没关系&quot;</li></ol>
+<p>如果这五句话都稳住了, 后面的随机变量, 统计推断, 贝叶斯方法都会顺很多.</p>
+<hr class="divider">
+<h2 id="53-13-典型题型与实战清单">13. 典型题型与实战清单</h2>
+<p>这一章最常见的题型, 基本都可以归到下面几类:</p>
+<ol><li><strong>条件概率直接计算</strong><ul><li>先找条件事件</li>
+<li>再找交事件</li>
+<li>最后除以条件事件概率</li></ul></li></ol>
+<ol><li><strong>分步试验概率</strong><ul><li>树状图</li>
+<li>乘法公式</li>
+<li>不放回抽样尤其常见</li></ul></li></ol>
+<ol><li><strong>全概率公式</strong><ul><li>先找一组互斥且完备的原因划分</li>
+<li>再按原因逐项加总</li></ul></li></ol>
+<ol><li><strong>贝叶斯反推</strong><ul><li>先验</li>
+<li>似然</li>
+<li>证据</li>
+<li>后验</li></ul></li></ol>
+<ol><li><strong>独立性判断</strong><ul><li>检查 $P(A \cap B)=P(A)P(B)$</li>
+<li>或检查 $P(A \mid B)=P(A)$</li>
+<li>不要只凭口头直觉判断</li></ul></li></ol>
+<ol><li><strong>多事件关系</strong><ul><li>区分两两独立与相互独立</li>
+<li>留意条件独立性是否成立</li></ul></li></ol>
+<p>一个实战工作流可以直接记成:</p>
+<blockquote class="callout"><p>先看信息条件 -&gt; 再定条件空间 -&gt; 再选分解公式 -&gt; 最后判断关系</p></blockquote>
+<hr class="divider">
+<h2 id="54-14-典型误区">14. 典型误区</h2>
+<h3 id="55-误区-1-条件概率分母写错">误区 1: 条件概率分母写错</h3>
+<p>一旦题目说&quot;已知 $B$ 发生&quot;, 分母就应该是 $P(B)$, 因为参考空间已经缩到 $B$.</p>
+<h3 id="56-误区-2-把-pa-mid-b-和-pb-mid-a-当成一回事">误区 2: 把 $P(A \mid B)$ 和 $P(B \mid A)$ 当成一回事</h3>
+<p>这两个条件完全不同, 方向反了, 不能互换.</p>
+<h3 id="57-误区-3-把互斥误认为独立">误区 3: 把互斥误认为独立</h3>
+<p>对正概率事件来说, 互斥通常意味着强依赖, 而不是独立.</p>
+<h3 id="58-误区-4-只记住贝叶斯公式-不理解四个角色">误区 4: 只记住贝叶斯公式, 不理解四个角色</h3>
+<p>如果分不清:</p>
+<ul><li>先验</li>
+<li>似然</li>
+<li>证据</li>
+<li>后验</li></ul>
+<p>那就很容易把筛查和分类问题算成机械代数题.</p>
+<h3 id="59-误区-5-只检查两两独立-就宣称全部独立">误区 5: 只检查两两独立, 就宣称全部独立</h3>
+<p>多个事件时, 两两独立不等于相互独立.</p>
+<h3 id="60-误区-6-看到相关就忘记共同原因">误区 6: 看到相关就忘记共同原因</h3>
+<p>很多依赖结构其实来自隐藏变量.<br> 条件独立性正是为了解释这类情况.</p>
+<hr class="divider">
+<h2 id="61-15-和前后章节的连接点">15. 和前后章节的连接点</h2>
+<p>这一章向后连接的路线非常清楚:</p>
+<ol><li><strong>第三章随机变量与分布</strong><ul><li>条件概率会扩展成条件分布</li>
+<li>贝叶斯更新会扩展到连续变量和密度函数</li></ul></li></ol>
+<ol><li><strong>第四章多维随机变量</strong><ul><li>独立性会变成联合分布能否分解</li>
+<li>条件结构会变成边缘分布, 条件分布, 联合分布三者的统一关系</li></ul></li></ol>
+<ol><li><strong>第八章似然与估计</strong><ul><li>似然本质上是条件概率在参数推断里的改写</li></ul></li></ol>
+<ol><li><strong>第十二章以后贝叶斯统计</strong><ul><li>本章的贝叶斯公式会从事件层面升级到参数和模型层面</li></ul></li></ol>
+<p>所以第二章其实是整套教程从&quot;概率基础&quot;走向&quot;推断和学习&quot;的第一座桥.</p>
+<hr class="divider">
+<h2 id="62-16-和机器学习-数据分析-科研实践的连接点">16. 和机器学习, 数据分析, 科研实践的连接点</h2>
+<p>如果你学这章是为了后面的工程应用, 最值得提前记住的是:</p>
+<ol><li><strong>分类模型的输出</strong><ul><li>很多模型最终都在估计某种条件概率</li>
+<li>例如 $P(y \mid x)$, 给定输入后的类别后验</li></ul></li></ol>
+<ol><li><strong>朴素贝叶斯</strong><ul><li>本质上就是贝叶斯公式 + 条件独立近似</li></ul></li></ol>
+<ol><li><strong>诊断与告警系统</strong><ul><li>告警触发概率和真实风险概率不是一回事</li>
+<li>贝叶斯更新是把检测结果转成真实风险的关键</li></ul></li></ol>
+<ol><li><strong>因果与混杂</strong><ul><li>看到相关不等于看到因果</li>
+<li>条件独立性是理解混杂和隐藏变量的起点</li></ul></li></ol>
+<ol><li><strong>实验设计</strong><ul><li>信息一旦变化, 结论也会变</li>
+<li>很多分析错误其实都源于条件没有控制清楚</li></ul></li></ol>
+<hr class="divider">
+<h2 id="63-17-本章收尾">17. 本章收尾</h2>
+<p>如果说第一章是在建立概率的语言, 那第二章就是在让这门语言真正开始流动起来.</p>
+<p>从这里开始, 概率不再只是一个静态数值, 而是一套会随着信息变化而更新, 会随着关系结构而改变, 会被用来从结果反推原因的推断机制.</p>
+<p>只要你真正抓住下面这句话, 这一章就算过关了:</p>
+<blockquote class="callout"><p>条件概率是在新信息下重新计量,<br>贝叶斯公式是在证据出现后重新判断,<br>独立性是在问这份新信息到底有没有改变你.</p></blockquote>
+      </article>
+      <nav class="chapter-nav" aria-label="前后页面">
+        <a class="prev" href="chapter01_random_phenomena_probability.html"><span>上一页</span><strong>Chapter 01: 概率论第一章教程: 随机现象与概率</strong></a>
+        <a class="next" href="chapter03_random_variables_common_distributions.html"><span>下一页</span><strong>Chapter 03: 概率论第三章教程: 随机变量与常见分布</strong></a>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="footer">
+    由 build_probability_statistics_html.py 生成. 样式文件: probability_statistics.css.
+  </footer>
+</body>
+</html>

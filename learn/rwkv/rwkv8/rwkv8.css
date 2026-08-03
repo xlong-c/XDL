@@ -1,0 +1,159 @@
+@import "../../../docs/html/assets/xdl-doc.css";
+
+body.rwkv8-page {
+  --rwkv8-code-label: color-mix(in srgb, var(--xdl-accent) 18%, var(--xdl-surface));
+}
+
+body.rwkv8-page .hero {
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+body.rwkv8-page .hero-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+body.rwkv8-page .hero-stat {
+  padding: 14px;
+  background: var(--xdl-surface-soft);
+  border: 1px solid var(--xdl-border);
+  border-radius: var(--xdl-radius);
+}
+
+body.rwkv8-page .hero-stat strong {
+  display: block;
+  color: var(--xdl-text-strong);
+  font-size: 1rem;
+}
+
+body.rwkv8-page .hero-stat span {
+  color: var(--xdl-muted);
+  font-size: 0.9rem;
+}
+
+body.rwkv8-page .diagram {
+  margin: 20px 0;
+  padding: 12px;
+  background: var(--xdl-surface-soft);
+  border: 1px solid var(--xdl-border);
+  border-radius: var(--xdl-radius);
+}
+
+body.rwkv8-page .diagram img {
+  display: block;
+  width: 100%;
+  background: var(--xdl-surface-soft);
+  border-radius: 6px;
+}
+
+body.rwkv8-page .caption {
+  margin: 10px 4px 0;
+  color: var(--xdl-muted);
+  font-size: 0.9rem;
+}
+
+body.rwkv8-page .formula-box {
+  overflow-x: auto;
+  margin: 18px 0;
+  padding: 16px 18px;
+  color: var(--xdl-code-text);
+  background: var(--xdl-code-bg);
+  border: 1px solid var(--xdl-code-border);
+  border-radius: var(--xdl-radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.94rem;
+  line-height: 1.65;
+  white-space: pre;
+}
+
+body.rwkv8-page .code-map {
+  display: grid;
+  gap: 12px;
+}
+
+body.rwkv8-page .code-map-item {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 13px;
+  background: var(--xdl-surface-soft);
+  border: 1px solid var(--xdl-border);
+  border-radius: var(--xdl-radius);
+}
+
+body.rwkv8-page .code-map-item code {
+  width: fit-content;
+  background: var(--rwkv8-code-label);
+}
+
+body.rwkv8-page .code-map-item p {
+  margin: 0;
+}
+
+body.rwkv8-page .step-panel {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  background: var(--xdl-surface-soft);
+  border: 1px solid var(--xdl-border);
+  border-radius: var(--xdl-radius);
+}
+
+body.rwkv8-page .step-panel + .step-panel {
+  margin-top: 10px;
+}
+
+body.rwkv8-page .step-panel .number {
+  margin-top: 2px;
+}
+
+body.rwkv8-page .step-panel h3,
+body.rwkv8-page .step-panel h4 {
+  margin-top: 0;
+}
+
+body.rwkv8-page .badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+body.rwkv8-page .mini-equation {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 10px;
+  color: var(--xdl-accent);
+  background: var(--xdl-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--xdl-accent) 26%, var(--xdl-border));
+  border-radius: var(--xdl-radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-weight: 800;
+}
+
+body.rwkv8-page .source-list a {
+  overflow-wrap: anywhere;
+}
+
+body.rwkv8-page .two-column {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  body.rwkv8-page .hero-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  body.rwkv8-page .code-map-item {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,91 @@
+# 统一日志系统配置示例（schema v1）
+
+config_version: 1
+
+runtime:
+  device: "cpu"
+  experiment_name: "unified_logger_example"
+  data_dir: "./data"
+  output_dir: "./others"
+
+trainer:
+  max_epochs: 10
+  batch_size: 32
+  gradient_accumulation_steps: 1
+
+model:
+  target: "registry:simple_mlp"
+  params:
+    input_size: 784
+    hidden_size: 128
+    num_classes: 10
+    dropout_rate: 0.2
+
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 0
+  pin_memory: false
+
+train_dataset:
+  target: "registry:SyntheticClassificationDataset"
+  params:
+    num_samples: 500
+    input_shape: [784]
+    num_classes: 10
+    seed: 42
+
+val_dataset:
+  target: "registry:SyntheticClassificationDataset"
+  params:
+    num_samples: 100
+    input_shape: [784]
+    num_classes: 10
+    seed: 43
+
+train_dataloader:
+  dataset: ${train_dataset}
+  params:
+    shuffle: true
+    drop_last: true
+
+val_dataloader:
+  dataset: ${val_dataset}
+  params:
+    shuffle: false
+    drop_last: false
+
+optimization:
+  optimizer:
+    target: "torch.optim:Adam"
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+
+  scheduler:
+    target: "torch.optim.lr_scheduler:StepLR"
+    params:
+      step_size: 30
+      gamma: 0.1
+
+loss:
+  - target: "torch.nn:CrossEntropyLoss"
+    params: {}
+
+metrics:
+  - target: "registry:Accuracy"
+    params:
+      num_classes: 10
+
+logging:
+  log_dir: "./others/logs"
+  enable_console: true
+  enable_tensorboard: true
+  enable_wandb: false
+
+checkpoint:
+  dirpath: "./others"
+  save_last: true
+  save_top_k: 3
+  monitor: "val_accuracy"
+  mode: "max"
+  every_n_epochs: 1

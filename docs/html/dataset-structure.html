@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XDL Dataset 模块结构说明</title>
+  <link rel="stylesheet" href="assets/xdl-doc.css">
+  <script defer src="assets/xdl-theme.js"></script>
+</head>
+<body class="xdl-style-ledger">
+  <header>
+    <div class="theme-switcher" role="group" aria-label="页面主题">
+      <button type="button" data-theme-value="system">系统</button>
+      <button type="button" data-theme-value="light">日间</button>
+      <button type="button" data-theme-value="dark">夜间</button>
+      <button type="button" data-theme-value="sepia">暖纸</button>
+      <button type="button" data-accent-value="teal">青</button>
+      <button type="button" data-accent-value="blue">蓝</button>
+    </div>
+    <a class="back-link" href="index.html">返回文档阅读入口</a>
+    <h1>XDL Dataset 模块结构说明</h1>
+    <p class="subtitle">
+      本文说明 <code>xdl/dataset</code> 的通用数据集结构, 包括 <strong class="inline-key">注册入口</strong>, <strong class="inline-path">record/manifest 模板</strong>, <strong class="inline-path">folder/sidecar 组织</strong>, classification/regression/segmentation/detection/image-text/text/pair/triplet/image-edit 任务文件, transform 和 collate 组件. 本文刻意排除 <span class="inline-warning">hair 系列特殊数据集</span>, 因为它们属于项目私有数据形态.
+    </p>
+    <span class="note">推荐新增数据集时 <strong class="inline-rule">先复用现有模板</strong>. 所有数据集统一使用 <strong class="inline-key">Record* / ImageEdit*</strong> 名称.</span>
+  </header>
+
+  <main>
+    <section class="section">
+      <h2>一. 模块分层</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>注册入口</h3>
+          <p><strong>文件:</strong> <code>__init__.py</code></p>
+          <p>集中导入并注册 DATASET, TRANSFORM, COLLATE. YAML 的 <code>registry:Name</code> 最终都从这里进入.</p>
+        </div>
+        <div class="card">
+          <h3>公共 helper</h3>
+          <p><strong>文件:</strong> <code>utils.py</code></p>
+          <p>负责读取 manifest, 解析相对路径, 构造 sample_id, 扫描图片目录, 生成 basename sidecar 配对和 tensor 转换.</p>
+        </div>
+        <div class="card">
+          <h3>任务 Dataset</h3>
+          <p><strong>文件:</strong> <code>classification.py</code>, <code>segmentation.py</code>, <code>detection.py</code> 等</p>
+          <p>按任务语义拆分 dataset, 包括分类, 回归, 分割, 检测, 图文, 文本, pair, triplet 和通用 record.</p>
+        </div>
+        <div class="card">
+          <h3>Transform</h3>
+          <p><strong>文件:</strong> <code>transforms.py</code></p>
+          <p>覆盖 image-mask, image-boxes 和多图编辑样本这类需要同步几何变换的场景.</p>
+        </div>
+        <div class="card">
+          <h3>Image edit 模板</h3>
+          <p><strong>文件:</strong> <code>image_edit.py</code></p>
+          <p>覆盖 source/target/reference/mask/prompt 多图编辑样本, 并提供专用 collate.</p>
+        </div>
+        <div class="card">
+          <h3>Collate</h3>
+          <p><strong>文件:</strong> <code>collate.py</code></p>
+          <p>提供 padding, dict batch, detection 和 image edit 的 batch 拼接逻辑.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>二. 数据流</h2>
+      <p>通用数据链路可以看成五步. Dataset 只关心单样本, DataLoader 和 collate 才负责 batch.</p>
+      <div class="flow" aria-label="dataset data flow">
+        <span>1. 磁盘组织<br><code>manifest</code><br><code>folder</code><br><code>sidecar</code></span>
+        <span>2. Dataset<br>读取单条样本<br>解析路径和字段</span>
+        <span>3. Transform<br>单图变换<br>或多字段同步变换</span>
+        <span>4. Collate<br>stack tensor<br>保留变长字段</span>
+        <span>5. Trainer<br>递归迁移 batch<br>进入 <code>training_step</code></span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>三. 文件职责</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>文件</th>
+            <th>核心对象</th>
+            <th>职责</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>utils.py</code></td>
+            <td><code>load_manifest_records</code>, <code>collect_image_paths</code>, <code>collect_sidecar_samples</code>, <code>to_image_tensor</code></td>
+            <td>统一 JSONL/JSON/CSV 读取, 路径解析, 图片扫描, basename sidecar 配对, sample_id 和 tensor 转换.</td>
+          </tr>
+          <tr>
+            <td><code>record.py</code>, <code>folder.py</code>, <code>sidecar.py</code></td>
+            <td><code>RecordDatasetBase</code>, <code>RecordDataset</code>, <code>ImageFolderDataset</code>, <code>BasenameAlignedDataset</code></td>
+            <td>承载通用 record 基类, 纯图片目录和 basename sidecar 这类基础数据组织形态.</td>
+          </tr>
+          <tr>
+            <td><code>classification.py</code>, <code>regression.py</code>, <code>image_text.py</code>, <code>text.py</code>, <code>pair.py</code>, <code>triplet.py</code></td>
+            <td><code>RecordClassificationDataset</code>, <code>RecordRegressionDataset</code>, <code>RecordImageTextDataset</code>, <code>RecordTextDataset</code>, <code>RecordPairDataset</code>, <code>RecordTripletDataset</code></td>
+            <td>按样本语义拆分常见 manifest 数据集, 新增任务优先参考同语义文件.</td>
+          </tr>
+          <tr>
+            <td><code>segmentation.py</code>, <code>detection.py</code>, <code>transforms.py</code></td>
+            <td><code>ImageMaskTransform</code>, <code>ImageBoxesTransform</code>, <code>RecordSegmentationDataset</code>, <code>RecordDetectionDataset</code></td>
+            <td>处理 image-mask 和 image-boxes 这类需要同步几何变换的样本.</td>
+          </tr>
+          <tr>
+            <td><code>image_edit.py</code></td>
+            <td><code>ImageEditDataset</code>, <code>PairedImageTransform</code></td>
+            <td>处理 source/target/reference/mask/prompt 多图编辑训练样本.</td>
+          </tr>
+          <tr>
+            <td><code>collate.py</code></td>
+            <td><code>PadCollate</code>, <code>DictCollate</code>, <code>DetectionCollate</code>, <code>ImageEditCollate</code></td>
+            <td>提供基础 batch 拼接能力和任务专用 collate.</td>
+          </tr>
+          <tr>
+            <td><code>basic.py</code>, <code>vision.py</code></td>
+            <td><code>SyntheticClassificationDataset</code>, <code>MNISTDataset</code>, <code>CIFAR10Dataset</code></td>
+            <td>提供 smoke test 数据集和 torchvision 常见数据集封装.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>四. 模板选择表</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>数据形态</th>
+            <th>磁盘结构与文件格式</th>
+            <th>推荐模板</th>
+            <th>单样本返回结构</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>纯图片</td>
+            <td>目录扫描, 默认支持 <code>.jpg .jpeg .png .webp .bmp .tif .tiff</code></td>
+            <td><code>ImageFolderDataset</code></td>
+            <td><code>dict{"image":</code> PIL | transform 输出, <code>"sample_id": str</code>, <code>"image_path": str</code><code>}</code></td>
+          </tr>
+          <tr>
+            <td>目录分类</td>
+            <td><code>root/class_name/image</code>, 同默认图片扩展名</td>
+            <td><code>ImageFolderClassificationDataset</code></td>
+            <td><code>tuple[</code>PIL | transform 输出<code>, int]</code></td>
+          </tr>
+          <tr>
+            <td>manifest 分类</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, 字段 <code>{"image": "...", "label": "cat"}</code>;<br>label 支持字符串 (自动建 class_to_idx) 或整数</td>
+            <td><code>RecordClassificationDataset</code></td>
+            <td><code>tuple[</code>PIL | transform 输出<code>, int]</code></td>
+          </tr>
+          <tr>
+            <td>回归</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, 字段 <code>{"image": "...", "target": 3.5}</code></td>
+            <td><code>RecordRegressionDataset</code></td>
+            <td><code>tuple[</code>PIL | transform 输出<code>, float]</code></td>
+          </tr>
+          <tr>
+            <td>多标签</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, 字段 <code>{"image": "...", "labels": ["a","b"]}</code> 或 <code>"a,b"</code>;<br>也支持 JSON 数组字符串和整数下标</td>
+            <td><code>RecordMultiLabelClassificationDataset</code></td>
+            <td><code>tuple[</code>PIL | transform 输出<code>, FloatTensor[num_classes]]</code></td>
+          </tr>
+          <tr>
+            <td>图文配对 (manifest)</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, <code>{"image": "...", "prompt": "..."}</code>;<br>text 键优先匹配 <code>text > prompt > caption</code></td>
+            <td><code>RecordImageTextDataset</code></td>
+            <td><code>dict{"image":</code> PIL | transform 输出<code>, "text": str, "sample_id": str, "image_path": str}</code></td>
+          </tr>
+          <tr>
+            <td>图文配对 (sidecar)</td>
+            <td><code>000.png + 000.txt</code> basename 对齐, 可分 <code>image_root / text_root</code> 目录;<br>文本读取策略: <code>full / first_line / random_line</code></td>
+            <td><code>ImageTextSidecarDataset</code></td>
+            <td><code>dict{"image":</code> PIL | transform 输出<code>, "text": str, "sample_id": str, "image_path": str, "text_path": str}</code></td>
+          </tr>
+          <tr>
+            <td>分割 (manifest)</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, <code>{"image": "...", "mask": "..."}</code></td>
+            <td><code>RecordSegmentationDataset</code></td>
+            <td rowspan="2"><code>dict{"image": FloatTensor[3,H,W]</code>, <code>"mask": LongTensor[H,W]</code>, <code>"sample_id": str, "image_path?": str, "mask_path?": str}</code><br>使用 <code>ImageMaskTransform</code> 时 image 归一化到 [-1,1];<br>mask 保持整数 class ID, 不归一化</td>
+          </tr>
+          <tr>
+            <td>分割 (sidecar)</td>
+            <td><code>images/000.png + masks/000.png</code> basename 对齐, 可分目录;<br>mask 扩展名可配 (<code>mask_extension</code>), 缺失策略 <code>error / skip</code></td>
+            <td><code>ImageMaskSidecarDataset</code></td>
+          </tr>
+          <tr>
+            <td>检测</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, <code>{"image": "...", "boxes": [[x1,y1,x2,y2],...], "labels": [0,3,...]}</code>;<br>boxes/labels 支持 JSON 字符串或原生数组, labels 缺失时自动补 0</td>
+            <td><code>RecordDetectionDataset</code> + <code>DetectionCollate</code></td>
+            <td><code>dict{"image": FloatTensor[3,H,W]</code>, <code>"boxes": FloatTensor[N,4]</code>, <code>"labels": LongTensor[N]</code>, <code>"sample_id": str}</code><br>collate 后 boxes/labels 保留为 list (每图 N 不同)</td>
+          </tr>
+          <tr>
+            <td>纯文本 / 指令</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, <code>{"prompt": "...", "response": "..."}</code>;<br>输入键优先匹配 <code>text > prompt > caption</code>, 目标键 <code>target_text > response > completion > answer</code></td>
+            <td><code>RecordTextDataset</code></td>
+            <td><code>dict{"text": str, "target_text": str | None, "sample_id": str, "record?": dict}</code></td>
+          </tr>
+          <tr>
+            <td>Pair</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, <code>{"image_a": "...", "image_b": "...", "label?": 1, "text_a?": "...", "text_b?": "..."}</code></td>
+            <td><code>RecordPairDataset</code></td>
+            <td><code>dict{"image_a":</code> PIL | transform 输出<code>, "image_b": ..., "label?": Any, "text_a?": str, "text_b?": str, "sample_id": str}</code></td>
+          </tr>
+          <tr>
+            <td>Triplet</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, <code>{"anchor_image": "...", "positive_image": "...", "negative_image": "...", "anchor_text?": "...", ...}</code></td>
+            <td><code>RecordTripletDataset</code></td>
+            <td><code>dict{"anchor_image":</code> PIL | transform 输出<code>, "positive_image": ..., "negative_image": ..., "anchor_text?": str, ..., "sample_id": str}</code></td>
+          </tr>
+          <tr>
+            <td>图像编辑</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, <code>{"source_image": "...", "target_image": "...", "reference_image?": "...", "edit_mask?": "...", "prompt?": "..."}</code>;<br>mask 键优先匹配 <code>edit_mask > mask > mask_image</code></td>
+            <td><code>ImageEditDataset</code> + <code>ImageEditCollate</code></td>
+            <td><code>dict{"source_image": FloatTensor[3,H,W](-1~1)</code>, <code>"target_image": ...</code>, <code>"reference_image": ...</code>, <code>"edit_mask": FloatTensor[1,H,W]</code>, <code>"has_mask": BoolTensor</code>, <code>"prompt": str</code>, <code>"sample_id": str}</code><br>无 mask 时返回全零 mask + has_mask=False</td>
+          </tr>
+          <tr>
+            <td>通用 sidecar</td>
+            <td><code>image + sidecar</code> basename 对齐, 可分 <code>image_root / sidecar_root</code> 目录;<br>内置 reader 覆盖 <code>.txt</code> (str), <code>.json</code> (dict/list), 图片扩展名 (PIL.Image);<br>扩展名未知时 fallback 为文本读取; 缺失策略 <code>error / skip</code></td>
+            <td><code>BasenameAlignedDataset</code></td>
+            <td><code>dict{"image":</code> PIL | transform 输出<code>, "&lt;sidecar_key&gt;":</code> reader 输出<code>, "sample_id": str, "image_path": str, "&lt;key&gt;_path": str}</code><br>sidecar_key 默认取扩展名去点; 自定义 <code>sidecar_reader / sidecar_transform</code> 注入</td>
+          </tr>
+          <tr>
+            <td>通用 record</td>
+            <td><code>.jsonl / .json / .csv</code> manifest, 每条为任意字段 dict</td>
+            <td><code>RecordDataset</code></td>
+            <td><code>dict</code> (原始 manifest 行, 可经 transform 处理)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>五. 数据集拆分工具</h2>
+      <p>模块提供两个轻量拆分函数, 封装 torch 的 <code>random_split</code> 并内置 seed 确定性:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>函数</th>
+            <th>用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>split_dataset(dataset, lengths, *, seed=42)</code></td>
+            <td>按 <code>lengths</code> 将数据集确定性随机拆分为多个 <code>Subset</code>, 返回 <code>list[Subset]</code></td>
+          </tr>
+          <tr>
+            <td><code>train_val_split(dataset, val_ratio=0.1, *, seed=42)</code></td>
+            <td>按比例拆分为训练集和验证集, 返回 <code>tuple[Subset, Subset]</code>; val_ratio 为 0 时 val 为空, 为 1 时 train 为空</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>六. 新增数据集时怎么最小化代码</h2>
+      <p>优先判断问题属于哪一层. 不要为了一个字段名不同就新增完整 dataset 类.</p>
+      <ul>
+        <li>字段能用 JSONL/JSON/CSV 表达时, 优先使用 manifest 模板.</li>
+        <li>只是 manifest 字段名不同, 通过 <code>image_key</code>, <code>label_key</code>, <code>text_keys</code> 等参数映射.</li>
+        <li>只是同名文件对齐, 优先复用 <code>BasenameAlignedDataset</code> 或现有 sidecar 模板.</li>
+        <li>只是 batch 方式不同, 新增 collate, 不要改 dataset.</li>
+        <li>只是增强不同, 新增 transform, 不要新增 dataset.</li>
+        <li>确实是新语义形态时, 继承 <code>RecordDatasetBase</code> 写薄 adapter, 再在 <code>__init__.py</code> 注册.</li>
+      </ul>
+
+      <pre><code>class MyRecordDataset(RecordDatasetBase):
+    def __getitem__(self, index: int) -> dict[str, Any]:
+        base_index, record = self._record_at(index)
+        image_path = self._resolve_record_path(record, "image")
+        return {
+            "image_path": str(image_path),
+            "sample_id": self._sample_id_from_path(record, image_path, base_index),
+        }</code></pre>
+    </section>
+  </main>
+</body>
+</html>
