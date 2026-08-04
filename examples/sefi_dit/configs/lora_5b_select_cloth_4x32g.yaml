@@ -1,0 +1,98 @@
+# SeFi 官方 demo/dit_finetune 配方, 适配 AutoDL 4x32GB + select_cloth.
+# 用法见 examples/sefi_dit/run_lora_5b_4x32g.sh
+#
+# 注意:
+# - 分辨率固定 1024 (官方硬约束, 不可改)
+# - 必须在 SeFi-Image 仓库根目录用 demo/dit_finetune/train.py 启动
+# - rank 96 显存高于官方 smoke 的 rank 16; OOM 时先改 tuning.lora.rank=32
+
+seed: 42
+
+model:
+  scale: 5b
+  base_checkpoint: SeFi-Image/SeFi-Image-5B-Base
+  base_revision: 7d2b43cd302728046df2dbf3649bb3d864e43613
+  text_max_length: 512
+  semvae_checkpoint: SeFi-Image/SeFi-Image-SemVAE
+  semvae_revision: db50e4347a639b7f601b4768632c42a4638687a6
+  vfm_checkpoint: facebook/dinov2-with-registers-large
+  vfm_revision: e4c89a4e05589de9b3e188688a303d0f3c04d0f3
+
+data:
+  source: /root/autodl-tmp/data/sefi_select_cloth
+  revision: null
+  split: train
+  cache_dir: /root/autodl-tmp/outputs/cache/huggingface/datasets
+  resolution: 1024
+  batch_size: 1
+  num_workers: 2
+  shuffle: true
+  drop_last: false
+  sampler_seed: 42
+  caption:
+    mode: weighted
+    weights:
+      enhanced_prompt: 4.0
+      prompt: 1.0
+
+tuning:
+  mode: lora
+  lora:
+    rank: 96
+    alpha: 96
+    dropout: 0.0
+
+training:
+  mixed_precision: bf16
+  total_steps: 10000
+  gradient_accumulation_steps: 2
+  gradient_checkpointing: true
+  gradient_clip: 1.0
+  optimizer:
+    learning_rate: 1.0e-4
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+  scheduler:
+    name: constant_with_warmup
+    warmup_steps: 500
+  conditioning:
+    drop_text_probability: 0.1
+    unconditional_prompt: ""
+  t_sampling:
+    scheme: logit_normal
+    logit_mean: -1.532
+    logit_std: 1.0
+    uniform_prob: 0.0
+    mode_scale: 1.29
+  loss:
+    weighting_scheme: none
+  sfd:
+    delta_t_min: 0.1
+    delta_t_max: 0.1
+    semantic_loss_weight: 1.0
+  repa:
+    enabled: false
+  ema:
+    enabled: false
+    decay: 0.9999
+    use_ema_warmup: false
+  deepspeed:
+    enabled: false
+    config_file: demo/dit_finetune/configs/deepspeed_zero2.json
+
+checkpointing:
+  save_every: 1000
+  save_final: true
+  output_dir: /root/autodl-tmp/outputs/sefi_dit_lora_5b_select_cloth
+
+export:
+  enabled: true
+  max_shard_size: 5GB
+  dtype: bf16
+
+logging:
+  log_every: 10
+
+distributed:
+  expected_world_size: 4
