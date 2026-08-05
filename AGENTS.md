@@ -52,7 +52,7 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 - 涉及第三方库用法, API 变更, 最佳实践等外部知识时, 先用 WebSearch 查最新文档.
 - **半角符号**: 文档或注释使用点, 括号, 引号, 冒号等一律写半角, 不混入全角. 写作后用 `XDL_PUNCT_PATHS=<path> python scripts/normalize_punctuation.py` 自动归一, `XDL_PUNCT_CHECK=1` 只检查.
 - **知识图谱**: 完成结构性变更 (新增/删除模块, 重命名公开符号, 调用关系变化) 后, 手动运行 `index_repository` 刷新知识图谱. 本工作区在 `codebase-memory-mcp` 中项目名固定为 `root-workspace-xdl`, 调用 `index_status` / `search_graph` / `trace_path` / `get_code_snippet` / `query_graph` 时 `project` 统一传 `root-workspace-xdl`.
-- **技能目录**: 新技能统一创建在仓库 `skills/<name>/SKILL.md`, `.claude/skills/<name>` 用相对软链接 (`../../skills/<name>`), Codex 的 `~/.codex/skills/<name>` 用绝对软链接指向仓库内同一目录; 不在工具目录下直接放技能本体.
+- **技能目录**: 仓库 `skills/<name>/SKILL.md` 是项目技能的唯一实体来源. `.claude/skills/<name>` 和 `.codex/skills/<name>` 用相对软链接 (`../../skills/<name>`), Codex 的 `~/.codex/skills/<name>` 用绝对软链接指向仓库内同一目录. 不在工具目录下直接放或复制项目技能本体; 工具自带或第三方技能按其自身安装方式管理.
 
 ## 脚本与配置规范
 
