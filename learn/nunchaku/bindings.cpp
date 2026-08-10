@@ -7,6 +7,10 @@ namespace py = pybind11;
 namespace nunchaku_bridge {
 void gemm_w4a4(torch::Tensor act, torch::Tensor wgt, torch::Tensor out,
                torch::Tensor ascales, torch::Tensor wscales, torch::Tensor bias);
+void gemm_w4a4_lora(torch::Tensor act, torch::Tensor wgt, torch::Tensor out,
+                    torch::Tensor ascales, torch::Tensor wscales,
+                    torch::Tensor lora_act_out, torch::Tensor lora_up,
+                    torch::Tensor bias);
 void gemm_w8a8(torch::Tensor act, torch::Tensor wgt, torch::Tensor out,
                torch::Tensor ascales, torch::Tensor wscales, torch::Tensor bias);
 void attention_fp16(torch::Tensor q, torch::Tensor k, torch::Tensor v,
@@ -21,6 +25,13 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
           "W4A4 GEMM: INT4 weights x INT4 activations -> FP16/BF16",
           py::arg("act"), py::arg("wgt"), py::arg("out"),
           py::arg("ascales"), py::arg("wscales"),
+          py::arg("bias") = torch::Tensor());
+
+    m.def("gemm_w4a4_lora", &nunchaku_bridge::gemm_w4a4_lora,
+          "W4A4 GEMM with fused LoRA-up epilogue",
+          py::arg("act"), py::arg("wgt"), py::arg("out"),
+          py::arg("ascales"), py::arg("wscales"),
+          py::arg("lora_act_out"), py::arg("lora_up"),
           py::arg("bias") = torch::Tensor());
 
     m.def("gemm_w8a8", &nunchaku_bridge::gemm_w8a8,

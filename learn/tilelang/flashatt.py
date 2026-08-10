@@ -55,14 +55,17 @@ def build_tilelang_flashatt(
     block_n: int,
     num_stages: int,
     threads: int,
-):
+    input_dtype: str = "float16",
+) -> Callable[..., torch.Tensor]:
     if seq_kv < seq_q:
         raise ValueError("当前教学脚本要求 seq_kv >= seq_q")
+    if input_dtype not in {"float16", "bfloat16"}:
+        raise ValueError("input_dtype must be float16 or bfloat16")
 
     scale = (1.0 / head_dim) ** 0.5 * 1.44269504
     q_shape = [batch, heads, seq_q, head_dim]
     kv_shape = [batch, heads, seq_kv, head_dim]
-    dtype = T.float16
+    dtype = T.float16 if input_dtype == "float16" else T.bfloat16
     accum_dtype = T.float32
     past_len = seq_kv - seq_q
 
@@ -246,8 +249,11 @@ def theoretical_tflops(config: FlashAttConfig, latency_ms: float) -> float:
 def run_case(config: FlashAttConfig) -> None:
     require_cuda()
     require_sdpa()
-    if config.dtype != torch.float16:
-        raise ValueError("当前 TileLang 示例固定使用 float16")
+    if config.dtype not in {torch.float16, torch.bfloat16}:
+        raise ValueError("当前 TileLang 示例只支持 float16 或 bfloat16")
+    input_dtype = (
+        "float16" if config.dtype == torch.float16 else "bfloat16"
+    )
 
     device = torch.device("cuda")
     torch.manual_seed(0)
@@ -280,6 +286,7 @@ def run_case(config: FlashAttConfig) -> None:
         block_n=config.block_n,
         num_stages=config.num_stages,
         threads=config.threads,
+        input_dtype=input_dtype,
     )
 
     out_tilelang = kernel(q, k, v)

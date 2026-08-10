@@ -18,6 +18,13 @@ void gemm_w4a4(torch::Tensor act, torch::Tensor wgt, torch::Tensor out,
                torch::Tensor ascales, torch::Tensor wscales,
                torch::Tensor bias = {});
 
+// SVDQuant dynamic LoRA fusion. The residual W4A4 GEMM consumes packed
+// activation/weight tensors; lora_act_out is accumulated by the epilogue.
+void gemm_w4a4_lora(torch::Tensor act, torch::Tensor wgt, torch::Tensor out,
+                    torch::Tensor ascales, torch::Tensor wscales,
+                    torch::Tensor lora_act_out, torch::Tensor lora_up,
+                    torch::Tensor bias = {});
+
 // ============================================================
 // W8A8: INT8 weight × INT8 activation GEMM
 // act:  [M, K]      — INT8 输入
