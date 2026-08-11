@@ -53,7 +53,7 @@ template<>
 struct num_elems<half2> {
     static constexpr int value = 2;
 };
-// ENABLE_BF16 always on
+#ifdef ENABLE_BF16
 template<>
 struct num_elems<__nv_bfloat16> {
     static constexpr int value = 1;
@@ -104,7 +104,7 @@ template<>
 struct packed_as<float2, 1> {
     using type = float;
 };
-// ENABLE_BF16 always on
+#ifdef ENABLE_BF16
 template<>
 struct packed_as<__nv_bfloat16, 2> {
     using type = __nv_bfloat162;
@@ -216,6 +216,7 @@ inline __device__ __nv_bfloat16 ldg(const __nv_bfloat16 *val) {
     return __ldg(val);
 #endif
 }
+#endif // ENABLE_BF16
 
 template<typename T_OUT, typename T_IN>
 __device__ inline T_OUT cuda_cast(T_IN val) {
@@ -326,7 +327,7 @@ __device__ inline float2 cuda_cast<float2, int16_t>(int16_t val) {
     return make_float2(int8[0], int8[1]);
 }
 
-// ENABLE_BF16 always on
+#ifdef ENABLE_BF16
 template<>
 __device__ inline __nv_bfloat16 cuda_cast(int32_t val) {
     return static_cast<float>(val);
@@ -416,7 +417,7 @@ __device__ __forceinline__ packed_as<half, 2>::type f162f162<half>(half x) {
     return __half2half2(x);
 }
 
-// ENABLE_BF16 always on
+#ifdef ENABLE_BF16
 template<>
 __device__ __forceinline__ packed_as<__nv_bfloat16, 2>::type f162f162<__nv_bfloat16>(__nv_bfloat16 x) {
     return __bfloat162bfloat162(x);
@@ -449,7 +450,7 @@ __device__ inline half cuda_max(half2 val) {
     return __hmax(val.x, val.y);
 }
 
-// ENABLE_BF16 always on
+#ifdef ENABLE_BF16
 template<>
 __device__ inline __nv_bfloat16 cuda_max(__nv_bfloat162 val) {
 #if (defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800))
@@ -493,7 +494,7 @@ __device__ inline half2 cuda_abs(half2 val) {
     return __habs2(val);
 }
 
-// ENABLE_BF16 always on
+#ifdef ENABLE_BF16
 
 #if __CUDA_ARCH__ >= 800 || !defined(__CUDA_ARCH__)
 template<>
@@ -507,4 +508,4 @@ __device__ inline __nv_bfloat162 cuda_abs(__nv_bfloat162 val) {
 }
 #endif
 
-#endif // ENABLE_FP16
+#endif // ENABLE_BF16

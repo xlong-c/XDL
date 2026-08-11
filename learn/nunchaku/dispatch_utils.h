@@ -2,7 +2,13 @@
 
 #include "common.h"
 #include "Tensor.h"
+#include <cuda_bf16.h>
 #include <cuda_fp16.h>
+
+#include <cstdint>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
 
 template<typename F>
 inline auto dispatchFloat(Tensor::ScalarType scalarType, F &&func) {

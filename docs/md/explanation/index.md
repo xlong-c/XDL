@@ -26,6 +26,7 @@
 - [backends/index.md](backends/index.md): XQT 导出 / runtime backend 和 operator optimization engine 分文档入口.
 - [flux2-klein-nvfp4-backends.md](flux2-klein-nvfp4-backends.md): FLUX.2 klein NVFP4 的 `cutedsl`, `cutile`, `tilelang` 三类 XQT engine 推理接入.
 - [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md): 手写 CUDA / CUTLASS / CuTe DSL 算子的调优方法论, 覆盖 GEMM, Conv, Linear, Attention, Norm, 访存, 通信, 低精度, 以及 NVIDIA / AMD 代际 `MMA` / `Matrix Core` 总表.
+- [convrot-w4a4-sm89-optimization.md](convrot-w4a4-sm89-optimization.md): ConvRot W4A4 在 SM89 上从显式 rotation + quant + GEMM 收敛到 warp-FHT rowwise INT4 两 kernel 路径的逐步案例,包含数学,layout,runtime,性能和数值取舍.
 - [operator-optimization-records.md](operator-optimization-records.md): 已落地推理优化的证据,取舍和可复用规则记录.
 - [inference-backends-primer.md](inference-backends-primer.md): 推理后端和模型部署格式的基础介绍, 不绑定 `XQT` 实现.
 - [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md): W4 存储 + INT8 MMA 计算转义的设计, 实现, 策略对照与基准验收.
@@ -54,9 +55,10 @@
 7. [xqt-inference.md](xqt-inference.md)
 8. [backends/index.md](backends/index.md)
 9. [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md)
-10. [operator-optimization-records.md](operator-optimization-records.md)
-11. [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md)
-12. [mma-weight-prepack.md](mma-weight-prepack.md)
-13. [inference-backends-primer.md](inference-backends-primer.md)
-14. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
-15. [../../html/xqt.html](../../html/xqt.html)
+10. [convrot-w4a4-sm89-optimization.md](convrot-w4a4-sm89-optimization.md)
+11. [operator-optimization-records.md](operator-optimization-records.md)
+12. [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md)
+13. [mma-weight-prepack.md](mma-weight-prepack.md)
+14. [inference-backends-primer.md](inference-backends-primer.md)
+15. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
+16. [../../html/xqt.html](../../html/xqt.html)

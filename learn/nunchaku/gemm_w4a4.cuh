@@ -531,6 +531,7 @@ public:
      * default to quantize activation, if quantize weight, input should be column-majored and output should be
      * transposed ({x, y, z, w} = {x, z, y, w})
      */
+    template<bool INPUT_SHMEM = false>
     __device__ __forceinline__ static void
     quantize_w4a4_warp(const half_t *input, int stride, packed_act_t &output, half_t *output_scale, void *shmem) {
         const int laneId = threadIdx.x % WARP_SIZE;
@@ -556,7 +557,8 @@ public:
         for (int i = 0; i < NUM_PACKWARPS; i++) {
             int rowId = i * NUM_ROWS_PER_PACKWARP + laneId / NUM_PACKS_PER_ROW;
             int colId = laneId % NUM_PACKS_PER_ROW * PACK_SIZE;
-            packs[i]  = load(reinterpret_cast<const packed_input *>(input + rowId * stride + colId));
+            packs[i] = load<INPUT_SHMEM>(
+                reinterpret_cast<const packed_input *>(input + rowId * stride + colId));
         }
 
         // find max
@@ -983,7 +985,11 @@ public:
                                 dst = src;
                             }
 
-                            dst += half2_t(shift_value, shift_value);
+                            if constexpr (std::is_same_v<half_t, half>) {
+                                dst = __hadd2(dst, __halves2half2(shift_value, shift_value));
+                            } else {
+                                dst = __hadd2(dst, __halves2bfloat162(shift_value, shift_value));
+                            }
                             // dst = src;
                         }
 

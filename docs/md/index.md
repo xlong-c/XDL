@@ -45,8 +45,9 @@
 6. [explanation/backends/index.md](explanation/backends/index.md)
 7. [explanation/flux2-klein-nvfp4-backends.md](explanation/flux2-klein-nvfp4-backends.md)
 8. [explanation/operator-kernel-tuning-guide.md](explanation/operator-kernel-tuning-guide.md)
-9. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
-10. [usage/xqt-workflows.md](usage/xqt-workflows.md)
+9. [explanation/convrot-w4a4-sm89-optimization.md](explanation/convrot-w4a4-sm89-optimization.md)
+10. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
+11. [usage/xqt-workflows.md](usage/xqt-workflows.md)
 
 ## 当前兼容入口
 

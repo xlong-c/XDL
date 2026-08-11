@@ -19,8 +19,10 @@ sources = [
 # - 如果需要 SM75 (Turing)，会在 kernel 内自动 fallback 为 m8n8k8 拆分模式
 nvcc_flags = [
     "-O3",
-    "-std=c++17",
+    # The upstream launch code uses templated lambdas and requires-expressions.
+    "-std=c++20",
     "--expt-relaxed-constexpr",
+    "-DENABLE_BF16=1",
     "-gencode", "arch=compute_80,code=sm_80",  # Ampere (A100)
     "-gencode", "arch=compute_86,code=sm_86",  # Ampere (RTX 3090)
     "-gencode", "arch=compute_89,code=sm_89",  # Ada (RTX 4090)
@@ -48,7 +50,7 @@ setup(
             name="nunchaku_gemm",
             sources=sources,
             extra_compile_args={
-                "cxx": ["-O3", "-std=c++17"],
+                "cxx": ["-O3", "-std=c++20"],
                 "nvcc": nvcc_flags,
             },
             include_dirs=[BASE_DIR],

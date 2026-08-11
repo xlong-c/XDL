@@ -42,6 +42,7 @@
 - `explanation/xqt-concepts.md`: XQT 概念说明与能力理解地图.
 - `explanation/backends/`: XQT 导出,runtime 和 operator optimization 后端分文档.
 - `explanation/inference-backends-primer.md`: 推理后端和模型部署格式的基础介绍.
+- `explanation/convrot-w4a4-sm89-optimization.md`: ConvRot W4A4 SM89 专用 CUDA 两 kernel 路径的逐步实现,性能和数值取舍案例.
 - `usage/index.md`: 使用文档入口.
 - `usage/xdl-install-and-verify.md`: XDL 安装与验证.
 - `usage/xdl-config-workflows.md`: XDL 配置工作流入口.

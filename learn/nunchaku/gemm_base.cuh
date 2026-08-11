@@ -63,7 +63,7 @@ public:
     static constexpr int INSN_N = 16;
     static constexpr int INSN_K = 32;
 
-#if 0
+#if defined(XQT_W8A8_FP16)
     using half_t  = half;
     using half2_t = half2;
 #else

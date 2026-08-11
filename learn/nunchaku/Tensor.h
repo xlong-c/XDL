@@ -2,11 +2,9 @@
 // 精简版 Tensor.h — 仅提供 dispatch_utils.h 需要的 ScalarType 枚举
 // 实际 torch 桥接在 nunchaku_bridge.cu 中
 
+#include <cassert>
 #include <cstddef>
 #include <vector>
-#include <cassert>
-
-namespace nunchaku::kernels {
 
 struct Tensor {
     enum ScalarType {
@@ -36,22 +34,3 @@ struct Tensor {
     int numel_ = 0;
     int shape_[8] = {0};
 };
-
-// 用于 dispatch 的 ScalarType 切换模板
-template<typename F>
-inline auto dispatchFloat(Tensor::ScalarType scalarType, F &&func) {
-    switch (scalarType) {
-    case Tensor::BF16: return func.template operator()<__nv_bfloat16>();
-    case Tensor::FP16: return func.template operator()<half>();
-    case Tensor::FP32: return func.template operator()<float>();
-    default: assert(false); throw std::invalid_argument("not float");
-    }
-}
-
-template<typename F>
-inline auto dispatchBool(bool val, F &&func) {
-    if (val) { func.template operator()<true>(); }
-    else     { func.template operator()<false>(); }
-}
-
-}  // namespace nunchaku::kernels
