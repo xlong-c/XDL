@@ -32,7 +32,15 @@ from .vit import (
     vit_small_patch16_224,
     vit_tiny_patch16_224,
 )
-from .generate import TwinFlow
+from .generate import (
+    DistributionMatcher,
+    IdentityRepresentor,
+    RepresentationScattering,
+    RepresentationScatteringField,
+    ScatteringTracker,
+    TBSMGenerator,
+    TwinFlow,
+)
 from .segment.fatt import FATT
 from .lowlevel import RGT, ATD, RRDBNet, OFTSR_UNet, OFTSR_SuperResModel, AutoEncoder_RRDBNet, ProbabilisticAutoEncoder_RRDBNet
 
@@ -74,6 +82,12 @@ def _register_models():
 
     # 注册生成模型
     register_model("TwinFlow")(TwinFlow)
+    register_model("TBSMGenerator")(TBSMGenerator)
+    register_model("IdentityRepresentor")(IdentityRepresentor)
+    register_model("ScatteringTracker")(ScatteringTracker)
+    register_model("RepresentationScatteringField")(RepresentationScatteringField)
+    register_model("DistributionMatcher")(DistributionMatcher)
+    register_model("RepresentationScattering")(RepresentationScattering)
 
     # 注册简单 MLP
     register_model("SimpleMLP")(SimpleMLP)
@@ -136,6 +150,12 @@ __all__ = [
     "vit_huge_patch14_224",
     # Generate
     "TwinFlow",
+    "TBSMGenerator",
+    "IdentityRepresentor",
+    "ScatteringTracker",
+    "RepresentationScatteringField",
+    "DistributionMatcher",
+    "RepresentationScattering",
     # Segment
     "FATT",
     # Lowlevel SR

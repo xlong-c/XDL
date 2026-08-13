@@ -944,16 +944,14 @@ class Trainer:
         unwrapped_names = set(self._unwrapped_module_names())
 
         # 添加模型(所有 nn.Module 属性)
-        if hasattr(self._model, "__dict__"):
-            for name, value in self._model.__dict__.items():
-                if isinstance(value, torch.nn.Module):
-                    if name in unwrapped_names:
-                        # 冻结组件 (VAE/text encoder 等) 只做设备迁移,
-                        # 不进入 accelerator.prepare, 避免被 FSDP 分片.
-                        extra_move_items.append((name, value))
-                    else:
-                        prepare_list.append(value)
-                        module_names.append(name)
+        for name, value in self._model_modules().items():
+            if name in unwrapped_names:
+                # 冻结组件 (VAE/text encoder 等) 只做设备迁移,
+                # 不进入 accelerator.prepare, 避免被 FSDP 分片.
+                extra_move_items.append((name, value))
+            else:
+                prepare_list.append(value)
+                module_names.append(name)
 
         for name, value in self._configured_device_objects().items():
             if isinstance(value, torch.nn.Module):
@@ -1040,12 +1038,10 @@ class Trainer:
         prepare_list = []
 
         # 添加模型(所有 nn.Module 属性)
-        if hasattr(self._model, "__dict__"):
-            for _name, value in self._model.__dict__.items():
-                if isinstance(value, torch.nn.Module):
-                    prepare_list.append(value)
-                    # 设置 device
-                    value.to(self._device)
+        for value in self._model_modules().values():
+            prepare_list.append(value)
+            # 设置 device
+            value.to(self._device)
 
         for name, value in self._configured_device_objects().items():
             moved = self._move_device_object(value)
@@ -1061,6 +1057,17 @@ class Trainer:
         for item in prepare_list:
             if hasattr(item, "to"):
                 item.to(self._device)
+
+    def _model_modules(self) -> Dict[str, torch.nn.Module]:
+        """Return registered and explicitly unregistered module attributes."""
+
+        if self._model is None:
+            return {}
+        modules = dict(self._model.named_children())
+        for name, value in self._model.__dict__.items():
+            if isinstance(value, torch.nn.Module) and name not in modules:
+                modules[name] = value
+        return modules
 
     def test(
         self,

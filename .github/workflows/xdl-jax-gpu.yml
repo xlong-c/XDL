@@ -1,0 +1,30 @@
+name: xdl-jax GPU smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cuda13-single-device:
+    # This label must be provided by the repository's private GPU runner.
+    runs-on: [self-hosted, linux, xdl-jax-gpu]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CUDA 13 development dependencies
+        run: python -m pip install -e "./xdl-jax[gpu-cuda13,dev]"
+      - name: Run single-device GPU tests
+        env:
+          XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+          PYTHONPATH: xdl-jax
+        run: python -m pytest xdl-jax/tests/test_gpu.py -q
+      - name: Run GPU example
+        env:
+          XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+          PYTHONPATH: xdl-jax
+        run: python xdl-jax/examples/run_gpu_linear_regression.py
+

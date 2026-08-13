@@ -76,8 +76,12 @@ xqt = [
     "pandas>=2.0.0",
 ]
 
+xqt-viz = [
+    "matplotlib>=3.5.0",
+]
+
 xqt-all = [
-    "xdl[xqt]",
+    "xdl[xqt,xqt-viz]",
 ]
 
 # 完整安装（所有功能）

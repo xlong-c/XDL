@@ -1,0 +1,39 @@
+config_version: 1
+backend: jax
+
+runtime:
+  seed: 42
+  platform: cpu
+
+trainer:
+  max_epochs: 5
+  gradient_accumulation_steps: 1
+  precision: "32"
+  jit: true
+  nan_patience: 0
+
+task:
+  target: xdl_jax.examples:LinearRegressionTask
+  params:
+    input_dim: 4
+    output_dim: 1
+    learning_rate: 0.05
+
+train_data:
+  target: xdl_jax.examples:SyntheticRegressionData
+  params:
+    n_samples: 128
+    input_dim: 4
+    output_dim: 1
+    batch_size: 16
+    seed: 42
+    shuffle: true
+
+optimization:
+  optimizer:
+    target: optax:adamw
+    params:
+      learning_rate: 0.05
+      weight_decay: 0.0
+
+checkpoint: {}

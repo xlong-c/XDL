@@ -74,6 +74,47 @@ trainer = Trainer(max_epochs=10, device="cuda")
 trainer.fit(model, train_loader, val_loader)
 ```
 
+### `TBSMCoreModel`
+
+`TBSMCoreModel` puts TBSM's one-step scattering objective into the normal XDL
+`CoreModel + Trainer` lifecycle. It owns the online generator, one or more
+frozen-representor scattering fields, an optional tracker optimizer, and an EMA
+generator for sampling.
+
+The generator should expose `forward(x, labels, t)` and preferably
+`to_image(x)`. `TBSMGenerator` adapts an existing conditional backbone and
+uses `x * 0.5 + 0.5` as the default image conversion. A representor must expose
+`feat_dim` and either `extract_featmap(x)`, `extract(x)`, or `forward(x)`.
+
+```python
+from xdl.model.generate import (
+    IdentityRepresentor,
+    RepresentationScatteringField,
+    TBSMGenerator,
+)
+from xdl.trainer import TBSMCoreModel, Trainer
+
+field = RepresentationScatteringField(
+    representor=IdentityRepresentor(),
+    lambda_weight=0.0,
+    rho=0.0,
+    num_classes=10,
+)
+model = TBSMCoreModel(
+    generator=TBSMGenerator(backbone),
+    representation_fields=[field],
+    gen_lr=1e-5,
+    t_sampling=[],  # uniform time; use [1.0] for pure-noise input
+)
+Trainer(max_epochs=100, device="cuda").fit(model, train_loader, val_loader)
+samples = model.sample(noise, labels)
+```
+
+Training batches may be `(images, labels)` or mappings with
+`images`/`image`/`x` and `labels`/`label`/`y`. Gradient accumulation remains
+owned by `Trainer`; TBSMCoreModel uses the standard `CoreModel` accumulation
+helpers and performs generator/tracker steps at the same boundary.
+
 Accelerate 路径会使用 `accelerator.accumulate()` 包裹 `training_step()`; XDL 仍保持手动优化语义, 因此任务代码需要继续用 `self.accumulation_steps` / `manual_optimization_step()` 控制实际 step 时机. 不要再叠加一套与 Trainer 不一致的私有取模逻辑.
 
 传入 `precision`, `accelerate_config` 或 `fsdp` 时都会启用 Accelerate 路径. FSDP 通过 Accelerate 的 `FullyShardedDataParallelPlugin` 接入, `fsdp=1` 使用 FSDP1, `fsdp=2` 使用 FSDP2. 最小用法:

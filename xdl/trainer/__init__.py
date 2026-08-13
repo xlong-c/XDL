@@ -4,10 +4,13 @@ Trainer模块初始化文件
 
 from .core_model import CoreModel
 from .trainer import Trainer
+from .tbsm_model import TBSMCoreModel, TBSMModel
 
 __all__ = [
     "Trainer",
     "CoreModel",
+    "TBSMCoreModel",
+    "TBSMModel",
     "TrainSetupModel",
 ]
 

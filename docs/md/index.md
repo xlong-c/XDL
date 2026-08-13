@@ -27,13 +27,14 @@
 ### XDL
 
 1. [architecture/xdl.md](architecture/xdl.md)
-2. [architecture/dataset-policy.md](architecture/dataset-policy.md)
-3. [architecture/module-boundaries.md](architecture/module-boundaries.md)
-4. [architecture/api-boundary.md](architecture/api-boundary.md)
-5. [explanation/xdl-concepts.md](explanation/xdl-concepts.md)
-6. [usage/xdl-install-and-verify.md](usage/xdl-install-and-verify.md)
-7. [usage/xdl-config-workflows.md](usage/xdl-config-workflows.md)
-8. [usage/xdl-workflows.md](usage/xdl-workflows.md)
+2. [architecture/xdl-jax.md](architecture/xdl-jax.md)
+3. [architecture/dataset-policy.md](architecture/dataset-policy.md)
+4. [architecture/module-boundaries.md](architecture/module-boundaries.md)
+5. [architecture/api-boundary.md](architecture/api-boundary.md)
+6. [explanation/xdl-concepts.md](explanation/xdl-concepts.md)
+7. [usage/xdl-install-and-verify.md](usage/xdl-install-and-verify.md)
+8. [usage/xdl-config-workflows.md](usage/xdl-config-workflows.md)
+9. [usage/xdl-workflows.md](usage/xdl-workflows.md)
 
 ### XQT
 

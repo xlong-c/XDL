@@ -5,11 +5,18 @@ from xdl.config.builder import (
     build_loss,
     build_metrics,
     build_model,
+    build_task,
     build_optimizer,
     build_scheduler,
     build_transform,
 )
 from xdl.config.errors import ConfigValidationError
+from xdl.model.generate import (
+    IdentityRepresentor,
+    RepresentationScatteringField,
+    TBSMGenerator,
+)
+from xdl.trainer import TBSMCoreModel
 
 
 def test_builder_resolves_torch_import_paths() -> None:
@@ -59,6 +66,45 @@ def test_builder_resolves_torch_import_paths() -> None:
     assert isinstance(loss_fn, torch.nn.CrossEntropyLoss)
     assert len(metrics) == 1
     assert callable(transform)
+
+
+def test_builder_materializes_nested_tbsm_task_components() -> None:
+    task = build_task(
+        {
+            "target": "xdl.trainer:TBSMCoreModel",
+            "params": {
+                "generator": {
+                    "target": "registry:TBSMGenerator",
+                    "params": {
+                        "backbone": {
+                            "target": "torch.nn:Linear",
+                            "params": {"in_features": 3, "out_features": 3},
+                        }
+                    },
+                },
+                "representation_fields": [
+                    {
+                        "target": "registry:RepresentationScatteringField",
+                        "params": {
+                            "representor": {
+                                "target": "registry:IdentityRepresentor",
+                                "params": {},
+                            },
+                            "lambda_weight": 0.0,
+                            "rho": 0.0,
+                            "num_classes": 3,
+                        },
+                    }
+                ],
+                "t_sampling": [1.0],
+            },
+        }
+    )
+
+    assert isinstance(task, TBSMCoreModel)
+    assert isinstance(task.generator, TBSMGenerator)
+    assert isinstance(task.representation_fields[0], RepresentationScatteringField)
+    assert isinstance(task.representation_fields[0].representor, IdentityRepresentor)
 
 
 def test_builder_rejects_unsupported_component_fields() -> None:

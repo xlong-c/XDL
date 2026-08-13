@@ -191,6 +191,10 @@ def _build_component(
 
     if kind == "transform":
         params = _build_nested_component_value(params, nested_kind="transform")
+    elif kind in {"model", "task"}:
+        # Models and tasks may compose other model-side components in their
+        # params, such as TBSM's generator and representation fields.
+        params = _build_nested_component_value(params, nested_kind="model")
 
     return component_cls(**params)
 

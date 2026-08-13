@@ -8,6 +8,10 @@ __pycache__/
 
 # Dot-directories (all folders starting with ".")
 .*/
+!/.github/
+!/.github/workflows/
+!/.github/workflows/xdl-jax-ci.yml
+!/.github/workflows/xdl-jax-gpu.yml
 
 # Dot-files (individual files starting with ".")
 .DS_Store
@@ -26,6 +30,15 @@ __pycache__/
 
 # Distribution / packaging
 artifacts/
+
+# Curated XQT benchmark evidence. Keep the artifact tree ignored by default,
+# but allow the audited SVDQuant parity records used by long-term docs.
+!research/xqt-gemm/artifacts/
+research/xqt-gemm/artifacts/*
+!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-norm-runner/
+!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-norm-runner/result.json
+!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-official-mlp-parity-v1/
+!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-official-mlp-parity-v1/result.json
 build/
 develop-eggs/
 dist/
