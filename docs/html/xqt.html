@@ -120,30 +120,30 @@
               <td><strong>workflows</strong></td>
               <td><code>xqt/workflows/</code></td>
               <td>Stage 编排主链. Session 与 <code>optimize_model</code> 都落在这里.</td>
-              <td><code>optimization.py</code> (Session / optimize_model), <code>stage.py</code>, <code>stage_specs.py</code>, <code>stage_provider.py</code>, <code>session_runner.py</code>, <code>session_targets.py</code></td>
+              <td><code>optimization.py</code> (Session / optimize_model), <code>stage.py</code>, <code>stage_specs.py</code> (装配与校验), <code>stage_provider.py</code>, <code>session_runner.py</code>, <code>session_targets.py</code></td>
             </tr>
             <tr>
               <td><strong>core</strong></td>
               <td><code>xqt/core/</code></td>
-              <td>结构化配置, 产物 manifest, registry, reporting, schema.</td>
-              <td><code>schema.py</code>, <code>artifact.py</code>, <code>reporting.py</code>, <code>registry.py</code>, <code>types.py</code>, <code>errors.py</code></td>
+              <td>结构化配置, StageSpec, workflow schema, 产物 manifest 与 reporting.</td>
+              <td><code>schema.py</code>, <code>stage_specs.py</code>, <code>workflow_schema.py</code>, <code>artifact.py</code>, <code>reporting.py</code>, <code>types.py</code>, <code>errors.py</code></td>
             </tr>
             <tr>
               <td><strong>contracts</strong></td>
               <td><code>xqt/contracts/</code></td>
-              <td>Stage 产物与 runtime 语义的 typed payload.</td>
-              <td><code>quantized.py</code>, <code>pruned.py</code>, <code>runtime.py</code>, <code>module.py</code>, <code>channel.py</code>, <code>compute.py</code></td>
+              <td>Stage payload, 存储协议与 reference 语义. runtime 显式 materialize execution view.</td>
+              <td><code>quantized.py</code>, <code>pruned.py</code>, <code>runtime.py</code>, <code>module.py</code>, <code>channel.py</code>, <code>compute.py</code>, <code>int8_mma.py</code>, <code>w4_storage.py</code></td>
             </tr>
             <tr>
               <td><strong>pipeline</strong></td>
               <td><code>xqt/pipeline/</code></td>
               <td>Pass 执行, preflight, export pass 与 runner.</td>
-              <td><code>passes.py</code>, <code>export_pass.py</code>, <code>preflight.py</code>, <code>pass_manager.py</code>, <code>runner.py</code>, <code>export_handlers/</code></td>
+              <td><code>passes.py</code>, <code>export_pass.py</code>, <code>preflight.py</code>, <code>runner.py</code>, <code>export_handlers/</code></td>
             </tr>
             <tr>
               <td><strong>quant</strong></td>
               <td><code>xqt/quant/</code></td>
-              <td>量化算法, plan, calibration, 外部 backend 适配, packed bridge.</td>
+              <td>量化算法, plan, calibration, 外部 backend 适配与 storage artifact 生成. 不依赖 runtime 或 export.</td>
               <td>见第三节 quant 分层</td>
             </tr>
             <tr>
@@ -254,8 +254,8 @@
           <p>activation 统计, drift, calibration summary. 数据由调用方传入.</p>
         </div>
         <div class="card">
-          <h3>bridges/</h3>
-          <p>NVFP4 / packed weight 到 runtime 的桥接, 不替代 quantizer 本身.</p>
+          <h3>artifact boundary</h3>
+          <p>量化器产出 <code>xqt.contracts</code> storage shell; runtime 通过显式 materializer 构造 execution view.</p>
         </div>
       </div>
 
@@ -745,16 +745,16 @@ outputs = runner.run(inputs)</code></pre>
         <p>打开仓库时按这棵树找入口.</p>
       </div>
       <pre><code>xqt/
-  __init__.py          # Provisional 顶层导出 + lazy convert/nn
+  __init__.py          # Provisional 顶层导出, 全部按需加载
   FRAMEWORK.md         # 包内工程契约
   readiness.py         # assess_xqt_readiness
   run_workflow.py      # workflow CLI 模块
   xdl_adapter.py       # XDL 产物衔接
   conversion.py        # xqt.convert 公开面
   conversion_impl/     # convert 内部实现
-  workflows/           # Session + optimize_model + StageSpec
-  core/                # schema, artifact, reporting, registry
-  contracts/           # typed payload contracts
+  workflows/           # Session + optimize_model + stage 装配
+  core/                # schema, StageSpec, artifact, reporting
+  contracts/           # typed payload + storage/reference contracts
   pipeline/            # passes, preflight, export_pass
   quant/               # 量化子系统
   prune/               # 剪枝子系统

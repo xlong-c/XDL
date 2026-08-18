@@ -122,7 +122,7 @@ def test_stable_utils_api_imports() -> None:
 
 
 def test_flux2_klein_model_api_imports() -> None:
-    from xqt.model.flux2_klein import (
+    from examples.xqt_models.flux2_klein import (
         load_and_quantize_flux2_klein_bf16_pipeline_to_convrot_4bit,
         load_flux2_klein_bf16_pipeline,
         load_flux2_klein_bf16_transformer,

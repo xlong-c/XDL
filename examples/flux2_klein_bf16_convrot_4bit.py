@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 
-from xqt.model.flux2_klein import (
+from examples.xqt_models.flux2_klein import (
     load_and_quantize_flux2_klein_bf16_pipeline_to_convrot_4bit,
 )
 

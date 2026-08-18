@@ -6,11 +6,11 @@
 
 源码入口:
 
-- `xqt.model.flux2_klein_nvfp4.load_flux2_klein_nvfp4_transformer`
-- `xqt.model.flux2_klein_nvfp4.load_flux2_klein_nvfp4_pipeline`
-- `xqt.model.flux2_klein_nvfp4.collect_flux2_klein_nvfp4_targets`
-- `xqt.model.flux2_klein_nvfp4.materialize_flux2_klein_nvfp4_engine`
-- `xqt.model.flux2_klein_nvfp4.run_flux2_klein_nvfp4_inference`
+- `examples.xqt_models.flux2_klein_nvfp4.load_flux2_klein_nvfp4_transformer`
+- `examples.xqt_models.flux2_klein_nvfp4.load_flux2_klein_nvfp4_pipeline`
+- `examples.xqt_models.flux2_klein_nvfp4.collect_flux2_klein_nvfp4_targets`
+- `examples.xqt_models.flux2_klein_nvfp4.materialize_flux2_klein_nvfp4_engine`
+- `examples.xqt_models.flux2_klein_nvfp4.run_flux2_klein_nvfp4_inference`
 
 该 FLUX.2 专用 materialize 接口的新调用统一使用 `engine`, 不保留旧接口里的 `backend` alias. 这里的约束只适用于 operator engine 选择, 不改变 XQT 全局对 quant/export/runtime `backend` 的术语定义. 当前支持三个类别:
 
@@ -35,7 +35,7 @@
 ```python
 import torch
 
-from xqt.model.flux2_klein_nvfp4 import (
+from examples.xqt_models.flux2_klein_nvfp4 import (
     load_flux2_klein_nvfp4_pipeline,
     materialize_flux2_klein_nvfp4_engine,
 )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from xqt.model import (
+from examples.xqt_models.flux2_klein import (
     FLUX2_KLEIN_4B_REPO_ID,
     load_and_quantize_flux2_klein_bf16_pipeline_to_convrot_int8,
 )
