@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from xdl.trainer.core_model import CoreModel
-from xdl.callbacks.rollout import RolloutBatch, RolloutCallback
+from xdl.post_training.rollout import RolloutBatch, RolloutCallback
 
 
 class DummyPolicy(nn.Module):
@@ -44,6 +44,7 @@ def test_rollout_callback_generates_augmented_batch() -> None:
         prompt_pool=["a cat", "a dog", "a sunset"],
         num_rollouts_per_prompt=2,
         rollout_fn=dummy_rollout_fn,
+        ref_logp_fn=dummy_ref_logp_fn,
     )
 
     original_batch = [0, 1, 2]
@@ -65,6 +66,7 @@ def test_rollout_callback_respects_every_n_steps() -> None:
         prompt_pool=["prompt"],
         num_rollouts_per_prompt=1,
         rollout_fn=dummy_rollout_fn,
+        ref_logp_fn=dummy_ref_logp_fn,
         rollout_every_n_steps=3,
     )
 
@@ -117,3 +119,43 @@ def test_uniform_prompt_selection() -> None:
     selected = callback._select_prompts(3)
     assert len(selected) == 3
     assert all(p in callback.prompt_pool for p in selected)
+
+
+def dummy_ref_logp_fn(ref: nn.Module, latents: torch.Tensor) -> torch.Tensor:
+    """Compute dummy reference logps: (B, K) of -1.5."""
+    return torch.full(latents.shape[:2], -1.5)
+
+
+def test_rollout_callback_fills_ref_logps() -> None:
+    model = GRPOCoreModel()
+    callback = RolloutCallback(
+        reward_models={"mock": DummyReward()},
+        prompt_pool=["a cat"],
+        num_rollouts_per_prompt=2,
+        rollout_fn=dummy_rollout_fn,
+        ref_logp_fn=dummy_ref_logp_fn,
+    )
+
+    result = callback.on_train_batch_start(None, model, [0], 0)
+
+    assert isinstance(result, RolloutBatch)
+    assert result.rollout_ref_logps is not None
+    assert result.rollout_ref_logps.shape == (1, 2)
+    assert torch.allclose(result.rollout_ref_logps, torch.full((1, 2), -1.5))
+
+
+def test_rollout_callback_requires_ref_logp_fn() -> None:
+    """有 rollout_fn 但缺 ref_logp_fn 时应显式报错, 不能静默写零占位."""
+    model = GRPOCoreModel()
+    callback = RolloutCallback(
+        reward_models={"mock": DummyReward()},
+        prompt_pool=["a cat"],
+        num_rollouts_per_prompt=1,
+        rollout_fn=dummy_rollout_fn,
+    )
+
+    try:
+        callback.on_train_batch_start(None, model, [0], 0)
+        raise AssertionError("Expected RuntimeError")
+    except RuntimeError as exc:
+        assert "ref_logp_fn" in str(exc)

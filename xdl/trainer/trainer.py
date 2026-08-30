@@ -564,7 +564,8 @@ class Trainer:
 
             model.on_train_step_start()
             model.on_train_batch_start()
-            self.callback_list.train_batch_start(
+            # 回调可返回替换 batch (如 RolloutCallback 注入 RolloutBatch)
+            batch = self.callback_list.train_batch_start(
                 trainer=self, core_module=model, batch=batch, batch_idx=step
             )
 

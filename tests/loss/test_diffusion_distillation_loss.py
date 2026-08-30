@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from xdl.loss.diffusion_distillation_loss import tdm_loss, tdm_loss_weighted
+from xdl.post_training.diffusion_distillation_loss import tdm_loss, tdm_loss_weighted
 
 
 def test_tdm_loss_scalar_and_differentiable() -> None:

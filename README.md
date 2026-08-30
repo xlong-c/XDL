@@ -19,9 +19,9 @@ XDL 是一个基于 PyTorch 的模块化深度学习框架.它提供三条核心
 
 参考入口:
 
-- [train_VAE.py](train_VAE.py)
-- [train_GAN.py](train_GAN.py)
-- [train_TwinFlow.py](train_TwinFlow.py)
+- [train_VAE.py](train/pretrain/train_VAE.py)
+- [train_GAN.py](train/pretrain/train_GAN.py)
+- [train_TwinFlow.py](train/pretrain/train_TwinFlow.py)
 
 典型写法:
 
@@ -130,9 +130,9 @@ pytest tests/config -q
 运行现有训练脚本:
 
 ```bash
-python train_VAE.py
-python train_GAN.py
-python train_TwinFlow.py
+python train/pretrain/train_VAE.py
+python train/pretrain/train_GAN.py
+python train/pretrain/train_TwinFlow.py
 ```
 
 ## Wheel 安装后的单文件入口

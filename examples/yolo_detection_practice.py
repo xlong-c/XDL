@@ -25,7 +25,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from xqt import XQTOptimizationSession
-from xqt.model import build_smoke_detection_module
+from xqt.kernels.nn.fixtures import build_smoke_detection_module
 from xqt.workflows import OptimizedModelResult, optimize_model
 
 CONFIG_ENV = "XQT_YOLO_PRACTICE_CONFIG"

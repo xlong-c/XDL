@@ -24,11 +24,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from xqt.quant.quantizers.fp4_weight_only import (
+from xqt.compression.quant.quantizers.fp4_weight_only import (
     FP4WeightOnlyLinear,
     quantize_with_fp4_weight_only,
 )
-from xqt.quant.quantizers.w4_storage_int8_mma import (
+from xqt.compression.quant.quantizers.w4_storage_int8_mma import (
     W4StorageInt8MmaLinear,
     quantize_with_w4_storage_int8_mma,
 )
@@ -377,7 +377,7 @@ def _candidate_skip_reason(
         return f"{candidate.name} requires at least {candidate.min_rows} rows, got {rows}."
     if candidate.engine == "ptx_sm89":
         try:
-            from xqt.operator_opt.kernels.cute.int8mma_binding import int8mma_available
+            from xqt.kernels.ops._impl.cute.int8mma_binding import int8mma_available
         except Exception as exc:
             return f"ptx_sm89 binding import failed: {exc}"
         if not int8mma_available():

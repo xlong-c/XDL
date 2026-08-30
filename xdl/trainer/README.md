@@ -199,7 +199,8 @@ class MyModel(CoreModel):
 采样回调同样支持 `collective=True`:
 
 ```python
-from xdl.callbacks import PreviewCallback, SamplingAnimationCallback, SaveTrainableStateCallback
+from xdl.callbacks import PreviewCallback, SamplingAnimationCallback
+from xdl.post_training import SaveTrainableStateCallback
 
 preview = PreviewCallback(output_dir="runs/previews", collective=True)
 animation = SamplingAnimationCallback(collective=True)
@@ -259,8 +260,9 @@ trainer = Trainer(
 
 #### 回调错误处理
 
-- 保存类回调 (`ModelCheckpoint`, `SaveTrainableStateCallback`) 默认
-  `fast_fail=True`, 保存失败立刻抛错, 不再"训练照跑, checkpoint 悄悄没了".
+- 保存类回调 (`ModelCheckpoint` 及 `xdl.post_training` 中的
+  `SaveTrainableStateCallback`) 默认 `fast_fail=True`, 保存失败立刻抛错,
+  不再"训练照跑, checkpoint 悄悄没了".
 - 其余回调默认仍隔离执行; 每个 epoch 结束后 `CallbackList` 汇总打印本周期
   失败的回调, 传 `Trainer(fail_on_callback_error=True)` 会把汇总升级为
   `TrainingError`.

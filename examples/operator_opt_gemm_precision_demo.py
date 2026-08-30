@@ -2,13 +2,13 @@
 
 import torch
 
-from xqt.operator_opt.backends.gemm_precision import (
+from xqt.kernels.ops._impl.gemm_precision import (
     MatmulPrecisionSpec,
     describe_gemm_precision_capability,
     gemm_with_precision,
     list_available_precisions,
 )
-from xqt.operator_opt.kernels.triton.mxfp_gemm import pack_mxfp
+from xqt.kernels.ops._impl.triton.mxfp_gemm import pack_mxfp
 
 
 def main() -> None:

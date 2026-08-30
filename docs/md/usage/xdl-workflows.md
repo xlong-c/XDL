@@ -20,8 +20,8 @@
 
 推荐先看:
 
-1. [../../../train_VAE.py](../../../train_VAE.py)
-2. [../../../train_TwinFlow.py](../../../train_TwinFlow.py)
+1. [../../../train_VAE.py](../../../train/pretrain/train_VAE.py)
+2. [../../../train_TwinFlow.py](../../../train/pretrain/train_TwinFlow.py)
 3. [../../../xdl/trainer/trainer.py](../../../xdl/trainer/trainer.py)
 4. [../../../xdl/trainer/core_model.py](../../../xdl/trainer/core_model.py)
 
@@ -88,8 +88,8 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 
 当你要接一个新训练任务时, 优先按下面顺序阅读:
 
-1. [../../../train_VAE.py](../../../train_VAE.py)
-2. [../../../train_TwinFlow.py](../../../train_TwinFlow.py)
+1. [../../../train_VAE.py](../../../train/pretrain/train_VAE.py)
+2. [../../../train_TwinFlow.py](../../../train/pretrain/train_TwinFlow.py)
 3. [../../../xdl/trainer/trainer.py](../../../xdl/trainer/trainer.py)
 4. [../../../xdl/trainer/core_model.py](../../../xdl/trainer/core_model.py)
 5. [../README.md#xdl-config-系统说明](../README.md#xdl-config-系统说明)

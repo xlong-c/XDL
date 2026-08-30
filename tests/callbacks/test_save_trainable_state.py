@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List
 
-from xdl.callbacks import SaveTrainableStateCallback
+from xdl.post_training import SaveTrainableStateCallback
 
 
 class FakeTrainer:

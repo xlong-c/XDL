@@ -4,7 +4,8 @@ from typing import Any
 
 import pytest
 
-from xdl.callbacks import Callback, ModelCheckpoint, SaveTrainableStateCallback
+from xdl.callbacks import Callback, ModelCheckpoint
+from xdl.post_training import SaveTrainableStateCallback
 from xdl.callbacks.callback_list import CallbackList
 from xdl.errors import TrainingError
 

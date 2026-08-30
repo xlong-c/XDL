@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from xdl.loss.preference_loss import (
+from xdl.post_training.preference_loss import (
     GRPOLossBreakdown,
     STPOLossBreakdown,
     dpo_loss,

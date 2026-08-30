@@ -63,6 +63,32 @@ def test_stable_callback_api_imports() -> None:
     assert TqdmCallback is not None
 
 
+def test_stable_post_training_api_imports() -> None:
+    from xdl.post_training import (
+        ModelMergeCallback,
+        ReferenceModelCallback,
+        RolloutBatch,
+        RolloutCallback,
+        SaveTrainableStateCallback,
+        dpo_loss,
+        grpo_loss,
+        stpo_loss,
+        tdm_loss,
+        tdm_loss_weighted,
+    )
+
+    assert ModelMergeCallback is not None
+    assert ReferenceModelCallback is not None
+    assert RolloutBatch is not None
+    assert RolloutCallback is not None
+    assert SaveTrainableStateCallback is not None
+    assert dpo_loss is not None
+    assert stpo_loss is not None
+    assert grpo_loss is not None
+    assert tdm_loss is not None
+    assert tdm_loss_weighted is not None
+
+
 def test_stable_analysis_api_imports() -> None:
     from xdl.analysis import (
         attention_rollout,

@@ -45,6 +45,9 @@
 
 横切扩展层
   xdl/callbacks/
+
+后训练层
+  xdl/post_training/
 ```
 
 对应关系如下:
@@ -52,6 +55,7 @@
 - `xdl/model/`: 模型与工厂函数
 - `xdl/dataset/`: 数据集, transform, collate
 - `xdl/loss/`: 损失函数
+- `xdl/post_training/`: 后训练组件 - 偏好优化与 RL 损失 (DPO/STPO/GRPO), 蒸馏损失, rollout/参考模型/SFT 合并/adapter 保存回调; 服务基于 pretrain checkpoint 的训练
 - `xdl/metric/`: 评估指标
 - `xdl/optimizer/`: 优化器
 - `xdl/scheduler/`: 学习率调度器
@@ -127,14 +131,18 @@ from xdl.trainer import CoreModel
 
 ## 推荐使用路径
 
+训练入口按阶段划分: 预训练 (从零训练) 在 `train/pretrain/`, 后训练 (SFT/LoRA,
+RL, 蒸馏) 在 `train/posttrain/`, 划分规则见 [train/AGENTS.md](../../../train/AGENTS.md).
+
 ### 纯代码路径
 
 适合快速研究和高度定制任务.
 
 入口可以参考:
 
-- [train_VAE.py](../../../train_VAE.py)
-- [train_TwinFlow.py](../../../train_TwinFlow.py)
+- [train_VAE.py](../../../train/pretrain/train_VAE.py)
+- [train_TwinFlow.py](../../../train/pretrain/train_TwinFlow.py)
+- [train_GRPO.py](../../../train/posttrain/train_GRPO.py) (后训练 GRPO 参考)
 
 典型写法:
 

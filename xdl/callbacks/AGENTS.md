@@ -26,11 +26,13 @@
 - `lambda_callback.py`:轻量钩子封装
 - `logging_callback.py`:通用日志回调
 - `sampling_animation_callback.py`:采样动画
-- `save_trainable_state.py`: 任务可训练状态保存
 - `preview.py`: 任务预览采样触发
 - `quantization.py`: QAT observer/fake-quant/BN lifecycle callback
 
-当前 `xdl.callbacks.__all__` 导出 **27** 个名称.
+后训练回调 (rollout, 参考模型, SFT 合并, adapter 保存) 已收拢到
+`xdl/post_training/`, 不在本子模块.
+
+当前 `xdl.callbacks.__all__` 导出 **24** 个名称.
 
 ## 核心约束
 
@@ -50,7 +52,6 @@
 ```python
 from xdl.callbacks import (
     ModelCheckpoint,
-    SaveTrainableStateCallback,
     TensorBoardCallback,
     TorchProfilerCallback,
     TqdmCallback,

@@ -8,7 +8,7 @@ from xdl.loss.classification_loss import (
     SoftTargetCrossEntropy,
 )
 from xdl.loss.contrastive_loss import InfoNCE
-from xdl.loss.distillation_loss import (
+from xdl.post_training.distillation_loss import (
     distillation_loss,
     feature_distillation_loss,
     kl_divergence_with_temperature,

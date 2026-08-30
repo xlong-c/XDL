@@ -114,9 +114,9 @@ pyright
 仓库里当前清晰可见的训练入口主要有:
 
 ```bash
-python train_VAE.py
-python train_GAN.py
-python train_TwinFlow.py
+python train/pretrain/train_VAE.py
+python train/pretrain/train_GAN.py
+python train/pretrain/train_TwinFlow.py
 ```
 
 如果要走 YAML 配置路径, 当前推荐直接在 Python 中调用:

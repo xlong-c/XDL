@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from xdl.trainer.core_model import CoreModel
-from xdl.callbacks.model_merge import ModelMergeCallback
+from xdl.post_training.model_merge import ModelMergeCallback
 
 
 class SimpleModel(nn.Module):

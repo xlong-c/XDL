@@ -115,7 +115,8 @@ def _bootstrap_modules_for_registry(registry: Registry) -> List[str]:
     if registry is SCHEDULER_REGISTRY:
         return ["xdl.scheduler"]
     if registry is LOSS_REGISTRY:
-        return ["xdl.loss"]
+        # 后训练损失 (蒸馏/偏好优化) 注册在 xdl.post_training, 一并引导
+        return ["xdl.loss", "xdl.post_training"]
     if registry is METRIC_REGISTRY:
         return ["xdl.metric"]
     return []

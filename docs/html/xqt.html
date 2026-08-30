@@ -141,32 +141,26 @@
               <td><code>passes.py</code>, <code>export_pass.py</code>, <code>preflight.py</code>, <code>runner.py</code>, <code>export_handlers/</code></td>
             </tr>
             <tr>
-              <td><strong>quant</strong></td>
-              <td><code>xqt/quant/</code></td>
-              <td>量化算法, plan, calibration, 外部 backend 适配与 storage artifact 生成. 不依赖 runtime 或 export.</td>
-              <td>见第三节 quant 分层</td>
+              <td><strong>compression</strong></td>
+              <td><code>xqt/compression/</code></td>
+              <td>模型侧压缩唯一落点. quantizer 只产出 contracts storage, 不 import runtime.</td>
+              <td><code>quant/</code> policy / plan / quantizers / calibration; <code>prune/</code> unstructured / structured / N:M / block sparse</td>
             </tr>
             <tr>
-              <td><strong>prune</strong></td>
-              <td><code>xqt/prune/</code></td>
-              <td>非结构化 / 结构化 / N:M / block sparse 剪枝与 rewrite.</td>
-              <td><code>api.py</code>, <code>plan.py</code>, <code>discovery.py</code>, <code>masks.py</code>, <code>rewrite.py</code>, <code>candidates_*.py</code>, <code>sparsity.py</code>, <code>report.py</code></td>
+              <td><strong>kernels.wrappers</strong></td>
+              <td><code>xqt/kernels/wrappers/</code></td>
+              <td>算子优化, engine capability, materialize, wrapper, bench 与 fallback report. 顶层 <code>operator_opt/</code> 与 <code>benchmark/</code> 已删除.</td>
+              <td><code>execute.py</code>, <code>capability.py</code>, <code>materialize.py</code>, <code>plan.py</code>, pattern wrappers</td>
             </tr>
             <tr>
-              <td><strong>operator_opt</strong></td>
-              <td><code>xqt/operator_opt/</code></td>
-              <td>算子优化, engine capability, materialize, wrapper, kernel 与 fallback report.</td>
-              <td><code>execute.py</code>, <code>capability.py</code>, <code>materialize.py</code>, <code>backends/</code>, <code>kernels/</code>, <code>wrappers/</code></td>
-            </tr>
-            <tr>
-              <td><strong>nn</strong></td>
-              <td><code>xqt/nn/</code></td>
-              <td>语义 facade: 保留 module/state_dict 语义, 承载 engine 与 precision intent, 但不直接等于某个 kernel pattern.</td>
+              <td><strong>kernels.nn</strong></td>
+              <td><code>xqt/kernels/nn/</code></td>
+              <td>语义 facade: 保留 module/state_dict 语义, 承载 engine 与 precision intent, 但不直接等于某个 kernel pattern. 顶层 <code>nn/</code> 已删除; <code>from xqt import nn</code> 仍是公开别名.</td>
               <td>已导出: <code>Linear</code>, <code>Conv2d</code>, <code>LayerNorm</code>, <code>FeedForward</code>, <code>RMSNorm</code>, <code>Attention</code>, <code>TransformerBlock</code>. 文件: <code>linear.py</code>, <code>attention.py</code>, <code>feedforward.py</code>, <code>norm.py</code>, <code>block.py</code></td>
             </tr>
             <tr>
               <td><strong>conversion</strong></td>
-              <td><code>xqt/conversion.py</code> + <code>conversion_impl/</code></td>
+              <td><code>xqt/conversion.py</code> (公开别名) + <code>xqt/kernels/nn/conversion/</code></td>
               <td><code>xqt.convert(...)</code> 入口与模块级 lowering 实现.</td>
               <td><code>PrecisionPolicy</code>, converter, linear / attention / feedforward / block 实现</td>
             </tr>
@@ -189,16 +183,16 @@
               <td><code>compare.py</code>, <code>layer_analysis.py</code>, <code>svd_analysis.py</code>, <code>report.py</code>, <code>detection.py</code></td>
             </tr>
             <tr>
-              <td><strong>benchmark</strong></td>
-              <td><code>xqt/benchmark/</code></td>
-              <td>latency / memory 基线与 profiler 记录辅助.</td>
-              <td><code>latency.py</code>, <code>memory.py</code>, <code>profiler.py</code></td>
+              <td><strong>kernels.wrappers.bench</strong></td>
+              <td><code>xqt/kernels/wrappers/bench/</code></td>
+              <td>latency / memory 基线与 profiler 记录辅助. 顶层 <code>benchmark/</code> 已删除.</td>
+              <td><code>latency.py</code>, <code>memory.py</code>, <code>phase_latency.py</code>, <code>profiler.py</code></td>
             </tr>
             <tr>
-              <td><strong>model</strong></td>
-              <td><code>xqt/model/</code></td>
-              <td>smoke 模型 helper, forward hook 采集, 个别实验模型桥接.</td>
-              <td><code>hooks.py</code>, <code>smoke_detection.py</code>, <code>flux2_klein_nvfp4.py</code>, <code>wan21_vae.py</code></td>
+              <td><strong>kernels.nn.fixtures</strong></td>
+              <td><code>xqt/kernels/nn/fixtures/</code></td>
+              <td>smoke 模型 helper, family 分类与 forward hook 采集. 顶层 <code>model/</code> 已删除.</td>
+              <td><code>hooks.py</code>, <code>families.py</code>, <code>toy_models.py</code>, <code>smoke_*.py</code></td>
             </tr>
             <tr>
               <td><strong>readiness</strong></td>
@@ -230,7 +224,7 @@
         <p>量化, 算子引擎, runtime 是最常改的三块, 先按目录理解职责切分.</p>
       </div>
 
-      <h3>3.1 quant 分层</h3>
+      <h3>3.1 compression/quant 分层</h3>
       <div class="grid three">
         <div class="card">
           <h3>schema / plan</h3>
@@ -259,19 +253,19 @@
         </div>
       </div>
 
-      <h3>3.2 operator_opt 分层</h3>
+      <h3>3.2 kernels operator 分层</h3>
       <div class="grid three">
         <div class="card">
-          <h3>backends/</h3>
+          <h3>ops/_impl/engines/</h3>
           <p>schema 中的 <code>OPERATOR_OPT_ENGINES</code>: <code>torch_compile</code>, <code>deployment_engine</code>, <code>triton</code>, <code>tilelang</code>, <code>cutile</code>, <code>cutlass</code>, <code>cute_dsl</code>, <code>custom_cuda</code>.</p>
-          <p>backends 目录另有 <code>gemm_precision</code> / <code>gemm_selector</code>. 这些是 XQT <strong class="inline-key">engine</strong>, 不是外部 inference backend.</p>
+          <p>另有 <code>gemm_precision</code> / <code>gemm_selector</code>. 这些是 XQT <strong class="inline-key">engine</strong>, 不是外部 inference backend.</p>
         </div>
         <div class="card">
-          <h3>kernels/</h3>
+          <h3>ops/_impl/</h3>
           <p>pattern 级实现: attention, conv, linear, gemm, prepack; 只处理 tensor 计算与 pattern metadata, 不直接承载语义 facade.</p>
         </div>
         <div class="card">
-          <h3>wrapper/materialize</h3>
+          <h3>wrappers/</h3>
           <p><code>execute.py</code>, <code>materialize.py</code>, <code>capability.py</code>, <code>plan.py</code>, <code>reference_wrappers.py</code>, <code>triton_wrappers.py</code>. 它们是 facade 和 kernel 之间的边界翻译层.</p>
         </div>
       </div>
@@ -653,7 +647,7 @@ stages:
 
       <h3>6.3 convert + nn facade 短例</h3>
       <pre><code>import xqt
-from xqt.nn import FeedForward
+from xqt.kernels.nn import FeedForward
 
 ffn = FeedForward(dim=512, hidden_dim=2048)
 converted = xqt.convert(
@@ -750,21 +744,16 @@ outputs = runner.run(inputs)</code></pre>
   readiness.py         # assess_xqt_readiness
   run_workflow.py      # workflow CLI 模块
   xdl_adapter.py       # XDL 产物衔接
-  conversion.py        # xqt.convert 公开面
-  conversion_impl/     # convert 内部实现
+  conversion.py        # xqt.convert 公开别名, 实现在 kernels/nn/conversion/
+  kernels/             # 计算栈: ops / wrappers / nn
   workflows/           # Session + optimize_model + stage 装配
   core/                # schema, StageSpec, artifact, reporting
   contracts/           # typed payload + storage/reference contracts
   pipeline/            # passes, preflight, export_pass
-  quant/               # 量化子系统
-  prune/               # 剪枝子系统
-  operator_opt/        # 算子优化 + engines + kernels
-  nn/                  # semantic facade
+  compression/         # 模型侧压缩: quant / prune
   export/              # 导出 adapters
   runtime/             # HybridInferenceEngine + model package
   analysis/            # diff / layer / report
-  benchmark/           # latency / memory / profiler helpers
-  model/               # smoke helpers + 实验模型桥
   recipes/             # stage workflow YAML</code></pre>
     </section>
 

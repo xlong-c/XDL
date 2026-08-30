@@ -23,6 +23,7 @@
 - [html-style-policy.md](html-style-policy.md): `XDL` 自有 HTML 阅读页长期规范.
 - [roadmap.md](roadmap.md): `XDL` 当前仍有效的优化方向.
 - [xqt.md](xqt.md): `XQT` 定位, 模型侧边界, Stage 约定, profiling 约定.
+- [xqt-kernels.md](xqt-kernels.md): `xqt.kernels` 统一内核命名空间, `spec / registry / selector / fused_op / ops / jit / aot` 契约与上层调用.
 - [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md): `kernel` / `wrapper/materialize` / `xqt.nn` 三层边界.
 - [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md): `single_kernel` / `block_kernel` 分层, block 准入和手写融合路径.
 - [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md): `engine` / `quant` 词表, 三轴, 禁止项与配置语义.
@@ -50,7 +51,8 @@
 ### XQT
 
 1. [xqt.md](xqt.md)
-2. [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md)
+2. [xqt-kernels.md](xqt-kernels.md)
+3. [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md)
 3. [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md)
 4. [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md)
 5. [xqt-infer-handoff.md](xqt-infer-handoff.md)

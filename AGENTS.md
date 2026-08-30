@@ -82,9 +82,15 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 - `data/` 被 `.gitignore` 整体忽略, 数据本体 (图片, 标注, 压缩包, 大文件) 一律不入库; 只有 `data/AGENTS.md` 例外保留. 需要样本数据用下载脚本本地准备.
 - 详细规则见 [data/AGENTS.md](data/AGENTS.md).
 
+### 预训练与后训练
+
+- 训练入口按阶段划分: 预训练 (从零训练) 放 `train/pretrain/`, 后训练 (SFT/LoRA 微调, 偏好优化与 RL, 蒸馏, SFT checkpoint 合并) 放 `train/posttrain/`; 划分规则见 [train/AGENTS.md](train/AGENTS.md).
+- 框架内后训练组件收拢在 `xdl/post_training/` (偏好优化与蒸馏 loss, rollout/参考模型/SFT 合并/adapter 保存回调); 从零训练用的通用损失仍在 `xdl/loss/`.
+- `examples/` 只放示例与演示脚本, 不承载正式训练入口.
+
 ### 训练脚本接入
 
-编写训练入口前, 优先先看 `train_VAE.py`, `train_TwinFlow.py`, `examples/*finetune.py` 和 `xdl/trainer/{trainer.py,core_model.py}`. 关键事实:
+编写训练入口前, 优先先看 `train/pretrain/train_VAE.py`, `train/pretrain/train_TwinFlow.py`, `train/posttrain/train_GRPO.py`, `train/posttrain/*finetune*.py` 和 `xdl/trainer/{trainer.py,core_model.py}`. 关键事实:
 
 - `Trainer.fit()` 先调 `model.setup("fit")`, 再做设备/优化器 setup; 重组件 (大模型, diffusers pipeline, PEFT LoRA) 适合在 `CoreModel.setup()` 中懒加载.
 - `CoreModel.training_step()` 是**手动优化模式**, Trainer 不自动 `zero_grad/backward/step`; 需自行调用 `optimizer.zero_grad()`, `self.manual_backward(loss)`, `self.clip_gradients(...)`, `optimizer.step()`, 并用 `self.log()` 记录指标 (新代码用 `self.log("loss", loss, prefix="train")`).
@@ -160,7 +166,7 @@ XQT 只关注模型本身: 压缩, 图变换, 导出适配, 误差分析, benchm
 - [tests/AGENTS.md](tests/AGENTS.md) - 测试目录
 - [third_party/AGENTS.md](third_party/AGENTS.md) - 第三方代码与资产目录
 - [tools/AGENTS.md](tools/AGENTS.md) - 数据与工程工具目录
-- [train/AGENTS.md](train/AGENTS.md) - 训练入口目录
+- [train/AGENTS.md](train/AGENTS.md) - 训练入口目录 (预训练/后训练划分)
 - [xdl/AGENTS.md](xdl/AGENTS.md) - XDL 框架源码根目录
 - [xqt/AGENTS.md](xqt/AGENTS.md) - 量化与实验脚本目录
 
@@ -172,6 +178,7 @@ XQT 只关注模型本身: 压缩, 图变换, 导出适配, 误差分析, benchm
 - [xdl/loss/AGENTS.md](xdl/loss/AGENTS.md) - 损失函数子模块
 - [xdl/metric/AGENTS.md](xdl/metric/AGENTS.md) - 评估指标子模块
 - [xdl/model/AGENTS.md](xdl/model/AGENTS.md) - 模型架构子模块
+- [xdl/post_training/AGENTS.md](xdl/post_training/AGENTS.md) - 后训练子模块
 - [xdl/optimizer/AGENTS.md](xdl/optimizer/AGENTS.md) - 优化器子模块
 - [xdl/scheduler/AGENTS.md](xdl/scheduler/AGENTS.md) - 学习率调度器子模块
 - [xdl/trainer/AGENTS.md](xdl/trainer/AGENTS.md) - 训练器核心子模块

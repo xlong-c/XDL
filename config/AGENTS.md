@@ -1,28 +1,30 @@
-# config — 运行配置目录
+# config - 运行配置目录
 
 ## 目录职责
 
-- 存放训练/推理的 YAML 配置
+- 存放训练/推理的框架级 YAML 配置样例
 - 存放 DeepSpeed 与分布式 JSON 配置
 - 作为 `setup_from_yaml()` 的输入样例
+- 具体训练入口的运行 YAML 与入口脚本同目录放置 (预训练在
+  `train/pretrain/`, 后训练在 `train/posttrain/`), 不放这里
 
 ## 当前内容
 
-- `vgg_cifar100.yaml`：基础分类训练示例
-- `unified_logger_example.yaml`：日志与回调配置示例
-- `manifest_segmentation_example.yaml`：manifest 分割数据链路与 `task` 示例
-- `manifest_detection_example.yaml`：manifest 检测数据链路与 `DetectionCollate` 示例
-- `manifest_regression_example.yaml`：manifest 回归数据链路与 `task` 示例
-- `manifest_pair_example.yaml`：manifest pair 数据链路与 `DictCollate` 示例
-- `deepspeed_*.json`：不同 ZeRO 策略模板
+- `vgg_cifar100.yaml`:基础分类训练示例
+- `unified_logger_example.yaml`:日志与回调配置示例
+- `manifest_segmentation_example.yaml`:manifest 分割数据链路与 `task` 示例
+- `manifest_detection_example.yaml`:manifest 检测数据链路与 `DetectionCollate` 示例
+- `manifest_regression_example.yaml`:manifest 回归数据链路与 `task` 示例
+- `manifest_pair_example.yaml`:manifest pair 数据链路与 `DictCollate` 示例
+- `deepspeed_*.json`:不同 ZeRO 策略模板
 
 ## 修改约束
 
-- 优先复用 `xdl/config/` 的 schema、resolver、builder 机制
-- 新增 YAML 样例应兼容 `OmegaConf` 解析、插值和 resolver 规则；复杂默认值复用优先使用 `${...}` 插值，而不是要求训练脚本手写拼接
-- 不写机器私有绝对路径、token、密钥
-- 新增配置尽量保持最小可运行，字段名与代码参数保持一致
-- 训练入口仍以 YAML 为主，不在这里引入命令行参数解析
+- 优先复用 `xdl/config/` 的 schema,resolver,builder 机制
+- 新增 YAML 样例应兼容 `OmegaConf` 解析,插值和 resolver 规则;复杂默认值复用优先使用 `${...}` 插值,而不是要求训练脚本手写拼接
+- 不写机器私有绝对路径,token,密钥
+- 新增配置尽量保持最小可运行,字段名与代码参数保持一致
+- 训练入口仍以 YAML 为主,不在这里引入命令行参数解析
 
 ## 验证建议
 

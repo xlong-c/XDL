@@ -12,7 +12,8 @@
 - `callbacks/`:训练回调
 - `model/`:模型架构
 - `dataset/`:数据集与 collate
-- `loss/`:损失函数
+- `loss/`:损失函数 (预训练通用损失)
+- `post_training/`:后训练组件 (偏好优化/RL, 蒸馏, SFT 合并, adapter 保存)
 - `metric/`:评估指标
 - `optimizer/`:优化器
 - `scheduler/`:学习率调度器

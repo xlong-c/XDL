@@ -2,7 +2,7 @@
 Callback 基类
 所有自定义 Callback 都应该继承此类
 
-参考 PyTorch Lightning 的 Callback 设计模式, 提供完整的生命周期钩子和状态管理支持。
+参考 PyTorch Lightning 的 Callback 设计模式, 提供完整的生命周期钩子和状态管理支持.
 """
 
 from typing import TYPE_CHECKING, Any, Dict
@@ -17,7 +17,7 @@ class Callback:
     Callback 基类
     所有自定义 Callback 都应该继承此类
 
-    提供完整的生命周期钩子、状态管理和错误处理支持。
+    提供完整的生命周期钩子,状态管理和错误处理支持.
     """
 
     def __init__(self, priority: int = 999):
@@ -63,7 +63,7 @@ class Callback:
         batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ) -> None:
+    ) -> Any:
         """
         训练批次开始时调用
 
@@ -73,6 +73,12 @@ class Callback:
             batch: 当前批次数据
             batch_idx: 批次索引
             dataloader_idx: 数据加载器索引, 默认为0
+
+        Returns:
+            Any: 返回非 None 值时替换当前 batch, 替换后的 batch 会传给
+            ``training_step`` 和后续回调 (如 RolloutCallback 注入
+            ``RolloutBatch``); 返回 None 表示不替换. 不需要替换的回调
+            无需关心返回值.
         """
         pass
 

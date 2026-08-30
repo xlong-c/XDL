@@ -43,26 +43,8 @@ from .generative_loss import (
 # 对比学习损失
 from .contrastive_loss import InfoNCE, NTXentLoss
 
-# 知识蒸馏损失
-from .distillation_loss import (
-    DistillationLossBreakdown,
-    distillation_loss,
-    feature_distillation_loss,
-    kl_divergence_with_temperature,
-    relation_distillation_loss,
-)
-
-# 扩散模型步数蒸馏损失
-from .diffusion_distillation_loss import tdm_loss, tdm_loss_weighted
-
-# 偏好优化损失 (DPO / STPO / GRPO)
-from .preference_loss import (
-    GRPOLossBreakdown,
-    STPOLossBreakdown,
-    dpo_loss,
-    grpo_loss,
-    stpo_loss,
-)
+# 知识蒸馏, 步数蒸馏与偏好优化损失 (DPO / STPO / GRPO) 已收拢到
+# xdl.post_training 子模块, 注册见 xdl/post_training/__init__.py
 
 # 分割损失
 from .dice_loss import DiceLoss, GeneralizedDiceLoss
@@ -119,20 +101,7 @@ def _register_losses():
     register_loss("InfoNCE")(InfoNCE)
     register_loss("NTXentLoss")(NTXentLoss)
 
-    # 知识蒸馏损失
-    register_loss("kl_divergence_with_temperature")(kl_divergence_with_temperature)
-    register_loss("distillation_loss")(distillation_loss)
-    register_loss("feature_distillation_loss")(feature_distillation_loss)
-    register_loss("relation_distillation_loss")(relation_distillation_loss)
-
-    # 扩散模型步数蒸馏损失
-    register_loss("tdm_loss")(tdm_loss)
-    register_loss("tdm_loss_weighted")(tdm_loss_weighted)
-
-    # 偏好优化损失
-    register_loss("dpo_loss")(dpo_loss)
-    register_loss("stpo_loss")(stpo_loss)
-    register_loss("grpo_loss")(grpo_loss)
+    # 知识蒸馏 / 步数蒸馏 / 偏好优化损失注册已迁移到 xdl.post_training
 
     # 分割损失
     register_loss("DiceLoss")(DiceLoss)
@@ -178,11 +147,6 @@ __all__ = [
     "DiffusionPredictionLoss",
     "InfoNCE",
     "NTXentLoss",
-    "DistillationLossBreakdown",
-    "kl_divergence_with_temperature",
-    "distillation_loss",
-    "feature_distillation_loss",
-    "relation_distillation_loss",
     "DiceLoss",
     "GeneralizedDiceLoss",
     "JaccardLoss",
@@ -194,11 +158,4 @@ __all__ = [
     "SequenceCrossEntropyLoss",
     "TokenClassificationLoss",
     "CausalLanguageModelingLoss",
-    "dpo_loss",
-    "stpo_loss",
-    "grpo_loss",
-    "STPOLossBreakdown",
-    "GRPOLossBreakdown",
-    "tdm_loss",
-    "tdm_loss_weighted",
 ]

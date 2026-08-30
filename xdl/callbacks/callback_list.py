@@ -94,7 +94,7 @@ class CallbackList:
 
     def invoke_callbacks(
         self, hook_name: str, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
-    ) -> None:
+    ) -> List[Any]:
         """统一调用回调, 支持错误隔离和性能监控
 
         Args:
@@ -103,9 +103,15 @@ class CallbackList:
             core_module: 核心模块
             **kwargs: 额外参数
 
+        Returns:
+            List[Any]: 按回调优先级顺序收集的各回调返回值, 未返回值的回调
+            对应位置为 None. 调用方按需消费 (如 train_batch_start 用它做
+            batch 替换).
+
         Raises:
             RuntimeError: 当fast_fail=True且回调执行失败时
         """
+        results: List[Any] = []
         for callback in self.callbacks:
             if not hasattr(callback, hook_name):
                 continue
@@ -116,7 +122,8 @@ class CallbackList:
             try:
                 # 执行回调 - 直接传递参数, 不使用关键字参数
                 method = getattr(callback, hook_name)
-                method(trainer, core_module, **kwargs)
+                result = method(trainer, core_module, **kwargs)
+                results.append(result)
 
                 # 记录执行统计
                 execution_time = time.time() - start_time
@@ -140,6 +147,8 @@ class CallbackList:
                     raise TrainingError(
                         f"Callback {callback_name}.{hook_name} failed in fast_fail mode: {e}"
                     ) from e
+
+        return results
 
     def _handle_callback_error(
         self, callback: "Callback", hook_name: str, error: Exception
@@ -288,16 +297,52 @@ class CallbackList:
         batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ) -> None:
-        """训练批次开始回调"""
-        self.invoke_callbacks(
-            "on_train_batch_start",
-            trainer,
-            core_module,
-            batch=batch,
-            batch_idx=batch_idx,
-            dataloader_idx=dataloader_idx,
-        )
+    ) -> Any:
+        """训练批次开始回调, 支持回调替换 batch
+
+        回调的 ``on_train_batch_start`` 返回非 None 值时, 该值替换当前
+        batch (契约见 ``Callback.on_train_batch_start``). 多个回调替换时
+        取最后一个非 None 返回值, 返回值将传给 ``training_step``.
+        """
+        # Use a dedicated loop so each callback observes the latest batch.
+        # ``invoke_callbacks`` cannot express this because it expands one
+        # immutable kwargs mapping for all callbacks.
+        for callback in self.callbacks:
+            if not hasattr(callback, "on_train_batch_start"):
+                continue
+
+            callback_name = callback.__class__.__name__
+            start_time = time.time()
+            try:
+                result = callback.on_train_batch_start(
+                    trainer,
+                    core_module,
+                    batch=batch,
+                    batch_idx=batch_idx,
+                    dataloader_idx=dataloader_idx,
+                )
+                if result is not None:
+                    batch = result
+                self._record_execution_stats(
+                    callback_name,
+                    "on_train_batch_start",
+                    time.time() - start_time,
+                    success=True,
+                )
+            except Exception as error:
+                self._record_execution_stats(
+                    callback_name,
+                    "on_train_batch_start",
+                    time.time() - start_time,
+                    success=False,
+                    error=error,
+                )
+                self._handle_callback_error(callback, "on_train_batch_start", error)
+                if self.fast_fail or bool(getattr(callback, "fast_fail", False)):
+                    raise TrainingError(
+                        f"Callback {callback_name}.on_train_batch_start failed in fast_fail mode: {error}"
+                    ) from error
+        return batch
 
     def train_batch_end(
         self,

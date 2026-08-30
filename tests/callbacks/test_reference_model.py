@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 from xdl.trainer.core_model import CoreModel
-from xdl.callbacks.reference_model import ReferenceModelCallback
+from xdl.post_training.reference_model import ReferenceModelCallback
 
 
 class SimpleMLP(nn.Module):

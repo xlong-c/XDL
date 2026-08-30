@@ -22,7 +22,8 @@ xdl/
   callbacks/   训练生命周期扩展
   config/      YAML 到 TrainSetup 的构建链
   dataset/     数据集, transform, collate
-  loss/        损失函数
+  loss/        预训练通用损失函数
+  post_training/ 后训练组件 (偏好优化/RL, 蒸馏, SFT 合并, adapter 保存)
   metric/      评估指标
   model/       模型与工厂函数
   optimizer/   优化器
@@ -46,7 +47,7 @@ xdl/
 
 关键点:
 
-- 这里优先放纯 PyTorch、轻依赖的分析 API
+- 这里优先放纯 PyTorch,轻依赖的分析 API
 - 训练期如需抓特征, 应通过 callback 或 forward hook 采样后再调用这里的工具
 - 这层更接近研究和诊断基座, 不是稳定冻结的训练主入口
 - callback 侧如果需要在验证期自动落分析产物, 例如 feature capture 或 attention rollout, 只负责时机和落盘; 具体算法仍应复用 `xdl.analysis`
@@ -115,13 +116,29 @@ xdl/
 
 职责:
 
-- 提供单个或组合损失函数
+- 提供预训练通用的单个或组合损失函数
 - 通过 registry 接入配置系统
 
 关键点:
 
 - 新增 loss 后要在 `__init__.py` 中集中注册
 - 多 loss 配置会由 `build_loss()` 构建成 `WeightedLoss`
+- 蒸馏/偏好优化等后训练 loss 不在这里, 见 `xdl/post_training`
+
+## `xdl/post_training`
+
+职责:
+
+- 收拢基于 pretrain checkpoint 的后训练组件:
+  - 偏好优化与 RL 损失 (DPO/STPO/GRPO) 与 rollout/参考模型回调
+  - 通用蒸馏损失与扩散 few-step 蒸馏损失
+  - SFT checkpoint 合并与 LoRA/adapter 状态保存回调
+
+关键点:
+
+- loss 的 registry 名在自身 `__init__.py` 注册, 与 `xdl/loss` 名字空间互不覆盖
+- LOSS registry 解析时会引导导入本子模块 (`xdl/utils/registry.py`)
+- 从零训练不经过本子模块; 端到端参考入口为 `train/posttrain/train_GRPO.py`
 
 ## `xdl/metric`
 

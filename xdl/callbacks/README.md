@@ -23,7 +23,6 @@
 - `lambda_callback.py`: 轻量钩子封装
 - `logging_callback.py`: 通用日志回调
 - `sampling_animation_callback.py`: 采样动画
-- `save_trainable_state.py`: 调用任务模型保存 LoRA/adapter 等可训练状态
 - `preview.py`: 调用任务模型保存验证或训练预览
 - `memory.py`: 梯度检查点与选择性激活卸载
 
@@ -35,12 +34,13 @@
 - 可选依赖要优雅降级,不要让导入直接失败
 - 日志类回调 (tqdm / tensorboard / console / wandb / loguru) 只会在主 rank
   初始化与输出; 多卡下不要自己再包 `is_main_process()` 守卫
-- 保存类回调 (`ModelCheckpoint`, `SaveTrainableStateCallback`) 默认
-  `fast_fail=True`, 失败会立刻抛错而不是被隔离吞掉
-- 采样/预览类回调 (`PreviewCallback`, `SamplingAnimationCallback`,
-  `SaveTrainableStateCallback`) 支持 `collective=True`: 所有 rank 一起执行
-  前向, 只有主进程落盘, 调用前后自动 `wait_for_everyone()`. FSDP 下采样必须
-  开这个选项
+- 保存类回调 (`ModelCheckpoint` 及 `xdl.post_training` 中的
+  `SaveTrainableStateCallback`) 默认 `fast_fail=True`, 失败会立刻抛错而不是
+  被隔离吞掉
+- 采样/预览类回调 (`PreviewCallback`, `SamplingAnimationCallback` 及
+  `xdl.post_training` 中的 `SaveTrainableStateCallback`) 支持
+  `collective=True`: 所有 rank 一起执行前向, 只有主进程落盘, 调用前后自动
+  `wait_for_everyone()`. FSDP 下采样必须开这个选项
 
 ## FeatureCaptureCallback
 
@@ -106,9 +106,13 @@ callback = AttentionRolloutCallback(
 
 ## 当前导出
 
-`xdl.callbacks.__all__` 现在导出 29 个名称:
+`xdl.callbacks.__all__` 现在导出 24 个名称:
 
-`Callback`, `AttentionRolloutCallback`, `DeviceStatsMonitor`, `EarlyStopping`, `FeatureCaptureCallback`, `LambdaCallback`, `LayerMonitor`, `LearningRateMonitor`, `ModelCheckpoint`, `ModelSummary`, `PreviewCallback`, `QATLifecycleCallback`, `QATLifecycleState`, `SamplingAnimationCallback`, `SaveTrainableStateCallback`, `ConsoleCallback`, `LoggingCallback`, `SystemStatsCallback`, `ActivationOffloadCallback`, `GradientCheckpointingCallback`, `TensorBoardCallback`, `Timer`, `TorchProfilerCallback`, `TqdmCallback`, `ModelMergeCallback`, `ReferenceModelCallback`, `RolloutBatch`, `RolloutCallback`, `WandbCallback`
+`Callback`, `AttentionRolloutCallback`, `DeviceStatsMonitor`, `EarlyStopping`, `FeatureCaptureCallback`, `LambdaCallback`, `LayerMonitor`, `LearningRateMonitor`, `ModelCheckpoint`, `ModelSummary`, `PreviewCallback`, `QATLifecycleCallback`, `QATLifecycleState`, `SamplingAnimationCallback`, `ConsoleCallback`, `LoggingCallback`, `SystemStatsCallback`, `ActivationOffloadCallback`, `GradientCheckpointingCallback`, `TensorBoardCallback`, `Timer`, `TorchProfilerCallback`, `TqdmCallback`, `WandbCallback`
+
+后训练回调 (`ModelMergeCallback`, `ReferenceModelCallback`, `RolloutBatch`,
+`RolloutCallback`, `SaveTrainableStateCallback`) 从 `xdl.post_training` 导入.
+
 
 ## GradientCheckpointingCallback / ActivationOffloadCallback
 
@@ -126,7 +130,6 @@ callback = AttentionRolloutCallback(
 ```python
 from xdl.callbacks import (
     ModelCheckpoint,
-    SaveTrainableStateCallback,
     TensorBoardCallback,
     TorchProfilerCallback,
     TqdmCallback,
