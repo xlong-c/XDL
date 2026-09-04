@@ -5,7 +5,7 @@ Callback 基类
 参考 PyTorch Lightning 的 Callback 设计模式, 提供完整的生命周期钩子和状态管理支持.
 """
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from xdl.trainer.core_model import CoreModel
@@ -107,25 +107,27 @@ class Callback:
     def on_validation_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         pass
 
-    def on_validation_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_end(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
         pass
 
-    def on_validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
         pass
 
-    def on_validation_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_end(
+        self, trainer: "Trainer", core_module: "CoreModel", outputs: Optional[Any] = None, **kwargs: Any
+    ) -> None:
         pass
 
-    def on_test_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_test_start(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
         pass
 
-    def on_test_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_test_end(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
         pass
 
-    def on_test_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_test_epoch_start(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
         pass
 
-    def on_test_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_test_epoch_end(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
         pass
 
     def on_predict_batch_start(

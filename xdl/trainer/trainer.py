@@ -483,8 +483,15 @@ class Trainer:
 
         self._train_iterator = _infinite_loader(self._train_dataloader)
 
+        # 对齐已恢复模型的 epoch 与步数
+        start_epoch = 1
+        if hasattr(model, "current_epoch") and model.current_epoch > 0:
+            start_epoch = model.current_epoch + 1
+        if hasattr(model, "global_step") and model.global_step > 0:
+            self.state.global_step = model.global_step
+
         # 训练循环 (现在 epoch 指向的是虚拟 epoch)
-        for epoch in range(1, self.max_epochs + 1):
+        for epoch in range(start_epoch, self.max_epochs + 1):
             if self.state.should_stop:
                 break
 
@@ -698,7 +705,9 @@ class Trainer:
             self._accelerator.wait_for_everyone()
 
     def _requires_collective_sampling(self, model: CoreModel) -> bool:
-        """读取模型的集体采样声明; 支持属性或方法两种写法."""
+        """读取模型的集体采样声明; 支持属性或方法两种写法. 若处于 FSDP 模式则强制集体采样以防死锁."""
+        if hasattr(model, "_is_fsdp_active") and model._is_fsdp_active():
+            return True
         value = getattr(model, "requires_collective_sampling", False)
         if callable(value):
             value = value()
@@ -808,6 +817,11 @@ class Trainer:
             core_module=model,
             checkpoint=checkpoint,
         )
+        # 同步恢复后的步数与 epoch 到 trainer state
+        if hasattr(model, "global_step") and model.global_step is not None:
+            self.state.global_step = model.global_step
+        if hasattr(model, "current_epoch") and model.current_epoch is not None:
+            self.state.current_epoch = model.current_epoch
         return checkpoint
 
     def _configure_optimizers(self):
@@ -935,6 +949,10 @@ class Trainer:
         # 如果 Trainer 初始化时指定了 precision, 覆盖 config 中的 mixed_precision
         if self.precision is not None:
             config["mixed_precision"] = self._normalize_precision()
+
+        # 确保梯度累积步数同步注入 Accelerator, 避免分布式下每个 micro-step 触发 All-Reduce
+        if "gradient_accumulation_steps" not in config and self.gradient_accumulation_steps > 1:
+            config["gradient_accumulation_steps"] = self.gradient_accumulation_steps
 
         self._accelerator = Accelerator(**config)
         self._device = self._accelerator.device

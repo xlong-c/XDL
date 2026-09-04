@@ -6,6 +6,7 @@ import random
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
+import torch
 from torch.utils.data import Dataset
 
 from .record import RecordDatasetBase
@@ -191,7 +192,8 @@ class ImageTextSidecarDataset(Dataset[Record]):
         if self.text_selection == "first_line":
             return lines[0]
         if self.text_selection == "random_line":
-            return random.choice(lines)
+            idx = int(torch.randint(0, len(lines), (1,)).item())
+            return lines[idx]
         raise ValueError(
             "text_selection must be one of: 'full', 'first_line', 'random_line'"
         )

@@ -1,11 +1,11 @@
 """
-组件构建器。
+组件构建器.
 
-职责：
-- 官方主格式：`target + params`
-- transform 支持紧凑语法：列表即 `Compose`，并支持 inline 参数
+职责:
+- 官方主格式:`target + params`
+- transform 支持紧凑语法:列表即 `Compose`,并支持 inline 参数
 - 通过 registry 或 import path 定位组件
-- 实例化模型、数据集、优化器、scheduler、loss、metrics 等对象
+- 实例化模型,数据集,优化器,scheduler,loss,metrics 等对象
 """
 
 import importlib
@@ -27,6 +27,7 @@ REGISTRY_IMPORTS = {
     "optimizer": "xdl.optimizer",
     "scheduler": "xdl.scheduler",
     "transform": "xdl.dataset",
+    "callback": "xdl.callbacks",
 }
 
 TRANSFORM_CONFIG_META_KEYS = {
@@ -57,6 +58,7 @@ def _ensure_registry_populated(kind: str) -> None:
 def _get_registry(kind: str) -> Any:
     _ensure_registry_populated(kind)
     from xdl.utils.registry import (
+        CALLBACK_REGISTRY,
         COLLATE_REGISTRY,
         DATASET_REGISTRY,
         LOSS_REGISTRY,
@@ -64,6 +66,7 @@ def _get_registry(kind: str) -> Any:
         MODEL_REGISTRY,
         OPTIMIZER_REGISTRY,
         SCHEDULER_REGISTRY,
+        TASK_REGISTRY,
         TRANSFORM_REGISTRY,
     )
 
@@ -76,6 +79,8 @@ def _get_registry(kind: str) -> Any:
         "optimizer": OPTIMIZER_REGISTRY,
         "scheduler": SCHEDULER_REGISTRY,
         "transform": TRANSFORM_REGISTRY,
+        "callback": CALLBACK_REGISTRY,
+        "task": TASK_REGISTRY,
     }
     if kind not in registries:
         raise ConfigValidationError(f"Unsupported registry kind: {kind}")
@@ -121,7 +126,8 @@ def _split_target(kind: str, target: str) -> tuple[str, str]:
 def _looks_like_component_config(value: Any) -> bool:
     if not isinstance(value, Mapping):
         return False
-    return "target" in value
+    target = value.get("target")
+    return isinstance(target, str) and ":" in target
 
 
 def _extract_component_config(
@@ -267,7 +273,7 @@ def _resolve_optional_transform(raw_transform: Any) -> Any:
 
 
 def build_model(config: Dict[str, Any]) -> torch.nn.Module:
-    """从配置构建模型。"""
+    """从配置构建模型."""
 
     return _build_component(config, kind="model")
 
@@ -279,7 +285,7 @@ def build_task(config: Dict[str, Any]) -> Any:
 
 
 def build_transform(config: Any) -> Any:
-    """从配置构建 transform，支持紧凑 list / string 写法。"""
+    """从配置构建 transform,支持紧凑 list / string 写法."""
 
     if not config:
         return None
@@ -294,7 +300,7 @@ def build_transform(config: Any) -> Any:
 
 
 def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> Any:
-    """从配置构建数据集。"""
+    """从配置构建数据集."""
 
     dataset_cfg = _extract_component_config(
         config,
@@ -325,7 +331,7 @@ def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> An
 def build_dataloader(
     dataset: Any, config: Dict[str, Any], collate_fn: Optional[Any] = None
 ) -> DataLoader:
-    """从配置构建 DataLoader。"""
+    """从配置构建 DataLoader."""
 
     if not isinstance(config, Mapping):
         raise ConfigValidationError("dataloader config must be a mapping")
@@ -405,7 +411,7 @@ def build_optimizer(
     model: torch.nn.Module,
     config: Dict[str, Any],
 ) -> torch.optim.Optimizer:
-    """从配置构建优化器。"""
+    """从配置构建优化器."""
 
     optimizer_cfg = _extract_component_config(
         config,
@@ -432,7 +438,7 @@ def build_scheduler(
     optimizer: torch.optim.Optimizer,
     config: Dict[str, Any],
 ) -> Optional[Any]:
-    """从配置构建学习率调度器。"""
+    """从配置构建学习率调度器."""
 
     if not config:
         return None
@@ -450,7 +456,7 @@ def build_scheduler(
 
 
 def build_loss(config: Any) -> torch.nn.Module:
-    """从配置构建损失函数。"""
+    """从配置构建损失函数."""
 
     if not config:
         raise ConfigValidationError("loss config cannot be empty")
@@ -484,7 +490,7 @@ def build_loss(config: Any) -> torch.nn.Module:
 
 
 def build_collate_fn(config: Any) -> Optional[Any]:
-    """从配置解析 collate_fn。支持三种形式：None / 可调用对象 / target+params 配置。"""
+    """从配置解析 collate_fn.支持三种形式:None / 可调用对象 / target+params 配置."""
 
     if config is None:
         return None
@@ -514,7 +520,7 @@ def build_callbacks(config: Any) -> List[Any]:
 
 
 def build_metrics(config: List[Dict[str, Any]]) -> List[Any]:
-    """从配置构建指标列表。"""
+    """从配置构建指标列表."""
 
     metrics = []
     for metric_item in config or []:

@@ -149,7 +149,7 @@ def stpo_loss(
     # reference on BOTH win and lose samples.
     kl_win = ref_win_logps - policy_win_logps
     kl_lose = ref_lose_logps - policy_lose_logps
-    auxiliary = (kl_win + kl_lose).mean() if reduction != "none" else kl_win + kl_lose
+    auxiliary = kl_win + kl_lose
 
     per_sample = dpo + auxiliary_weight * auxiliary
 
@@ -173,12 +173,15 @@ class GRPOLossBreakdown:
     advantage: torch.Tensor
     kl_penalty: torch.Tensor
 
-    def to_dict(self) -> dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
+        """Convert scalar loss components to a plain Python dictionary."""
         return {
             "total": float(self.total.detach().item()),
             "advantage": float(self.advantage.detach().item()),
             "kl_penalty": float(self.kl_penalty.detach().item()),
         }
+
+    to_dict = as_dict
 
 
 def grpo_loss(
@@ -204,8 +207,8 @@ def grpo_loss(
 
         L = -\\min\\bigl(r_i A_i,\\ \\text{clip}(r_i, 1-\\epsilon, 1+\\epsilon) A_i\\bigr)
 
-    plus a KL penalty ``β * KL(π_ref || π_θ)`` approximated as
-    ``ref_logps - policy_logps``.
+    plus a KL penalty ``β * KL(π_θ || π_ref)`` approximated as
+    ``policy_logps - ref_logps``.
 
     Args:
         policy_logps: ``(N,)`` or ``(N, K)`` - policy log-probabilities
@@ -229,8 +232,8 @@ def grpo_loss(
     clipped = torch.clamp(ratio, 1.0 - clip_epsilon, 1.0 + clip_epsilon)
     advantage_loss = -torch.min(ratio * advantages, clipped * advantages)
 
-    # Approximate reverse KL
-    kl = ref_logps - policy_logps
+    # Approximate forward/sample KL: policy_logps - ref_logps
+    kl = policy_logps - ref_logps
 
     per_sample = advantage_loss + kl_beta * kl
 

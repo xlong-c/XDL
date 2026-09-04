@@ -29,6 +29,7 @@ xdl/
   optimizer/   优化器
   scheduler/   学习率调度器
   trainer/     CoreModel / Trainer / TrainSetupModel
+  task/        预训练和后训练算法任务
   utils/       registry, checkpoint, 通用工具
 ```
 
@@ -194,9 +195,27 @@ xdl/
 - 要区分 step 级还是 epoch 级调用语义
 - 配置侧由 `build_scheduler()` 负责实例化
 
-## `xdl/trainer`
+## `xdl/task`
 
 职责:
+
+- 承载具体训练算法任务对 `CoreModel` 的实现, 按训练阶段分为
+  `pretrain/` 和 `posttrain/`.
+- `xdl/task/pretrain/tbsm.py` 提供 TBSM 训练任务, 复用
+  `xdl/model/generate/tbsm.py` 中的模型侧组件.
+
+不负责:
+
+- 通用训练循环, 由 `xdl.trainer` 负责.
+- 通用模型组件, 由 `xdl.model` 负责.
+
+关键点:
+
+- 算法任务可以继承 `CoreModel`, 但不应把算法特定逻辑加入 `Trainer` 或
+  `CoreModel`.
+- `xdl.trainer.TBSMCoreModel` 作为兼容导出保留, 新代码优先从
+  `xdl.task.pretrain` 导入.
+## `xdl/trainer`
 
 - `CoreModel`: 任务逻辑抽象
 - `Trainer`: 训练循环编排

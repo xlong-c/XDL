@@ -120,9 +120,27 @@ class CallbackList:
             start_time = time.time()
 
             try:
-                # 执行回调 - 直接传递参数, 不使用关键字参数
+                # 执行回调 - 直接传递参数
                 method = getattr(callback, hook_name)
-                result = method(trainer, core_module, **kwargs)
+                try:
+                    result = method(trainer, core_module, **kwargs)
+                except TypeError:
+                    if kwargs:
+                        import inspect
+                        sig = inspect.signature(method)
+                        has_var_kw = any(
+                            p.kind == inspect.Parameter.VAR_KEYWORD
+                            for p in sig.parameters.values()
+                        )
+                        if not has_var_kw:
+                            valid_kwargs = {
+                                k: v for k, v in kwargs.items() if k in sig.parameters
+                            }
+                            result = method(trainer, core_module, **valid_kwargs)
+                        else:
+                            raise
+                    else:
+                        raise
                 results.append(result)
 
                 # 记录执行统计

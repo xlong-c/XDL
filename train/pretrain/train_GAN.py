@@ -225,7 +225,7 @@ def visualize_gan_results(model: GANModel, n_samples: int = 16):
     save_path = './others/results/gan_results.png'
     plt.savefig(save_path)
     print(f"结果已保存至: {save_path}")
-    plt.show()
+    plt.close()
 
 def main():
     """主函数"""

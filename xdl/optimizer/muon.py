@@ -84,27 +84,38 @@ class Muon(torch.optim.Optimizer):
             with torch.enable_grad():
                 loss = closure()
 
+        is_dist = dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
+
         for group in self.param_groups:
             params = group["params"]
-            params_pad = params + [torch.empty_like(params[-1])] * (
-                dist.get_world_size() - len(params) % dist.get_world_size()
-            )
-            for base_i in range(len(params))[:: dist.get_world_size()]:
-                if base_i + dist.get_rank() < len(params):
-                    p = params[base_i + dist.get_rank()]
+            if not is_dist:
+                for p in params:
                     if p.grad is None:
-                        # continue
-                        p.grad = torch.zeros_like(p)  # Force synchronization
+                        p.grad = torch.zeros_like(p)
                     state = self.state[p]
                     if len(state) == 0:
                         state["momentum_buffer"] = torch.zeros_like(p)
                     update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
                     p.mul_(1 - group["lr"] * group["weight_decay"])
                     p.add_(update.reshape(p.shape), alpha=-group["lr"])
-                dist.all_gather(
-                    params_pad[base_i : base_i + dist.get_world_size()],
-                    params_pad[base_i + dist.get_rank()],
-                )
+            else:
+                world_size = dist.get_world_size()
+                rank = dist.get_rank()
+                for base_i in range(0, len(params), world_size):
+                    if base_i + rank < len(params):
+                        p = params[base_i + rank]
+                        if p.grad is None:
+                            p.grad = torch.zeros_like(p)  # Force synchronization
+                        state = self.state[p]
+                        if len(state) == 0:
+                            state["momentum_buffer"] = torch.zeros_like(p)
+                        update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
+                        p.mul_(1 - group["lr"] * group["weight_decay"])
+                        p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                    for r in range(world_size):
+                        idx = base_i + r
+                        if idx < len(params):
+                            dist.broadcast(params[idx], src=r)
 
         return loss
 
@@ -211,16 +222,12 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
 
         for group in self.param_groups:
             if group["use_muon"]:
+                is_dist = dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
                 params = group["params"]
-                params_pad = params + [torch.empty_like(params[-1])] * (
-                    dist.get_world_size() - len(params) % dist.get_world_size()
-                )
-                for base_i in range(len(params))[:: dist.get_world_size()]:
-                    if base_i + dist.get_rank() < len(params):
-                        p = params[base_i + dist.get_rank()]
+                if not is_dist:
+                    for p in params:
                         if p.grad is None:
-                            # continue
-                            p.grad = torch.zeros_like(p)  # Force synchronization
+                            p.grad = torch.zeros_like(p)
                         state = self.state[p]
                         if len(state) == 0:
                             state["momentum_buffer"] = torch.zeros_like(p)
@@ -229,10 +236,26 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
                         )
                         p.mul_(1 - group["lr"] * group["weight_decay"])
                         p.add_(update.reshape(p.shape), alpha=-group["lr"])
-                    dist.all_gather(
-                        params_pad[base_i : base_i + dist.get_world_size()],
-                        params_pad[base_i + dist.get_rank()],
-                    )
+                else:
+                    world_size = dist.get_world_size()
+                    rank = dist.get_rank()
+                    for base_i in range(0, len(params), world_size):
+                        if base_i + rank < len(params):
+                            p = params[base_i + rank]
+                            if p.grad is None:
+                                p.grad = torch.zeros_like(p)  # Force synchronization
+                            state = self.state[p]
+                            if len(state) == 0:
+                                state["momentum_buffer"] = torch.zeros_like(p)
+                            update = muon_update(
+                                p.grad, state["momentum_buffer"], beta=group["momentum"]
+                            )
+                            p.mul_(1 - group["lr"] * group["weight_decay"])
+                            p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                        for r in range(world_size):
+                            idx = base_i + r
+                            if idx < len(params):
+                                dist.broadcast(params[idx], src=r)
             else:
                 for p in group["params"]:
                     if p.grad is None:

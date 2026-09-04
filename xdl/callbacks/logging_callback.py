@@ -139,7 +139,6 @@ class LoggingCallback(Callback):
             return
         self.epoch_start_time = time.time()
         self.train_batch_count = 0
-        self.val_batch_count = 0
         logger.info(f"📅 开始训练 Epoch {core_module.current_epoch}")
 
     def on_train_batch_start(self, trainer, core_module, batch, batch_idx, dataloader_idx=0):
@@ -183,6 +182,7 @@ class LoggingCallback(Callback):
 
     def on_validation_epoch_start(self, trainer, core_module):
         """验证epoch开始时的钩子"""
+        self.val_batch_count = 0
         if not self._enabled or not self.log_val_metrics:
             return
         logger.info(f"🔍 开始验证 Epoch {core_module.current_epoch}")

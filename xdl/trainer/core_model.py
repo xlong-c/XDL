@@ -844,7 +844,6 @@ class CoreModel(Module):
                 gradient_clip_algorithm=clip_grad_algorithm,
             )
         optimizer.step()
-        optimizer.zero_grad(**zero_kwargs)
         return True
 
     # ========== Checkpoint 管理方法 ==========
@@ -1100,7 +1099,8 @@ class CoreModel(Module):
             # 这里的逻辑是:如果是两个元素的列表/元组,且第一个元素本身也是列表/元组,或者是包含调度器的格式
             if len(optimizers_return) == 2 and isinstance(optimizers_return[0], (list, tuple)):
                 self._optimizers = list(optimizers_return[0])
-                self._schedules = list(optimizers_return[1])
+                schedulers = optimizers_return[1]
+                self._schedules = list(schedulers) if isinstance(schedulers, (list, tuple)) else [schedulers]
             else:
                 # 否则视为优化器列表
                 # 过滤掉非优化器对象(以防用户混入调度器但没按格式传)

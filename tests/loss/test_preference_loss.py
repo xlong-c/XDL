@@ -200,3 +200,14 @@ def test_grpo_positive_advantage_decreases_loss() -> None:
     result_bad = grpo_loss(policy_bad, advantages, ref, kl_beta=0.0)
 
     assert result_bad.advantage.item() > result_good.advantage.item()
+
+
+def test_stpo_loss_reduction_sum_consistency() -> None:
+    rw = torch.tensor([2.0, 1.0, 0.5, -0.5])
+    rl = torch.tensor([0.0, -1.0, -0.5, 0.5])
+    pw = rw + torch.tensor([0.1, -0.2, 0.3, -0.4])
+    pl = rl + torch.tensor([-0.1, 0.2, -0.3, 0.4])
+
+    res = stpo_loss(pw, pl, rw, rl, auxiliary_weight=0.5, reduction="sum")
+    expected_total = res.dpo + 0.5 * res.auxiliary
+    assert torch.allclose(res.total, expected_total, atol=1e-6)

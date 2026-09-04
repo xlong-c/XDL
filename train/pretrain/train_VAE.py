@@ -268,7 +268,7 @@ def visualize_results(model: VAEModel, test_loader: DataLoader, n_samples: int =
     plt.tight_layout()
     plt.savefig('./others/results/vae_results.png',
                 dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
 
 def visualize_latent_space(model: VAEModel, test_loader: DataLoader, n_points: int = 1000):
@@ -316,7 +316,7 @@ def visualize_latent_space(model: VAEModel, test_loader: DataLoader, n_points: i
     plt.tight_layout()
     plt.savefig('./others/results/vae_latent_space.png',
                 dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
 
 def main():

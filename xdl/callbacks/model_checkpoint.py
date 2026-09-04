@@ -75,6 +75,7 @@ class ModelCheckpoint(Callback):
         # List of {"path": str, "score": float}
         self.best_k_models: List[Dict[str, Any]] = []
         self.last_model_path: Optional[str] = None
+        self._pending_delete_paths: List[str] = []
         self._logger = logging.getLogger(__name__)
 
         if mode not in ["min", "max"]:
@@ -194,12 +195,33 @@ class ModelCheckpoint(Callback):
         # 处理 last 引用记录
         if save_type == "last":
             self.last_model_path = actual_path
+            self._cleanup_pending_deletes()
 
         if self.verbose:
             msg = f"Checkpoint saved to {actual_path}"
             if monitor_val is not None:
                 msg += f" ({self.monitor}={monitor_val:.4f})"
             self._logger.info(msg)
+
+    def _cleanup_pending_deletes(self) -> None:
+        """清理已不再作为 last 且不在 best_k 列表中的过期 checkpoint"""
+        retained = []
+        for p_str in self._pending_delete_paths:
+            if p_str != self.last_model_path and not any(m["path"] == p_str for m in self.best_k_models):
+                p = Path(p_str)
+                if p.exists():
+                    try:
+                        if p.is_dir():
+                            shutil.rmtree(p)
+                        else:
+                            p.unlink()
+                        if self.verbose:
+                            self._logger.info(f"Removed pending deleted checkpoint: {p}")
+                    except Exception as e:
+                        self._logger.warning(f"Failed to remove checkpoint {p}: {e}")
+            else:
+                retained.append(p_str)
+        self._pending_delete_paths = retained
 
     def _update_best_models(self, filepath: str, score: float):
         """更新并维护 Top K 模型"""
@@ -220,18 +242,27 @@ class ModelCheckpoint(Callback):
             worst = self.best_k_models.pop(-1)
             worst_path = Path(worst["path"])
 
-            # 安全检查: 不要删除正在作为 last_model_path 的文件, 也不要重复删除
-            if str(worst_path) != str(self.last_model_path) and worst_path.exists():
-                if worst_path.is_dir():
-                    shutil.rmtree(worst_path)
-                else:
-                    worst_path.unlink()
-                if self.verbose:
-                    self._logger.info(f"Removed worst checkpoint: {worst_path}")
+            # 安全检查: 不要删除正在作为 last_model_path 的文件, 记录到 pending 队列
+            if str(worst_path) != str(self.last_model_path):
+                if worst_path.exists():
+                    if worst_path.is_dir():
+                        shutil.rmtree(worst_path)
+                    else:
+                        worst_path.unlink()
+                    if self.verbose:
+                        self._logger.info(f"Removed worst checkpoint: {worst_path}")
+            else:
+                if str(worst_path) not in self._pending_delete_paths:
+                    self._pending_delete_paths.append(str(worst_path))
 
     def state_dict(self) -> Dict[str, Any]:
-        return {"best_k_models": self.best_k_models, "last_model_path": self.last_model_path}
+        return {
+            "best_k_models": self.best_k_models,
+            "last_model_path": self.last_model_path,
+            "pending_delete_paths": self._pending_delete_paths,
+        }
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
         self.best_k_models = state_dict.get("best_k_models", [])
         self.last_model_path = state_dict.get("last_model_path")
+        self._pending_delete_paths = state_dict.get("pending_delete_paths", [])

@@ -12,6 +12,7 @@ from xdl.model.generate import (
     TBSMGenerator,
 )
 from xdl.trainer import TBSMCoreModel, Trainer
+from xdl.task.pretrain import TBSMCoreModel as TaskTBSMCoreModel
 from xdl.utils.registry import MODEL_REGISTRY
 
 
@@ -98,6 +99,11 @@ def test_tbsm_core_model_runs_through_trainer_and_updates_ema() -> None:
     assert samples.shape == (2, 3, 4, 4)
     assert float(samples.min()) >= 0.0
     assert float(samples.max()) <= 1.0
+
+
+def test_tbsm_task_module_is_canonical_and_trainer_export_is_compatible() -> None:
+    assert TBSMCoreModel is TaskTBSMCoreModel
+    assert TBSMCoreModel.__module__ == "xdl.task.pretrain.tbsm"
 
 
 def test_tbsm_public_model_registration() -> None:

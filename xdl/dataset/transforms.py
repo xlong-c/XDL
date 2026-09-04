@@ -37,7 +37,7 @@ class PairedImageTransform:
         images: Mapping[str, Image.Image],
         masks: Optional[Mapping[str, Image.Image]] = None,
     ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
-        do_flip = self.random_flip and random.random() < 0.5
+        do_flip = self.random_flip and (torch.rand(1).item() < 0.5)
         image_tensors = {
             key: _to_image_tensor(
                 self._prepare_image(image.convert("RGB"), do_flip=do_flip),
@@ -84,7 +84,7 @@ class ImageMaskTransform:
         self.normalize = bool(normalize)
 
     def __call__(self, image: Image.Image, mask: Image.Image) -> Tuple[torch.Tensor, torch.Tensor]:
-        do_flip = self.random_flip and random.random() < 0.5
+        do_flip = self.random_flip and (torch.rand(1).item() < 0.5)
         # image 可以双线性插值, mask 必须用 nearest, 否则类别 id 会被插值污染.
         image = self._prepare_image(
             image,
@@ -140,7 +140,7 @@ class ImageBoxesTransform:
         boxes: Sequence[Sequence[float]],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         original_width, original_height = image.size
-        do_flip = self.random_flip and random.random() < 0.5
+        do_flip = self.random_flip and (torch.rand(1).item() < 0.5)
         resized = image.resize((self.width, self.height), Image.Resampling.BILINEAR)
         box_tensor = self._resize_boxes(
             boxes,

@@ -1,4 +1,4 @@
-"""内置 collate 函数。"""
+"""内置 collate 函数."""
 
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, cast
 
@@ -10,11 +10,11 @@ from xdl.utils.registry import COLLATE_REGISTRY
 
 @COLLATE_REGISTRY.register("PadCollate")
 class PadCollate:
-    """不等长序列 collate — pad 到批次内最大长度。
+    """不等长序列 collate - pad 到批次内最大长度.
 
     Args:
-        pad_value: 填充值, 默认 0。
-        batch_first: 输出 batch 维度是否在前, 默认 True。
+        pad_value: 填充值, 默认 0.
+        batch_first: 输出 batch 维度是否在前, 默认 True.
     """
 
     def __init__(self, pad_value: float = 0.0, batch_first: bool = True) -> None:
@@ -44,10 +44,10 @@ class PadCollate:
 
 @COLLATE_REGISTRY.register("DictCollate")
 class DictCollate:
-    """dict-batch collate, 每键独立 collate。
+    """dict-batch collate, 每键独立 collate.
 
     Args:
-        keys: 需要 collate 的键列表, None 表示全部键。
+        keys: 需要 collate 的键列表, None 表示全部键.
     """
 
     def __init__(self, keys: Optional[list[str]] = None) -> None:
@@ -62,9 +62,10 @@ class DictCollate:
         for key in keys:
             values = [item[key] for item in batch]
             if isinstance(values[0], torch.Tensor):
-                try:
+                first_shape = values[0].shape
+                if all(isinstance(v, torch.Tensor) and v.shape == first_shape for v in values):
                     collated[key] = default_collate(values)
-                except RuntimeError:
+                else:
                     # 形状不一致的 tensor 保留为 list, 例如 pair/detection 的变长字段.
                     collated[key] = values
             else:

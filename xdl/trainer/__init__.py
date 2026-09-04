@@ -4,7 +4,6 @@ Trainer模块初始化文件
 
 from .core_model import CoreModel
 from .trainer import Trainer
-from .tbsm_model import TBSMCoreModel, TBSMModel
 
 __all__ = [
     "Trainer",
@@ -25,4 +24,8 @@ def __getattr__(name: str):
         from xdl.config.train_setup_model import TrainSetupModel
 
         return TrainSetupModel
+    if name in {"TBSMCoreModel", "TBSMModel"}:
+        from xdl.task.pretrain import TBSMCoreModel, TBSMModel
+
+        return TBSMCoreModel if name == "TBSMCoreModel" else TBSMModel
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

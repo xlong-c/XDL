@@ -29,7 +29,8 @@ class KLDivergenceLoss(nn.Module):
             raise ValueError(
                 f"mu and logvar shape mismatch: {mu.shape} vs {logvar.shape}"
             )
-        kl = -0.5 * (1.0 + logvar - mu.pow(2) - logvar.exp())
+        logvar_clamped = torch.clamp(logvar, max=20.0)
+        kl = -0.5 * (1.0 + logvar - mu.pow(2) - logvar_clamped.exp())
         kl = kl.flatten(1).sum(dim=1)
         if self.reduction == "mean":
             return kl.mean()

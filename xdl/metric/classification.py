@@ -56,7 +56,7 @@ class Accuracy:
 
 class Precision:
     """
-    精确率指标 — 支持 macro/micro 平均。
+    精确率指标 - 支持 macro/micro 平均.
     """
 
     def __init__(self, num_classes: int | None = None, average: str = "macro"):
@@ -83,8 +83,9 @@ class Precision:
                 fp += (pred_pos & ~true_pos).sum().float()
             return (tp / (tp + fp)).item() if tp + fp > 0 else 0.0
 
-        # macro: 逐类平均
+        # macro: 逐类平均 (仅对有效出现的类别求均值)
         precision_sum = torch.tensor(0.0, device=target.device)
+        valid_classes = 0
         for class_idx in range(self.num_classes):
             pred_pos = pred_labels == class_idx
             true_pos = target == class_idx
@@ -92,12 +93,13 @@ class Precision:
             fp = (pred_pos & ~true_pos).sum().float()
             if tp + fp > 0:
                 precision_sum += tp / (tp + fp)
-        return (precision_sum / self.num_classes).item()
+                valid_classes += 1
+        return (precision_sum / max(1, valid_classes)).item() if valid_classes > 0 else 0.0
 
 
 class Recall:
     """
-    召回率指标 — 支持 macro/micro 平均。
+    召回率指标 - 支持 macro/micro 平均.
     """
 
     def __init__(self, num_classes: int | None = None, average: str = "macro"):
@@ -124,8 +126,9 @@ class Recall:
                 fn += (~pred_pos & true_pos).sum().float()
             return (tp / (tp + fn)).item() if tp + fn > 0 else 0.0
 
-        # macro: 逐类平均
+        # macro: 逐类平均 (仅对有效出现的类别求均值)
         recall_sum = torch.tensor(0.0, device=target.device)
+        valid_classes = 0
         for class_idx in range(self.num_classes):
             pred_pos = pred_labels == class_idx
             true_pos = target == class_idx
@@ -133,12 +136,13 @@ class Recall:
             fn = (~pred_pos & true_pos).sum().float()
             if tp + fn > 0:
                 recall_sum += tp / (tp + fn)
-        return (recall_sum / self.num_classes).item()
+                valid_classes += 1
+        return (recall_sum / max(1, valid_classes)).item() if valid_classes > 0 else 0.0
 
 
 class F1Score:
     """
-    F1分数指标 — 支持 macro/micro 平均。
+    F1分数指标 - 支持 macro/micro 平均.
     """
 
     def __init__(self, num_classes: int | None = None, average: str = "macro"):
@@ -169,27 +173,30 @@ class F1Score:
                 return 0.0
             return (tp / (tp + 0.5 * (fp + fn))).item()
 
-        # macro: 逐类 F1 平均
+        # macro: 逐类 F1 平均 (仅对有效出现的类别求均值)
         f1_sum = torch.tensor(0.0, device=target.device)
+        valid_classes = 0
         for class_idx in range(self.num_classes):
             pred_pos = pred_labels == class_idx
             true_pos = target == class_idx
             tp = (pred_pos & true_pos).sum().float()
             fp = (pred_pos & ~true_pos).sum().float()
             fn = (~pred_pos & true_pos).sum().float()
-            precision = (
-                tp / (tp + fp)
-                if tp + fp > 0
-                else torch.tensor(0.0, device=target.device)
-            )
-            recall = (
-                tp / (tp + fn)
-                if tp + fn > 0
-                else torch.tensor(0.0, device=target.device)
-            )
-            if precision + recall > 0:
-                f1_sum += 2 * (precision * recall) / (precision + recall)
-        return (f1_sum / self.num_classes).item()
+            if (tp + fp > 0) or (tp + fn > 0):
+                precision = (
+                    tp / (tp + fp)
+                    if tp + fp > 0
+                    else torch.tensor(0.0, device=target.device)
+                )
+                recall = (
+                    tp / (tp + fn)
+                    if tp + fn > 0
+                    else torch.tensor(0.0, device=target.device)
+                )
+                if precision + recall > 0:
+                    f1_sum += 2 * (precision * recall) / (precision + recall)
+                valid_classes += 1
+        return (f1_sum / max(1, valid_classes)).item() if valid_classes > 0 else 0.0
 
 
 class MeanAbsoluteError:

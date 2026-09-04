@@ -1,8 +1,8 @@
 """Reusable model-side components for TBSM training.
 
 The implementation follows the Apache-2.0 licensed TBSM reference workflow
-from https://github.com/sp12138/TBSM and keeps the training loop in
-``xdl.trainer.tbsm_model``.
+from https://github.com/sp12138/TBSM and keeps the training task in
+``xdl.task.pretrain.tbsm``.
 """
 
 from __future__ import annotations

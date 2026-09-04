@@ -1,6 +1,6 @@
 """
-至简注册表系统。
-仅负责建立名称到对象的映射, 不再包含任何配置解析或权重处理逻辑。
+至简注册表系统.
+仅负责建立名称到对象的映射, 不再包含任何配置解析或权重处理逻辑.
 """
 
 import difflib
@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 
 
 class Registry:
-    """最简注册表, 仅提供映射管理。"""
+    """最简注册表, 仅提供映射管理."""
 
     def __init__(self, name: str):
         self.name = name
         self._registry: Dict[str, Any] = {}
 
     def register(self, name: Optional[str] = None) -> Callable:
-        """注册装饰器。"""
+        """注册装饰器."""
 
         def decorator(cls_or_fn):
             register_name = name if name is not None else cls_or_fn.__name__
@@ -36,7 +36,7 @@ class Registry:
         return decorator
 
     def get(self, name: str) -> Any:
-        """根据名称获取对象。用法: Registry.get('name')(*args, **kwargs)"""
+        """根据名称获取对象.用法: Registry.get('name')(*args, **kwargs)"""
         if name in self._registry:
             return self._registry[name]
 
@@ -52,7 +52,7 @@ class Registry:
         raise RegistryError(msg)
 
     def get_signature(self, name: str) -> str:
-        """获取并格式化组件的参数签名。"""
+        """获取并格式化组件的参数签名."""
         obj = self.get(name)
         try:
             # 如果是类, 获取 __init__ 的签名; 否则获取对象本身的签名
@@ -90,6 +90,8 @@ LOSS_REGISTRY = Registry("LOSS")
 METRIC_REGISTRY = Registry("METRIC")
 TRANSFORM_REGISTRY = Registry("TRANSFORM")
 COLLATE_REGISTRY = Registry("COLLATE")
+CALLBACK_REGISTRY = Registry("CALLBACK")
+TASK_REGISTRY = Registry("TASK")
 
 # --- 快捷装饰器 ---
 register_model = MODEL_REGISTRY.register
@@ -100,6 +102,8 @@ register_loss = LOSS_REGISTRY.register
 register_metric = METRIC_REGISTRY.register
 register_transform = TRANSFORM_REGISTRY.register
 register_collate = COLLATE_REGISTRY.register
+register_callback = CALLBACK_REGISTRY.register
+register_task = TASK_REGISTRY.register
 
 _BOOTSTRAPPED_MODULES: Dict[str, bool] = {}
 _BOOTSTRAPPING_MODULES: Set[str] = set()
@@ -119,11 +123,13 @@ def _bootstrap_modules_for_registry(registry: Registry) -> List[str]:
         return ["xdl.loss", "xdl.post_training._registry"]
     if registry is METRIC_REGISTRY:
         return ["xdl.metric"]
+    if registry is CALLBACK_REGISTRY:
+        return ["xdl.callbacks"]
     return []
 
 
 def _ensure_builtin_registries_for(registry: Registry) -> None:
-    """按需导入内置组件模块，避免依赖顶层 xdl import 的副作用。"""
+    """按需导入内置组件模块,避免依赖顶层 xdl import 的副作用."""
     for module_path in _bootstrap_modules_for_registry(registry):
         if _BOOTSTRAPPED_MODULES.get(module_path) or module_path in _BOOTSTRAPPING_MODULES:
             continue
@@ -138,7 +144,7 @@ def _ensure_builtin_registries_for(registry: Registry) -> None:
 
 
 def inspect_model(name: str):
-    """打印构建模型所需的参数。"""
+    """打印构建模型所需的参数."""
     print(f"[MODEL] {MODEL_REGISTRY.get_signature(name)}")
 
 
@@ -194,3 +200,7 @@ def build_metric(name: str):
 
 def build_transform(name: str):
     return TRANSFORM_REGISTRY.get(name)
+
+
+def build_callback(name: str):
+    return CALLBACK_REGISTRY.get(name)

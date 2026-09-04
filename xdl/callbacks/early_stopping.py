@@ -70,6 +70,10 @@ class EarlyStopping(Callback):
             and core_module._latest_val_metrics is not None
         ):
             metrics = core_module._latest_val_metrics
+            if self.monitor not in metrics and metrics:
+                self._logger.warning(
+                    f"EarlyStopping 监控的指标 '{self.monitor}' 未在验证指标中找到. 可用指标: {list(metrics.keys())}"
+                )
             return metrics.get(self.monitor)
         return None
 
