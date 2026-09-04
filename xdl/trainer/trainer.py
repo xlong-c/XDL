@@ -636,6 +636,8 @@ class Trainer:
 
         # 1. 钩子开始 (沿用标准验证钩子)
         model.eval()
+        model.on_validation_start()
+        self.callback_list.validation_start(trainer=self, core_module=model)
         model.on_validation_epoch_start()
         self.callback_list.validation_epoch_start(
             trainer=self, core_module=model)

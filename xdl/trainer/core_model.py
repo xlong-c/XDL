@@ -1052,12 +1052,14 @@ class CoreModel(Module):
                 self._load_module_state_dict(module, state)
 
         # 恢复优化器与调度器
+        optimizer_states = ckpt.get("optimizer_states") or {}
+        scheduler_states = ckpt.get("scheduler_states") or {}
         for i, opt in enumerate(self._optimizers):
-            if f"opt_{i}" in ckpt.get("optimizer_states", {} or {}):
-                opt.load_state_dict(ckpt["optimizer_states"][f"opt_{i}"])
+            if f"opt_{i}" in optimizer_states:
+                opt.load_state_dict(optimizer_states[f"opt_{i}"])
 
         for i, sch in enumerate(self._schedules):
-            state = ckpt.get("scheduler_states", {} or {}).get(f"sch_{i}")
+            state = scheduler_states.get(f"sch_{i}")
             if state and hasattr(sch, "load_state_dict"):
                 sch.load_state_dict(state)
 

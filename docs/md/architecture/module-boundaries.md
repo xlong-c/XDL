@@ -23,7 +23,7 @@ xdl/
   config/      YAML 到 TrainSetup 的构建链
   dataset/     数据集, transform, collate
   loss/        预训练通用损失函数
-  post_training/ 后训练组件 (偏好优化/RL, 蒸馏, SFT 合并, adapter 保存)
+  post_training/ 后训练组件, 按 losses/callbacks/checkpoint 分层
   metric/      评估指标
   model/       模型与工厂函数
   optimizer/   优化器
@@ -129,15 +129,16 @@ xdl/
 
 职责:
 
-- 收拢基于 pretrain checkpoint 的后训练组件:
-  - 偏好优化与 RL 损失 (DPO/STPO/GRPO) 与 rollout/参考模型回调
-  - 通用蒸馏损失与扩散 few-step 蒸馏损失
-  - SFT checkpoint 合并与 LoRA/adapter 状态保存回调
+- 收拢基于 pretrain checkpoint 的后训练组件,并按依赖层次分组:
+  - `losses/`: 偏好优化, 通用蒸馏和扩散 few-step 蒸馏的纯目标函数
+  - `callbacks/`: rollout, 参考模型和 adapter 状态保存等训练期扩展
+  - `checkpoint/`: checkpoint 合并等不依赖 Trainer 的产物处理
+- 根包只提供懒加载公开入口, 不在 import 阶段加载 callback 栈
 
 关键点:
 
-- loss 的 registry 名在自身 `__init__.py` 注册, 与 `xdl/loss` 名字空间互不覆盖
-- LOSS registry 解析时会引导导入本子模块 (`xdl/utils/registry.py`)
+- 旧的 `xdl.post_training.preference_loss` 等模块路径保持兼容.
+- LOSS registry 只导入 `xdl.post_training._registry`, 不触发 callbacks.
 - 从零训练不经过本子模块; 端到端参考入口为 `train/posttrain/train_GRPO.py`
 
 ## `xdl/metric`

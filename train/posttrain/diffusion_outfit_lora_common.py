@@ -7,7 +7,6 @@ encoder, 只给主 transformer 挂 LoRA, 用 flow matching velocity 目标训练
 
 from __future__ import annotations
 
-import csv
 import importlib
 import inspect
 import json
@@ -31,8 +30,10 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import functional as TF
 
-from xdl.callbacks import Callback
-from xdl.trainer.coreModel import CoreModel
+from xdl.dataset.utils import load_manifest_records
+from xdl.post_training.callbacks import SaveTrainableStateCallback
+from xdl.post_training.lora import normalize_lora_parameters
+from xdl.trainer.core_model import CoreModel
 from xdl.trainer.trainer import Trainer
 
 
@@ -130,16 +131,6 @@ def _coerce_optional_layers(raw_value: Any) -> Optional[Tuple[int, ...]]:
     return layers
 
 
-def _coerce_string_tuple(raw_value: Any, field_name: str) -> Tuple[str, ...]:
-    if isinstance(raw_value, str):
-        values = tuple(part.strip() for part in raw_value.split(",") if part.strip())
-    else:
-        values = tuple(str(item).strip() for item in raw_value if str(item).strip())
-    if not values:
-        raise ValueError(f"{field_name} 不能为空")
-    return values
-
-
 def load_outfit_config(
     default_config: dict[str, Any],
     config_env_var: str,
@@ -178,6 +169,12 @@ def load_outfit_config(
 
     val_manifest_raw = config_data.get("val_manifest")
     sample_input_raw = config_data.get("sample_input_image")
+    lora_params = normalize_lora_parameters(
+        config_data.get("target_modules", DEFAULT_TARGET_MODULES),
+        config_data["lora_rank"],
+        config_data["lora_alpha"],
+        config_data["lora_dropout"],
+    )
     return OutfitLoRAConfig(
         experiment_name=str(config_data["experiment_name"]),
         model_id=str(config_data["model_id"]),
@@ -205,13 +202,10 @@ def load_outfit_config(
             config_data.get("text_encoder_out_layers")
         ),
         train_component=str(config_data.get("train_component", "transformer")),
-        target_modules=_coerce_string_tuple(
-            config_data.get("target_modules", DEFAULT_TARGET_MODULES),
-            "target_modules",
-        ),
-        lora_rank=int(config_data["lora_rank"]),
-        lora_alpha=int(config_data["lora_alpha"]),
-        lora_dropout=float(config_data["lora_dropout"]),
+        target_modules=lora_params.target_modules,
+        lora_rank=lora_params.rank,
+        lora_alpha=lora_params.alpha,
+        lora_dropout=lora_params.dropout,
         weighting_scheme=str(config_data["weighting_scheme"]),
         logit_mean=float(config_data["logit_mean"]),
         logit_std=float(config_data["logit_std"]),
@@ -257,32 +251,6 @@ def import_object(qualified_name: str) -> Any:
         return getattr(module, object_name)
     except AttributeError as exc:
         raise ImportError(f"找不到对象: {qualified_name}") from exc
-
-
-def load_manifest_records(manifest_path: Path) -> List[dict[str, Any]]:
-    if not manifest_path.exists():
-        raise FileNotFoundError(f"manifest 不存在: {manifest_path}")
-
-    suffix = manifest_path.suffix.lower()
-    if suffix == ".jsonl":
-        records = []
-        for line in manifest_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line:
-                records.append(json.loads(line))
-        return records
-
-    if suffix == ".json":
-        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if not isinstance(payload, list):
-            raise ValueError("JSON manifest 须为对象数组")
-        return payload
-
-    if suffix == ".csv":
-        with manifest_path.open("r", encoding="utf-8", newline="") as file_obj:
-            return list(csv.DictReader(file_obj))
-
-    raise ValueError(f"不支持的 manifest 格式: {manifest_path.suffix}")
 
 
 def resolve_data_path(raw_path: str, manifest_path: Path) -> Path:
@@ -373,28 +341,6 @@ def outfit_collate_fn(
         "pixel_values": pixel_values,
         "source_pixel_values": source_pixel_values,
     }
-
-
-class LoRACheckpointCallback(Callback):
-    def __init__(self, output_dir: Path, every_n_epochs: int = 1) -> None:
-        super().__init__(priority=200)
-        self.output_dir = output_dir
-        self.every_n_epochs = max(1, every_n_epochs)
-
-    def on_train_epoch_end(self, trainer: Trainer, core_module: CoreModel) -> None:
-        if trainer.current_epoch % self.every_n_epochs != 0:
-            return
-        if hasattr(core_module, "save_lora_adapter"):
-            checkpoint_dir = (
-                self.output_dir
-                / "checkpoints"
-                / f"epoch_{trainer.current_epoch:04d}_step_{trainer.global_step:06d}"
-            )
-            core_module.save_lora_adapter(checkpoint_dir)
-
-    def on_train_end(self, trainer: Trainer, core_module: CoreModel) -> None:
-        if hasattr(core_module, "save_lora_adapter"):
-            core_module.save_lora_adapter(self.output_dir / "final")
 
 
 class BaseOutfitLoRAModel(CoreModel):
@@ -1022,8 +968,9 @@ def run_outfit_lora_training(
             shuffle=False,
         )
 
-    checkpoint_callback = LoRACheckpointCallback(
-        output_dir=config.output_dir,
+    checkpoint_callback = SaveTrainableStateCallback(
+        dirpath=config.output_dir / "checkpoints",
+        method_name="save_lora_adapter",
         every_n_epochs=config.save_every_n_epochs,
     )
 

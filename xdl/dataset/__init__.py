@@ -22,7 +22,7 @@ from .collate import DetectionCollate, DictCollate, ImageEditCollate, PadCollate
 from .detection import RecordDetectionDataset
 from .folder import ImageFolderDataset
 from .image_edit import ImageEditDataset
-from .image_text import ImageTextSidecarDataset, RecordImageTextDataset
+from .image_text import ImagePromptDataset, ImageTextSidecarDataset, RecordImageTextDataset
 from .pair import RecordPairDataset
 from .record import RecordDataset, RecordDatasetBase
 from .regression import RecordRegressionDataset
@@ -45,6 +45,7 @@ register_dataset("BasenameAlignedDataset")(BasenameAlignedDataset)
 register_dataset("RecordDataset")(RecordDataset)
 register_dataset("ImageFolderDataset")(ImageFolderDataset)
 register_dataset("ImageFolderClassificationDataset")(ImageFolderClassificationDataset)
+register_dataset("ImagePromptDataset")(ImagePromptDataset)
 register_dataset("ImageTextSidecarDataset")(ImageTextSidecarDataset)
 register_dataset("RecordClassificationDataset")(RecordClassificationDataset)
 register_dataset("RecordRegressionDataset")(RecordRegressionDataset)
@@ -112,6 +113,7 @@ __all__ = [
     "ImageFolderDataset",
     "ImageFolderClassificationDataset",
     "ImageTextSidecarDataset",
+    "ImagePromptDataset",
     "ImageMaskSidecarDataset",
     "RecordDatasetBase",
     "RecordClassificationDataset",

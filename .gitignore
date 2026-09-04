@@ -101,8 +101,8 @@ __pypackages__/
 # Celery stuff
 celerybeat-schedule
 celerybeat.pid
-./build-linux-clang/
-./build-linux-gcc/
+build-linux-clang/
+build-linux-gcc/
 # SageMath parsed files
 *.sage.py
 

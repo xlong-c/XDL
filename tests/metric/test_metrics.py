@@ -1,5 +1,7 @@
 """评估指标测试。"""
 
+from typing import get_type_hints
+
 import torch
 
 from xdl.metric.image_generation import (
@@ -120,6 +122,19 @@ class TestRegressionMetrics:
         target = torch.tensor([1.0, 3.0, 5.0])
         rmse = RootMeanSquaredError()(pred, target)
         assert abs(rmse - (5.0 / 3.0) ** 0.5) < 1e-5
+
+
+class TestTextMetrics:
+    def test_bleu_and_rouge_annotations_resolve(self):
+        assert get_type_hints(BLEUScore.__call__)["pred"]
+        assert get_type_hints(ROUGELScore.__call__)["target"]
+
+    def test_bleu_and_rouge_identical_sequences(self):
+        pred = [["a", "b"]]
+        target = [["a", "b"]]
+
+        assert BLEUScore()(pred, target) == 1.0
+        assert ROUGELScore()(pred, target) == 1.0
 
 
 class TestImageReconstructionMetrics:

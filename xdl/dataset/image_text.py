@@ -19,9 +19,11 @@ from .utils import (
     collect_sidecar_samples,
     first_present_value,
     load_image,
+    load_manifest_context,
     normalize_extension,
     normalize_extensions,
     path_sample_id,
+    resolve_record_path,
     sidecar_path_for_image,
 )
 
@@ -193,6 +195,44 @@ class ImageTextSidecarDataset(Dataset[Record]):
         raise ValueError(
             "text_selection must be one of: 'full', 'first_line', 'random_line'"
         )
+class ImagePromptDataset(Dataset[tuple[Any, str]]):
+    """Manifest-backed image/prompt dataset for multimodal training.
+
+    The dataset accepts JSONL, JSON, or CSV manifests and emits a tuple of
+    ``(transformed_image, prompt)`` for training loops that use positional
+    batches.  Prompt fields are checked in the configured order.
+    """
+
+    def __init__(
+        self,
+        manifest_path: PathLike,
+        transform: Transform = None,
+        text_keys: Sequence[str] = DEFAULT_TEXT_KEYS,
+        base_dir: Optional[PathLike] = None,
+        repeat: int = 1,
+    ) -> None:
+        self.manifest_path, self.base_dir, self.records = load_manifest_context(
+            manifest_path,
+            base_dir=base_dir,
+        )
+        self.transform = transform
+        self.text_keys = tuple(text_keys)
+        self.repeat = max(1, int(repeat))
+
+    def __len__(self) -> int:
+        return len(self.records) * self.repeat
+
+    def __getitem__(self, index: int) -> tuple[Any, str]:
+        base_index = index % len(self.records)
+        record = self.records[base_index]
+        image_path = resolve_record_path(record, "image", self.base_dir)
+        prompt = first_present_value(record, self.text_keys, default=None)
+        if prompt is None or not str(prompt).strip():
+            raise KeyError(
+                f"Manifest record requires one non-empty prompt field: {self.text_keys}"
+            )
+        image = apply_optional(self.transform, load_image(image_path, "RGB"))
+        return image, str(prompt).strip()
 
 
-__all__ = ["RecordImageTextDataset", "ImageTextSidecarDataset"]
+__all__ = ["RecordImageTextDataset", "ImageTextSidecarDataset", "ImagePromptDataset"]

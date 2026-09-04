@@ -10,15 +10,11 @@
 
 ## 当前内容
 
-- `preference_loss.py`: `dpo_loss`, `stpo_loss`, `grpo_loss` 及 breakdown
-- `distillation_loss.py`: 通用 KD 损失 (response/feature/relation)
-- `diffusion_distillation_loss.py`: 扩散模型步数蒸馏损失 (`tdm_loss`)
-- `rollout.py`: `RolloutCallback` - K 路 rollout, 奖励打分, 参考 logps,
-  注入 `RolloutBatch` 替换训练 batch
-- `reference_model.py`: `ReferenceModelCallback` - 冻结参考模型 + EMA 同步
-- `model_merge.py`: `ModelMergeCallback` - SFT checkpoint 线性插值合并
-- `save_trainable_state.py`: `SaveTrainableStateCallback` - LoRA/adapter
-  可训练状态保存
+- `losses/`: 后训练纯 loss 的分层入口, 包含偏好优化, 通用蒸馏和扩散步数蒸馏.
+- `callbacks/`: rollout, 冻结参考模型和 adapter 状态保存等训练期扩展.
+- `checkpoint/`: checkpoint 合并等不依赖 Trainer 的产物处理入口.
+- `lora.py`: LoRA target modules, rank, alpha 和 dropout 的共享规范化/校验协议.
+- 根目录旧模块 (`preference_loss.py` 等) 作为兼容实现路径保留, 新代码优先从上述分层入口导入.
 
 ## 修改约束
 

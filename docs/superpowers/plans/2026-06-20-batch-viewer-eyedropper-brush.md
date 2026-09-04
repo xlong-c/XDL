@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为 batch_viewer.py 添加大图模态框(取色器/涂抹/笔刷滚轮调大小)、工具栏单行 flexbox 布局、全屏功能。
+**Goal:** 为 batch_viewer.py 添加大图模态框(取色器/涂抹/笔刷滚轮调大小),工具栏单行 flexbox 布局,全屏功能.
 
-**Architecture:** 单文件修改 `tools/gui/batch_viewer.py`。后端新增 `POST /api/save-painted` 端点(PIL 解码 base64 → 覆盖写回原文件); 前端新增大图模态框(原图 `<img>` + 透明 `<canvas>` 叠加), 取色模式点 img 读像素, 涂抹模式在 canvas 上用圆点绘制, 滚轮调笔刷半径, 保存时 canvas.toBlob() → base64 → POST 到后端覆盖。
+**Architecture:** 单文件修改 `tools/gui/batch_viewer.py`.后端新增 `POST /api/save-painted` 端点(PIL 解码 base64 → 覆盖写回原文件); 前端新增大图模态框(原图 `<img>` + 透明 `<canvas>` 叠加), 取色模式点 img 读像素, 涂抹模式在 canvas 上用圆点绘制, 滚轮调笔刷半径, 保存时 canvas.toBlob() → base64 → POST 到后端覆盖.
 
 **Tech Stack:** Python 3.12+, FastAPI, pywebview, Pillow, vanilla JS (no framework)
 
 ---
 
-### Task 1: 后端 — 新增 save_painted 业务函数 + API 端点
+### Task 1: 后端 - 新增 save_painted 业务函数 + API 端点
 
 **Files:**
 - Modify: `tools/gui/batch_viewer.py` (add function in 业务函数区, add route in FastAPI 区)
@@ -67,11 +67,11 @@ async def api_save_painted(data: dict[str, Any]):
 ```bash
 timeout 3 python tools/gui/batch_viewer.py 2>&1 || true
 ```
-预期: 无 import/syntax 错误。
+预期: 无 import/syntax 错误.
 
 ---
 
-### Task 2: 前端 CSS — 工具栏 flexbox + 模态框 + 绘画层样式
+### Task 2: 前端 CSS - 工具栏 flexbox + 模态框 + 绘画层样式
 
 **Files:**
 - Modify: `tools/gui/batch_viewer.py` CSS 段 (lines ~377-533)
@@ -187,11 +187,11 @@ timeout 3 python tools/gui/batch_viewer.py 2>&1 || true
 
 - [ ] **Step 3: 删除旧的 `@media (max-width: 1280px)` toolbar 规则**
 
-旧的 grid 媒体查询已不适用。
+旧的 grid 媒体查询已不适用.
 
 ---
 
-### Task 3: 前端 HTML — 工具栏改为 flexbox 单行
+### Task 3: 前端 HTML - 工具栏改为 flexbox 单行
 
 **Files:**
 - Modify: `tools/gui/batch_viewer.py` HTML body 段 (lines ~537-553)
@@ -227,14 +227,14 @@ timeout 3 python tools/gui/batch_viewer.py 2>&1 || true
 
 ---
 
-### Task 4: 前端 HTML — 大图模态框结构
+### Task 4: 前端 HTML - 大图模态框结构
 
 **Files:**
 - Modify: `tools/gui/batch_viewer.py` HTML body 段, 在 `#content` 之后, `<script>` 之前插入
 
 - [ ] **Step 1: 插入模态框 HTML**
 
-在 `</div>` (content div 结束) 后面、`<script>` 前面添加:
+在 `</div>` (content div 结束) 后面,`<script>` 前面添加:
 
 ```html
 <div id="viewer-overlay">
@@ -269,10 +269,10 @@ timeout 3 python tools/gui/batch_viewer.py 2>&1 || true
 
 ---
 
-### Task 5: 前端 JS — 模态框状态 + 打开/关闭逻辑
+### Task 5: 前端 JS - 模态框状态 + 打开/关闭逻辑
 
 **Files:**
-- Modify: `tools/gui/batch_viewer.py` JS 段 — 在 `state` 对象后添加 viewer state, 在 `init()` 前添加 viewer 函数
+- Modify: `tools/gui/batch_viewer.py` JS 段 - 在 `state` 对象后添加 viewer state, 在 `init()` 前添加 viewer 函数
 
 - [ ] **Step 1: 添加 viewer state**
 
@@ -426,7 +426,7 @@ viewerBrushSizeInput.addEventListener('input', () => {
 
 ---
 
-### Task 6: 前端 JS — 取色器逻辑
+### Task 6: 前端 JS - 取色器逻辑
 
 **Files:**
 - Modify: `tools/gui/batch_viewer.py` JS 段
@@ -472,7 +472,7 @@ viewerImageEl.addEventListener('click', (event) => {
 
 ---
 
-### Task 7: 前端 JS — 涂抹绘画逻辑
+### Task 7: 前端 JS - 涂抹绘画逻辑
 
 **Files:**
 - Modify: `tools/gui/batch_viewer.py` JS 段
@@ -577,7 +577,7 @@ viewerOverlayEl.addEventListener('wheel', (event) => {
 
 ---
 
-### Task 8: 前端 JS — 撤销 + 保存 + 全屏
+### Task 8: 前端 JS - 撤销 + 保存 + 全屏
 
 **Files:**
 - Modify: `tools/gui/batch_viewer.py` JS 段
@@ -668,7 +668,7 @@ document.getElementById('brush-btn').addEventListener('click', () => {
 
 ---
 
-### Task 9: 验证 — 启动测试
+### Task 9: 验证 - 启动测试
 
 **Files:**
 - Test: 手动启动验证

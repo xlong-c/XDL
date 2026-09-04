@@ -11,6 +11,7 @@ from xdl.dataset import (
     BasenameAlignedDataset,
     ImageFolderDataset,
     ImageFolderClassificationDataset,
+    ImagePromptDataset,
     ImageTextSidecarDataset,
     RecordClassificationDataset,
     RecordDataset,
@@ -154,6 +155,28 @@ def test_manifest_classification_dataset_supports_string_labels_and_csv(
     assert dataset.classes == ["ant", "zebra"]
     assert torch.equal(image, torch.tensor([5, 4]))
     assert target == 1
+
+
+def test_manifest_image_prompt_dataset_supports_prompt_aliases_and_repeat(tmp_path) -> None:
+    image_path = tmp_path / "image.png"
+    manifest_path = tmp_path / "prompts.jsonl"
+    _save_rgb(image_path, (255, 0, 0))
+    manifest_path.write_text(
+        json.dumps({"image": image_path.name, "caption": "red object"}) + "\n",
+        encoding="utf-8",
+    )
+
+    dataset = ImagePromptDataset(
+        manifest_path,
+        transform=lambda image: torch.tensor(image.size),
+        text_keys=("prompt", "caption", "text"),
+        repeat=2,
+    )
+
+    image, prompt = dataset[1]
+    assert tuple(image.tolist()) == (5, 4)
+    assert prompt == "red object"
+    assert len(dataset) == 2
 
 
 def test_manifest_image_text_dataset_returns_text_sample_and_path(tmp_path) -> None:
@@ -419,6 +442,7 @@ def test_dataset_templates_are_registered() -> None:
         is ImageFolderClassificationDataset
     )
     assert DATASET_REGISTRY.get("ImageTextSidecarDataset") is ImageTextSidecarDataset
+    assert DATASET_REGISTRY.get("ImagePromptDataset") is ImagePromptDataset
     assert (
         DATASET_REGISTRY.get("RecordClassificationDataset")
         is RecordClassificationDataset

@@ -92,6 +92,19 @@ def test_fsdp_save_with_optimizer_raises_instead_of_silent_corruption() -> None:
             model.save_checkpoint(tmp, save_optimizer=True)
 
 
+def test_checkpoint_without_optimizer_or_scheduler_state_can_be_loaded() -> None:
+    model = SimpleModel()
+    model._ensure_optimizers_initialized()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        saved = model.save_checkpoint(
+            tmp,
+            save_optimizer=False,
+            save_scheduler=False,
+        )
+        model.load_checkpoint(saved)
+
+
 def test_non_fsdp_save_keeps_main_only_behavior() -> None:
     model = SimpleModel()
     with tempfile.TemporaryDirectory() as tmp:

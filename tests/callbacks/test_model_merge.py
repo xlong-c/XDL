@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from xdl.trainer.core_model import CoreModel
-from xdl.post_training.model_merge import ModelMergeCallback
+from xdl.post_training.model_merge import ModelMergeCallback, merge_checkpoints
 
 
 class SimpleModel(nn.Module):
@@ -146,6 +146,23 @@ def test_key_mismatch_raises() -> None:
             raise AssertionError("Expected ValueError")
         except ValueError:
             pass
+
+
+def test_merge_checkpoints_is_usable_without_trainer() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        m1 = SimpleModel()
+        m2 = SimpleModel()
+        with torch.no_grad():
+            m1.fc.weight.fill_(2.0)
+            m2.fc.weight.fill_(6.0)
+        p1 = _save_checkpoint(m1, str(base / "plain1.pt"))
+        p2 = _save_checkpoint(m2, str(base / "plain2.pt"))
+
+        output = merge_checkpoints([p1, p2], merge_weights=[1.0, 3.0])
+
+        merged = torch.load(output, weights_only=True)
+        assert torch.allclose(merged["fc.weight"], torch.full((4, 4), 5.0))
 
 
 def test_merge_at_start_vs_end() -> None:

@@ -26,7 +26,6 @@ FLUX.2 klein 9B 的 XDL LoRA 微调示例.
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 from contextlib import nullcontext
@@ -46,10 +45,12 @@ from peft import LoraConfig, get_peft_model, get_peft_model_state_dict
 from PIL import Image, ImageOps
 from omegaconf import DictConfig, OmegaConf
 from torch.optim import AdamW
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torchvision.transforms import functional as TF
 
-from xdl.callbacks import Callback
+from xdl.dataset import ImagePromptDataset
+from xdl.post_training.callbacks import SaveTrainableStateCallback
+from xdl.post_training.lora import normalize_lora_parameters
 from xdl.trainer.core_model import CoreModel
 from xdl.trainer.trainer import Trainer
 
@@ -184,6 +185,12 @@ def load_config() -> Flux2FinetuneConfig:
         sample_prompts = tuple(str(item) for item in sample_prompts_raw)
 
     val_manifest_raw = config_data.get("val_manifest")
+    lora_params = normalize_lora_parameters(
+        DEFAULT_TARGET_MODULES,
+        config_data["lora_rank"],
+        config_data["lora_alpha"],
+        config_data["lora_dropout"],
+    )
     return Flux2FinetuneConfig(
         model_id=str(config_data["model_id"]),
         train_manifest=Path(str(config_data["train_manifest"])),
@@ -201,9 +208,9 @@ def load_config() -> Flux2FinetuneConfig:
         model_dtype=str(config_data["model_dtype"]),
         max_sequence_length=int(config_data["max_sequence_length"]),
         text_encoder_out_layers=_coerce_layers(config_data["text_encoder_out_layers"]),
-        lora_rank=int(config_data["lora_rank"]),
-        lora_alpha=int(config_data["lora_alpha"]),
-        lora_dropout=float(config_data["lora_dropout"]),
+        lora_rank=lora_params.rank,
+        lora_alpha=lora_params.alpha,
+        lora_dropout=lora_params.dropout,
         weighting_scheme=str(config_data["weighting_scheme"]),
         logit_mean=float(config_data["logit_mean"]),
         logit_std=float(config_data["logit_std"]),
@@ -237,105 +244,10 @@ def save_run_config(config: Flux2FinetuneConfig) -> None:
     )
 
 
-def load_manifest_records(manifest_path: Path) -> List[dict[str, Any]]:
-    if not manifest_path.exists():
-        raise FileNotFoundError(f"manifest 不存在: {manifest_path}")
-
-    suffix = manifest_path.suffix.lower()
-    if suffix == ".jsonl":
-        records = []
-        for line in manifest_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            records.append(json.loads(line))
-        return records
-
-    if suffix == ".json":
-        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if not isinstance(payload, list):
-            raise ValueError("JSON manifest 须为对象数组")
-        return payload
-
-    if suffix == ".csv":
-        with manifest_path.open("r", encoding="utf-8", newline="") as file_obj:
-            return list(csv.DictReader(file_obj))
-
-    raise ValueError(f"不支持的 manifest 格式: {manifest_path.suffix}")
-
-
-def pick_prompt(record: dict[str, Any]) -> str:
-    for key in PROMPT_KEYS:
-        value = record.get(key)
-        if value is not None and str(value).strip():
-            return str(value).strip()
-    raise KeyError(f"记录缺少 prompt 字段, 需要其一: {PROMPT_KEYS}")
-
-
-def resolve_data_path(raw_path: str, manifest_path: Path) -> Path:
-    candidate = Path(raw_path)
-    if candidate.is_absolute():
-        return candidate
-    return (manifest_path.parent / candidate).resolve()
-
-
-class Flux2ImagePromptDataset(Dataset[tuple[torch.Tensor, str]]):
-    def __init__(self, manifest_path: Path, image_height: int, image_width: int):
-        self.manifest_path = manifest_path.resolve()
-        self.image_height = image_height
-        self.image_width = image_width
-        self.records = load_manifest_records(self.manifest_path)
-
-        if not self.records:
-            raise ValueError(f"manifest 为空: {manifest_path}")
-
-    def __len__(self) -> int:
-        return len(self.records)
-
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, str]:
-        record = self.records[index]
-        image_path = resolve_data_path(str(record["image"]), self.manifest_path)
-        prompt = pick_prompt(record)
-
-        image = Image.open(image_path).convert("RGB")
-        image = ImageOps.fit(
-            image,
-            (self.image_width, self.image_height),
-            method=Image.Resampling.LANCZOS,
-            centering=(0.5, 0.5),
-        )
-
-        pixel_values = TF.to_tensor(image)
-        pixel_values = pixel_values * 2.0 - 1.0
-        return pixel_values, prompt
-
-
 def flux2_collate_fn(batch: Sequence[tuple[torch.Tensor, str]]) -> tuple[torch.Tensor, List[str]]:
     pixel_values = torch.stack([item[0] for item in batch], dim=0)
     prompts = [item[1] for item in batch]
     return pixel_values, prompts
-
-
-class Flux2LoRACheckpointCallback(Callback):
-    def __init__(self, output_dir: Path, every_n_epochs: int = 1):
-        super().__init__(priority=200)
-        self.output_dir = output_dir
-        self.every_n_epochs = max(1, every_n_epochs)
-
-    def on_train_epoch_end(self, trainer: Trainer, core_module: CoreModel) -> None:
-        if trainer.current_epoch % self.every_n_epochs != 0:
-            return
-        if hasattr(core_module, "save_lora_adapter"):
-            checkpoint_dir = (
-                self.output_dir
-                / "checkpoints"
-                / f"epoch_{trainer.current_epoch:04d}_step_{trainer.global_step:06d}"
-            )
-            core_module.save_lora_adapter(checkpoint_dir)
-
-    def on_train_end(self, trainer: Trainer, core_module: CoreModel) -> None:
-        if hasattr(core_module, "save_lora_adapter"):
-            core_module.save_lora_adapter(self.output_dir / "final")
 
 
 class Flux2KleinLoRAModel(CoreModel):
@@ -597,10 +509,19 @@ def build_dataloader(
     num_workers: int,
     shuffle: bool,
 ) -> DataLoader:
-    dataset = Flux2ImagePromptDataset(
+    def transform(image: Image.Image) -> torch.Tensor:
+        fitted = ImageOps.fit(
+            image,
+            (image_width, image_height),
+            method=Image.Resampling.LANCZOS,
+            centering=(0.5, 0.5),
+        )
+        return TF.to_tensor(fitted) * 2.0 - 1.0
+
+    dataset = ImagePromptDataset(
         manifest_path=manifest_path,
-        image_height=image_height,
-        image_width=image_width,
+        transform=transform,
+        text_keys=PROMPT_KEYS,
     )
     return DataLoader(
         dataset,
@@ -641,8 +562,9 @@ def main() -> None:
             shuffle=False,
         )
 
-    checkpoint_callback = Flux2LoRACheckpointCallback(
-        output_dir=config.output_dir,
+    checkpoint_callback = SaveTrainableStateCallback(
+        dirpath=config.output_dir / "checkpoints",
+        method_name="save_lora_adapter",
         every_n_epochs=config.save_every_n_epochs,
     )
 

@@ -8,9 +8,7 @@ XDL_SD35_APEX_CONFIG=train/posttrain/sd35m_apex_lora.yaml python train/posttrain
 
 from __future__ import annotations
 
-import csv
 import importlib.util
-import json
 import os
 import random
 import sys
@@ -31,8 +29,8 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.utils import save_image
 
-from xdl.callbacks import Callback
 from xdl.config import load_structured_dataclass_config
+from xdl.dataset.utils import load_manifest_records
 from xdl.post_training import SaveTrainableStateCallback
 from xdl.trainer.core_model import CoreModel
 from xdl.trainer.trainer import Trainer
@@ -428,45 +426,6 @@ class SD35APEXPipelineModel(torch.nn.Module):
         return decoded
 
 
-class SD35LoRACheckpointCallback(Callback):
-    def __init__(
-        self,
-        output_dir: Path,
-        every_n_epochs: int = 1,
-        every_n_train_steps: Optional[int] = None,
-    ) -> None:
-        super().__init__(priority=200)
-        self.output_dir = output_dir
-        self.every_n_epochs = max(1, int(every_n_epochs))
-        self.every_n_train_steps = every_n_train_steps
-
-    def on_train_batch_end(
-        self,
-        trainer: Trainer,
-        core_module: CoreModel,
-        outputs: Any,
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int = 0,
-    ) -> None:
-        if not self.every_n_train_steps:
-            return
-        if trainer.global_step > 0 and trainer.global_step % self.every_n_train_steps == 0:
-            self._save(core_module, self.output_dir / "checkpoints" / f"step_{trainer.global_step:07d}")
-
-    def on_train_epoch_end(self, trainer: Trainer, core_module: CoreModel) -> None:
-        if trainer.current_epoch % self.every_n_epochs == 0:
-            path = self.output_dir / "checkpoints" / f"epoch_{trainer.current_epoch:04d}_step_{trainer.global_step:07d}"
-            self._save(core_module, path)
-
-    def on_train_end(self, trainer: Trainer, core_module: CoreModel) -> None:
-        self._save(core_module, self.output_dir / "final")
-
-    def _save(self, core_module: CoreModel, path: Path) -> None:
-        if hasattr(core_module, "save_lora_adapter"):
-            core_module.save_lora_adapter(path)
-
-
 class SD35APEXCoreModel(CoreModel):
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__()
@@ -828,27 +787,6 @@ def normalize_apex_batch(batch: Any) -> Dict[str, Any]:
     if isinstance(batch, dict):
         return batch
     raise TypeError(f"不支持的 batch 格式: {type(batch)!r}")
-
-
-def load_manifest_records(manifest_path: Path) -> List[Dict[str, Any]]:
-    if not manifest_path.exists():
-        raise FileNotFoundError(f"manifest 不存在: {manifest_path}")
-    suffix = manifest_path.suffix.lower()
-    if suffix == ".jsonl":
-        records = []
-        for line in manifest_path.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                records.append(json.loads(line))
-        return records
-    if suffix == ".json":
-        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if not isinstance(payload, list):
-            raise ValueError("JSON manifest 必须是对象数组")
-        return payload
-    if suffix == ".csv":
-        with manifest_path.open("r", encoding="utf-8", newline="") as file_obj:
-            return list(csv.DictReader(file_obj))
-    raise ValueError(f"不支持的 manifest 格式: {manifest_path.suffix}")
 
 
 def pick_prompt(record: Dict[str, Any]) -> str:

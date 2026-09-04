@@ -170,6 +170,21 @@ class DeviceObjectModel(RecordingModel):
         self.after_device_setup_called = True
 
 
+class ValidationLifecycleModel(RecordingModel):
+    def on_validation_start(self) -> None:
+        self.validation_batches.append("validation_start")
+
+
+class ValidationLifecycleCallback(Callback):
+    def __init__(self, events: List[str]) -> None:
+        super().__init__()
+        self.events = events
+
+    def on_validation_start(self, trainer: Trainer, core_module: CoreModel) -> None:
+        del trainer, core_module
+        self.events.append("callback_validation_start")
+
+
 class StatefulCallback(Callback):
     @property
     def state_key(self) -> str:
@@ -392,6 +407,22 @@ def test_trainer_invokes_fit_lifecycle_callbacks_in_order() -> None:
         "fit_end",
         "teardown:fit",
     ]
+
+
+def test_trainer_invokes_validation_start_lifecycle_hooks() -> None:
+    events: List[str] = []
+    callback = ValidationLifecycleCallback(events)
+    trainer = Trainer(max_epochs=1, device="cpu", callbacks=[callback])
+    model = ValidationLifecycleModel()
+
+    trainer.fit(
+        model=model,
+        train_dataloader=[0],
+        val_dataloader=[0],
+    )
+
+    assert model.validation_batches[0] == "validation_start"
+    assert events == ["callback_validation_start"]
 
 
 def test_float_val_check_interval_preserves_total_train_steps() -> None:

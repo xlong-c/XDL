@@ -115,8 +115,8 @@ def _bootstrap_modules_for_registry(registry: Registry) -> List[str]:
     if registry is SCHEDULER_REGISTRY:
         return ["xdl.scheduler"]
     if registry is LOSS_REGISTRY:
-        # 后训练损失 (蒸馏/偏好优化) 注册在 xdl.post_training, 一并引导
-        return ["xdl.loss", "xdl.post_training"]
+        # 只加载后训练 loss 注册模块, 避免导入 rollout/callback/checkpoint 栈.
+        return ["xdl.loss", "xdl.post_training._registry"]
     if registry is METRIC_REGISTRY:
         return ["xdl.metric"]
     return []

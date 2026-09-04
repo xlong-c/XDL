@@ -1,82 +1,52 @@
-"""
-后训练 (post-training) 子模块 - 收拢基于 pretrain checkpoint 的训练能力.
+"""后训练组件的轻量公开入口.
 
-覆盖后训练四类工作流:
-- SFT / LoRA 微调支撑: adapter 状态保存, SFT checkpoint 合并
-- 偏好优化与 RL: DPO / STPO / GRPO 损失, rollout 与冻结参考模型回调
-- 蒸馏: 通用 KD 损失与扩散模型 few-step 蒸馏损失
-
-从零训练 (预训练) 使用 `xdl.loss` 通用损失与 `xdl.trainer` 生命周期,
-不经过本子模块.
+本模块只保存公开符号映射, 不在导入阶段加载 loss 或 callback 实现.
+具体实现通过模块级 ``__getattr__`` 按需导入, 以保持 registry 和纯 loss
+路径的依赖边界清晰.
 """
 
-from ..utils.registry import register_loss
+from __future__ import annotations
 
-# 偏好优化损失 (DPO / STPO / GRPO)
-from .preference_loss import (
-    GRPOLossBreakdown,
-    STPOLossBreakdown,
-    dpo_loss,
-    grpo_loss,
-    stpo_loss,
-)
+from importlib import import_module
+from typing import Any
 
-# 知识蒸馏损失
-from .distillation_loss import (
-    DistillationLossBreakdown,
-    distillation_loss,
-    feature_distillation_loss,
-    kl_divergence_with_temperature,
-    relation_distillation_loss,
-)
+_EXPORTS = {
+    "DistillationLossBreakdown": (".losses", "DistillationLossBreakdown"),
+    "GRPOLossBreakdown": (".losses", "GRPOLossBreakdown"),
+    "STPOLossBreakdown": (".losses", "STPOLossBreakdown"),
+    "ModelMergeCallback": (".checkpoint", "ModelMergeCallback"),
+    "merge_checkpoints": (".checkpoint", "merge_checkpoints"),
+    "ReferenceModelCallback": (".callbacks", "ReferenceModelCallback"),
+    "RolloutBatch": (".callbacks", "RolloutBatch"),
+    "RolloutCallback": (".callbacks", "RolloutCallback"),
+    "SaveTrainableStateCallback": (".callbacks", "SaveTrainableStateCallback"),
+    "LoRAParameters": (".lora", "LoRAParameters"),
+    "normalize_lora_parameters": (".lora", "normalize_lora_parameters"),
+    "dpo_loss": (".losses", "dpo_loss"),
+    "stpo_loss": (".losses", "stpo_loss"),
+    "grpo_loss": (".losses", "grpo_loss"),
+    "distillation_loss": (".losses", "distillation_loss"),
+    "feature_distillation_loss": (".losses", "feature_distillation_loss"),
+    "kl_divergence_with_temperature": (".losses", "kl_divergence_with_temperature"),
+    "relation_distillation_loss": (".losses", "relation_distillation_loss"),
+    "tdm_loss": (".losses", "tdm_loss"),
+    "tdm_loss_weighted": (".losses", "tdm_loss_weighted"),
+    "normalize_lora_parameters": (".lora", "normalize_lora_parameters"),
+}
 
-# 扩散模型步数蒸馏损失
-from .diffusion_distillation_loss import tdm_loss, tdm_loss_weighted
-
-# 后训练回调
-from .model_merge import ModelMergeCallback
-from .reference_model import ReferenceModelCallback
-from .rollout import RolloutBatch, RolloutCallback
-from .save_trainable_state import SaveTrainableStateCallback
-
-
-def _register_post_training_losses() -> None:
-    """统一注册后训练损失到 LOSS_REGISTRY (registry 名与迁移前一致)"""
-
-    # 知识蒸馏损失
-    register_loss("kl_divergence_with_temperature")(kl_divergence_with_temperature)
-    register_loss("distillation_loss")(distillation_loss)
-    register_loss("feature_distillation_loss")(feature_distillation_loss)
-    register_loss("relation_distillation_loss")(relation_distillation_loss)
-
-    # 扩散模型步数蒸馏损失
-    register_loss("tdm_loss")(tdm_loss)
-    register_loss("tdm_loss_weighted")(tdm_loss_weighted)
-
-    # 偏好优化损失
-    register_loss("dpo_loss")(dpo_loss)
-    register_loss("stpo_loss")(stpo_loss)
-    register_loss("grpo_loss")(grpo_loss)
+__all__ = list(_EXPORTS)
 
 
-_register_post_training_losses()
+def __getattr__(name: str) -> Any:
+    """按需加载后训练公开符号."""
+    try:
+        module_name, attribute_name = _EXPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    value = getattr(import_module(module_name, __name__), attribute_name)
+    globals()[name] = value
+    return value
 
-__all__ = [
-    "DistillationLossBreakdown",
-    "GRPOLossBreakdown",
-    "STPOLossBreakdown",
-    "ModelMergeCallback",
-    "ReferenceModelCallback",
-    "RolloutBatch",
-    "RolloutCallback",
-    "SaveTrainableStateCallback",
-    "dpo_loss",
-    "stpo_loss",
-    "grpo_loss",
-    "distillation_loss",
-    "feature_distillation_loss",
-    "kl_divergence_with_temperature",
-    "relation_distillation_loss",
-    "tdm_loss",
-    "tdm_loss_weighted",
-]
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))
