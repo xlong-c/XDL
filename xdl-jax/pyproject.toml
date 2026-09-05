@@ -62,6 +62,7 @@ version = { attr = "xdl_jax._version.__version__" }
 [tool.pyright]
 include = ["xdl_jax"]
 exclude = ["tests", "examples"]
+extraPaths = ["."]
 typeCheckingMode = "basic"
 pythonVersion = "3.12"
 reportMissingImports = "error"

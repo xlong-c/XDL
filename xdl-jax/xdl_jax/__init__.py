@@ -42,7 +42,7 @@ from .errors import (
 from .model import FunctionalModelAdapter, ModelAdapter, NNXModelAdapter
 from .optimizer import build_optimizer
 from .performance import BenchmarkReport, benchmark_callable
-from .task import JaxTask
+from .task import BaseJaxTask, JaxTask
 from .trainer import JaxTrainer, TrainerConfig
 from .types import (
     JaxTrainerState,
@@ -75,6 +75,7 @@ __all__ = [
     "EarlyStoppingCallback",
     "FunctionalModelAdapter",
     "JaxCheckpointManager",
+    "BaseJaxTask",
     "JaxTask",
     "JaxStrategy",
     "JaxTrainState",

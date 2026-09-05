@@ -1,4 +1,6 @@
-"""xdl-jax 异常类型."""
+"""xdl-jax 异常类型, 保持自包含与清晰的错误层次."""
+
+from __future__ import annotations
 
 
 class XdlJaxError(Exception):

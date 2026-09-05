@@ -33,5 +33,6 @@ QAT,部署 runtime,serving 或 XQT workflow.
 - XQT 交接当前通过模型侧 artifact helper,不在训练过程中调用 XQT.
 
 实现入口见 [`xdl-jax/README.md`](../../../xdl-jax/README.md), API 和运行文档
-见 [`xdl-jax/docs/`](../../../xdl-jax/docs/),调研事实见
+见 [`xdl-jax/docs/`](../../../xdl-jax/docs/), 抽象抽离与对齐优化方案见
+[`xdl-jax-refactor-and-alignment.md`](xdl-jax-refactor-and-alignment.md), 调研事实见
 [`research/xdl-jax/RESEARCH.md`](../../../research/xdl-jax/RESEARCH.md).

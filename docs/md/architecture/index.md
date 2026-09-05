@@ -22,6 +22,8 @@
 - [api-boundary.md](api-boundary.md): `XDL` Stable / Provisional / Internal 边界与废弃策略.
 - [html-style-policy.md](html-style-policy.md): `XDL` 自有 HTML 阅读页长期规范.
 - [roadmap.md](roadmap.md): `XDL` 当前仍有效的优化方向.
+- [xdl-jax.md](xdl-jax.md): `xdl-jax` 独立 JAX 训练架构, 边界与限制.
+- [xdl-jax-refactor-and-alignment.md](xdl-jax-refactor-and-alignment.md): `xdl-jax` 抽象抽离与接口对齐优化方案.
 - [xqt.md](xqt.md): `XQT` 定位, 模型侧边界, Stage 约定, profiling 约定.
 - [xqt-kernels.md](xqt-kernels.md): `xqt.kernels` 统一内核命名空间, `spec / registry / selector / fused_op / ops / jit / aot` 契约与上层调用.
 - [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md): `kernel` / `wrapper/materialize` / `xqt.nn` 三层边界.

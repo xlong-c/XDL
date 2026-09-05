@@ -129,6 +129,14 @@ class MetricSnapshot:
     step_time_s: float | None = None
     compile_time_s: float | None = None
 
+    @property
+    def step(self) -> int:
+        return self.optimizer_step
+
+    @property
+    def train_loss(self) -> float:
+        return self.loss
+
 
 @dataclass(frozen=True)
 class JaxTrainerState:

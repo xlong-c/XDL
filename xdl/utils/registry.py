@@ -4,8 +4,8 @@
 """
 
 import difflib
-import inspect
 import importlib
+import inspect
 import logging
 from typing import Any, Callable, Dict, List, Optional, Set
 
@@ -55,7 +55,6 @@ class Registry:
         """获取并格式化组件的参数签名."""
         obj = self.get(name)
         try:
-            # 如果是类, 获取 __init__ 的签名; 否则获取对象本身的签名
             sig_obj = obj.__init__ if hasattr(obj, "__init__") else obj
             sig = inspect.signature(sig_obj)
 
@@ -64,7 +63,6 @@ class Registry:
                 if p_name == "self":
                     continue
 
-                # 构造参数显示字符串: name: type = default
                 p_str = f"{p_name}"
                 if param.annotation is not inspect.Parameter.empty:
                     p_str += f": {getattr(param.annotation, '__name__', str(param.annotation))}"
@@ -119,7 +117,6 @@ def _bootstrap_modules_for_registry(registry: Registry) -> List[str]:
     if registry is SCHEDULER_REGISTRY:
         return ["xdl.scheduler"]
     if registry is LOSS_REGISTRY:
-        # 只加载后训练 loss 注册模块, 避免导入 rollout/callback/checkpoint 栈.
         return ["xdl.loss", "xdl.post_training._registry"]
     if registry is METRIC_REGISTRY:
         return ["xdl.metric"]
@@ -140,9 +137,8 @@ def _ensure_builtin_registries_for(registry: Registry) -> None:
         finally:
             _BOOTSTRAPPING_MODULES.discard(module_path)
 
+
 # --- 检查/帮助辅助函数 ---
-
-
 def inspect_model(name: str):
     """打印构建模型所需的参数."""
     print(f"[MODEL] {MODEL_REGISTRY.get_signature(name)}")
@@ -171,8 +167,6 @@ except ImportError:
 
 
 # --- 统一入口 (仅查找, 实例化由调用方完成) ---
-
-
 def build_model(name: str):
     """用法: model = build_model('vgg19')(num_classes=10)"""
     return MODEL_REGISTRY.get(name)

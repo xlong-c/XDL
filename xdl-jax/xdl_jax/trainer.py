@@ -44,6 +44,7 @@ class TrainerConfig:
     log_every_n_steps: int = 1
     nan_patience: int = 0
     validate_every_n_epochs: int = 1
+    check_val_every_n_epoch: int | None = None
     max_train_steps: int | None = None
     platform: str = "cpu"
 
@@ -52,8 +53,17 @@ class TrainerConfig:
             raise ValueError("max_epochs must be positive")
         if self.gradient_accumulation_steps < 1:
             raise ValueError("gradient_accumulation_steps must be positive")
-        if self.precision not in {"32", "bfloat16", "float32"}:
-            raise ValueError("precision must be '32', 'float32' or 'bfloat16'")
+        prec = self.precision.lower()
+        if prec in {"bf16", "bfloat16"}:
+            object.__setattr__(self, "precision", "bfloat16")
+        elif prec in {"32", "fp32", "float32"}:
+            object.__setattr__(self, "precision", "32")
+        else:
+            raise ValueError("precision must be '32', 'float32', 'bf16' or 'bfloat16'")
+        if self.check_val_every_n_epoch is not None:
+            if self.check_val_every_n_epoch < 1:
+                raise ValueError("check_val_every_n_epoch must be positive")
+            object.__setattr__(self, "validate_every_n_epochs", self.check_val_every_n_epoch)
         if self.grad_clip_max_norm is not None and self.grad_clip_max_norm <= 0:
             raise ValueError("grad_clip_max_norm must be positive")
         if self.platform not in {"auto", "cpu", "gpu", "tpu"}:
@@ -119,8 +129,14 @@ class JaxTrainer:
         self.task = task
         self.config = config or TrainerConfig()
         self.optimizer_config = optimizer_config
+        all_callbacks = list(callbacks or [])
+        configure_callbacks = getattr(task, "configure_callbacks", None)
+        if callable(configure_callbacks):
+            task_callbacks = configure_callbacks()
+            if isinstance(task_callbacks, Iterable):
+                all_callbacks.extend(task_callbacks)
         self.callbacks = CallbackList(
-            callbacks,
+            all_callbacks,
             fail_on_error=self.config.fail_on_callback_error,
         )
         self.strategy = strategy or SingleDeviceStrategy(
@@ -130,18 +146,42 @@ class JaxTrainer:
         self._optimizer: optax.GradientTransformation | None = None
         self._train_step: Any = None
         self._eval_step: Any = None
+        self._predict_step_fn: Any = None
         self._batch_spec: BatchSpec | None = None
         self._stop_requested = False
         self._first_compile_time_s: float | None = None
         self._compile_report_emitted = False
         self._nonfinite_count = 0
         self.train_data: Any = None
+        self._current_epoch: int = 0
+        self._global_step: int = 0
+        self._current_step: int = 0
 
     @property
     def adapter(self) -> ModelAdapter:
         if self._adapter is None:
             raise TrainingError("trainer has not been initialized")
         return self._adapter
+
+    @property
+    def model(self) -> ModelAdapter:
+        """对齐 PyTorch Trainer.model 别名."""
+        return self.adapter
+
+    @property
+    def current_epoch(self) -> int:
+        """当前训练 Epoch 计数(0-indexed)."""
+        return self._current_epoch
+
+    @property
+    def global_step(self) -> int:
+        """当前累计的优化器步数 optimizer_step."""
+        return self._global_step
+
+    @property
+    def current_step(self) -> int:
+        """当前累计的 micro_step."""
+        return self._current_step
 
     @property
     def optimizer(self) -> optax.GradientTransformation:
@@ -335,19 +375,42 @@ class JaxTrainer:
             batch: Any,
             rng: jax.Array,
         ) -> tuple[jax.Array, Mapping[str, jax.Array]]:
-            loss, metrics, _updated_model = task.loss_and_metrics(
-                adapter,
-                model_state,
-                batch,
-                rng,
-                training=False,
-            )
+            val_fn = getattr(task, "validation_loss_and_metrics", None)
+            if callable(val_fn):
+                val_out = cast(tuple[Any, Any], val_fn(
+                    adapter,
+                    model_state,
+                    batch,
+                    rng,
+                ))
+                loss, metrics = val_out[0], val_out[1]
+            else:
+                loss, metrics, _updated_model = task.loss_and_metrics(
+                    adapter,
+                    model_state,
+                    batch,
+                    rng,
+                    training=False,
+                )
             if reduce_across_devices:
                 loss = self.strategy.reduce_metrics(loss)
                 metrics = self.strategy.reduce_metrics(metrics)
             return loss, metrics
 
         return eval_step
+
+    def _make_predict_step(self) -> Any:
+        adapter = self.adapter
+        task = self.task
+
+        def predict_step(model_state: Any, batch: Any, rng: jax.Array) -> Any:
+            predict_fn = getattr(task, "predict_step", None)
+            if callable(predict_fn):
+                return predict_fn(adapter, model_state, batch, rng=rng)
+            preds, _ = adapter.apply(model_state, batch, rng, training=False)
+            return preds
+
+        return jax.jit(predict_step) if self.config.jit else predict_step
 
     def _snapshot(
         self,
@@ -416,7 +479,7 @@ class JaxTrainer:
         state: JaxTrainState,
         val_data: Iterable[Any],
         *,
-        epoch: int,
+        epoch: int = 0,
     ) -> dict[str, float]:
         """在不修改训练 state 的情况下运行 validation."""
 
@@ -426,18 +489,23 @@ class JaxTrainer:
             raise TrainingError("trainer batch specification is not initialized")
         values: list[dict[str, float]] = []
         val_key = jax.random.fold_in(state.rng_key, epoch)
+        self.callbacks.invoke("on_validation_start", self)
+        self.callbacks.invoke("on_validation_epoch_start", self)
         for batch_index, batch in enumerate(val_data):
             batch = self._prepare_batch(batch)
             validate_batch(batch, self._batch_spec, name="validation batch")
             batch = self.strategy.place_batch(batch)
             batch_key = jax.random.fold_in(val_key, batch_index)
+            self.callbacks.invoke("on_validation_batch_start", self, batch_index)
             loss, metrics = self._eval_step(state.model_state, batch, batch_key)
             result = {
                 str(name): _host_float(value)
                 for name, value in dict(jax.device_get(metrics)).items()
             }
             result.setdefault("loss", _host_float(loss))
+            self.callbacks.invoke("on_validation_batch_end", self, batch_index, result)
             values.append(result)
+        self.callbacks.invoke("on_validation_end", self)
         if not values:
             return {}
         names = sorted({name for item in values for name in item})
@@ -445,6 +513,43 @@ class JaxTrainer:
             name: float(np.mean([item[name] for item in values if name in item]))
             for name in names
         }
+
+    def test(
+        self,
+        test_data: Iterable[Any],
+        *,
+        state: JaxTrainState | None = None,
+    ) -> dict[str, float]:
+        """在测试集上评估指标 (对齐 PyTorch Trainer.test)."""
+        target_state = state if state is not None else getattr(self, "_last_state", None)
+        if target_state is None:
+            raise TrainingError("test requires an explicit state or a prior fit() run")
+        return self.validate(target_state, test_data, epoch=self._current_epoch)
+
+    def predict(
+        self,
+        data: Iterable[Any],
+        *,
+        state: JaxTrainState | None = None,
+    ) -> list[Any]:
+        """批量推理预测 (对齐 PyTorch Trainer.predict)."""
+        target_state = state if state is not None else getattr(self, "_last_state", None)
+        if target_state is None:
+            raise TrainingError("predict requires an explicit state or a prior fit() run")
+        if self._predict_step_fn is None:
+            self._predict_step_fn = self._make_predict_step()
+        self.callbacks.invoke("on_predict_start", self)
+        predictions: list[Any] = []
+        pred_key = jax.random.fold_in(target_state.rng_key, 9999)
+        for batch_index, batch in enumerate(data):
+            batch = self._prepare_batch(batch)
+            batch = self.strategy.place_batch(batch)
+            batch_key = jax.random.fold_in(pred_key, batch_index)
+            output = self._predict_step_fn(target_state.model_state, batch, batch_key)
+            _block_until_ready(output)
+            predictions.append(jax.device_get(output))
+        self.callbacks.invoke("on_predict_end", self)
+        return predictions
 
     def fit(
         self,
@@ -513,9 +618,14 @@ class JaxTrainer:
         )
         history: list[MetricSnapshot] = []
         validation_history: list[dict[str, float]] = []
+        self._current_epoch = int(state.epoch)
+        self._global_step = int(state.optimizer_step)
+        self._current_step = int(state.micro_step)
         self.callbacks.invoke("on_fit_start", self, state)
+        self.callbacks.invoke("on_train_start", self)
 
         for epoch in range(int(state.epoch), self.config.max_epochs):
+            self._current_epoch = epoch
             if hasattr(train_data, "set_epoch"):
                 train_data.set_epoch(epoch)  # type: ignore[attr-defined]
             state = state.replace(epoch=epoch)
@@ -526,6 +636,7 @@ class JaxTrainer:
             else:
                 epoch_data = train_data
             for batch_index, batch in enumerate(epoch_data):
+                self.callbacks.invoke("on_train_batch_start", self, batch_index)
                 batch = self._prepare_batch(batch)
                 validate_batch(batch, self._batch_spec)
                 batch = self.strategy.place_batch(batch)
@@ -549,6 +660,8 @@ class JaxTrainer:
                         self._compile_report_emitted = True
                 snapshot = self._snapshot(state, output, step_time_s=elapsed)
                 history.append(snapshot)
+                self._global_step = snapshot.optimizer_step
+                self._current_step = snapshot.micro_step
                 if not snapshot.loss_finite or not snapshot.gradients_finite:
                     self._nonfinite_count += 1
                     if self._nonfinite_count > self.config.nan_patience:
@@ -572,6 +685,7 @@ class JaxTrainer:
                     break
             state = self._flush_accumulation(cast(JaxTrainState, state))
             state = state.replace(epoch=epoch + 1)
+            self._current_epoch = epoch + 1
             if hasattr(train_data, "set_epoch"):
                 train_data.set_epoch(epoch + 1)  # type: ignore[attr-defined]
             trainer_state = JaxTrainerState(
@@ -591,6 +705,8 @@ class JaxTrainer:
             if self._stop_requested:
                 break
 
+        self.callbacks.invoke("on_train_end", self)
+        self._last_state = state
         result = TrainResult(
             state=state,
             trainer_state=trainer_state,
