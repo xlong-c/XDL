@@ -164,8 +164,8 @@ def compute_module_tcav(
 
     def backward_hook(
         _module: nn.Module,
-        _grad_input: tuple[Any, ...],
-        grad_output: tuple[Any, ...],
+        _grad_input: Any,
+        grad_output: Any,
     ) -> None:
         grad_tensor = grad_output[0]
         if isinstance(grad_tensor, torch.Tensor):
@@ -224,8 +224,9 @@ def _default_output_selector(outputs: Any) -> torch.Tensor:
         logits = outputs.get("logits")
         if isinstance(logits, torch.Tensor):
             return logits
-    if hasattr(outputs, "logits") and isinstance(outputs.logits, torch.Tensor):
-        return outputs.logits
+    logits = getattr(outputs, "logits", None)
+    if isinstance(logits, torch.Tensor):
+        return logits
     raise TypeError("Could not resolve classifier logits from model outputs")
 
 

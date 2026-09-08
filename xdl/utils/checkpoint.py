@@ -48,14 +48,15 @@ def unflatten_state_dict(flat_dict: Dict[str, torch.Tensor]) -> Dict[str, Dict[s
 
 
 def save_checkpoint(save_dir: Path, checkpoint: Dict[str, Any], format: str = "pt") -> None:
-    """统一保存入口"""
+    """统一保存入口. 不修改传入的 checkpoint 字典."""
     save_dir.mkdir(parents=True, exist_ok=True)
     if format in ("st", "safetensors"):
         if not safetensors_save_file:
             raise ImportError("请安装 safetensors 以使用该格式")
-        state_dict = checkpoint.pop("state_dict", {})
+        state_dict = checkpoint.get("state_dict", {})
         safetensors_save_file(flatten_state_dict(state_dict), str(save_dir / "model.safetensors"))
-        torch.save(checkpoint, save_dir / "meta.pt")
+        meta = {key: value for key, value in checkpoint.items() if key != "state_dict"}
+        torch.save(meta, save_dir / "meta.pt")
     else:
         torch.save(checkpoint, save_dir / "checkpoint.pt")
 

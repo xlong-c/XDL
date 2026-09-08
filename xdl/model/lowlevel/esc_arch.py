@@ -7,7 +7,7 @@ from einops import rearrange
 
 from torch.nn.attention.flex_attention import flex_attention
 from torch.nn.attention import SDPBackend, sdpa_kernel
-from typing import Optional, Sequence, Literal
+from typing import Any, Callable, Literal, Mapping, Optional, Sequence, cast
 
 
 ATTN_TYPE = Literal['Naive', 'SDPA', 'Flex', 'FlashBias']
@@ -102,8 +102,13 @@ class ConvolutionalAttention(nn.Module):
             nn.GELU(),
             nn.Conv2d(pdim // 2, pdim * self.sk_size * self.sk_size, 1, 1, 0)
         )
-        nn.init.zeros_(self.dwc_proj[-1].weight)
-        nn.init.zeros_(self.dwc_proj[-1].bias)
+        last_conv = self.dwc_proj[-1]
+        if not isinstance(last_conv, nn.Conv2d):
+            raise TypeError("dwc_proj last layer must be Conv2d")
+        if last_conv.weight is None or last_conv.bias is None:
+            raise RuntimeError("dwc_proj last layer has no parameters")
+        nn.init.zeros_(last_conv.weight)
+        nn.init.zeros_(last_conv.bias)
 
     def forward(self, x: torch.Tensor, lk_filter: torch.Tensor) -> torch.Tensor:
         if self.training:
@@ -165,37 +170,48 @@ class ConvFFN(nn.Module):
 
 class WindowAttention(nn.Module):
     def __init__(
-            self, dim: int, window_size: int, num_heads: int,
-            attn_func=None, attn_type: str = 'Flex', flashbias_rank: Optional[int] = None
+            self, dim: int, window_size: int | Sequence[int], num_heads: int,
+            attn_func: Optional[Callable[..., Any]] = None, attn_type: str = 'Flex',
+            flashbias_rank: Optional[int] = None
         ):
         super().__init__()
         self.dim = dim
-        window_size = (window_size, window_size) if isinstance(window_size, int) else window_size
-        self.window_size = window_size
+        if isinstance(window_size, int):
+            self.window_size = (window_size, window_size)
+        else:
+            self.window_size = (int(window_size[0]), int(window_size[1]))
         self.num_heads = num_heads
         self.to_qkv = nn.Conv2d(dim, dim*3, 1, 1, 0)
         self.to_out = nn.Conv2d(dim, dim, 1, 1, 0)
 
         self.attn_type = attn_type
+        if not callable(attn_func):
+            raise ValueError("attn_func must be callable")
         self.attn_func = attn_func
-        
+        self.relative_position_bias: nn.Parameter
+        self.rpe_idxs: torch.Tensor
+        self.get_rpe: Callable[..., Any]
+        self.flashbias_q: Optional[nn.Parameter]
+        self.flashbias_k: Optional[nn.Parameter]
+        self.rpe_bias: nn.Parameter
+
         if attn_type != 'FlashBias':
             self.relative_position_bias = nn.Parameter(
-                torch.randn(num_heads, (2*window_size[0]-1)*(2*window_size[1]-1)).to(torch.float32) * 0.001
+                torch.randn(num_heads, (2*self.window_size[0]-1)*(2*self.window_size[1]-1)).to(torch.float32) * 0.001
             )
 
         if self.attn_type == 'Flex':
-            self.get_rpe = apply_rpe(self.relative_position_bias, window_size[0])
+            self.get_rpe = apply_rpe(self.relative_position_bias, self.window_size[0])
         else:
-            self.rpe_idxs = self.create_table_idxs(window_size[0], num_heads)
+            self.rpe_idxs = self.create_table_idxs(self.window_size[0], num_heads)
 
         self.flashbias_rank: int = 256 - (dim // num_heads) if flashbias_rank is None else flashbias_rank
         if self.attn_type == 'FlashBias':
             self.flashbias_q = nn.Parameter(
-                torch.zeros(num_heads, window_size[0]*window_size[1], self.flashbias_rank)
+                torch.zeros(num_heads, self.window_size[0]*self.window_size[1], self.flashbias_rank)
             )
             self.flashbias_k = nn.Parameter(
-                torch.zeros(num_heads, window_size[0]*window_size[1], self.flashbias_rank)
+                torch.zeros(num_heads, self.window_size[0]*self.window_size[1], self.flashbias_rank)
             )
         else:
             self.flashbias_q = None
@@ -276,8 +292,10 @@ class WindowAttention(nn.Module):
             N = q.shape[2]
             head_dim = q.shape[-1]
 
-            q_bias = self.flashbias_q.to(dtype=q.dtype, device=q.device).unsqueeze(0).expand(Bwin, -1, -1, -1)
-            k_bias = self.flashbias_k.to(dtype=k.dtype, device=k.device).unsqueeze(0).expand(Bwin, -1, -1, -1)
+            flashbias_q = cast(nn.Parameter, self.flashbias_q)
+            flashbias_k = cast(nn.Parameter, self.flashbias_k)
+            q_bias = flashbias_q.to(dtype=q.dtype, device=q.device).unsqueeze(0).expand(Bwin, -1, -1, -1)
+            k_bias = flashbias_k.to(dtype=k.dtype, device=k.device).unsqueeze(0).expand(Bwin, -1, -1, -1)
 
             softmax_scale = head_dim ** -0.5
             q_cat = torch.cat([q * softmax_scale, q_bias], dim=-1)
@@ -401,15 +419,15 @@ class ESC(nn.Module):
         self.plk_func = nn.Identity()
 
     @torch.no_grad()
-    def load_state_dict(self, state_dict, strict = True, assign = False):
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False):
+        state_dict = dict(state_dict)
         # For SubPixel Interpolation
         to_img_k = state_dict.get('to_img.weight')
         to_img_b = state_dict.get('to_img.bias')
+        if to_img_k is None or to_img_b is None:
+            raise ValueError("ESC state_dict must contain to_img.weight and to_img.bias")
         sd_scale = int((to_img_k.shape[0] // 3)**0.5)
         if sd_scale != self.upscaling_factor:
-            from copy import deepcopy
-
-            state_dict = deepcopy(state_dict)
             print(f'[ESC] Converting SubPixelConvolution from {sd_scale}x to {self.upscaling_factor}x')
 
             def interpolate_kernel(kernel, scale_in, scale_out):
@@ -431,7 +449,8 @@ class ESC(nn.Module):
             state_dict['to_img.bias'] = to_img_b
         
         # For RelPos Decomposition
-        if self.blocks[0].attn.attn_type == 'FlashBias' and 'blocks.0.attn.relative_position_bias' in state_dict:
+        first_attn = getattr(self.blocks[0], "attn", None)
+        if getattr(first_attn, "attn_type", None) == 'FlashBias' and 'blocks.0.attn.relative_position_bias' in state_dict:
             # Decompose RPE table into FlashBias factors when loading weights
             print('[ESC] Decomposing RPE table into FlashBias factors when loading weights...')
             capture_str = 'attn.relative_position_bias'
@@ -448,7 +467,8 @@ class ESC(nn.Module):
                 bias = bias_vec.view(num_heads, N, N).to(torch.float32)  
 
                 U, S, Vh = torch.linalg.svd(bias, full_matrices=False) 
-                r = self.blocks[block_idx].attn.flashbias_rank
+                block_attn = getattr(self.blocks[block_idx], "attn")
+                r = int(getattr(block_attn, "flashbias_rank"))
                 sr = torch.sqrt(S[:, :r]).unsqueeze(1) 
                 q_bias = U[:, :, :r] * sr 
                 k_bias = Vh[:, :r, :].transpose(-2, -1) * sr 
@@ -470,61 +490,3 @@ class ESC(nn.Module):
         x = self.to_img(feat) + torch.repeat_interleave(x, self.upscaling_factor**2, dim=1)
         x = F.pixel_shuffle(x, self.upscaling_factor)
         return x
-    
-
-if __name__== '__main__':
-    from fvcore.nn import flop_count_table, FlopCountAnalysis, ActivationCountAnalysis    
-    import numpy as np
-    from scripts.test_direct_metrics import test_direct_metrics
-    
-    test_size = 'HD'
-    # test_size = 'FHD'
-    # test_size = '4K'
-
-    height = 720 if test_size == 'HD' else 1080 if test_size == 'FHD' else 2160
-    width = 1280 if test_size == 'HD' else 1920 if test_size == 'FHD' else 3840
-    upsampling_factor = 2
-    batch_size = 1
-    
-    # Base
-    model_kwargs = {
-        'dim': 64,
-        'pdim': 16,
-        'kernel_size': 13, 
-        'n_blocks': 5,
-        'conv_blocks': 5,
-        'window_size': 32,
-        'num_heads': 4,
-        'upscaling_factor': upsampling_factor,
-        'exp_ratio': 1.25,
-        'attn_type': 'Flex',  # Naive, SDPA, Flex, and FlashBias / For FLOPs calculation, use Naive
-    }
-    # Light
-    # model_kwargs = {
-    #     'dim': 64,
-    #     'pdim': 16,
-    #     'kernel_size': 13, 
-    #     'n_blocks': 3,
-    #     'conv_blocks': 5,
-    #     'window_size': 32,
-    #     'num_heads': 4,
-    #     'upscaling_factor': upsampling_factor,
-    #     'exp_ratio': 1.25,
-    #     'attn_type': 'Flex',  # Naive, SDPA, Flex / For FLOPs calculation, use Naive
-    # }
-    shape = (batch_size, 3, height // upsampling_factor, width // upsampling_factor)
-    model = ESC(**model_kwargs)
-    print(model)
-    
-
-    test_direct_metrics(model, shape, use_float16=False, n_repeat=100)
-
-    # with torch.no_grad():
-    #     x = torch.randn(shape)
-    #     x = x.cuda()
-    #     model = model.cuda()
-    #     model = model.eval()
-    #     flops = FlopCountAnalysis(model, x)
-    #     print(f'FLOPs: {flops.total()/1e9:.2f} G')
-    #     print(f'Params: {sum([p.numel() for p in model.parameters() if p.requires_grad]) / 1000}K')
-    

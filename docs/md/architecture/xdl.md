@@ -28,7 +28,7 @@
 
 ## 核心分层
 
-`XDL` 的主干可以概括为五层:
+`XDL` 的主干可以概括为以下分层:
 
 ```text
 组件实现层
@@ -39,9 +39,14 @@
 
 配置构建层
   xdl/config/schema.py / resolver.py / builder.py / setup.py
+  xdl/config/train_setup_model.py
 
 训练编排层
-  xdl/trainer/core_model.py / trainer.py / train_setup_model.py
+  xdl/trainer/core_model.py / trainer.py
+
+任务与解析层
+  xdl/task/
+  xdl/analysis/
 
 横切扩展层
   xdl/callbacks/
@@ -61,7 +66,10 @@
 - `xdl/scheduler/`: 学习率调度器
 - `xdl/utils/registry.py`: 注册系统
 - `xdl/config/`: YAML 到 `TrainSetup`
-- `xdl/trainer/`: `CoreModel`, `Trainer`, `TrainSetupModel`
+- `xdl/trainer/`: `CoreModel`, `Trainer`
+- `xdl/task/`: 官方训练任务实现
+- `xdl/analysis/`: 中间表征解析与可解释性工具
+- `xdl/errors.py`: 统一异常层次
 - `xdl/callbacks/`: 日志, 检查点, 进度条, 早停等横切逻辑
 
 ## 关键抽象
@@ -173,7 +181,7 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 这里的职责分工是:
 
 - `setup_from_yaml()`: 解析配置并构建组件
-- `TrainSetup`: 承载 `model / optimizer / dataloader / loss / metrics`
+- `TrainSetup`: 承载组件 (`model / optimizer / dataloader / loss / metrics`) 和结构化配置 (`trainer / runtime / logging / checkpoint / accelerate`)
 - `setup.create_model()`: 把外部组件包装成 `TrainSetupModel`
 - `Trainer.from_setup()`: 按配置补齐常用回调
 

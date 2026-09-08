@@ -11,7 +11,7 @@ from .hair_transforms import HairAugMixin
 class GridImageDataset(HairAugMixin, Dataset):
     """一个从CSV索引加载图像的数据集类, 从网格中提取特定部分。"""
 
-    def __init__(self, csv_file, base_dir="/root/autodl-tmp", grid_rows=None):
+    def __init__(self, csv_file: str, base_dir: str, grid_rows: int | None = None) -> None:
         self.csv_file = csv_file
         self.base_dir = base_dir
 
@@ -88,7 +88,7 @@ class GridImageDataset(HairAugMixin, Dataset):
         return batch
 
     @staticmethod
-    def get_image_paths_from_csv(csv_file, base_dir="/root/autodl-tmp"):
+    def get_image_paths_from_csv(csv_file: str, base_dir: str) -> list[str]:
         image_paths = []
         with open(csv_file, encoding="utf-8") as f:
             reader = csv.reader(f)
@@ -96,48 +96,3 @@ class GridImageDataset(HairAugMixin, Dataset):
                 if row:
                     image_paths.append(os.path.join(base_dir, row[0]))
         return image_paths
-
-
-if __name__ == "__main__":
-    dset = GridImageDataset(
-        r"F:\BaiduNetDiskDownload\ture_data\newdata_1111.csv", r"F:\BaiduNetDiskDownload\ture_data"
-    )
-
-    import random
-
-    import matplotlib.pyplot as plt
-
-    sample_idx = random.randint(0, len(dset) - 1)
-    print(f"\n正在展示第 {sample_idx} 个样本(共 {len(dset)} 个样本)")
-
-    sample = dset[sample_idx]
-
-    print(f"Source image shape: {sample['source_pixel_values'].shape}")
-    print(f"Target image shape: {sample['target_pixel_values'].shape}")
-    print(f"Refer image shape: {sample['refer_pixel_values'].shape}")
-
-    def denormalize(tensor):
-        return (tensor * 0.5 + 0.5).clamp(0, 1)
-
-    source_img = denormalize(sample["source_pixel_values"]).permute(1, 2, 0).numpy()
-    target_img = denormalize(sample["target_pixel_values"]).permute(1, 2, 0).numpy()
-    refer_img = denormalize(sample["refer_pixel_values"]).permute(1, 2, 0).numpy()
-
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-    axes[0].imshow(source_img)
-    axes[0].set_title("Source Image")
-    axes[0].axis("off")
-
-    axes[1].imshow(target_img)
-    axes[1].set_title("Target Image")
-    axes[1].axis("off")
-
-    axes[2].imshow(refer_img)
-    axes[2].set_title("Refer Image")
-    axes[2].axis("off")
-
-    plt.tight_layout()
-    plt.show()
-
-    print("\n样本展示完成！")

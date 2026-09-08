@@ -2,7 +2,12 @@
 模型模块 - 包含常见的深度学习网络架构
 """
 
+import importlib
+import logging
+
 from ..utils.registry import register_model
+
+logger = logging.getLogger(__name__)
 
 # ResNet网络
 from .resnet import (
@@ -42,7 +47,16 @@ from .generate import (
     TwinFlow,
 )
 from .segment.fatt import FATT
-from .lowlevel import RGT, ATD, RRDBNet, OFTSR_UNet, OFTSR_SuperResModel, AutoEncoder_RRDBNet, ProbabilisticAutoEncoder_RRDBNet
+from .lowlevel import (
+    RGT,
+    ATD,
+    RRDBNet,
+    OFTSR_UNet,
+    OFTSR_SuperResModel,
+    AutoEncoder_RRDBNet,
+    ProbabilisticAutoEncoder_RRDBNet,
+    realplksr,
+)
 
 
 def _register_models():
@@ -61,8 +75,6 @@ def _register_models():
 
     # 注册ResNet系列模型
     register_model("ResNet")(ResNet)
-    register_model("BasicBlock")(BasicBlock)
-    register_model("Bottleneck")(Bottleneck)
     register_model("resnet18")(resnet18)
     register_model("resnet34")(resnet34)
     register_model("resnet50")(resnet50)
@@ -71,9 +83,6 @@ def _register_models():
 
     # 注册Vision Transformer系列模型
     register_model("VisionTransformer")(VisionTransformer)
-    register_model("PatchEmbedding")(PatchEmbedding)
-    register_model("MultiHeadAttention")(MultiHeadAttention)
-    register_model("TransformerBlock")(TransformerBlock)
     register_model("vit_tiny_patch16_224")(vit_tiny_patch16_224)
     register_model("vit_small_patch16_224")(vit_small_patch16_224)
     register_model("vit_base_patch16_224")(vit_base_patch16_224)
@@ -112,9 +121,33 @@ def _register_models():
     register_model("AutoEncoder_RRDBNet")(AutoEncoder_RRDBNet)
     register_model("ProbabilisticAutoEncoder_RRDBNet")(ProbabilisticAutoEncoder_RRDBNet)
 
+    # 注册 RealPLKSR 超分辨率模型 (仅依赖核心依赖)
+    register_model("RealPLKSR")(realplksr)
+
+
+# 研究型模型: 依赖较重或对 torch 版本敏感, 导入失败时显式告警并跳过.
+_OPTIONAL_MODELS = (
+    ("RealPLKSR_Ult", "xdl.model.lowlevel.realplksr_arch_ult", "realplksr"),
+    ("WFEN", "xdl.model.lowlevel.wfen_arch", "WFEN"),
+    ("DAT_2", "xdl.model.lowlevel.dat_arch", "dat_2"),
+    ("ESC", "xdl.model.lowlevel.esc_arch", "ESC"),
+)
+
+
+def _register_optional_models() -> None:
+    """注册依赖较重或版本敏感的研究模型; 依赖缺失时显式告警并跳过."""
+    for name, module_path, attribute in _OPTIONAL_MODELS:
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError as exc:
+            logger.warning("跳过注册 %s (%s): %s", name, module_path, exc)
+            continue
+        register_model(name)(getattr(module, attribute))
+
 
 # 自动执行模型注册
 _register_models()
+_register_optional_models()
 
 __all__ = [
     # VGG

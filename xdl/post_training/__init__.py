@@ -34,7 +34,7 @@ _EXPORTS = {
     "normalize_lora_parameters": (".lora", "normalize_lora_parameters"),
 }
 
-__all__ = list(_EXPORTS)
+__all__: list[str] = list(_EXPORTS)  # pyright: ignore[reportUnsupportedDunderAll]
 
 
 def __getattr__(name: str) -> Any:

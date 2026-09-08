@@ -9,31 +9,33 @@ from typing import Any, Dict, List, Optional
 import torch
 from torch.utils.data import DataLoader
 
+from .accelerate_config import AccelerateConfig, DeepSpeedConfig
+from .schema import CheckpointConfig, LoggingConfig, RuntimeConfig, TrainerConfig
+
 
 @dataclass
 class TrainSetup:
     """
-    训练配置数据类
-    
-    封装从 YAML 配置构建的所有训练组件,
-    提供类型安全的属性访问.
-    
+    训练配置数据类.
+
+    封装从 YAML 配置构建的训练组件和结构化配置. 训练参数只保留一份事实源:
+
+    - `trainer`: `TrainerConfig`, 含 `max_epochs`, `batch_size`, `precision`,
+      `gradient_accumulation_steps`, 梯度裁剪, `fsdp`, `nan_monitor` 等
+    - `runtime`: `RuntimeConfig`, 含 `device`, `seed`, `data_dir`, `output_dir`
+    - `logging` / `checkpoint`: 日志与检查点配置
+    - `accelerate` / `deepspeed`: 可选加速配置, 未配置时为 `None`
+
+    `trainer.batch_size` 在 `setup_from_yaml()` 中会被替换为解析后的
+    DataLoader batch size.
+
     Example:
         >>> setup = setup_from_yaml('config/vgg_cifar100.yaml')
-        >>> model = setup.model
-        >>> optimizer = setup.optimizer
-        >>> trainer = Trainer(
-        ...     model=setup.model,
-        ...     train_dataloader=setup.train_loader,
-        ...     val_dataloader=setup.val_loader,
-        ...     optimizer=setup.optimizer,
-        ...     loss_fn=setup.loss_fn,
-        ...     metrics=setup.metrics,
-        ...     max_epochs=100,
-        ... )
-        >>> trainer.fit()
+        >>> model = setup.create_model()
+        >>> trainer = Trainer.from_setup(setup)
+        >>> trainer.fit(model, setup.train_loader, setup.val_loader)
     """
-    
+
     # 核心组件
     model: torch.nn.Module
     train_loader: DataLoader
@@ -45,33 +47,21 @@ class TrainSetup:
     test_loader: Optional[DataLoader] = None
     scheduler: Optional[Any] = None
 
-    # 指标
+    # 指标与回调
     metrics: List[Any] = field(default_factory=list)
     callbacks: List[Any] = field(default_factory=list)
-    
+
+    # 结构化配置(唯一事实源)
+    trainer: TrainerConfig = field(default_factory=TrainerConfig)
+    runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+    accelerate: Optional[AccelerateConfig] = None
+    deepspeed: Optional[DeepSpeedConfig] = None
+
     # 完整配置(用于调试或自定义逻辑)
     full_config: Dict[str, Any] = field(default_factory=dict)
-    
-    # 日志 / 检查点 / 加速配置
-    logging_config: Dict[str, Any] = field(default_factory=dict)
-    checkpoint_config: Dict[str, Any] = field(default_factory=dict)
-    accelerate_config: Optional[Dict[str, Any]] = None
-    deepspeed_config: Optional[Dict[str, Any]] = None
 
-    # 训练参数
-    device: str = "cuda"
-    num_epochs: int = 100
-    batch_size: int = 128
-    precision: Optional[str] = None
-    gradient_accumulation_steps: int = 1
-    grad_clip_max_norm: Optional[float] = None
-    grad_clip_norm_type: float = 2.0
-    fsdp: Optional[Any] = None
-    nan_monitor: bool = True
-    nan_patience: int = 3
-    fail_on_callback_error: bool = False
-    trainer_config: Dict[str, Any] = field(default_factory=dict)
-    
     def create_model(self):
         """将外部组件包装为 CoreModel 子类,直接对接 Trainer.fit().
 

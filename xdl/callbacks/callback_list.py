@@ -120,27 +120,10 @@ class CallbackList:
             start_time = time.time()
 
             try:
-                # 执行回调 - 直接传递参数
+                # 执行回调: 先按签名预过滤 kwargs, 只调用一次.
+                # 回调体内抛出的 TypeError 不再被当作参数不匹配重试.
                 method = getattr(callback, hook_name)
-                try:
-                    result = method(trainer, core_module, **kwargs)
-                except TypeError:
-                    if kwargs:
-                        import inspect
-                        sig = inspect.signature(method)
-                        has_var_kw = any(
-                            p.kind == inspect.Parameter.VAR_KEYWORD
-                            for p in sig.parameters.values()
-                        )
-                        if not has_var_kw:
-                            valid_kwargs = {
-                                k: v for k, v in kwargs.items() if k in sig.parameters
-                            }
-                            result = method(trainer, core_module, **valid_kwargs)
-                        else:
-                            raise
-                    else:
-                        raise
+                result = method(trainer, core_module, **self._filter_kwargs(method, kwargs))
                 results.append(result)
 
                 # 记录执行统计
@@ -167,6 +150,26 @@ class CallbackList:
                     ) from e
 
         return results
+
+    @staticmethod
+    def _filter_kwargs(method: Any, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """按回调签名过滤 kwargs.
+
+        回调签名未声明且不接受 ``**kwargs`` 的键会被剔除, 以兼容窄签名
+        回调; 签名无法解析时保持原样, 由调用方报错.
+        """
+        if not kwargs:
+            return kwargs
+        try:
+            sig = inspect.signature(method)
+        except (TypeError, ValueError):
+            return kwargs
+        if any(
+            param.kind == inspect.Parameter.VAR_KEYWORD
+            for param in sig.parameters.values()
+        ):
+            return kwargs
+        return {key: value for key, value in kwargs.items() if key in sig.parameters}
 
     def _handle_callback_error(
         self, callback: "Callback", hook_name: str, error: Exception

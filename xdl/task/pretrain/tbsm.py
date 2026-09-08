@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import torch
 import torch.nn as nn
@@ -68,8 +68,11 @@ class TBSMCoreModel(CoreModel):
         self.ema_decay = float(ema_decay)
         self.t_sampling = tuple(float(value) for value in (t_sampling or ()))
         self.noise_scale = float(noise_scale)
-        self.gen_betas = tuple(float(value) for value in gen_betas)
-        self.tracker_betas = tuple(float(value) for value in tracker_betas)
+        self.gen_betas: tuple[float, float] = (float(gen_betas[0]), float(gen_betas[1]))
+        self.tracker_betas: tuple[float, float] = (
+            float(tracker_betas[0]),
+            float(tracker_betas[1]),
+        )
 
     @property
     def ema_generator(self) -> nn.Module:
@@ -95,7 +98,7 @@ class TBSMCoreModel(CoreModel):
         fields = self._unwrap_parallel(self.representation_fields)
         if not isinstance(fields, nn.ModuleList):
             raise TypeError("TBSM representation_fields must be an nn.ModuleList")
-        return list(fields)
+        return [cast(RepresentationScatteringField, field) for field in fields]
 
     def _generator_parameters(self) -> list[nn.Parameter]:
         """Return trainable generator parameters, preferring ``backbone``."""
@@ -123,7 +126,7 @@ class TBSMCoreModel(CoreModel):
             for parameter in field.tracker.parameters()
             if parameter.requires_grad
         ]
-        optimizers = [generator_optimizer]
+        optimizers: list[torch.optim.Optimizer] = [generator_optimizer]
         if tracker_parameters:
             optimizers.append(
                 torch.optim.AdamW(
@@ -194,7 +197,9 @@ class TBSMCoreModel(CoreModel):
         """Use the generator's image conversion hook when available."""
 
         converter = getattr(self._unwrap_parallel(self.generator), "to_image", None)
-        return converter(value) if callable(converter) else value * 0.5 + 0.5
+        if callable(converter):
+            return cast(torch.Tensor, converter(value))
+        return value * 0.5 + 0.5
 
     def _forward_generator(
         self,
@@ -236,7 +241,7 @@ class TBSMCoreModel(CoreModel):
         noise = torch.randn_like(real_images) * self.noise_scale
         unwrapped = getattr(generator, "unwrapped_forward", None)
         if callable(unwrapped):
-            generated = unwrapped(noise, labels, time)
+            generated = cast(torch.Tensor, unwrapped(noise, labels, time))
         else:
             generated = self._forward_generator(noise, labels, time)
         if was_training:
@@ -419,7 +424,10 @@ class TBSMCoreModel(CoreModel):
             evaluation=True,
         )
         converter = getattr(self._ema_generator, "to_image", None)
-        images = converter(generated) if callable(converter) else generated * 0.5 + 0.5
+        if callable(converter):
+            images = cast(torch.Tensor, converter(generated))
+        else:
+            images = generated * 0.5 + 0.5
         return images.float().clamp(0, 1)
 
     @torch.no_grad()

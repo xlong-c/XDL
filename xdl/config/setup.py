@@ -13,10 +13,10 @@ setup_from_yaml 函数.
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Type, TypeVar, Union
 from collections.abc import Mapping
 
-import torch
+from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
 from .builder import (
@@ -32,10 +32,31 @@ from .builder import (
     build_task,
     build_transform,
 )
+from .accelerate_config import AccelerateConfig, DeepSpeedConfig
 from .dataclass import TrainSetup
 from .errors import ConfigValidationError
 from .resolver import load_config_with_schema, to_plain_dict
-from .schema import CONFIG_SCHEMA_VERSION
+from .schema import (
+    CONFIG_SCHEMA_VERSION,
+    CheckpointConfig,
+    LoggingConfig,
+    RuntimeConfig,
+    TrainerConfig,
+)
+
+T = TypeVar("T")
+
+
+def _to_structured(node: Any, expected_type: Type[T]) -> T:
+    """把 OmegaConf 节点转换为声明好的结构化配置类型."""
+
+    value = OmegaConf.to_object(node)
+    if not isinstance(value, expected_type):
+        raise ConfigValidationError(
+            f"Expected structured config {expected_type.__name__}, "
+            f"got {type(value).__name__}"
+        )
+    return value
 
 
 def _resolve_transform_value(
@@ -54,7 +75,7 @@ def _resolve_transform_value(
 
 
 def _resolve_dataset_transform_value(
-    dataset_config: Dict[str, Any],
+    dataset_config: Mapping[str, Any],
     built_transforms: Dict[str, Any],
 ) -> Optional[Any]:
     params = dataset_config.get("params")
@@ -178,10 +199,8 @@ def setup_from_yaml(
         ("test_dataloader", "test"),
     ))
     dataloader_defaults = _collect_dataloader_defaults(resolved_config)
-    trainer_config = resolved_config.get("trainer", {})
-    if not isinstance(trainer_config, dict):
-        raise ConfigValidationError("trainer config must be a mapping")
-    trainer_batch_size = trainer_config.get("batch_size")
+    trainer_cfg = _to_structured(merged_config.trainer, TrainerConfig)
+    trainer_batch_size = trainer_cfg.batch_size
 
     built_transforms: Dict[str, Any] = {}
     for transform_name, transform_cfg in transform_config.items():
@@ -233,18 +252,22 @@ def setup_from_yaml(
     metrics = build_metrics(metrics_config)
     callbacks = build_callbacks(resolved_config.get("callbacks", []))
 
-    runtime_config = resolved_config.get("runtime", {})
-    runtime_device = runtime_config.get("device", "cuda" if torch.cuda.is_available() else "cpu")
-    selected_device = str(device) if device is not None else str(runtime_device)
+    runtime_cfg = _to_structured(merged_config.runtime, RuntimeConfig)
+    if device is not None:
+        runtime_cfg.device = str(device)
 
-    logging_config = resolved_config.get("logging") or {}
-    if not isinstance(logging_config, dict):
-        logging_config = {}
-    checkpoint_config = resolved_config.get("checkpoint") or {}
-    if not isinstance(checkpoint_config, dict):
-        checkpoint_config = {}
-    accelerate_config = resolved_config.get("accelerate")
-    deepspeed_config = resolved_config.get("deepspeed")
+    logging_cfg = _to_structured(merged_config.logging, LoggingConfig)
+    checkpoint_cfg = _to_structured(merged_config.checkpoint, CheckpointConfig)
+    accelerate_cfg = (
+        _to_structured(merged_config.accelerate, AccelerateConfig)
+        if merged_config.accelerate is not None
+        else None
+    )
+    deepspeed_cfg = (
+        _to_structured(merged_config.deepspeed, DeepSpeedConfig)
+        if merged_config.deepspeed is not None
+        else None
+    )
 
     selected_batch_size = trainer_batch_size
     if selected_batch_size is None:
@@ -263,7 +286,7 @@ def setup_from_yaml(
     train_loader = built_dataloaders.get("train")
     if train_loader is None:
         raise ConfigValidationError("train_dataloader config is required")
-    raw_grad_clip_max_norm = trainer_config.get("grad_clip_max_norm")
+    trainer_cfg.batch_size = int(selected_batch_size)
 
     return TrainSetup(
         model=model,
@@ -276,28 +299,12 @@ def setup_from_yaml(
         metrics=metrics,
         callbacks=callbacks,
         full_config=resolved_config,
-        device=selected_device,
-        num_epochs=int(trainer_config.get("max_epochs", 100)),
-        batch_size=int(selected_batch_size),
-        precision=trainer_config.get("precision"),
-        gradient_accumulation_steps=int(
-            trainer_config.get("gradient_accumulation_steps", 1)
-        ),
-        grad_clip_max_norm=float(raw_grad_clip_max_norm)
-        if raw_grad_clip_max_norm is not None
-        else None,
-        grad_clip_norm_type=float(trainer_config.get("grad_clip_norm_type", 2.0)),
-        fsdp=trainer_config.get("fsdp"),
-        nan_monitor=bool(trainer_config.get("nan_monitor", True)),
-        nan_patience=int(trainer_config.get("nan_patience", 3)),
-        fail_on_callback_error=bool(
-            trainer_config.get("fail_on_callback_error", False)
-        ),
-        trainer_config=dict(trainer_config),
-        logging_config=logging_config,
-        checkpoint_config=checkpoint_config,
-        accelerate_config=accelerate_config,
-        deepspeed_config=deepspeed_config,
+        trainer=trainer_cfg,
+        runtime=runtime_cfg,
+        logging=logging_cfg,
+        checkpoint=checkpoint_cfg,
+        accelerate=accelerate_cfg,
+        deepspeed=deepspeed_cfg,
     )
 
 

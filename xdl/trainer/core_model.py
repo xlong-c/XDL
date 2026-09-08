@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union, cast
 
 import torch
 from accelerate import Accelerator
@@ -998,7 +998,7 @@ class CoreModel(Module):
             from xdl.errors import ModelError
 
             try:
-                return self._accelerator.get_state_dict(module)
+                return cast(Dict[str, Any], self._accelerator.get_state_dict(module))
             except Exception as exc:
                 raise ModelError(
                     f"FSDP 聚合模块 {module.__class__.__name__} 的 state dict 失败: {exc}"
@@ -1143,8 +1143,22 @@ class CoreModel(Module):
     # ========== 步骤计数器访问方法 ==========
 
     def _set_gradient_accumulation_steps(self, steps: int) -> None:
-        """由 Trainer 注入梯度累积窗口大小."""
-        self._gradient_accumulation_steps = max(1, int(steps or 1))
+        """由 Trainer 注入梯度累积窗口大小.
+
+        模型自带同名属性 (legacy 路径) 时, ``accumulation_steps`` 仍以模型
+        属性为准; 两者不一致时显式告警, 避免静默分歧.
+        """
+        normalized = max(1, int(steps or 1))
+        legacy = self.__dict__.get("gradient_accumulation_steps")
+        if legacy is not None and int(legacy) != normalized:
+            logger.warning(
+                "%s 自带 gradient_accumulation_steps=%s, 与 Trainer 注入值 %s "
+                "不一致; accumulation_steps 将以模型属性为准.",
+                type(self).__name__,
+                legacy,
+                normalized,
+            )
+        self._gradient_accumulation_steps = normalized
 
     @property
     def total_train_steps(self) -> int:
@@ -1172,7 +1186,12 @@ class CoreModel(Module):
 
     @property
     def accumulation_steps(self) -> int:
-        """当前梯度累积窗口大小."""
+        """当前梯度累积窗口大小.
+
+        模型自带 ``gradient_accumulation_steps`` 属性时以模型属性为准
+        (legacy 路径); 与 Trainer 注入值不一致时由
+        ``_set_gradient_accumulation_steps`` 显式告警.
+        """
         steps = getattr(
             self,
             "gradient_accumulation_steps",

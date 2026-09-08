@@ -194,8 +194,8 @@ class ProbabilisticAutoEncoder_RRDBNet(AutoEncoder_RRDBNet):
             nn.Conv2d(3, 3, 3, 1, 1),
         )
 
-        self._body_feat = None
-        self._conv_first_feat = None
+        self._body_feat: torch.Tensor | None = None
+        self._conv_first_feat: torch.Tensor | None = None
         self._body_hook = self.decoder.body.register_forward_hook(self._hook_body)
         self._conv_first_hook = self.decoder.body[0].register_forward_hook(self._hook_conv_first)
 
@@ -214,6 +214,8 @@ class ProbabilisticAutoEncoder_RRDBNet(AutoEncoder_RRDBNet):
         bottleneck = self.encoder(x)
         out = self.decoder(bottleneck)
 
+        if self._body_feat is None or self._conv_first_feat is None:
+            raise RuntimeError("AESOP feature hooks did not capture features")
         feat = self._body_feat + self._conv_first_feat
         sigma = self.sigma_branch(feat)
 

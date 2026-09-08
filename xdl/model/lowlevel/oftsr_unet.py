@@ -9,6 +9,8 @@
 
 from abc import abstractmethod
 import math
+from typing import Optional
+
 import numpy as np
 import torch as th
 import torch.nn as nn
@@ -181,7 +183,7 @@ class AttentionPool2d(nn.Module):
         spacial_dim: int,
         embed_dim: int,
         num_heads_channels: int,
-        output_dim: int = None,
+        output_dim: Optional[int] = None,
     ):
         super().__init__()
         self.positional_embedding = nn.Parameter(
@@ -226,7 +228,7 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
 
 
 class Upsample(nn.Module):
-    def __init__(self, channels: int, use_conv: bool, dims: int = 2, out_channels: int = None):
+    def __init__(self, channels: int, use_conv: bool, dims: int = 2, out_channels: Optional[int] = None):
         super().__init__()
         self.channels = channels
         self.out_channels = out_channels or channels
@@ -247,7 +249,7 @@ class Upsample(nn.Module):
 
 
 class Downsample(nn.Module):
-    def __init__(self, channels: int, use_conv: bool, dims: int = 2, out_channels: int = None):
+    def __init__(self, channels: int, use_conv: bool, dims: int = 2, out_channels: Optional[int] = None):
         super().__init__()
         self.channels = channels
         self.out_channels = out_channels or channels
@@ -276,7 +278,7 @@ class ResBlock(TimestepBlock):
         channels: int,
         emb_channels: int,
         dropout: float,
-        out_channels: int = None,
+        out_channels: Optional[int] = None,
         use_conv: bool = False,
         use_scale_shift_norm: bool = False,
         dims: int = 2,
@@ -434,7 +436,7 @@ class OFTSR_UNet(nn.Module):
         channel_mult: tuple = (1, 2, 4, 8),
         conv_resample: bool = True,
         dims: int = 2,
-        num_classes: int = None,
+        num_classes: Optional[int] = None,
         use_checkpoint: bool = False,
         use_fp16: bool = False,
         num_heads: int = 1,
@@ -479,7 +481,7 @@ class OFTSR_UNet(nn.Module):
             linear(time_embed_dim, time_embed_dim),
         )
 
-        if self.num_classes is not None:
+        if num_classes is not None:
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
 
         ch = self.ch = input_ch = int(channel_mult[0] * model_channels)
@@ -495,7 +497,7 @@ class OFTSR_UNet(nn.Module):
 
         for level, mult in enumerate(channel_mult):
             for _ in range(num_res_blocks):
-                layers = [
+                layers: list[nn.Module] = [
                     ResBlock(
                         ch, time_embed_dim, dropout,
                         out_channels=int(mult * model_channels),
@@ -566,7 +568,7 @@ class OFTSR_UNet(nn.Module):
         for level, mult in list(enumerate(channel_mult))[::-1]:
             for i in range(num_res_blocks + 1):
                 ich = input_block_chans.pop()
-                layers = [
+                layers: list[nn.Module] = [
                     ResBlock(
                         ch + ich, time_embed_dim, dropout,
                         out_channels=int(model_channels * mult),
@@ -624,7 +626,7 @@ class OFTSR_UNet(nn.Module):
         self,
         x: th.Tensor,
         timesteps: th.Tensor,
-        y: th.Tensor = None,
+        y: Optional[th.Tensor] = None,
     ) -> th.Tensor:
         """前向传播。
 
@@ -667,10 +669,12 @@ class OFTSR_SuperResModel(OFTSR_UNet):
         self,
         x: th.Tensor,
         timesteps: th.Tensor,
-        low_res: th.Tensor = None,
+        low_res: Optional[th.Tensor] = None,
         **kwargs,
     ) -> th.Tensor:
         _, _, new_height, new_width = x.shape
+        if low_res is None:
+            raise ValueError("low_res is required for OFTSR_SuperResModel.forward")
         upsampled = F.interpolate(low_res, (new_height, new_width), mode="bilinear")
         x = th.cat([x, upsampled], dim=1)
         return super().forward(x, timesteps, **kwargs)

@@ -2,6 +2,7 @@
 配置加载、合并和引用解析。
 """
 
+import copy
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Union, cast
 
@@ -102,19 +103,6 @@ def _to_dict_config(config: ConfigInput) -> DictConfig:
     raise ConfigValidationError(f"Unsupported config input type: {type(config).__name__}")
 
 
-def _normalize_before_merge(raw_cfg: DictConfig) -> DictConfig:
-    data = OmegaConf.to_container(raw_cfg, resolve=False, enum_to_str=True)
-    if not isinstance(data, dict):
-        raise ConfigValidationError("Top-level config must be a mapping")
-
-    if isinstance(data.get("loss"), dict):
-        data["loss"] = [data["loss"]]
-    if isinstance(data.get("metrics"), dict):
-        data["metrics"] = [data["metrics"]]
-
-    return _ensure_mapping_config(OmegaConf.create(data))
-
-
 def merge_with_schema(
     config: ConfigInput,
     *,
@@ -124,7 +112,7 @@ def merge_with_schema(
 
     register_default_resolvers()
     base_cfg = create_structured_config(schema)
-    raw_cfg = _normalize_before_merge(_to_dict_config(config))
+    raw_cfg = _to_dict_config(config)
 
     try:
         merged_cfg = OmegaConf.merge(base_cfg, raw_cfg)
@@ -138,10 +126,9 @@ def resolve_config(config: DictConfig) -> DictConfig:
     """解析 `${...}` 插值并返回新的配置对象。"""
 
     try:
-        cfg_copy = OmegaConf.create(
-            OmegaConf.to_container(config, resolve=False, enum_to_str=True)
-        )
-        cfg_copy = _ensure_mapping_config(cfg_copy)
+        # deepcopy 保留 structured config 的 object_type 元数据,
+        # 避免 to_container + create 把 dataclass 节点退化成 plain dict.
+        cfg_copy = copy.deepcopy(config)
         OmegaConf.resolve(cfg_copy)
         return cfg_copy
     except OmegaConfBaseException as exc:

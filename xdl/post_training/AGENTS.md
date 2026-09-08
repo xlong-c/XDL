@@ -18,8 +18,8 @@
 
 ## 修改约束
 
-- loss 的 LOSS_REGISTRY 注册集中在 `__init__.py` 的
-  `_register_post_training_losses()`, registry 名保持稳定 (YAML 引用)
+- loss 的 LOSS_REGISTRY 注册集中在 `_registry.py` 的
+  `register_post_training_losses()`, registry 名保持稳定 (YAML 引用)
 - `xdl/utils/registry.py` 的 LOSS bootstrap 会引导导入本子模块, 不要在
   其他组件包内反向 import 本子模块
 - `RolloutCallback` 的 `rollout_ref_logps` 必须由 `ref_logp_fn` 真实计算,

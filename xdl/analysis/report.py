@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 
 def flatten_mapping(
@@ -31,13 +31,16 @@ def flatten_mapping(
 def normalize_record(record: object) -> dict[str, Any]:
     """Convert a mapping or dataclass-like object into a dictionary."""
 
-    if hasattr(record, "to_dict"):
-        raw = record.to_dict()
+    to_dict = getattr(record, "to_dict", None)
+    if callable(to_dict):
+        raw = to_dict()
     elif isinstance(record, Mapping):
-        raw = dict(record)
+        raw = record
     else:
         raise TypeError("record must be a mapping or expose to_dict()")
-    return raw
+    if not isinstance(raw, Mapping):
+        raise TypeError("record.to_dict() must return a mapping")
+    return dict(raw)
 
 
 def records_to_rows(records: list[object]) -> list[dict[str, Any]]:
@@ -58,7 +61,7 @@ def write_json_report(data: Mapping[str, Any], path: str | Path) -> Path:
     return output_path
 
 
-def write_csv_report(rows: list[Mapping[str, Any]], path: str | Path) -> Path:
+def write_csv_report(rows: Sequence[Mapping[str, Any]], path: str | Path) -> Path:
     """Write row dictionaries to a CSV report."""
 
     output_path = Path(path)

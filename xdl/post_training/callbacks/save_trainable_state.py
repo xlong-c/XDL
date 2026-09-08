@@ -132,3 +132,6 @@ class SaveTrainableStateCallback(Callback):
             cast(Callable[[Path], None], method)(path)
         if self.verbose:
             self._logger.info("Trainable state saved to %s", path)
+
+
+__all__ = ["SaveTrainableStateCallback"]

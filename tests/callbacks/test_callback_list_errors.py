@@ -24,6 +24,39 @@ class FakeTrainer:
     pass
 
 
+class TypeErrorBodyCallback(Callback):
+    """回调体内抛 TypeError, 用于验证不会被当作参数不匹配重试."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = 0
+
+    def on_train_batch_end(
+        self,
+        trainer,
+        core_module,
+        outputs,
+        batch,
+        batch_idx,
+        dataloader_idx: int = 0,
+    ) -> None:
+        del trainer, core_module, outputs, batch, batch_idx, dataloader_idx
+        self.calls += 1
+        raise TypeError("body failure")
+
+
+def test_callback_body_type_error_is_not_retried() -> None:
+    callback = TypeErrorBodyCallback()
+    callback_list = CallbackList([callback])
+
+    callback_list.train_batch_end(
+        FakeTrainer(), object(), outputs={}, batch=object(), batch_idx=0
+    )
+
+    assert callback.calls == 1
+    assert callback_list._error_count == 1
+
+
 def test_fast_fail_callback_raises_immediately() -> None:
     callback_list = CallbackList([FastFailRaisingCallback()])
     with pytest.raises(TrainingError, match="fast_fail"):

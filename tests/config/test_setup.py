@@ -87,14 +87,13 @@ def test_setup_from_yaml_supports_new_schema(tmp_path) -> None:
     assert type(setup.optimizer).__name__ == "SGD"
     assert type(setup.scheduler).__name__ == "StepLR"
     assert type(setup.loss_fn).__name__ == "CrossEntropyLoss"
-    assert setup.num_epochs == 3
-    assert setup.batch_size == 2
-    assert setup.device == "cpu"
-    assert setup.precision == "bf16"
-    assert setup.gradient_accumulation_steps == 3
-    assert setup.grad_clip_max_norm == 0.5
-    assert setup.grad_clip_norm_type == 1.0
-    assert setup.trainer_config["gradient_accumulation_steps"] == 3
+    assert setup.trainer.max_epochs == 3
+    assert setup.trainer.batch_size == 2
+    assert setup.runtime.device == "cpu"
+    assert setup.trainer.precision == "bf16"
+    assert setup.trainer.gradient_accumulation_steps == 3
+    assert setup.trainer.grad_clip_max_norm == 0.5
+    assert setup.trainer.grad_clip_norm_type == 1.0
     assert setup.train_loader is not None
     assert setup.train_loader.batch_size == 2
     assert setup.train_loader.num_workers == 2

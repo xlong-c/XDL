@@ -8,18 +8,10 @@ Model Summary Callback
 import logging
 from typing import Any, Dict, Optional
 
+import torch
+import torch.nn as nn
+
 from .base import Callback
-
-# 尝试导入torch
-try:
-    import torch
-    import torch.nn as nn
-
-    TORCH_AVAILABLE = True
-except ImportError:
-    torch = None
-    nn = None
-    TORCH_AVAILABLE = False
 
 
 class ModelSummary(Callback):
@@ -52,10 +44,6 @@ class ModelSummary(Callback):
 
     def on_train_start(self, trainer, core_module):
         """训练开始时显示模型摘要"""
-        if not TORCH_AVAILABLE:
-            print("Warning: PyTorch not available, model summary disabled")
-            return
-
         try:
             summary = self._analyze_model(core_module)
             self._display_summary(summary)

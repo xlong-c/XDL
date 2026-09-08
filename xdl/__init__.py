@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from . import optimizer as optimizer
     from . import post_training as post_training
     from . import scheduler as scheduler
+    from . import task as task
     from . import trainer as trainer
     from . import utils as utils
 
@@ -33,6 +34,7 @@ _LAZY_SUBMODULES = {
     "optimizer",
     "post_training",
     "scheduler",
+    "task",
     "trainer",
     "utils",
 }
@@ -85,6 +87,7 @@ __all__ = [
     "optimizer",
     "post_training",
     "scheduler",
+    "task",
     "trainer",
     "utils",
     "get_usage_text",

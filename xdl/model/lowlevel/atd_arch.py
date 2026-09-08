@@ -6,11 +6,14 @@ Arxiv: 'https://arxiv.org/abs/2401.08209'
 '''
 
 import math
+from typing import cast
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.layers import to_2tuple, trunc_normal_
+from timm.layers.helpers import to_2tuple
+from timm.layers.weight_init import trunc_normal_
 from torch.utils.checkpoint import checkpoint
 
 
@@ -485,7 +488,7 @@ class BasicBlock(nn.Module):
     def flops(self, input_resolution=None):
         flops = 0
         for layer in self.layers:
-            flops += layer.flops(input_resolution)
+            flops += getattr(layer, "flops")(input_resolution)
         if self.downsample is not None:
             flops += self.downsample.flops(input_resolution)
         return flops
@@ -570,8 +573,8 @@ class ATDB(nn.Module):
 class PatchEmbed(nn.Module):
     def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
         super().__init__()
-        img_size = to_2tuple(img_size)
-        patch_size = to_2tuple(patch_size)
+        img_size = cast(tuple[int, int], to_2tuple(img_size))
+        patch_size = cast(tuple[int, int], to_2tuple(patch_size))
         patches_resolution = [img_size[0] // patch_size[0], img_size[1] // patch_size[1]]
         self.img_size = img_size
         self.patch_size = patch_size
@@ -603,8 +606,8 @@ class PatchEmbed(nn.Module):
 class PatchUnEmbed(nn.Module):
     def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
         super().__init__()
-        img_size = to_2tuple(img_size)
-        patch_size = to_2tuple(patch_size)
+        img_size = cast(tuple[int, int], to_2tuple(img_size))
+        patch_size = cast(tuple[int, int], to_2tuple(patch_size))
         patches_resolution = [img_size[0] // patch_size[0], img_size[1] // patch_size[1]]
         self.img_size = img_size
         self.patch_size = patch_size
@@ -674,9 +677,11 @@ class UpsampleOneStep(nn.Sequential):
         m.append(nn.PixelShuffle(scale))
         super(UpsampleOneStep, self).__init__(*m)
 
-    def flops(self, input_resolution):
+    def flops(self, input_resolution=None):
         flops = 0
-        h, w = self.patches_resolution if input_resolution is None else input_resolution
+        if input_resolution is None:
+            raise ValueError("input_resolution is required for UpsampleOneStep.flops")
+        h, w = input_resolution
         flops = h * w * self.num_feat * 3 * 9
         return flops
 
@@ -832,15 +837,15 @@ class ATD(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    @torch.jit.ignore
+    @torch.jit.ignore  # pyright: ignore[reportArgumentType]
     def no_weight_decay(self):
         return {'absolute_pos_embed'}
 
-    @torch.jit.ignore
+    @torch.jit.ignore  # pyright: ignore[reportArgumentType]
     def no_weight_decay_keywords(self):
         return {'relative_position_bias_table'}
 
-    def forward_features(self, x, params):
+    def forward_features(self, x, params=None):
         x_size = (x.shape[2], x.shape[3])
         x = self.patch_embed(x)
         if self.ape:
@@ -944,7 +949,7 @@ class ATD(nn.Module):
         flops += h * w * 3 * self.embed_dim * 9
         flops += self.patch_embed.flops(resolution)
         for layer in self.layers:
-            flops += layer.flops(resolution)
+            flops += getattr(layer, "flops")(resolution)
         flops += h * w * 3 * self.embed_dim * self.embed_dim
         if self.upsampler == 'pixelshuffle':
             flops += self.upsample.flops(resolution)

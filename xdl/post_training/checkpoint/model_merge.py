@@ -10,7 +10,7 @@ Ref: Krea 2 Technical Report (2026), SFT section.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Sequence, cast
 
 import torch
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 def merge_checkpoints(
-    checkpoint_paths: list[str | Path],
+    checkpoint_paths: Sequence[str | Path],
     merge_weights: list[float] | None = None,
     output_path: str | Path | None = None,
 ) -> Path:
@@ -66,10 +66,14 @@ def merge_checkpoints(
         tensors = [state_dict[key] for state_dict in state_dicts]
         if not all(torch.is_tensor(tensor) for tensor in tensors):
             raise TypeError(f"Checkpoint value for '{key}' is not a tensor")
+        typed_tensors = cast(list[torch.Tensor], tensors)
         merged[key] = sum(
-            weight * tensor.to(dtype=torch.float32)
-            for weight, tensor in zip(normalized_weights, tensors)
-        ).to(dtype=tensors[0].dtype)
+            (
+                weight * tensor.to(dtype=torch.float32)
+                for weight, tensor in zip(normalized_weights, typed_tensors)
+            ),
+            start=torch.zeros_like(typed_tensors[0], dtype=torch.float32),
+        ).to(dtype=typed_tensors[0].dtype)
 
     destination = (
         Path(output_path)
@@ -216,10 +220,14 @@ class ModelMergeCallback(Callback):
         merged: dict[str, Any] = {}
         for key in reference_keys:
             tensors = [state_dict[key] for state_dict in state_dicts]
+            typed_tensors = cast(list[torch.Tensor], tensors)
             merged[key] = sum(
-                weight * tensor.to(dtype=torch.float32)
-                for weight, tensor in zip(normalized_weights, tensors)
-            ).to(dtype=tensors[0].dtype)
+                (
+                    weight * tensor.to(dtype=torch.float32)
+                    for weight, tensor in zip(normalized_weights, typed_tensors)
+                ),
+                start=torch.zeros_like(typed_tensors[0], dtype=torch.float32),
+            ).to(dtype=typed_tensors[0].dtype)
         return merged
 
     def _save_checkpoint(self, state_dict: dict[str, Any]) -> None:

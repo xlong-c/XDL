@@ -1,4 +1,5 @@
 from functools import partial
+from typing import cast
 
 import torch
 from torch import nn
@@ -14,7 +15,7 @@ class DCCM(nn.Sequential):
             nn.Mish(),
             nn.Conv2d(dim * 2, dim, 3, 1, 1),
         )
-        trunc_normal_(self[-1].weight, std=0.02)
+        trunc_normal_(cast(nn.Conv2d, self[-1]).weight, std=0.02)
 
 
 class PLKConv2d(nn.Module):
@@ -42,7 +43,7 @@ class EA(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
         self.f = nn.Sequential(nn.Conv2d(dim, dim, 3, 1, 1), nn.Sigmoid())
-        trunc_normal_(self.f[0].weight, std=0.02)
+        trunc_normal_(cast(nn.Conv2d, self.f[0]).weight, std=0.02)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x * self.f(x)
@@ -120,8 +121,8 @@ class realplksr(nn.Module):
             + [nn.Dropout2d(dropout)]
             + [nn.Conv2d(dim, 3 * upscaling_factor**2, 3, 1, 1)]
         )
-        trunc_normal_(self.feats[0].weight, std=0.02)
-        trunc_normal_(self.feats[-1].weight, std=0.02)
+        trunc_normal_(cast(nn.Conv2d, self.feats[0]).weight, std=0.02)
+        trunc_normal_(cast(nn.Conv2d, self.feats[-1]).weight, std=0.02)
 
         self.repeat_op = partial(
             torch.repeat_interleave, repeats=upscaling_factor**2, dim=1

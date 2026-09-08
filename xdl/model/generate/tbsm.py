@@ -71,6 +71,7 @@ class TBSMGenerator(nn.Module):
         self.backbone = backbone
         # The decoder is frozen infrastructure and should not enter the
         # generator optimizer or module state.
+        self.decoder: Optional[Callable[[torch.Tensor], torch.Tensor]]
         object.__setattr__(self, "decoder", decoder)
         if isinstance(decoder, nn.Module):
             decoder.requires_grad_(False)
@@ -405,6 +406,8 @@ class ScatteringTracker(nn.Module):
         predicted_field = self.out_proj(hidden)
         if self.output_mode == "field":
             return predicted_field
+        if self.potential_head is None:
+            raise RuntimeError("potential_head is required when output_mode != 'field'")
         potential = self.potential_head(predicted_field)
         if self.output_mode == "potential":
             return potential.mean(dim=1).squeeze(-1)
@@ -437,6 +440,7 @@ class RepresentationScatteringField(nn.Module):
             raise ValueError("rho must be in [0, 1]")
         if not hasattr(representor, "feat_dim"):
             raise AttributeError("TBSM representor must define feat_dim")
+        feat_dim = int(getattr(representor, "feat_dim"))
         if not isinstance(feature_norm, (list, tuple)):
             raise TypeError("feature_norm must be a list or tuple")
         supported_norms = {"mu", "std", "rms"}
@@ -461,19 +465,22 @@ class RepresentationScatteringField(nn.Module):
         self.tracker = (
             ScatteringTracker(
                 num_classes,
-                feat_dim=int(representor.feat_dim),
+                feat_dim=feat_dim,
                 **tracker_config_dict,
             )
             if self.rho > 0
             else None
         )
+        self.mu_ema: torch.Tensor
+        self.x2_ema: torch.Tensor
+        self._ema_inited: torch.Tensor
         self.register_buffer(
             "mu_ema",
-            torch.zeros(int(representor.feat_dim)),
+            torch.zeros(feat_dim),
         )
         self.register_buffer(
             "x2_ema",
-            torch.zeros(int(representor.feat_dim)),
+            torch.zeros(feat_dim),
         )
         self.register_buffer(
             "_ema_inited",
@@ -514,19 +521,19 @@ class RepresentationScatteringField(nn.Module):
     ) -> torch.Tensor:
         """Extract representation tokens while optionally retaining image grads."""
 
+        representor = self.representor
+        extract_featmap = getattr(representor, "extract_featmap", None)
+        extract = getattr(representor, "extract", None)
         with torch.set_grad_enabled(requires_grad):
-            if hasattr(self.representor, "extract_featmap"):
-                feature_map = self.representor.extract_featmap(images)
-            elif hasattr(self.representor, "extract"):
+            if callable(extract_featmap):
+                feature_map = extract_featmap(images)
+            elif callable(extract):
                 try:
-                    feature_map = self.representor.extract(
-                        images,
-                        no_grad=not requires_grad,
-                    )
+                    feature_map = extract(images, no_grad=not requires_grad)
                 except TypeError:
-                    feature_map = self.representor.extract(images)
+                    feature_map = extract(images)
             else:
-                feature_map = self.representor(images)
+                feature_map = representor(images)
         if not isinstance(feature_map, torch.Tensor):
             raise TypeError("TBSM representor must return a torch.Tensor")
         return _feature_map_to_tokens(feature_map)
@@ -569,21 +576,29 @@ class RepresentationScatteringField(nn.Module):
             variance = self.x2_ema - self.mu_ema.square()
             std = variance.clamp_min(1e-5).sqrt().view(1, 1, channels)
 
-        def normalize_one(value: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        def normalize_one(
+            value: Optional[torch.Tensor],
+            mu_value: Optional[torch.Tensor],
+            std_value: Optional[torch.Tensor],
+        ) -> Optional[torch.Tensor]:
             if value is None:
                 return None
-            if mu is not None:
-                value = value - mu
-            if std is not None:
-                value = value / std
+            if mu_value is not None:
+                value = value - mu_value
+            if std_value is not None:
+                value = value / std_value
             if use_rms:
                 value = F.normalize(value, p=2, dim=-1) * math.sqrt(channels)
             return value
 
+        normalized_real = normalize_one(real_source, mu, std)
+        normalized_projectile = normalize_one(projectile, mu, std)
+        if normalized_real is None or normalized_projectile is None:
+            raise RuntimeError("real and projectile features must not be None")
         return (
-            normalize_one(real_source),
-            normalize_one(projectile),
-            normalize_one(generated_source),
+            normalized_real,
+            normalized_projectile,
+            normalize_one(generated_source, mu, std),
         )
 
     @torch.no_grad()

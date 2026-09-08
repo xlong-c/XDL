@@ -23,13 +23,28 @@ class Registry:
         self._registry: Dict[str, Any] = {}
 
     def register(self, name: Optional[str] = None) -> Callable:
-        """注册装饰器."""
+        """注册装饰器.
+
+        同名重复注册同一对象时保持幂等 (模块 reload 场景); 同名注册不同
+        对象时抛 ``RegistryError``, 不静默覆盖先注册者.
+        """
 
         def decorator(cls_or_fn):
             register_name = name if name is not None else cls_or_fn.__name__
-            if register_name in self._registry:
-                logger.warning(f"'{register_name}' already registered in {self.name}. Skipping.")
-                return cls_or_fn
+            existing = self._registry.get(register_name)
+            if existing is not None:
+                if existing is cls_or_fn:
+                    logger.debug(
+                        "'%s' already registered in %s with the same object. Skipping.",
+                        register_name,
+                        self.name,
+                    )
+                    return cls_or_fn
+                raise RegistryError(
+                    f"'{register_name}' already registered in {self.name} with a "
+                    f"different object ({existing!r}); refusing to overwrite with "
+                    f"{cls_or_fn!r}."
+                )
             self._registry[register_name] = cls_or_fn
             return cls_or_fn
 
@@ -55,8 +70,13 @@ class Registry:
         """获取并格式化组件的参数签名."""
         obj = self.get(name)
         try:
-            sig_obj = obj.__init__ if hasattr(obj, "__init__") else obj
-            sig = inspect.signature(sig_obj)
+            if inspect.isclass(obj):
+                target = obj.__init__
+            elif inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.isbuiltin(obj):
+                target = obj
+            else:
+                target = getattr(obj, "__call__", obj)
+            sig = inspect.signature(target)
 
             params = []
             for p_name, param in sig.parameters.items():
@@ -133,6 +153,11 @@ def _ensure_builtin_registries_for(registry: Registry) -> None:
         _BOOTSTRAPPING_MODULES.add(module_path)
         try:
             importlib.import_module(module_path)
+        except ImportError as exc:
+            raise RegistryError(
+                f"Failed to bootstrap '{module_path}' for {registry.name} registry: {exc}"
+            ) from exc
+        else:
             _BOOTSTRAPPED_MODULES[module_path] = True
         finally:
             _BOOTSTRAPPING_MODULES.discard(module_path)

@@ -6,8 +6,10 @@
 
 - `trainer.py`:`Trainer` 主类
 - `core_model.py`:`CoreModel` 基类
-- `train_setup_model.py`:把 `TrainSetup` 外部组件包装成 `CoreModel`
 - `trainer_state.py`:训练状态管理
+- `example_tasks.py`:官方配置样例使用的轻量 `CoreModel` task 集合
+
+`TrainSetupModel` 定义在 `xdl/config/train_setup_model.py`,由 `xdl.trainer` 惰性再导出.
 
 ## 三个关键对象
 
@@ -285,7 +287,7 @@ trainer = Trainer.from_setup(setup)
 trainer.fit(model, setup.train_loader, setup.val_loader)
 ```
 
-`Trainer.from_setup()` 会消费配置中的 `max_epochs`,`precision`,`gradient_accumulation_steps` 和梯度裁剪字段;默认 `precision: "32"` 保持普通 32-bit 路径.
+`Trainer.from_setup()` 从 `setup.trainer` / `setup.runtime` / `setup.logging` / `setup.checkpoint` 读取训练参数; `setup.accelerate` 会转换为 Accelerator 关键字参数. 默认 `precision: "32"` 保持普通 32-bit 路径.
 
 ## 当前边界
 

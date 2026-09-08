@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 from torch.nn import functional as F
 
-from timm.layers import DropPath, trunc_normal_
+from timm.layers.drop import DropPath
+from timm.layers.weight_init import trunc_normal_
 from einops.layers.torch import Rearrange
 from einops import rearrange
 
@@ -169,6 +170,9 @@ class WindowAttention(nn.Module):
         self.H_sp = H_sp
         self.W_sp = W_sp
 
+        self.pos: nn.Module
+        self.rpe_biases: torch.Tensor
+        self.relative_position_index: torch.Tensor
         if self.position_bias:
             self.pos = DynamicPosBias(self.dim // 4, self.num_heads, residual=False)
             # generate mother-set
@@ -741,7 +745,7 @@ class ResidualGroup(nn.Module):
                     qk_scale=qk_scale,
                     drop=drop,
                     attn_drop=attn_drop,
-                    drop_path=drop_paths[i],
+                    drop_path=drop_paths[i] if drop_paths is not None else 0.0,
                     act_layer=act_layer,
                     norm_layer=norm_layer,
                     idx=i,

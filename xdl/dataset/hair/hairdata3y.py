@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
+import os
+
 import cv2
 from torch.utils.data import Dataset
-import os
-import random
-from xdl.utils import path_win2wsl
 
 from .hair_transforms import HairAugMixin
 
@@ -86,60 +85,3 @@ class GridImageDataset(HairAugMixin, Dataset):
                     if file.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
                         image_paths.append(os.path.join(root, file))
         return image_paths
-
-
-if __name__ == "__main__":
-    dset = GridImageDataset(
-        [
-            path_win2wsl(r"F:\dataset\select_clein_lq_r"),
-        ]
-    )
-
-    import random
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    sample_idx = random.randint(0, len(dset) - 1)
-    print(f"\n正在展示第 {sample_idx} 个样本（共 {len(dset)} 个样本）")
-
-    sample = dset[0]
-
-    print(f"Source image shape: {sample['source_pixel_values'].shape}")
-    print(f"Target image shape: {sample['target_pixel_values'].shape}")
-    print(f"Refer image shape: {sample['refer_pixel_values'].shape}")
-
-    plt.rcParams["font.sans-serif"] = [
-        "SimHei", "Microsoft YaHei", "Arial Unicode MS", "DejaVu Sans",
-    ]
-    plt.rcParams["axes.unicode_minus"] = False
-
-    def denormalize(tensor):
-        return (tensor * 0.5 + 0.5).clamp(0, 1)
-
-    source_img = denormalize(sample["source_pixel_values"]).permute(1, 2, 0).numpy()
-    target_img = denormalize(sample["target_pixel_values"]).permute(1, 2, 0).numpy()
-    refer_img = denormalize(sample["refer_pixel_values"]).permute(1, 2, 0).numpy()
-
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-    axes[0].imshow(source_img)
-    axes[0].set_title("Source Image (第3列)")
-    axes[0].axis("off")
-
-    axes[1].imshow(target_img)
-    axes[1].set_title("Target Image (第1列)")
-    axes[1].axis("off")
-
-    axes[2].imshow(refer_img)
-    axes[2].set_title("Refer Image (第2列)")
-    axes[2].axis("off")
-
-    plt.tight_layout()
-
-    output_path = "dataset_sample_visualization.png"
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"\n样本可视化已保存到: {output_path}")
-
-    plt.close()
-
-    print("\n样本展示完成！")

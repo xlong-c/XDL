@@ -2,8 +2,16 @@
 Trainer模块初始化文件
 """
 
+from typing import TYPE_CHECKING
+
 from .core_model import CoreModel
 from .trainer import Trainer
+
+if TYPE_CHECKING:
+    from xdl.config.train_setup_model import TrainSetupModel
+    from xdl.task.pretrain import TBSMCoreModel, TBSMModel
+
+    _LAZY_TYPE_EXPORTS = (TBSMCoreModel, TBSMModel, TrainSetupModel)
 
 __all__ = [
     "Trainer",

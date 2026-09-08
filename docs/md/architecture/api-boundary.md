@@ -34,6 +34,7 @@ from xdl.config import setup_from_yaml, TrainSetup, load_structured_dataclass_co
 
 - `setup_from_yaml(config_path, device=None)` 是 YAML 配置主入口.
 - 返回值是 `TrainSetup`.
+- `TrainSetup.trainer` / `runtime` / `logging` / `checkpoint` 是结构化配置, 训练参数不再以扁平字段暴露; `accelerate` / `deepspeed` 为可选结构化配置.
 - `TrainSetup.create_model()` 返回可交给 `Trainer.fit()` 的 `CoreModel` 包装对象.
 
 ### 训练入口
@@ -54,7 +55,7 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 ```python
 from xdl.trainer.core_model import CoreModel
 from xdl.trainer.trainer import Trainer
-from xdl.trainer.train_setup_model import TrainSetupModel
+from xdl.config.train_setup_model import TrainSetupModel
 ```
 
 ### 回调入口
@@ -81,6 +82,8 @@ from xdl.utils.registry import (
     register_metric,
     register_transform,
     register_collate,
+    register_callback,
+    register_task,
 )
 ```
 
@@ -88,7 +91,7 @@ from xdl.utils.registry import (
 
 - `Registry` 提供注册, 查找, 列举能力.
 - `register_*("Name")(ClassOrFunction)` 是自定义组件接入方式.
-- 支持的注册类型保持为: `MODEL`, `DATASET`, `OPTIMIZER`, `SCHEDULER`, `LOSS`, `METRIC`, `TRANSFORM`, `COLLATE`.
+- 支持的注册类型保持为: `MODEL`, `DATASET`, `OPTIMIZER`, `SCHEDULER`, `LOSS`, `METRIC`, `TRANSFORM`, `COLLATE`, `CALLBACK`, `TASK`.
 
 ### 常用工具入口
 

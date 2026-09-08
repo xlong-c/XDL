@@ -196,7 +196,7 @@ class FeatureMatchingLoss(nn.Module):
             raise ValueError("layer_weights length must match feature list length")
 
         weights = self.layer_weights or [1.0] * len(pred_list)
-        losses = []
+        losses: list[torch.Tensor] = []
         for pred, target, weight in zip(pred_list, target_list, weights):
             if pred.shape != target.shape:
                 raise ValueError(
@@ -206,7 +206,7 @@ class FeatureMatchingLoss(nn.Module):
                 losses.append(weight * F.l1_loss(pred, target))
             else:
                 losses.append(weight * F.mse_loss(pred, target))
-        return sum(losses) / sum(weights)
+        return torch.stack(losses).sum() / sum(weights)
 
 
 class DiffusionPredictionLoss(nn.Module):

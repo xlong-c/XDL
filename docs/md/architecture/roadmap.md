@@ -154,6 +154,7 @@
 
 ## 关联页面
 
+- [xdl-improvement-goals.md](xdl-improvement-goals.md): 方向拆成可执行任务后的唯一状态源.
 - [xdl.md](xdl.md)
 - [module-boundaries.md](module-boundaries.md)
 - [../README.md#xdl-当前优化方向](../README.md#xdl-当前优化方向)

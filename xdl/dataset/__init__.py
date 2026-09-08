@@ -1,10 +1,15 @@
 """
 数据集注册入口.
 
-注意: 部分数据集依赖可选三方库, 导入失败时不会阻断整个框架.
+注意: 部分数据集依赖可选三方库, 导入失败时不会阻断整个框架,
+但会记录到 `_import_errors` 并输出 warning.
 """
 
+import logging
+
 from xdl.utils.registry import register_collate, register_dataset, register_transform
+
+logger = logging.getLogger(__name__)
 
 _import_errors = {}
 GridImageCsvDataset = None
@@ -86,6 +91,7 @@ try:
     register_dataset("GridImageCsvDataset")(GridImageCsvDataset)
 except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
     _import_errors["GridImageCsvDataset"] = exc
+    logger.warning("跳过注册 GridImageCsvDataset: %s", exc)
 
 try:
     from .hair.hairdata3y import GridImageDataset as GridImageDirDataset
@@ -93,6 +99,7 @@ try:
     register_dataset("GridImageDirDataset")(GridImageDirDataset)
 except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
     _import_errors["GridImageDirDataset"] = exc
+    logger.warning("跳过注册 GridImageDirDataset: %s", exc)
 
 try:
     from .hair.hairdata10hair import Hair10HairDataset
@@ -100,6 +107,7 @@ try:
     register_dataset("Hair10HairDataset")(Hair10HairDataset)
 except Exception as exc:  # pragma: no cover - 依赖缺失时允许跳过
     _import_errors["Hair10HairDataset"] = exc
+    logger.warning("跳过注册 Hair10HairDataset: %s", exc)
 
 __all__ = [
     "SyntheticClassificationDataset",

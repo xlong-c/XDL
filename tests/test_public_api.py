@@ -147,6 +147,13 @@ def test_stable_utils_api_imports() -> None:
     assert seed_everything is not None
 
 
+def test_task_submodule_is_lazily_exported() -> None:
+    import xdl
+
+    assert xdl.task.__name__ == "xdl.task"
+    assert "task" in xdl.__all__
+
+
 def test_flux2_klein_model_api_imports() -> None:
     from examples.xqt_models.flux2_klein import (
         load_and_quantize_flux2_klein_bf16_pipeline_to_convrot_4bit,

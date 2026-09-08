@@ -8,14 +8,15 @@
 
 import logging
 import math
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import asdict, fields, is_dataclass, replace
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union, cast
 
 import torch
 
 # Accelerate 支持
 from accelerate import Accelerator
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from xdl.callbacks import Callback
@@ -161,6 +162,7 @@ class Trainer:
         # 设备引用
         self._device = None if self._should_use_accelerate() else self._get_device_from_spec()
         self._is_setup = False
+        self._test_loader_prepared = False
 
     def _should_use_accelerate(self) -> bool:
         """判断当前配置是否需要走 Accelerate 路径."""
@@ -174,8 +176,9 @@ class Trainer:
     def from_setup(cls, setup) -> "Trainer":
         """从 TrainSetup 创建 Trainer 并自动配置日志/检查点.
 
-        自动将 setup 中的 accelerate_config / logging_config / checkpoint_config
-        传递给 Trainer 构造函数和 setup_logger().
+        读取 `setup.trainer` / `setup.runtime` / `setup.logging` /
+        `setup.checkpoint` 等结构化配置; `setup.accelerate` 转换为
+        Accelerator 关键字参数.
 
         Args:
             setup: setup_from_yaml() 返回的 TrainSetup 对象.
@@ -189,40 +192,42 @@ class Trainer:
             >>> trainer = Trainer.from_setup(setup)
             >>> trainer.fit(model, setup.train_loader, setup.val_loader)
         """
+        trainer_cfg = setup.trainer
+        runtime_cfg = setup.runtime
         trainer = cls(
-            max_epochs=setup.num_epochs,
-            device=setup.device,
-            precision=setup.precision
-            if setup.precision not in (None, "", "32", "fp32", "float32")
-            else None,
-            gradient_accumulation_steps=setup.gradient_accumulation_steps,
-            grad_clip_max_norm=setup.grad_clip_max_norm,
-            grad_clip_norm_type=setup.grad_clip_norm_type,
-            callbacks=list(getattr(setup, "callbacks", [])),
-            accelerate_config=setup.accelerate_config,
-            fsdp=getattr(setup, "fsdp", None),
-            nan_monitor=getattr(setup, "nan_monitor", True),
-            nan_patience=getattr(setup, "nan_patience", 3),
-            fail_on_callback_error=getattr(setup, "fail_on_callback_error", False),
+            max_epochs=trainer_cfg.max_epochs,
+            device=runtime_cfg.device,
+            precision=(
+                None
+                if trainer_cfg.precision in (None, "", "32", "fp32", "float32")
+                else trainer_cfg.precision
+            ),
+            gradient_accumulation_steps=trainer_cfg.gradient_accumulation_steps,
+            grad_clip_max_norm=trainer_cfg.grad_clip_max_norm,
+            grad_clip_norm_type=trainer_cfg.grad_clip_norm_type,
+            callbacks=list(setup.callbacks),
+            accelerate_config=(
+                asdict(setup.accelerate) if setup.accelerate is not None else None
+            ),
+            fsdp=trainer_cfg.fsdp,
+            nan_monitor=trainer_cfg.nan_monitor,
+            nan_patience=trainer_cfg.nan_patience,
+            fail_on_callback_error=trainer_cfg.fail_on_callback_error,
         )
 
-        log_cfg = setup.logging_config
-        ckpt_cfg = setup.checkpoint_config
-        checkpoint_dir = ckpt_cfg.get("dirpath") or log_cfg.get(
-            "output_dir",
-            "./others/checkpoints",
-        )
+        log_cfg = setup.logging
+        ckpt_cfg = setup.checkpoint
 
         trainer.setup_logger(
-            log_dir=log_cfg.get("log_dir", "./others/logs"),
-            checkpoint_dir=checkpoint_dir,
-            monitor=ckpt_cfg.get("monitor", "val_loss"),
-            mode=ckpt_cfg.get("mode", "min"),
-            save_top_k=ckpt_cfg.get("save_top_k", 1),
-            every_n_epochs=ckpt_cfg.get("every_n_epochs", 1),
-            enable_tensorboard=log_cfg.get("enable_tensorboard", True),
-            enable_console=log_cfg.get("enable_console", False),
-            enable_checkpoint=bool(ckpt_cfg),
+            log_dir=log_cfg.log_dir,
+            checkpoint_dir=ckpt_cfg.dirpath or "./others/checkpoints",
+            monitor=ckpt_cfg.monitor,
+            mode=ckpt_cfg.mode,
+            save_top_k=ckpt_cfg.save_top_k,
+            every_n_epochs=ckpt_cfg.every_n_epochs,
+            enable_tensorboard=log_cfg.enable_tensorboard,
+            enable_console=log_cfg.enable_console,
+            enable_checkpoint=ckpt_cfg is not None,
         )
 
         return trainer
@@ -487,8 +492,9 @@ class Trainer:
         start_epoch = 1
         if hasattr(model, "current_epoch") and model.current_epoch > 0:
             start_epoch = model.current_epoch + 1
-        if hasattr(model, "global_step") and model.global_step > 0:
-            self.state.global_step = model.global_step
+        model_global_step = getattr(model, "global_step", 0)
+        if isinstance(model_global_step, int) and model_global_step > 0:
+            self.state.global_step = model_global_step
 
         # 训练循环 (现在 epoch 指向的是虚拟 epoch)
         for epoch in range(start_epoch, self.max_epochs + 1):
@@ -560,9 +566,7 @@ class Trainer:
         target_total_steps = getattr(self, "_target_total_train_steps", None)
         if target_total_steps is not None:
             remaining_steps = target_total_steps - self.state.global_step
-            if remaining_steps <= 0:
-                return {"epoch": self.current_epoch, "steps": 0, "avg_metrics": {}}
-            num_steps = min(num_steps, remaining_steps)
+            num_steps = 0 if remaining_steps <= 0 else min(num_steps, remaining_steps)
         for step in range(num_steps):
             batch = next(self._train_iterator)
 
@@ -857,12 +861,15 @@ class Trainer:
         # optimizer.step() 前真正生效 (手动优化模式下训练循环无法可靠拦截).
         if self.grad_clip_max_norm is not None and self._model is not None:
             self._model._optimizers = [
-                _GradientClipOptimizer(_optimizer, self)
+                cast(Optimizer, _GradientClipOptimizer(_optimizer, self))
                 for _optimizer in self._model._optimizers
             ]
 
     def _clip_optimizer_gradients(self, optimizer: Any) -> None:
         """对单个优化器的参数组执行梯度裁剪."""
+        max_norm = self.grad_clip_max_norm
+        if max_norm is None:
+            return
         parameters: List[torch.nn.Parameter] = []
         for group in getattr(optimizer, "param_groups", []) or []:
             parameters.extend(
@@ -872,17 +879,19 @@ class Trainer:
             )
         if not parameters:
             return
+        # torch stub 把 norm_type 标成 int, 但运行时接受 float/inf.
+        norm_type = cast(int, self.grad_clip_norm_type)
         if self._accelerator is not None:
             self._accelerator.clip_grad_norm_(
                 parameters,
-                self.grad_clip_max_norm,
-                norm_type=self.grad_clip_norm_type,
+                max_norm,
+                norm_type=norm_type,
             )
         else:
             torch.nn.utils.clip_grad_norm_(
                 parameters,
-                self.grad_clip_max_norm,
-                norm_type=self.grad_clip_norm_type,
+                max_norm,
+                norm_type=norm_type,
             )
 
     def _sync_gradient_accumulation_to_model(self, model: CoreModel) -> None:
@@ -986,6 +995,8 @@ class Trainer:
             prepare_list.append(self._train_dataloader)
         if self._val_dataloader is not None:
             prepare_list.append(self._val_dataloader)
+        if self._test_dataloader is not None:
+            prepare_list.append(self._test_dataloader)
 
         # 使用 Accelerator 准备
         if prepare_list:
@@ -1009,6 +1020,11 @@ class Trainer:
 
             if self._val_dataloader is not None and idx < len(prepared_items):
                 self._val_dataloader = prepared_items[idx]
+                idx += 1
+
+            if self._test_dataloader is not None and idx < len(prepared_items):
+                self._test_dataloader = prepared_items[idx]
+                self._test_loader_prepared = True
 
         for name, value in extra_move_items:
             self._assign_model_attribute(name, self._move_device_object(value))
@@ -1111,6 +1127,16 @@ class Trainer:
         if not getattr(self, "_is_setup", False):
             self._setup()
 
+        # 已 setup 过 (例如先 fit 再 test) 时, test loader 尚未经过
+        # accelerator.prepare, 这里显式补齐, 避免分布式下每个 rank 跑全量.
+        if (
+            self._accelerator is not None
+            and self._test_dataloader is not None
+            and not self._test_loader_prepared
+        ):
+            self._test_dataloader = self._accelerator.prepare(self._test_dataloader)
+            self._test_loader_prepared = True
+
         # 调用钩子
         self._model.on_test_start()
         self.callback_list.test_start(trainer=self, core_module=model)
@@ -1123,6 +1149,8 @@ class Trainer:
 
         # 执行测试
         test_loader = self._test_dataloader
+        if test_loader is None:
+            raise TrainingError("test_dataloader is required")
         results = []
 
         with torch.no_grad():

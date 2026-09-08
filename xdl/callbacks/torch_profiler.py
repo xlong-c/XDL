@@ -90,7 +90,7 @@ class TorchProfilerCallback(Callback):
         )
 
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self._profiler = torch.profiler.profile(
+        profiler = torch.profiler.profile(
             activities=activities,
             schedule=schedule,
             on_trace_ready=trace_handler,
@@ -100,7 +100,8 @@ class TorchProfilerCallback(Callback):
             with_flops=self.with_flops,
             with_modules=self.with_modules,
         )
-        self._profiler.__enter__()
+        self._profiler = profiler
+        profiler.__enter__()
         self._is_running = True
         self._state["started"] = True
         self._state["stopped"] = False

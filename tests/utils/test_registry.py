@@ -23,13 +23,46 @@ class TestRegistryBasic:
         reg.register("foo")(lambda: 42)
         assert reg.get("foo")() == 42
 
-    def test_register_duplicate_warns(self):
+    def test_register_duplicate_same_object_is_idempotent(self):
+        reg = Registry("test")
+
+        def component():
+            return 1
+
+        reg.register("bar")(component)
+        reg.register("bar")(component)
+        assert reg.get("bar") is component
+
+    def test_register_duplicate_different_object_raises(self):
         reg = Registry("test")
         reg.register("bar")(lambda: 1)
-        # 第二次注册同名应跳过（不报错）
-        result = reg.register("bar")(lambda: 2)
-        assert result() == 2  # 返回原始对象
-        assert reg.get("bar")() == 1  # 值未变
+        with pytest.raises(RegistryError, match="already registered"):
+            reg.register("bar")(lambda: 2)
+        assert reg.get("bar")() == 1
+
+    def test_get_signature_supports_function_components(self):
+        reg = Registry("test")
+
+        def build(a: int, b: str = "x") -> None:
+            del a, b
+
+        reg.register("build")(build)
+        signature = reg.get_signature("build")
+        assert "a" in signature
+        assert "b" in signature
+
+    def test_bootstrap_failure_raises_registry_error(self, monkeypatch):
+        import xdl.utils.registry as registry_module
+
+        monkeypatch.setattr(
+            registry_module,
+            "_bootstrap_modules_for_registry",
+            lambda registry: ["xdl._nonexistent_bootstrap_module"],
+        )
+        monkeypatch.setattr(registry_module, "_BOOTSTRAPPED_MODULES", {})
+
+        with pytest.raises(RegistryError, match="Failed to bootstrap"):
+            registry_module._ensure_builtin_registries_for(MODEL_REGISTRY)
 
     def test_get_missing_raises(self):
         reg = Registry("test")

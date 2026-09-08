@@ -251,7 +251,7 @@ class SOAP(optim.Optimizer):
                 grad = torch.tensordot(
                         grad,
                         mat,
-                        dims=[[0], [0]],
+                        dims=[[0], [0]],  # pyright: ignore[reportArgumentType]  # torch stub 只声明 int, 运行时支持维度列表
                     )
             else:
                 permute_order = list(range(1, len(grad.shape))) + [0]
@@ -282,7 +282,7 @@ class SOAP(optim.Optimizer):
                         outer_product = torch.tensordot(
                                 new_grad,
                                 new_grad,
-                                dims=[[*chain(range(idx), range(idx + 1, len(new_grad.shape)))]] * 2,
+                                dims=[[*chain(range(idx), range(idx + 1, len(new_grad.shape)))]] * 2,  # pyright: ignore[reportArgumentType]
                             )
                         state['GG'][idx].lerp_(outer_product, 1-state['shampoo_beta'])
             else:
@@ -292,7 +292,7 @@ class SOAP(optim.Optimizer):
                                 grad,
                                 grad,
                                 # Contracts across all dimensions except for k.
-                                dims=[[*chain(range(idx), range(idx + 1, len(grad.shape)))]] * 2,
+                                dims=[[*chain(range(idx), range(idx + 1, len(grad.shape)))]] * 2,  # pyright: ignore[reportArgumentType]
                             )
                         state['GG'][idx].lerp_(outer_product, 1-state['shampoo_beta'])
                      
@@ -319,7 +319,7 @@ class SOAP(optim.Optimizer):
                 grad = torch.tensordot(
                         grad,
                         mat,
-                        dims=[[0], [1]],
+                        dims=[[0], [1]],  # pyright: ignore[reportArgumentType]  # torch stub 只声明 int, 运行时支持维度列表
                     )
             else:
                 permute_order = list(range(1, len(grad.shape))) + [0]

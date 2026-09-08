@@ -26,7 +26,9 @@ class BiasFree_LayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super().__init__()
         if isinstance(normalized_shape, numbers.Integral):
-            normalized_shape = (normalized_shape,)
+            normalized_shape = (int(normalized_shape),)
+        else:
+            normalized_shape = tuple(int(size) for size in normalized_shape)
         self.weight = nn.Parameter(torch.ones(torch.Size(normalized_shape)))
 
     def forward(self, x):
@@ -38,7 +40,9 @@ class WithBias_LayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super().__init__()
         if isinstance(normalized_shape, numbers.Integral):
-            normalized_shape = (normalized_shape,)
+            normalized_shape = (int(normalized_shape),)
+        else:
+            normalized_shape = tuple(int(size) for size in normalized_shape)
         self.weight = nn.Parameter(torch.ones(torch.Size(normalized_shape)))
         self.bias = nn.Parameter(torch.zeros(torch.Size(normalized_shape)))
 

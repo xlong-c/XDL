@@ -108,8 +108,9 @@ class DeepSpeedConfig:
 
         # batch_size 三要素:指定两个,第三个自动推断
         # 至少需要 train_micro_batch_size_per_gpu
+        ds_config: Dict[str, Any]
         if self.train_micro_batch_size_per_gpu is None:
-            ds_config: Dict[str, Any] = {
+            ds_config = {
                 "train_micro_batch_size_per_gpu": 1,
             }
         else:
@@ -122,7 +123,8 @@ class DeepSpeedConfig:
         if self.gradient_accumulation_steps is not None:
             ds_config["gradient_accumulation_steps"] = self.gradient_accumulation_steps
 
-        ds_config["zero_optimization"] = {"stage": self.zero_stage}
+        zero_optimization: Dict[str, Any] = {"stage": self.zero_stage}
+        ds_config["zero_optimization"] = zero_optimization
 
         if self.fp16:
             ds_config["fp16"] = {"enabled": True}
@@ -133,9 +135,9 @@ class DeepSpeedConfig:
             ds_config["gradient_clipping"] = self.gradient_clipping
 
         if self.zero_stage >= 2 and self.offload_optimizer:
-            ds_config["zero_optimization"]["offload_optimizer"] = {"device": "cpu"}
+            zero_optimization["offload_optimizer"] = {"device": "cpu"}
         if self.zero_stage == 3 and self.offload_param:
-            ds_config["zero_optimization"]["offload_param"] = {"device": "cpu"}
+            zero_optimization["offload_param"] = {"device": "cpu"}
 
         return {"config": ds_config}
 

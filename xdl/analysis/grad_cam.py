@@ -61,8 +61,8 @@ def compute_grad_cam(
 
     def backward_hook(
         _module: nn.Module,
-        _grad_input: tuple[Any, ...],
-        grad_output: tuple[Any, ...],
+        _grad_input: Any,
+        grad_output: Any,
     ) -> None:
         grad_tensor = grad_output[0]
         if isinstance(grad_tensor, torch.Tensor):

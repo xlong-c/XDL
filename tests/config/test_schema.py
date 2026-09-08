@@ -1,3 +1,5 @@
+import pytest
+
 from xdl.config import (
     CONFIG_SCHEMA_VERSION,
     ConfigSchemaV1,
@@ -125,17 +127,29 @@ def test_unsupported_component_fields_fail_validation() -> None:
         pass
 
 
-def test_single_loss_object_is_normalized_to_list() -> None:
-    cfg = load_config_with_schema(
-        {
-            "loss": {
-                "target": "torch.nn:CrossEntropyLoss",
-                "params": {},
-            }
-        }
-    )
-    resolved = to_plain_dict(cfg, resolve=True)
+def test_single_loss_object_is_rejected() -> None:
+    """loss 必须是列表; 单个 dict 不再隐式归一."""
 
-    assert isinstance(resolved["loss"], list)
-    assert len(resolved["loss"]) == 1
-    assert resolved["loss"][0]["target"] == "torch.nn:CrossEntropyLoss"
+    with pytest.raises(ConfigValidationError):
+        load_config_with_schema(
+            {
+                "loss": {
+                    "target": "torch.nn:CrossEntropyLoss",
+                    "params": {},
+                }
+            }
+        )
+
+
+def test_single_metrics_object_is_rejected() -> None:
+    """metrics 必须是列表; 单个 dict 不再隐式归一."""
+
+    with pytest.raises(ConfigValidationError):
+        load_config_with_schema(
+            {
+                "metrics": {
+                    "target": "xdl.metric:Accuracy",
+                    "params": {},
+                }
+            }
+        )
