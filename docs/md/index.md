@@ -50,6 +50,8 @@
 10. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
 11. [usage/xqt-workflows.md](usage/xqt-workflows.md)
 
+后续改进先读 [XQT 改进路线图](architecture/xqt-improvement-roadmap.md), 再按 [详细目标与验收](architecture/xqt-improvement-goals.md) 的任务 ID 推进. 两者属于规划, 不代表当前能力已经实现.
+
 ## 当前兼容入口
 
 在正文完全拆分完成前, 现有入口仍然有效:

@@ -37,6 +37,8 @@
 - `architecture/html-style-policy.md`: XDL 自有 HTML 阅读页长期规范.
 - `architecture/roadmap.md`: XDL 当前仍有效的优化方向.
 - `architecture/xqt.md`: XQT 架构正文,承接模型侧边界,Stage 约定和 profiling 边界.
+- `architecture/xqt-improvement-roadmap.md`: XQT 后续改进的里程碑,目标模型冻结和交付闸门. 属于规划,不陈述未验收能力.
+- `architecture/xqt-improvement-goals.md`: XQT 改进任务的唯一状态源,包含依赖,验收,证据与完成记录模板.
 - `explanation/index.md`: 说明文档入口.
 - `explanation/xdl-concepts.md`: XDL 概念说明与理解路径.
 - `explanation/xqt-concepts.md`: XQT 概念说明与能力理解地图.

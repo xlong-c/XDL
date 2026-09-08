@@ -32,6 +32,8 @@
 - [xqt-infer-handoff.md](xqt-infer-handoff.md): quant→infer 交接面 (`model` + `compute_config`).
 - [xqt-design-debt.md](xqt-design-debt.md): `XQT` 设计债台账, 只累计问题, 后面统一做方案.
 - [xqt-realignment-guide.md](xqt-realignment-guide.md): `XQT` 现状诊断 1-8 的落地状态和长期矫正准则.
+- [xqt-improvement-roadmap.md](xqt-improvement-roadmap.md): `XQT` 后续修改大纲, 里程碑和真实模型主方向, 属于规划.
+- [xqt-improvement-goals.md](xqt-improvement-goals.md): `XQT` 改进任务的唯一状态源, 含详细目标, 依赖和验收标准.
 
 ## 当前兼容事实源
 
@@ -55,9 +57,11 @@
 1. [xqt.md](xqt.md)
 2. [xqt-kernels.md](xqt-kernels.md)
 3. [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md)
-3. [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md)
-4. [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md)
-5. [xqt-infer-handoff.md](xqt-infer-handoff.md)
-6. [xqt-design-debt.md](xqt-design-debt.md)
-7. [xqt-realignment-guide.md](xqt-realignment-guide.md)
-8. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)
+4. [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md)
+5. [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md)
+6. [xqt-infer-handoff.md](xqt-infer-handoff.md)
+7. [xqt-design-debt.md](xqt-design-debt.md)
+8. [xqt-realignment-guide.md](xqt-realignment-guide.md)
+9. [xqt-improvement-roadmap.md](xqt-improvement-roadmap.md)
+10. [xqt-improvement-goals.md](xqt-improvement-goals.md)
+11. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)
