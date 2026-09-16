@@ -112,10 +112,10 @@ from xdl.callbacks import Callback
 文档分层规则:
 
 - `docs/md/`: 写代码前看的工作文档和事实源.
-- `docs/html/`: 给人类读者的阅读版.
+- `learn/`,`research/` 下的 HTML: 教程与调研阅读页.
 - 同一主题先改 MD,再同步 HTML.
 
-HTML 自有页面统一复用 `docs/html/assets/xdl-doc.css` 和 `docs/html/assets/xdl-theme.js`,并遵循固定模板约束. 当前 canonical 页面见 [architecture/html-style-policy.md](architecture/html-style-policy.md),兼容锚点见 [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范).
+HTML 自有教程与调研页统一复用 `docs/html/assets/xdl-doc.css` 和 `docs/html/assets/xdl-theme.js`,并遵循固定模板约束. 当前 canonical 页面见 [architecture/html-style-policy.md](architecture/html-style-policy.md),兼容锚点见 [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范).
 
 ## 优化方向摘要
 

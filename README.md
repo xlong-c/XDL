@@ -55,19 +55,13 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 - [config/](config/):YAML 配置示例
 - [examples/](examples/):脚本级示例
 - [docs/md/](docs/md/): 给 agents 和开发者写代码前看的 MD 工作文档
-- [docs/html/](docs/html/): 给人类用户阅读的 HTML 可视化文档
+- [docs/html/assets/](docs/html/assets/): `learn/` 与 `research/` HTML 页面共用的样式与主题资产
 - [tests/](tests/):测试
 - [tools/](tools/):工具脚本
 
 ## 文档入口
 
-文档第一规则: `docs/md/` 给 agents 和开发者看,`docs/html/` 给人类用户看. 行为,字段,API 和兼容边界以源码和 `docs/md/` 为事实源,HTML 只负责阅读体验.
-
-给用户看的阅读版:
-
-1. [docs/html/index.html](docs/html/index.html)
-2. [docs/html/dataset-structure.html](docs/html/dataset-structure.html)
-3. [docs/html/xqt.html](docs/html/xqt.html)
+文档第一规则: `docs/md/` 是给 agents 和开发者写代码前看的工作文档,也是行为,字段,API 和兼容边界的事实源. `learn/` 与 `research/` 下的 HTML 页面只做面向人类的教程与调研阅读层,不定义契约.
 
 给 Codex 和开发者改代码前看的 MD 先从新总入口进入,兼容页只在需要旧链接时再看:
 

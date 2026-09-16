@@ -61,10 +61,19 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 - **结构化配置**: 训练入口或研究脚本里的轻量 `load_config` 优先遵循 `dataclass/structured config` 定义默认值和 schema, 再由 YAML 直接覆盖. 除非有明确兼容需求, 不在 `load_config` 里做路径重写, 字符串 `"null"` 兼容, 旧字段迁移, clamp/奇偶修正或 list/tuple 强转; 需要约束时让 schema/OmegaConf 报错, 或在使用处显式校验.
 - **类型注解**: 所有函数必须加类型注解.
 
+## 常用命令
+
+- **安装**: `pip install -e .` / `pip install -e ".[all,dev]"`, 或 `bash scripts/install.sh {base|full|dev}`; 环境要求与安装后验证命令见 [docs/md/usage/xdl-install-and-verify.md](docs/md/usage/xdl-install-and-verify.md).
+- **测试**: `python -m pytest <路径>` (配置在 `pyproject.toml`: `testpaths=["tests"]`, `addopts="-ra -q"`); 单个用例 `python -m pytest tests/xqt/runtime/test_graph_decode.py -q -k decode_batch`. GPU 用例自带 `skipif`, 无卡时自动跳过.
+- **Lint / 格式**: `ruff check <路径>` 与 `ruff format --check <路径>` (行宽 88, py312, 默认排除 `data/ downloads/ learn/ third_party/`); 提交前两个都要过.
+- **半角符号**: `XDL_PUNCT_PATHS=<路径> python scripts/normalize_punctuation.py`, `XDL_PUNCT_CHECK=1` 只检查不改写. `XDL_PUNCT_PATHS` **一次只接受一个路径**, 空格分隔不生效.
+- **跑示例 / 基准**: 必须 `PYTHONPATH=. python examples/xqt_models/<script>.py`. 直接 `python examples/...` 会报 `ModuleNotFoundError: No module named 'examples'`, 因为示例之间按 `examples.xqt_models.*` 互相 import.
+- **知识图谱**: 结构性变更后手动 `index_repository` 刷新, `project` 固定传 `root-workspace-xdl`.
+
 ## 文档规范
 
-- **第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档, `docs/html/` 是给人类阅读的可视化文档. 新增长期 MD 放 `docs/md/`, 新增自有 HTML 放 `docs/html/`. 阶段性研究资料放 `research/`, 不能替代长期文档.
-- **HTML 阅读页样式**: 新增或重构 `docs/html/`, `research/`, `learn/` 等目录下 HTML/CSS 时, 先遵循 [docs/md/README.md#xdl-html-阅读页样式规范](docs/md/README.md#xdl-html-阅读页样式规范). 自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板; `math-doc-page`, `research-page`, `flash-attention-page` 等只能作语义叠加 class. 默认复用 `docs/html/assets/xdl-doc.css` 主题 token 和公共组件, 不复制大段内联 `<style>`, 不用散落 `style=`, 主题切换复用 `docs/html/assets/xdl-theme.js`.
+- **第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档, 也是行为, 字段, API 和兼容边界的事实源. 新增长期 MD 放 `docs/md/`; HTML 教程页放 `learn/`, HTML 调研页放 `research/`. 阶段性研究资料放 `research/`, 不能替代长期文档.
+- **HTML 阅读页样式**: 新增或重构 `learn/`, `research/` 下 HTML/CSS 时, 先遵循 [docs/md/architecture/html-style-policy.md](docs/md/architecture/html-style-policy.md). 自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板; `math-doc-page`, `research-page`, `flash-attention-page` 等只能作语义叠加 class. 默认复用 `docs/html/assets/xdl-doc.css` 主题 token 和公共组件, 不复制大段内联 `<style>`, 不用散落 `style=`, 主题切换复用 `docs/html/assets/xdl-theme.js`.
 
 ---
 
@@ -116,6 +125,22 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 
 当前 v0.x 开发期, 未到 v1.0, 在目标和范围已对齐后允许破坏性重构, 不需要兼容老接口: 改 API 可直接改, 改 recipe schema 可直接打破兼容, 删模块/改名/合并/拆分都可以. 取舍顺序: 清晰 > 简洁 > 方便 > 兼容.
 
+### decode 加速链路 (改内核前先看)
+
+端到端链路跨五个文件, 改任何一处都要按整条链路验证, 不能只看单 kernel 微基准:
+
+- `xqt/runtime/graph_decode.py` - `CudaGraphDecodeSession`: 单张 length-agnostic graph, 逐层 decode body, 残差 epilogue 绑定, `decode_batch` 分块回读.
+- `xqt/kernels/ops/_impl/triton/decode_kernels.py` - 单遍 GQA decode attention (partial + merge; SIMT 默认, `attention_impl="tc"` 走张量核组变体 R-057), 融合 RoPE/KV scatter, RMSNorm/SwiGLU int8.
+- `xqt/kernels/jit/csrc/quantization/awq_w4a16_sm89_kernel.cu` - native W4A16 decode GEMV (interleave-4 打包; `HasBias` 语义就是残差 epilogue).
+- `xqt/runtime/modules/awq_w4a16_linear.py` + `xqt/model/minicpm5.py` - 模块入口与 hybrid 视图; `bind_residual` 必须一路转发到 hybrid 视图, 否则运行时绑不上 (曾因此静默退化成 `residual + module(x)`).
+- `examples/xqt_models/minicpm5_2b_graph_decode.py` - 五路线 e2e 基准, 产物 `artifacts/xqt/inference/minicpm5-2b/graph_decode_benchmark.json`.
+
+测量纪律 (R-052/053/054 的代价换来的):
+
+- **合成微基准对本链路没有预测力** (多次出现 "合成链快 12%, 真实路线慢 12%"), 内核参数或结构改动必须直接跑真实路线 A/B.
+- 单次稳态读数跨运行可波动 (同配置 265-311 tok/s), 加速比结论只看**同一次运行内**的对照.
+- 改内核前先读 `docs/md/explanation/operator-optimization-records.md` 里最新的 R-0xx: 那里记着本机带宽上界, 分形状实测和所有已否决方案, 不要重复试已证伪的路.
+
 ### 核心契约
 
 XQT 只关注模型本身: 压缩, 图变换, 导出适配, 误差分析, benchmark. XQT 不负责训练, QAT, finetune, distillation, KD/recovery, dataset/dataloader, training/evaluation provider. 需要梯度更新或任务验证的流程归 XDL 或第三方, 再把训练后的模型/checkpoint 或指标交给 XQT.
@@ -140,7 +165,7 @@ XQT 只关注模型本身: 压缩, 图变换, 导出适配, 误差分析, benchm
 - [docs/md/README.md#xdl-项目结构与使用说明](docs/md/README.md#xdl-项目结构与使用说明) - 框架定位, 核心分层, 训练入口, `CoreModel`/`Trainer` 生命周期
 - [docs/md/README.md#xdl-config-系统说明](docs/md/README.md#xdl-config-系统说明) - YAML 配置系统, schema v1, `target + params`
 - [docs/md/README.md#xdl-api-稳定边界](docs/md/README.md#xdl-api-稳定边界) - Stable/Provisional/Internal API 边界与兼容策略
-- [docs/md/README.md#xdl-html-阅读页样式规范](docs/md/README.md#xdl-html-阅读页样式规范) - 自有 HTML 阅读页统一样式, 主题 token, 交互规范
+- [docs/md/architecture/html-style-policy.md](docs/md/architecture/html-style-policy.md) - 自有 HTML 教程与调研页统一样式, 主题 token, 交互规范
 - [docs/md/README.md#xdl-模块功能边界速查](docs/md/README.md#xdl-模块功能边界速查) - 各源码子模块职责速查
 - [docs/md/README.md#xdl-当前优化方向](docs/md/README.md#xdl-当前优化方向) - 框架后续优化方向
 - [xdl/USAGE.md](xdl/USAGE.md) - 随 wheel 分发的单文件用法摘要, `xdl-usage` 查看

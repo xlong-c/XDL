@@ -33,7 +33,6 @@
 - [mma-weight-prepack.md](mma-weight-prepack.md): 离线 MMA 权重预排板.
 - [dataset-structure.md](dataset-structure.md): dataset 模块的概念说明和阅读路径.
 - [html-style.md](html-style.md): HTML 阅读页的分层说明.
-- `HTML`: 阅读版入口见 [../../html/index.html](../../html/index.html) 和 [../../html/xqt.html](../../html/xqt.html).
 
 ## 推荐阅读顺序
 
@@ -42,7 +41,6 @@
 1. [xdl-concepts.md](xdl-concepts.md)
 2. [dataset-structure.md](dataset-structure.md)
 3. [html-style.md](html-style.md)
-4. [../../html/index.html](../../html/index.html)
 
 ### XQT
 
@@ -61,4 +59,3 @@
 13. [mma-weight-prepack.md](mma-weight-prepack.md)
 14. [inference-backends-primer.md](inference-backends-primer.md)
 15. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)
-16. [../../html/xqt.html](../../html/xqt.html)

@@ -30,7 +30,6 @@ dataset 相关内容天然跨越三层:
 
 ## 该看哪里
 
-- 看概念和模块结构: [../../html/dataset-structure.html](../../html/dataset-structure.html)
 - 看详细事实边界和模板规划: [../architecture/dataset-policy.md](../architecture/dataset-policy.md)
 - 看整体框架定位: [xdl-concepts.md](xdl-concepts.md)
 
