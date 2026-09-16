@@ -1,6 +1,6 @@
 # 架构文档入口
 
-本文汇总 `XDL` 与 `XQT` 的架构文档. 架构层负责定义边界, 模块关系, 生命周期, 稳定性和禁止项.
+本文汇总 `XDL` 的架构文档. 架构层负责定义边界, 模块关系, 生命周期, 稳定性和禁止项.
 
 ## 负责什么
 
@@ -25,22 +25,10 @@
 - [xdl-improvement-goals.md](xdl-improvement-goals.md): `XDL` 改进任务的唯一状态源, 含详细目标, 依赖和验收标准.
 - [xdl-jax.md](xdl-jax.md): `xdl-jax` 独立 JAX 训练架构, 边界与限制.
 - [xdl-jax-refactor-and-alignment.md](xdl-jax-refactor-and-alignment.md): `xdl-jax` 抽象抽离与接口对齐优化方案.
-- [xqt.md](xqt.md): `XQT` 定位, 模型侧边界, Stage 约定, profiling 约定.
-- [xqt-kernels.md](xqt-kernels.md): `xqt.kernels` 统一内核命名空间, `spec / registry / selector / fused_op / ops / jit / aot` 契约与上层调用.
-- [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md): `kernel` / `wrapper/materialize` / `xqt.nn` 三层边界.
-- [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md): `single_kernel` / `block_kernel` 分层, block 准入和手写融合路径.
-- [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md): `engine` / `quant` 词表, 三轴, 禁止项与配置语义.
-- [xqt-infer-handoff.md](xqt-infer-handoff.md): quant→infer 交接面 (`model` + `compute_config`).
-- [xqt-design-debt.md](xqt-design-debt.md): `XQT` 设计债台账, 只累计问题, 后面统一做方案.
-- [xqt-realignment-guide.md](xqt-realignment-guide.md): `XQT` 现状诊断 1-8 的落地状态和长期矫正准则.
-- [xqt-improvement-roadmap.md](xqt-improvement-roadmap.md): `XQT` 后续修改大纲, 里程碑和真实模型主方向, 属于规划.
-- [xqt-improvement-goals.md](xqt-improvement-goals.md): `XQT` 改进任务的唯一状态源, 含详细目标, 依赖和验收标准.
 
 ## 当前兼容事实源
 
 - [../README.md](../README.md): 旧 `XDL` 总文档事实源, 仍保留兼容入口角色.
-- [../XQT.md](../XQT.md): 旧 `XQT` 长期事实源, 仍保留兼容入口角色.
-- [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md): `XQT` 包内工程契约.
 
 ## 推荐阅读顺序
 
@@ -53,17 +41,3 @@
 5. [html-style-policy.md](html-style-policy.md)
 6. [roadmap.md](roadmap.md)
 7. [xdl-improvement-goals.md](xdl-improvement-goals.md)
-
-### XQT
-
-1. [xqt.md](xqt.md)
-2. [xqt-kernels.md](xqt-kernels.md)
-3. [xqt-kernel-wrapper-nn-boundary.md](xqt-kernel-wrapper-nn-boundary.md)
-4. [xqt-operator-block-optimization.md](xqt-operator-block-optimization.md)
-5. [xqt-engine-quant-boundary.md](xqt-engine-quant-boundary.md)
-6. [xqt-infer-handoff.md](xqt-infer-handoff.md)
-7. [xqt-design-debt.md](xqt-design-debt.md)
-8. [xqt-realignment-guide.md](xqt-realignment-guide.md)
-9. [xqt-improvement-roadmap.md](xqt-improvement-roadmap.md)
-10. [xqt-improvement-goals.md](xqt-improvement-goals.md)
-11. [../../../xqt/FRAMEWORK.md](../../../xqt/FRAMEWORK.md)

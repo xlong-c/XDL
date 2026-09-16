@@ -1,6 +1,6 @@
 # 说明文档入口
 
-本文汇总 `XDL` 与 `XQT` 的说明文档. 说明层负责解释概念, 术语, 认知模型和常见误区.
+本文汇总 `XDL` 的说明文档. 说明层负责解释概念, 术语, 认知模型和常见误区.
 
 ## 负责什么
 
@@ -17,20 +17,6 @@
 ## 当前文档
 
 - [xdl-concepts.md](xdl-concepts.md): `XDL` 的概念地图和理解路径.
-- [xqt-concepts.md](xqt-concepts.md): `XQT` 的概念地图和边界理解.
-- [../architecture/xqt-kernel-wrapper-nn-boundary.md](../architecture/xqt-kernel-wrapper-nn-boundary.md): `kernel` / `wrapper/materialize` / `xqt.nn` 三层边界.
-- [xqt-engines.md](xqt-engines.md): 对照代码的 operator engine 能力矩阵 (pattern, maturity).
-- [xqt-kernel-guidance.md](xqt-kernel-guidance.md): 面向 YOLO / DiT / MoE LLM 的细粒度 kernel 指导表, 以及 `fusion layer` / `fusion kernel` 边界.
-- [xqt-quant.md](xqt-quant.md): quant backend / method / strategy 写法与实现入口.
-- [xqt-inference.md](xqt-inference.md): 对照代码的推理路径说明 (hybrid engine, 模型包, export/deploy).
-- [backends/index.md](backends/index.md): XQT 导出 / runtime backend 和 operator optimization engine 分文档入口.
-- [flux2-klein-nvfp4-backends.md](flux2-klein-nvfp4-backends.md): FLUX.2 klein NVFP4 的 `cutedsl`, `cutile`, `tilelang` 三类 XQT engine 推理接入.
-- [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md): 手写 CUDA / CUTLASS / CuTe DSL 算子的调优方法论, 覆盖 GEMM, Conv, Linear, Attention, Norm, 访存, 通信, 低精度, 以及 NVIDIA / AMD 代际 `MMA` / `Matrix Core` 总表.
-- [convrot-w4a4-sm89-optimization.md](convrot-w4a4-sm89-optimization.md): ConvRot W4A4 在 SM89 上从显式 rotation + quant + GEMM 收敛到 warp-FHT rowwise INT4 两 kernel 路径的逐步案例,包含数学,layout,runtime,性能和数值取舍.
-- [operator-optimization-records.md](operator-optimization-records.md): 已落地推理优化的证据,取舍和可复用规则记录.
-- [inference-backends-primer.md](inference-backends-primer.md): 推理后端和模型部署格式的基础介绍, 不绑定 `XQT` 实现.
-- [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md): W4 存储 + INT8 MMA 计算转义的设计, 实现, 策略对照与基准验收.
-- [mma-weight-prepack.md](mma-weight-prepack.md): 离线 MMA 权重预排板.
 - [dataset-structure.md](dataset-structure.md): dataset 模块的概念说明和阅读路径.
 - [html-style.md](html-style.md): HTML 阅读页的分层说明.
 
@@ -41,21 +27,3 @@
 1. [xdl-concepts.md](xdl-concepts.md)
 2. [dataset-structure.md](dataset-structure.md)
 3. [html-style.md](html-style.md)
-
-### XQT
-
-1. [xqt-concepts.md](xqt-concepts.md)
-2. [../architecture/xqt-kernel-wrapper-nn-boundary.md](../architecture/xqt-kernel-wrapper-nn-boundary.md)
-3. [../architecture/xqt-engine-quant-boundary.md](../architecture/xqt-engine-quant-boundary.md)
-4. [xqt-engines.md](xqt-engines.md)
-5. [xqt-kernel-guidance.md](xqt-kernel-guidance.md)
-6. [xqt-quant.md](xqt-quant.md)
-7. [xqt-inference.md](xqt-inference.md)
-8. [backends/index.md](backends/index.md)
-9. [operator-kernel-tuning-guide.md](operator-kernel-tuning-guide.md)
-10. [convrot-w4a4-sm89-optimization.md](convrot-w4a4-sm89-optimization.md)
-11. [operator-optimization-records.md](operator-optimization-records.md)
-12. [w4-int8-mma-retarget.md](w4-int8-mma-retarget.md)
-13. [mma-weight-prepack.md](mma-weight-prepack.md)
-14. [inference-backends-primer.md](inference-backends-primer.md)
-15. [../XQT_SUMMARY.md](../XQT_SUMMARY.md)

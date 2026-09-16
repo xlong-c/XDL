@@ -41,7 +41,6 @@
 | 子模块职责或目录迁移 | [architecture/module-boundaries.md](architecture/module-boundaries.md) | [README.md#xdl-模块功能边界速查](README.md#xdl-模块功能边界速查) |
 | 文档结构,HTML 视觉系统 | [architecture/html-style-policy.md](architecture/html-style-policy.md) | [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范), [../AGENTS.md](../AGENTS.md) |
 | 框架后续待办 | [architecture/roadmap.md](architecture/roadmap.md) | [README.md#xdl-当前优化方向](README.md#xdl-当前优化方向) |
-| XQT 压缩与部署 | [XQT 摘要入口](XQT_SUMMARY.md) | [XQT.md](XQT.md) |
 
 ## 安装与验证摘要
 
@@ -112,7 +111,7 @@ from xdl.callbacks import Callback
 文档分层规则:
 
 - `docs/md/`: 写代码前看的工作文档和事实源.
-- `learn/`,`research/` 下的 HTML: 教程与调研阅读页.
+- `research/` 下的 HTML: 调研阅读页.
 - 同一主题先改 MD,再同步 HTML.
 
 HTML 自有教程与调研页统一复用 `docs/html/assets/xdl-doc.css` 和 `docs/html/assets/xdl-theme.js`,并遵循固定模板约束. 当前 canonical 页面见 [architecture/html-style-policy.md](architecture/html-style-policy.md),兼容锚点见 [README.md#xdl-html-阅读页样式规范](README.md#xdl-html-阅读页样式规范).

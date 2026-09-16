@@ -5,7 +5,7 @@
 ## 第一规则
 
 - `docs/md/` 是给 agents 和开发者写代码前看的工作文档.
-- 源码和本目录中的 MD 定义事实边界;`learn/` 与 `research/` 下的 HTML 教程与调研页只做阅读层,不定义契约.
+- 源码和本目录中的 MD 定义事实边界;`research/` 下的 HTML 调研页只做阅读层,不定义契约.
 - 行为,字段,API 或兼容承诺变化时,先改本目录对应 MD,再同步引用同一主题的 HTML 页面.
 
 研究笔记,阶段性分析和一次性草案应放在 `research/`,不在 `docs/md/` 堆叠.
@@ -27,7 +27,6 @@
 | 7 | [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) | 自有 HTML 阅读页统一样式,主题 token,色彩和交互规范. |
 | 8 | [XDL 模块功能边界速查](#xdl-模块功能边界速查) | 各源码子模块职责速查. |
 | 9 | [XDL 当前优化方向](#xdl-当前优化方向) | 当前仍有效的后续优化方向. |
-| 10 | [XQT.md](XQT.md) | `xqt/` 模型压缩与部署工具链的兼容长期 MD 入口. |
 
 ## 改动前必读
 
@@ -37,12 +36,11 @@
 | 训练生命周期,`CoreModel`,`Trainer`,Callback | [XDL 项目结构与使用说明](#xdl-项目结构与使用说明),[../../xdl/trainer/README.md](../../xdl/trainer/README.md) | 同步说明手动优化,batch 迁移,日志和回调顺序. |
 | YAML 配置,schema,`target + params` | [XDL Config 系统说明](#xdl-config-系统说明) | 同步字段,示例和配置主链路. |
 | 数据集模板,collate,manifest | [XDL Dataset 模板规划](#xdl-dataset-模板规划) | 同步模板选择表,注册名和测试要求. |
-| `xqt/` 模型压缩,导出,分析,benchmark | [XQT.md](XQT.md) | 同步唯一 XQT 长期 MD 入口. |
 | 安装,依赖,wheel,运行入口 | [XDL 安装与验证](#xdl-安装与验证),[../../xdl/USAGE.md](../../xdl/USAGE.md) | 同步安装命令和包内用法入口. |
 | 子模块职责,目录迁移 | [XDL 模块功能边界速查](#xdl-模块功能边界速查) | 同步目录职责和依赖方向. |
-| 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 事实源与 `learn/`,`research/` HTML 阅读页分层清楚. |
+| 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 事实源与 `research/` HTML 阅读页分层清楚. |
 | 中文文档,注释或研究草案 | [XDL 写作标点规范](#xdl-写作标点规范) | 对本次改动文件运行 `scripts/normalize_punctuation.py`,不要一次性重写大量历史文档. |
-| HTML 教程与调研页样式,公共 CSS,主题交互 | [architecture/html-style-policy.md](architecture/html-style-policy.md) | 同步 `../html/assets/` 和 `learn/`,`research/` 页面引用. |
+| HTML 调研页样式,公共 CSS,主题交互 | [architecture/html-style-policy.md](architecture/html-style-policy.md) | 同步 `../html/assets/` 和 `research/` 页面引用. |
 
 ## XDL 知识图谱使用约定
 
@@ -58,10 +56,9 @@
 - [XDL Config 系统说明](#xdl-config-系统说明) 只讲配置系统,不展开 dataset 全量模板规划.
 - [XDL Dataset 模板规划](#xdl-dataset-模板规划) 只讲 dataset 模板规划,选择和扩展方式.
 - [XDL API 稳定边界](#xdl-api-稳定边界) 只讲公共 API 兼容边界,不重复使用教程.
-- [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) 只讲 `learn/`,`research/` 自有 HTML 教程与调研页的视觉系统和样式维护规则,不定义框架行为.
+- [XDL HTML 阅读页样式规范](#xdl-html-阅读页样式规范) 只讲 `research/` 自有 HTML 调研页的视觉系统和样式维护规则,不定义框架行为.
 - [XDL 模块功能边界速查](#xdl-模块功能边界速查) 只做模块职责速查,不重复写长篇使用指南.
 - [XDL 当前优化方向](#xdl-当前优化方向) 只保留仍然有效的待办,不复述现状说明.
-- `XQT.md` 是 `xqt/` 的兼容长期 MD 入口,只讲压缩与部署工具链的事实边界,配置方式,现有能力和现状约束;阶段性研究和完成后失效的任务清单不要继续拆到 `docs/md/`.
 
 ## XDL 写作标点规范
 
@@ -82,14 +79,14 @@ XDL_PUNCT_PATHS=docs/md/README.md python scripts/normalize_punctuation.py
 - 多文件或目录可用逗号分隔:
 
 ```bash
-XDL_PUNCT_PATHS=docs/md,research/xqt-practice-examples python scripts/normalize_punctuation.py
+XDL_PUNCT_PATHS=docs/md,research python scripts/normalize_punctuation.py
 ```
 
 - 工具使用固定映射,不使用 Unicode NFKC,避免误改中文正文,全角数字,单位,数学符号或模型名. 默认扫描 `docs,research`,也可通过 `XDL_PUNCT_EXTS=.md,.txt` 限制后缀.
 
 ## HTML 同步规则
 
-- `learn/` 与 `research/` 下的 HTML 页面只做教程与调研阅读层,不是事实源.
+- `research/` 下的 HTML 调研页只做阅读层,不是事实源.
 - HTML 可以重排,提炼和图文化 MD 内容,但不要引入和 MD 或源码冲突的新事实.
 - 同一主题的行为,字段或 API 发生变化时,先更新对应 MD,再同步覆盖同一主题的 HTML 页面.
 - 新增或重构自有 HTML 时,body 必须且只能包含 `xdl-style-atlas` 或 `xdl-style-ledger` 两种模板之一,默认引用 `../html/assets/xdl-doc.css`;需要交互式主题切换时再引用 `../html/assets/xdl-theme.js`.

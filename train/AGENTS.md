@@ -15,7 +15,7 @@
 
 - 预训练: 从零得到一个 base checkpoint, 数据与任务自包含
 - 后训练: 输入是已有 checkpoint (冻结主干 + 可训练 adapter 或全量微调),
-  产出的 adapter/merge 结果交由推理或压缩 (XQT) 侧使用
+  产出的 adapter/merge 结果交由外部推理或压缩工具链使用
 - 新增入口先判断阶段归属再选目录; 两阶段通用的共享逻辑下沉到 `xdl/`
   (后训练组件在 `xdl/post_training/`), 不要在入口之间互相 import
 

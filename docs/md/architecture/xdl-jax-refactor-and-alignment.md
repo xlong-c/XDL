@@ -37,7 +37,7 @@
 ┌────────────────────────────────────────────────────────┐
 │           xdl-base (厚重的跨框架 AI 共享基座)            │
 │  - 实验看板 (WandB/TensorBoard)  - 纯数学 LR 调度曲线    │
-│  - 通用度量引擎 (Metrics Engine) - XQT 模型产物交付契约 │
+│  - 通用度量引擎 (Metrics Engine) - 下游模型产物交付契约 │
 └────────────────────────────┬───────────────────────────┘
 ```
 
@@ -50,7 +50,7 @@
 1. **实验监控集成**: 统一打通 WandB, TensorBoard, MLflow 的通用标量/图表上报;
 2. **纯数学学习率调度**: CosineAnnealing, LinearWarmup 等纯 step->lr 衰减数学公式;
 3. **度量统计引擎**: 滑动平均(EMA), Confusion Matrix, PR 曲线等纯 Python/NumPy 评估计算器;
-4. **下游 XQT 产物契约**: 跨框架的 Safetensors / NPZ 权重序列化与结构元数据标准导出器.
+4. **下游模型产物契约**: 跨框架的 Safetensors / NPZ 权重序列化与结构元数据标准导出器.
 
 ---
 
@@ -70,7 +70,7 @@ PyTorch `xdl` 与 JAX `xdl-jax` 形成清晰的镜像对照关系:
 | **随机数管理** | 全局隐式 `torch.manual_seed` | 显式 `jax.random.key` 树流转 | JAX 侧严禁全局随机状态, 确保完全确定性可复现. |
 | **检查点管理器** | `ModelCheckpoint` (`.pt`) | `JaxCheckpointManager` (Orbax) | 统一提供 `exact`(断点全状态续训)与 `weights-only`(仅权重). |
 | **生命周期回调** | `xdl.callbacks.Callback` | `xdl_jax.callbacks.Callback` | 共享一致的事件名: `on_fit_start`, `on_train_batch_end`, `on_train_epoch_end` 等. |
-| **下游交付 (XQT)** | `model.state_dict()` 导出 | `export_model_artifact()` | 均输出无框架绑定的 NumPy 权重字典与 JSON metadata 给 XQT. |
+| **下游交付** | `model.state_dict()` 导出 | `export_model_artifact()` | 均输出无框架绑定的 NumPy 权重字典与 JSON metadata 给下游压缩部署工具链. |
 
 ### 3.2 训练任务编写代码对照
 

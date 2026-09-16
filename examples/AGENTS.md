@@ -2,13 +2,12 @@
 
 ## 目录职责
 
-- 存放可运行的示例脚本, 展示 XDL/XQT 与外部库的接入方式
+- 存放可运行的示例脚本, 展示 XDL 与外部库的接入方式
 - 正式训练入口不在这里: 预训练在 `train/pretrain/`, 后训练 (LoRA 微调,
   RL 等) 在 `train/posttrain/`, 见 [../train/AGENTS.md](../train/AGENTS.md)
 
 ## 当前内容
 
-- `xqt_models/`: XQT 模型压缩与部署示例 (flux2_klein, hunyuan_ocr 等)
 - `mlp_simulation.py`: 轻量示例
 - `sefi_dit/`: SeFi 官方 finetune runbook (不走 XDL 路径)
 - 其他脚本覆盖推理演示与实验入口

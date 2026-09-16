@@ -8,12 +8,12 @@
 ```text
 xdl       -> PyTorch 训练
 xdl-jax   -> JAX 训练编排
-xqt       -> 模型压缩,图变换,导出和 benchmark
+下游工具链 -> 模型压缩,图变换,导出和 benchmark
 ```
 
 `xdl-jax` 负责 `JaxTask`, model adapter, Optax update, validation,
 callback, Orbax checkpoint 和模型侧 artifact export. 它不负责量化,剪枝,
-QAT,部署 runtime,serving 或 XQT workflow.
+QAT,部署 runtime,serving 或压缩部署 workflow.
 
 ## 当前正式候选能力
 
@@ -30,7 +30,7 @@ QAT,部署 runtime,serving 或 XQT workflow.
 - 多 GPU,多主机和 TPU 没有当前正式验收证据.
 - 多设备 sharded checkpoint 的跨拓扑恢复未交付.
 - 默认 NumPy data source 不承诺精确 iterator resume.
-- XQT 交接当前通过模型侧 artifact helper,不在训练过程中调用 XQT.
+- 向压缩部署工具链交接当前通过模型侧 artifact helper,不在训练过程中调用下游工具.
 
 实现入口见 [`xdl-jax/README.md`](../../../xdl-jax/README.md), API 和运行文档
 见 [`xdl-jax/docs/`](../../../xdl-jax/docs/), 抽象抽离与对齐优化方案见

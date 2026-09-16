@@ -1,11 +1,11 @@
-# XDL / XQT 文档入口
+# XDL 文档入口
 
-本文是 `XDL` 与 `XQT` 长期 Markdown 文档的新入口. 它只负责导航, 分层和阅读顺序, 不承载完整事实正文.
+本文是 `XDL` 长期 Markdown 文档的新入口. 它只负责导航, 分层和阅读顺序, 不承载完整事实正文.
 
 ## 负责什么
 
 - 说明 `docs/md/` 的三层结构.
-- 给出 `XDL` 与 `XQT` 的推荐阅读路径.
+- 给出 `XDL` 的推荐阅读路径.
 - 指向当前的架构, 说明, 使用三类文档.
 
 ## 不负责什么
@@ -36,30 +36,12 @@
 8. [usage/xdl-config-workflows.md](usage/xdl-config-workflows.md)
 9. [usage/xdl-workflows.md](usage/xdl-workflows.md)
 
-### XQT
-
-1. [architecture/xqt.md](architecture/xqt.md)
-2. [architecture/xqt-kernel-wrapper-nn-boundary.md](architecture/xqt-kernel-wrapper-nn-boundary.md)
-3. [architecture/xqt-realignment-guide.md](architecture/xqt-realignment-guide.md)
-4. [explanation/xqt-concepts.md](explanation/xqt-concepts.md)
-5. [explanation/xqt-kernel-guidance.md](explanation/xqt-kernel-guidance.md)
-6. [explanation/backends/index.md](explanation/backends/index.md)
-7. [explanation/flux2-klein-nvfp4-backends.md](explanation/flux2-klein-nvfp4-backends.md)
-8. [explanation/operator-kernel-tuning-guide.md](explanation/operator-kernel-tuning-guide.md)
-9. [explanation/convrot-w4a4-sm89-optimization.md](explanation/convrot-w4a4-sm89-optimization.md)
-10. [explanation/inference-backends-primer.md](explanation/inference-backends-primer.md)
-11. [usage/xqt-workflows.md](usage/xqt-workflows.md)
-
-后续改进先读 [XQT 改进路线图](architecture/xqt-improvement-roadmap.md), 再按 [详细目标与验收](architecture/xqt-improvement-goals.md) 的任务 ID 推进. 两者属于规划, 不代表当前能力已经实现.
-
 ## 当前兼容入口
 
 在正文完全拆分完成前, 现有入口仍然有效:
 
 - [README.md](README.md): `XDL` 兼容详细版事实源.
 - [README_SUMMARY.md](README_SUMMARY.md): `XDL` 兼容摘要入口.
-- [XQT.md](XQT.md): `XQT` 兼容长期事实源.
-- [XQT_SUMMARY.md](XQT_SUMMARY.md): `XQT` 兼容摘要入口.
 
 ## 迁移原则
 

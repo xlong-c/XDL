@@ -1,8 +1,9 @@
 """Detection output decoding utilities.
 
 These are task-provider-level helpers: decode raw model outputs into
-structured detection predictions (boxes / scores / labels). Moved out of
-xqt/integrations/ per xqt core contract — XQT does not own task provider logic.
+structured detection predictions (boxes / scores / labels). Task provider
+logic belongs to the training framework; model compression and deployment
+toolchains do not own it.
 """
 
 from __future__ import annotations
