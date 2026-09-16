@@ -1,1 +1,0 @@
-# xqt_kernel headers

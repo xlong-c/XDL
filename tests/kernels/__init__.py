@@ -1,1 +1,0 @@
-"""XQT kernel namespace tests."""
