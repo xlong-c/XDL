@@ -67,7 +67,7 @@
 
 ## HTML 教程规范
 
-- 新增或重构 `learn/math/**/*.html` 和 CSS 前, 必须先阅读 `docs/md/README.md#xdl-html-阅读页样式规范`.
+- 新增或重构 `learn/math/**/*.html` 和 CSS 前, 必须先阅读 `docs/md/architecture/html-style-policy.md`.
 - HTML 是给人类阅读的可视化层. 它可以提炼和重排内容, 但不能引入和 Markdown 源, 课程总纲或源码脚本冲突的新事实.
 - 课程 CSS 应复用 `docs/html/assets/xdl-doc.css` 的主题 token 和公共数学/教程组件. 课程 CSS 只作为薄入口和课程独有组件扩展,不复制 topbar,hero,layout,toc,card,table,formula,practice,chapter-nav 等公共样式.
 - 需要主题切换时复用 `docs/html/assets/xdl-theme.js`.
