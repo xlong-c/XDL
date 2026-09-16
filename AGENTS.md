@@ -74,8 +74,8 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 
 ## 文档规范
 
-- **第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档, 也是行为, 字段, API 和兼容边界的事实源. 新增长期 MD 放 `docs/md/`; HTML 调研页放 `research/`. 阶段性研究资料放 `research/`, 不能替代长期文档.
-- **HTML 阅读页样式**: 新增或重构 `research/` 下 HTML/CSS 时, 先遵循 [docs/md/architecture/html-style-policy.md](docs/md/architecture/html-style-policy.md). 自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板; `math-doc-page`, `research-page`, `flash-attention-page` 等只能作语义叠加 class. 默认复用 `docs/html/assets/xdl-doc.css` 主题 token 和公共组件, 不复制大段内联 `<style>`, 不用散落 `style=`, 主题切换复用 `docs/html/assets/xdl-theme.js`.
+- **第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档, 也是行为, 字段, API 和兼容边界的事实源. 新增长期 MD 放 `docs/md/`; 阶段性研究资料放独立的 `../research` 仓库 (本仓库内以软链 `research/` 挂入), 不能替代长期文档.
+- **HTML 阅读页样式**: 新增或重构 `../research` 下 HTML/CSS 时, 先遵循 [docs/md/architecture/html-style-policy.md](docs/md/architecture/html-style-policy.md). 自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板; `math-doc-page`, `research-page`, `flash-attention-page` 等只能作语义叠加 class. 默认复用 `docs/html/assets/xdl-doc.css` 主题 token 和公共组件, 不复制大段内联 `<style>`, 不用散落 `style=`, 主题切换复用 `docs/html/assets/xdl-theme.js`.
 
 ---
 
@@ -157,7 +157,7 @@ XQT (模型压缩与部署) 与 mylearn (学习与实验) 已拆为独立仓库,
 - [docs/AGENTS.md](docs/AGENTS.md) - 仓库文档目录
 - [examples/AGENTS.md](examples/AGENTS.md) - 示例脚本目录
 - [infer/AGENTS.md](infer/AGENTS.md) - 推理脚本目录
-- [research/AGENTS.md](research/AGENTS.md) - 研究资料目录
+- [research/AGENTS.md](research/AGENTS.md) - 研究资料目录 (独立仓库 `../research` 的软链挂载点)
 - [scripts/AGENTS.md](scripts/AGENTS.md) - 仓库维护脚本目录
 - [tests/AGENTS.md](tests/AGENTS.md) - 测试目录
 - [tools/AGENTS.md](tools/AGENTS.md) - 数据与工程工具目录

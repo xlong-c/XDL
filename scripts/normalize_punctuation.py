@@ -27,7 +27,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TRUE_VALUES = {"1", "true", "yes", "on"}
-DEFAULT_PATHS = "docs,research"
+DEFAULT_PATHS = "docs"
 DEFAULT_EXTS = ".md,.txt,.rst,.html,.css,.js,.ts,.tsx,.py,.yaml,.yml,.toml"
 IGNORE_DIRS = {
     ".git",
@@ -114,6 +114,13 @@ def ensure_inside_repo(path: Path) -> None:
         raise RuntimeError(f"拒绝扫描仓库外路径: {resolved}")
 
 
+def is_outside_repo(path: Path) -> bool:
+    """判断路径是否解析到仓库外 (例如指向兄弟仓库的软链)."""
+    resolved = path.resolve()
+    root = REPO_ROOT.resolve()
+    return resolved != root and root not in resolved.parents
+
+
 def normalize_text(text: str) -> tuple[str, int]:
     replacement_count = 0
     normalized_chars: list[str] = []
@@ -134,7 +141,11 @@ def should_skip_dir(path: Path) -> bool:
 def discover_files(paths: list[str], suffixes: set[str]) -> list[Path]:
     files: list[Path] = []
     for item in paths:
-        path = (REPO_ROOT / item).resolve()
+        raw = REPO_ROOT / item
+        if raw.is_symlink() and is_outside_repo(raw):
+            print(f"[normalize_punctuation] skip out-of-repo symlink: {item}")
+            continue
+        path = raw.resolve()
         ensure_inside_repo(path)
         if not path.exists():
             print(f"[normalize_punctuation] skip missing path: {item}")
@@ -144,6 +155,8 @@ def discover_files(paths: list[str], suffixes: set[str]) -> list[Path]:
                 files.append(path)
             continue
         for candidate in path.rglob("*"):
+            if candidate.is_symlink() and is_outside_repo(candidate):
+                continue
             if should_skip_dir(candidate.relative_to(REPO_ROOT)):
                 continue
             if candidate.is_file() and candidate.suffix in suffixes:

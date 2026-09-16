@@ -105,7 +105,7 @@ pytest tests/config -q
 ### 跑开发检查
 
 ```bash
-ruff check xdl tests config examples infer train research/diffusion-models-survey-2025/sana_hair_lora
+ruff check xdl tests config examples infer train
 pyright
 ```
 
