@@ -301,9 +301,9 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 
 建议按下面顺序看:
 
-1. [core_model.py](/root/workspace/xdl/xdl/trainer/core_model.py)
-2. [trainer.py](/root/workspace/xdl/xdl/trainer/trainer.py)
-3. [train_setup_model.py](/root/workspace/xdl/xdl/config/train_setup_model.py)
-4. [XDL 项目结构与使用说明](/root/workspace/xdl/docs/md/README.md#xdl-项目结构与使用说明)
-5. [XDL Config 系统说明](/root/workspace/xdl/docs/md/README.md#xdl-config-系统说明)
-6. [XDL API 稳定边界](/root/workspace/xdl/docs/md/README.md#xdl-api-稳定边界)
+1. [core_model.py](/root/workspace/xdl/xdl/xdl/trainer/core_model.py)
+2. [trainer.py](/root/workspace/xdl/xdl/xdl/trainer/trainer.py)
+3. [train_setup_model.py](/root/workspace/xdl/xdl/xdl/config/train_setup_model.py)
+4. [XDL 项目结构与使用说明](/root/workspace/xdl/xdl/docs/md/README.md#xdl-项目结构与使用说明)
+5. [XDL Config 系统说明](/root/workspace/xdl/xdl/docs/md/README.md#xdl-config-系统说明)
+6. [XDL API 稳定边界](/root/workspace/xdl/xdl/docs/md/README.md#xdl-api-稳定边界)

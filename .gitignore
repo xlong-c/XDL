@@ -167,6 +167,14 @@ Thumbs.db
 temp/
 tmp/
 
+# 本地资产以软链形式挂入本仓库; 必须同时列出无斜杠形式, 否则 git 不忽略软链.
+/data
+/others
+/downloads
+/third_party
+/artifacts
+/runs
+
 # Project specific
 # 本地辅助资产, 整体忽略. 目录说明见 docs/md/architecture/local-assets-directory.md.
 others/

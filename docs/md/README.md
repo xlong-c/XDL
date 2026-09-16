@@ -46,7 +46,7 @@
 
 - 本仓库在 `codebase-memory-mcp` 中的项目名固定为 `root-workspace-xdl`.
 - 使用 `search_graph`, `trace_path`, `get_code_snippet`, `query_graph`, `get_architecture`, `detect_changes`, `index_status` 等 MCP 图谱工具时, `project` 参数统一传 `root-workspace-xdl`,不要写成 `xdl`.
-- 需要重建索引时,对仓库根目录 `/root/workspace/xdl` 运行 `index_repository`,生成的项目仍应视为同一个 `root-workspace-xdl`.
+- 需要重建索引时,对仓库根目录 `/root/workspace/xdl/xdl` 运行 `index_repository`,生成的项目仍应视为同一个 `root-workspace-xdl`.
 - 完成新增/删除模块,公开符号重命名,模块调用关系调整等结构性改动后,应重建或刷新该项目索引,保持知识图谱和代码一致.
 
 ## 文档边界
