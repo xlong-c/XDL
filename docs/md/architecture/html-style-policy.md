@@ -4,7 +4,7 @@
 
 ## 负责什么
 
-- 定义 `learn/` 与 `research/` 自有 HTML 教程与调研页的长期规范.
+- 定义 `research/` 自有 HTML 教程与调研页的长期规范.
 - 定义公共 CSS, 主题脚本和 body 模板的使用边界.
 - 定义 HTML 与 Markdown 的分工和同步规则.
 
@@ -17,7 +17,7 @@
 ## 第一原则
 
 - `docs/md/` 是事实源和实现导航.
-- `learn/` 与 `research/` 下的 HTML 是给人类读者的教程与调研阅读层.
+- `research/` 下的 HTML 是给人类读者的教程与调研阅读层.
 - 同一主题变化时, 先更新对应 Markdown 正文, 再同步 HTML.
 - HTML 可以提炼, 重排和图文化 Markdown, 但不能单独定义新契约.
 
@@ -41,7 +41,7 @@
 
 ## 页面资源引用
 
-`learn/` 与 `research/` 下的 HTML 页面默认写法:
+`research/` 下的 HTML 页面默认写法:
 
 ```html
 <head>
