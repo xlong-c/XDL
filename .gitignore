@@ -31,14 +31,6 @@ __pycache__/
 # Distribution / packaging
 artifacts/
 
-# Curated XQT benchmark evidence. Keep the artifact tree ignored by default,
-# but allow the audited SVDQuant parity records used by long-term docs.
-!research/xqt-gemm/artifacts/
-research/xqt-gemm/artifacts/*
-!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-norm-runner/
-!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-norm-runner/result.json
-!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-official-mlp-parity-v1/
-!research/xqt-gemm/artifacts/2026-08-13-sm89-svdq-official-mlp-parity-v1/result.json
 build/
 develop-eggs/
 dist/
@@ -122,7 +114,6 @@ dmypy.json
 
 # Deep Learning specific
 # Model files
-artifacts/xqt/
 *.pth
 *.pt
 *.h5

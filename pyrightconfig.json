@@ -6,7 +6,6 @@
     ],
     "include": [
         "xdl",
-        "xqt",
         "tests",
         "config",
         "examples",
@@ -24,7 +23,6 @@
         "**/.venv",
         "data",
         "downloads",
-        "learn",
         "third_party"
     ]
 }

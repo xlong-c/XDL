@@ -67,30 +67,12 @@ optimization = [
     "nvidia-cutlass-dsl>=4.6.0",
 ]
 
-# XQT 压缩与部署可选依赖
-xqt = [
-    "torchao>=0.1.0",
-    "onnx>=1.16.0",
-    "onnxconverter-common>=1.14.0",
-    "onnxruntime>=1.18.0",
-    "pandas>=2.0.0",
-]
-
-xqt-viz = [
-    "matplotlib>=3.5.0",
-]
-
-xqt-all = [
-    "xdl[xqt,xqt-viz]",
-]
-
 # 完整安装（所有功能）
 all = [
     "xdl[cv]",
     "xdl[logging]",
     "xdl[safetensors]",
     "xdl[optimization]",
-    "xdl[xqt-all]",
 ]
 
 # 开发和测试
@@ -109,15 +91,15 @@ Documentation = "https://github.com/xlong/xdl#readme"
 
 [project.scripts]
 xdl-usage = "xdl.usage:main"
-xqt-run-workflow = "xqt.run_workflow:main"
 
+# XQT (模型压缩与部署) 已拆到独立仓库, 通过本地 editable 安装衔接:
+#   pip install -e ../xqt
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["xdl*", "xqt*"]
+include = ["xdl*"]
 
 [tool.setuptools.package-data]
 xdl = ["py.typed", "USAGE.md"]
-xqt = ["py.typed", "recipes/*/*.yaml", "recipes/*/*/*.yaml"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
