@@ -115,7 +115,6 @@ target-version = "py312"
 extend-exclude = [
     "data",
     "downloads",
-    "learn",
     "third_party",
 ]
 
