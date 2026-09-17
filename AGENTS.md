@@ -53,7 +53,7 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 - 不确定文件位置或调用关系时, 优先搜索而非猜测.
 - 涉及第三方库用法, API 变更, 最佳实践等外部知识时, 先用 WebSearch 查最新文档.
 - **半角符号**: 文档或注释使用点, 括号, 引号, 冒号等一律写半角, 不混入全角. 写作后用 `XDL_PUNCT_PATHS=<path> python scripts/normalize_punctuation.py` 自动归一, `XDL_PUNCT_CHECK=1` 只检查.
-- **知识图谱**: 完成结构性变更 (新增/删除模块, 重命名公开符号, 调用关系变化) 后, 手动运行 `index_repository` 刷新知识图谱. 本工作区在 `codebase-memory-mcp` 中项目名固定为 `root-workspace-xdl`, 调用 `index_status` / `search_graph` / `trace_path` / `get_code_snippet` / `query_graph` 时 `project` 统一传 `root-workspace-xdl`.
+- **知识图谱**: 完成结构性变更 (新增/删除模块, 重命名公开符号, 调用关系变化) 后, 手动运行 `index_repository` 刷新知识图谱. 工作区按仓库分别建图, 本仓库在 `codebase-memory-mcp` 中项目名为 `xdl`, 调用 `index_status` / `search_graph` / `trace_path` / `get_code_snippet` / `query_graph` 时 `project` 统一传 `xdl`.
 - **技能目录**: 项目技能的唯一实体来源是仓库根的 `skills/<name>/SKILL.md`. 本仓库当前没有 `skills/` 目录 (XDL 项目技能已随职责划分迁到 `../xqt`); 若后续新增, `.claude/skills/<name>` 和 `.codex/skills/<name>` 必须用相对软链接 (`../../skills/<name>`) 指向它, 不在工具目录下直接放或复制技能本体. 工具自带或第三方技能按其自身安装方式管理.
 
 ## 脚本与配置规范
@@ -70,7 +70,7 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 - **Lint / 格式**: `ruff check <路径>` 与 `ruff format --check <路径>` (行宽 88, py312, 默认排除 `data/ downloads/ third_party/`); 提交前两个都要过.
 - **半角符号**: `XDL_PUNCT_PATHS=<路径> python scripts/normalize_punctuation.py`, `XDL_PUNCT_CHECK=1` 只检查不改写. `XDL_PUNCT_PATHS` **一次只接受一个路径**, 空格分隔不生效.
 - **跑示例**: 必须 `PYTHONPATH=. python examples/<script>.py`. 直接 `python examples/...` 会报 `ModuleNotFoundError: No module named 'examples'`, 因为示例之间按 `examples.*` 互相 import.
-- **知识图谱**: 结构性变更后手动 `index_repository` 刷新, `project` 固定传 `root-workspace-xdl`.
+- **知识图谱**: 结构性变更后手动 `index_repository` 刷新, `project` 固定传 `xdl`.
 
 ## 文档规范
 
