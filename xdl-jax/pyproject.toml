@@ -45,9 +45,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/xlong/xdl"
-Repository = "https://github.com/xlong/xdl/tree/main/xdl-jax"
-Documentation = "https://github.com/xlong/xdl/tree/main/xdl-jax/docs"
+Homepage = "https://github.com/xlong-c/XDL"
+Repository = "https://github.com/xlong-c/XDL/tree/master/xdl-jax"
+Documentation = "https://github.com/xlong-c/XDL/tree/master/xdl-jax/docs"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -26,7 +26,7 @@
 ### 基础安装
 
 ```bash
-git clone https://gitee.com/xlong_t/xdl.git
+git clone https://github.com/xlong-c/XDL.git
 cd xdl
 pip install -e .
 ```

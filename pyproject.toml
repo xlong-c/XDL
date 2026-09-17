@@ -85,9 +85,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/xlong/xdl"
-Repository = "https://gitee.com/xlong_t/xdl"
-Documentation = "https://github.com/xlong/xdl#readme"
+Homepage = "https://github.com/xlong-c/XDL"
+Repository = "https://github.com/xlong-c/XDL"
+Documentation = "https://github.com/xlong-c/XDL#readme"
 
 [project.scripts]
 xdl-usage = "xdl.usage:main"
