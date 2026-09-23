@@ -11,7 +11,7 @@ XQT       -> 模型压缩, 图变换, 导出适配, benchmark
 三者通过 checkpoint, 模型权重, 量化产物或其他明确的模型侧产物衔接. `xdl-jax` 不负责模型压缩, 部署 runtime, serving scheduler 或 KV cache 管理.
 
 代码,测试和示例已经位于一级项目目录 `xdl-jax/`. 调研资料保留在
-[`research/xdl-jax/RESEARCH.md`](../research/xdl-jax/RESEARCH.md),只记录选型和生态事实.
+[`third_party/research/xdl-jax/RESEARCH.md`](../third_party/research/xdl-jax/RESEARCH.md),只记录选型和生态事实.
 
 ## 文档分工
 

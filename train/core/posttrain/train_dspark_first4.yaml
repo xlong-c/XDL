@@ -1,0 +1,10 @@
+workspace: /root/workspace/xdl
+cache_dir: /root/workspace/xdl/data/dspark_restart/first4_v1/cache/train
+output_dir: /root/workspace/xdl/artifacts/dspark_restart/first4_uniform
+slot_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+seed: 42
+learning_rate: 0.00003
+updates: 128
+accumulation: 4
+anchors: 32
+save_every: 64

@@ -74,8 +74,8 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 
 ## 文档规范
 
-- **第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档, 也是行为, 字段, API 和兼容边界的事实源. 新增长期 MD 放 `docs/md/`; 阶段性研究资料放独立的 `../research` 仓库 (本仓库内以软链 `research/` 挂入), 不能替代长期文档.
-- **HTML 阅读页样式**: 新增或重构 `../research` 下 HTML/CSS 时, 先遵循 [docs/md/architecture/html-style-policy.md](docs/md/architecture/html-style-policy.md). 自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板; `math-doc-page`, `research-page`, `flash-attention-page` 等只能作语义叠加 class. 默认复用 `docs/html/assets/xdl-doc.css` 主题 token 和公共组件, 不复制大段内联 `<style>`, 不用散落 `style=`, 主题切换复用 `docs/html/assets/xdl-theme.js`.
+- **第一规则**: `docs/md/` 是给 agents 和开发者写代码前看的工作文档, 也是行为, 字段, API 和兼容边界的事实源. 新增长期 MD 放 `docs/md/`; 阶段性研究资料放 mylearn 仓库的 `research/` 子仓库 (本仓库内以 `third_party/research` 软链挂入), 不能替代长期文档.
+- **HTML 阅读页样式**: 新增或重构 `third_party/research/` (即 mylearn/research) 下 HTML/CSS 时, 先遵循 [docs/md/architecture/html-style-policy.md](docs/md/architecture/html-style-policy.md). 自有长期 HTML 必须且只能归入 `xdl-style-atlas` 或 `xdl-style-ledger` 两种 body 模板; `math-doc-page`, `research-page`, `flash-attention-page` 等只能作语义叠加 class. 默认复用 `docs/html/assets/xdl-doc.css` 主题 token 和公共组件, 不复制大段内联 `<style>`, 不用散落 `style=`, 主题切换复用 `docs/html/assets/xdl-theme.js`.
 
 ---
 
@@ -95,13 +95,13 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 
 ### 预训练与后训练
 
-- 训练入口按阶段划分: 预训练 (从零训练) 放 `train/pretrain/`, 后训练 (SFT/LoRA 微调, 偏好优化与 RL, 蒸馏, SFT checkpoint 合并) 放 `train/posttrain/`; 划分规则见 [train/AGENTS.md](train/AGENTS.md).
+- 训练入口按阶段划分: 预训练 (从零训练) 与后训练 (SFT/LoRA 微调, 偏好优化与 RL, 蒸馏, SFT checkpoint 合并) 的入库参考入口在 `train/core/pretrain/` 与 `train/core/posttrain/`, 其余脚本在 `train/pretrain/` 与 `train/posttrain/` 本地实验区 (整体忽略); 划分规则见 [train/AGENTS.md](train/AGENTS.md).
 - 框架内后训练组件收拢在 `xdl/post_training/` (偏好优化与蒸馏 loss, rollout/参考模型/SFT 合并/adapter 保存回调); 从零训练用的通用损失仍在 `xdl/loss/`.
 - `examples/` 只放示例与演示脚本, 不承载正式训练入口.
 
 ### 训练脚本接入
 
-编写训练入口前, 优先先看 `train/pretrain/train_VAE.py`, `train/pretrain/train_TwinFlow.py`, `train/posttrain/train_GRPO.py`, `train/posttrain/*finetune*.py` 和 `xdl/trainer/{trainer.py,core_model.py}`. 关键事实:
+编写训练入口前, 优先先看 `train/core/pretrain/train_VAE.py`, `train/core/pretrain/train_TwinFlow.py`, `train/core/posttrain/train_GRPO.py` 和 `xdl/trainer/{trainer.py,core_model.py}`. 关键事实:
 
 - `Trainer.fit()` 先调 `model.setup("fit")`, 再做设备/优化器 setup; 重组件 (大模型, diffusers pipeline, PEFT LoRA) 适合在 `CoreModel.setup()` 中懒加载.
 - `CoreModel.training_step()` 是**手动优化模式**, Trainer 不自动 `zero_grad/backward/step`; 需自行调用 `optimizer.zero_grad()`, `self.manual_backward(loss)`, `self.clip_gradients(...)`, `optimizer.step()`, 并用 `self.log()` 记录指标 (新代码用 `self.log("loss", loss, prefix="train")`).
@@ -157,7 +157,7 @@ XQT (模型压缩与部署) 与 mylearn (学习与实验) 已拆为独立仓库,
 - [docs/AGENTS.md](docs/AGENTS.md) - 仓库文档目录
 - [examples/AGENTS.md](examples/AGENTS.md) - 示例脚本目录
 - [infer/AGENTS.md](infer/AGENTS.md) - 推理脚本目录
-- [research/AGENTS.md](research/AGENTS.md) - 研究资料目录 (独立仓库 `../research` 的软链挂载点)
+- [third_party/research/AGENTS.md](third_party/research/AGENTS.md) - 研究资料目录 (mylearn 内的 `research/` 子仓库, 经 `third_party/research` 软链挂载)
 - [scripts/AGENTS.md](scripts/AGENTS.md) - 仓库维护脚本目录
 - [tests/AGENTS.md](tests/AGENTS.md) - 测试目录
 - [tools/AGENTS.md](tools/AGENTS.md) - 数据与工程工具目录

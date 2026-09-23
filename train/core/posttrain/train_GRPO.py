@@ -15,7 +15,7 @@ reward 是reward model 栈; 本入口只负责验证框架链路, 不负责算�
 
 运行:
 
-    python train/posttrain/train_GRPO.py
+    python train/core/posttrain/train_GRPO.py
 """
 
 from __future__ import annotations

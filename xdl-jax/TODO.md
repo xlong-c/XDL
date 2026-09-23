@@ -1,6 +1,6 @@
 # xdl-jax TODO
 
-本文是 `xdl-jax` 的可执行任务清单. 长期原则见 [GUIDE.md](GUIDE.md), 调研事实见 [research/xdl-jax/RESEARCH.md](../research/xdl-jax/RESEARCH.md), 设计接口见 [DESIGN.md](DESIGN.md).
+本文是 `xdl-jax` 的可执行任务清单. 长期原则见 [GUIDE.md](GUIDE.md), 调研事实见 [third_party/research/xdl-jax/RESEARCH.md](../third_party/research/xdl-jax/RESEARCH.md), 设计接口见 [DESIGN.md](DESIGN.md).
 
 当前阶段: `0.1.0 alpha / production candidate - 第一,二阶段完成`.
 
@@ -436,6 +436,6 @@
 
 | 日期 | 阶段 | 事项 | 证据 |
 | --- | --- | --- | --- |
-| 2026-08-13 | P0 | 创建调研目录和初版规划文档 | `../research/xdl-jax/RESEARCH.md`, `GUIDE.md`, `DESIGN.md`, `TODO.md` |
+| 2026-08-13 | P0 | 创建调研目录和初版规划文档 | `../third_party/research/xdl-jax/RESEARCH.md`, `GUIDE.md`, `DESIGN.md`, `TODO.md` |
 | 2026-08-13 | P0-P5 | CPU 单设备核心实现,可恢复训练,CPU data parallel correctness,GPU single-device 和模型侧 artifact | `xdl_jax/`, `tests/`, `examples/`, CPU `20 passed + 4 skipped`, GPU full `28 passed`, 2-device CPU `4 passed + 1 skipped` |
 | 2026-08-13 | P1-P2 | 一级项目正式化,NNX mutable contract,YAML checkpoint callback,版本元数据,API 文档,CPU CI 和 GPU 手动 workflow | `pyproject.toml`, `docs/`, `.github/workflows/`, `pyright 0 errors`, `ruff passed` |

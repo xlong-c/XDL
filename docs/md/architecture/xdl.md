@@ -139,8 +139,9 @@ from xdl.trainer import CoreModel
 
 ## 推荐使用路径
 
-训练入口按阶段划分: 预训练 (从零训练) 在 `train/pretrain/`, 后训练 (SFT/LoRA,
-RL, 蒸馏) 在 `train/posttrain/`, 划分规则见 [train/AGENTS.md](../../../train/AGENTS.md).
+训练入口按阶段划分: 预训练 (从零训练) 与后训练 (SFT/LoRA, RL, 蒸馏) 的入库参考入口在
+`train/core/pretrain/` 与 `train/core/posttrain/`, 划分规则见 [train/AGENTS.md](../../../train/AGENTS.md);
+`train/pretrain/` 与 `train/posttrain/` 为本地实验区 (git 忽略).
 
 ### 纯代码路径
 
@@ -148,9 +149,9 @@ RL, 蒸馏) 在 `train/posttrain/`, 划分规则见 [train/AGENTS.md](../../../t
 
 入口可以参考:
 
-- [train_VAE.py](../../../train/pretrain/train_VAE.py)
-- [train_TwinFlow.py](../../../train/pretrain/train_TwinFlow.py)
-- [train_GRPO.py](../../../train/posttrain/train_GRPO.py) (后训练 GRPO 参考)
+- [train_VAE.py](../../../train/core/pretrain/train_VAE.py)
+- [train_TwinFlow.py](../../../train/core/pretrain/train_TwinFlow.py)
+- [train_GRPO.py](../../../train/core/posttrain/train_GRPO.py) (后训练 GRPO 参考)
 
 典型写法:
 

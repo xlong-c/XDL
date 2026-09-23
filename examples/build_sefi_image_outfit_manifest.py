@@ -2,7 +2,7 @@
 
 默认扫描 /root/autodl-tmp/select_cloth, 写出
 /root/autodl-tmp/data/sefi_image_outfit/train.jsonl.
-每行仅含 image 字段 (绝对路径), 与 sefi_image_outfit_lora.yaml 对齐.
+每行仅含 image 字段 (绝对路径), 与 XDL SeFi outfit LoRA 入口字段对齐.
 
 使用:
   python examples/build_sefi_image_outfit_manifest.py

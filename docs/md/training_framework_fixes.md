@@ -43,6 +43,14 @@
   - **位置**: `xdl/trainer/core_model.py:847`
   - **表现**: 在 `is_accumulation_start` 已经清空梯度的前提下, `optimizer.step()` 后重复调用 `optimizer.zero_grad()`, 增加显存带宽开销并妨碍 step 后审查梯度.
   - **修复方案**: 移除 step 后的多余清空, 保留累积窗口起始处的 zero_grad.
+- **Bug 3.6 (P0 致命): `model.trainer` 未回填与梯度累积步数/调度时序倒错**
+  - **位置**: `xdl/trainer/trainer.py:454-465, 870-880` 与 `xdl/trainer/core_model.py:220, 1165`
+  - **表现**: `Trainer._configure_optimizers` 直接调用 `model.configure_optimizers()`, 从不回填 `model.trainer`, 导致 `getattr(self, "trainer", None)` 恒为 `None`, 步数静默退化成兜底常数（如 1000 步）。且 `accumulation_steps` 晚于外部手动 `setup("fit")` 注入, 导致计划优化步数被放大 N 倍, LR 调度严重偏差。
+  - **修复方案**: 在 `fit()` 开始时立即执行 `self._assign_model_attribute("trainer", self)` 回填 Trainer 引用; 提前计算 `_target_total_train_steps`, 提前注入 `_sync_gradient_accumulation_to_model`, 并在 `Trainer` 暴露 `total_train_steps`, `total_optimizer_steps`, `estimated_stepping_batches`, `attach_model` 等属性和方法; 在 `CoreModel` 暴露 `trainer` getter/setter 及 `estimated_stepping_batches`.
+- **Bug 3.7 (P2 体验): `TqdmCallback` 学习率微小读数截断显示为 `0.0000`**
+  - **位置**: `xdl/callbacks/tqdm_callback.py:278, 383, 455, 661`
+  - **表现**: 使用 `:.4f` 格式化所有浮点数, 当学习率在 warmup 早期小于 0.00005 时显示为 `lr: 0.0000`, 造成学习率死锁的假象.
+  - **修复方案**: 对包含 `lr` 的键在 `0.0 < abs(v) < 1e-3` 区间改用科学计数法 `:.2e` (如 `5.00e-05`) 格式化.
 
 ### 4. 分布式优化器 (`xdl/optimizer/muon.py`)
 - **Bug 4.1 (P0 致命): Muon 异构参数 `all_gather` 崩溃与单机保护缺失**
@@ -94,9 +102,9 @@
   - **表现**: 在未出现的类别上直接算作 0 分母累加, 导致稀疏类别场景下 Macro 指标被错误拉低.
   - **修复方案**: 仅对当前批次中有效预测或包含标注的类别求均值, 并支持安全除零处理.
 
-### 9. 训练脚本 (`train/pretrain/`)
+### 9. 训练脚本 (`train/core/pretrain/`)
 - **Bug 9.1 (P1 崩溃): 无头服务器上 `plt.show()` 抛出异常**
-  - **位置**: `train/pretrain/train_GAN.py:228`, `train/pretrain/train_VAE.py:271, 319`
+  - **位置**: `train/core/pretrain/train_GAN.py:228`, `train/core/pretrain/train_VAE.py:271, 319`
   - **表现**: 在无显示环境服务器上直接调用 `plt.show()` 导致训练流程中断.
   - **修复方案**: 移除脚本中阻塞且抛错的 `plt.show()`, 仅保留 `plt.savefig()`.
 

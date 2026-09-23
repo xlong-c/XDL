@@ -222,6 +222,21 @@ class TqdmCallback(Callback):
             else:
                 print("[DEBUG] TqdmCallback: No train dataloader found")
 
+    @staticmethod
+    def _format_metric_entry(key: str, value: Any) -> str:
+        """格式化单项指标输出; 对较小的学习率采用科学计数法避免截断为 0.0000."""
+        if isinstance(value, float):
+            if "lr" in key.lower() and 0.0 < abs(value) < 1e-3:
+                return f"{key}: {value:.2e}"
+            return f"{key}: {value:.4f}"
+        return f"{key}: {value}"
+
+    def _format_metrics_dict(self, metrics: Dict[str, Any]) -> str:
+        """将指标字典格式化为进度条后缀文本."""
+        if self.custom_format:
+            return self.custom_format.format(**metrics)
+        return ", ".join([self._format_metric_entry(k, v) for k, v in metrics.items()])
+
     def on_train_batch_end(
         self,
         trainer: "Trainer",
@@ -270,15 +285,7 @@ class TqdmCallback(Callback):
 
             # 更新指标显示
             if metrics:
-                if self.custom_format:
-                    metric_str = self.custom_format.format(**metrics)
-                else:
-                    metric_str = ", ".join(
-                        [
-                            f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}"
-                            for k, v in metrics.items()
-                        ]
-                    )
+                metric_str = self._format_metrics_dict(metrics)
                 progress_bar.set_postfix_str(metric_str)
 
             with self._lock:
@@ -378,12 +385,7 @@ class TqdmCallback(Callback):
                             metrics[key] = float(value.item())
 
             if metrics:
-                metric_str = ", ".join(
-                    [
-                        f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}"
-                        for k, v in metrics.items()
-                    ]
-                )
+                metric_str = self._format_metrics_dict(metrics)
                 progress_bar.set_postfix_str(metric_str)
 
             with self._lock:
@@ -450,12 +452,7 @@ class TqdmCallback(Callback):
                             metrics[key] = float(value.item())
 
             if metrics:
-                metric_str = ", ".join(
-                    [
-                        f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}"
-                        for k, v in metrics.items()
-                    ]
-                )
+                metric_str = self._format_metrics_dict(metrics)
                 progress_bar.set_postfix_str(metric_str)
 
             with self._lock:
@@ -653,15 +650,7 @@ class TqdmCallback(Callback):
 
                         # 更新进度条描述中的指标
                         if metrics:
-                            if self.custom_format:
-                                metric_str = self.custom_format.format(**metrics)
-                            else:
-                                metric_str = ", ".join(
-                                    [
-                                        f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}"
-                                        for k, v in metrics.items()
-                                    ]
-                                )
+                            metric_str = self._format_metrics_dict(metrics)
                             progress_bar.set_postfix_str(metric_str)
                     except Exception as e:
                         print(f"警告: 进度条更新失败: {e}")

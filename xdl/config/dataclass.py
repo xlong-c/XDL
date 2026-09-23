@@ -10,7 +10,13 @@ import torch
 from torch.utils.data import DataLoader
 
 from .accelerate_config import AccelerateConfig, DeepSpeedConfig
-from .schema import CheckpointConfig, LoggingConfig, RuntimeConfig, TrainerConfig
+from .schema import (
+    CheckpointConfig,
+    DiagnosticsConfig,
+    LoggingConfig,
+    RuntimeConfig,
+    TrainerConfig,
+)
 
 
 @dataclass
@@ -56,6 +62,7 @@ class TrainSetup:
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+    diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
     accelerate: Optional[AccelerateConfig] = None
     deepspeed: Optional[DeepSpeedConfig] = None
 

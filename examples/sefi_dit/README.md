@@ -1,7 +1,7 @@
 # SeFi 5B LoRA (select_cloth, 4x32GB)
 
 走官方 [SeFi-Image](https://github.com/jmliu206/SeFi-Image) `demo/dit_finetune`,
-**不要**再用 XDL 的 `sefi_image_outfit_lora_finetune.py` + `Flux2Pipeline`.
+**不要**再用 XDL 侧 SeFi outfit LoRA 入口 + `Flux2Pipeline` (该脚本未入库, 本地保留).
 
 ## 同步到 AutoDL
 
@@ -101,6 +101,6 @@ python inference.py \
 
 | 文件 | 状态 |
 |---|---|
-| `sefi_image_outfit_lora_finetune.py` | 不适用 SeFi (Flux2Pipeline 装不上) |
+| XDL `sefi_image_outfit_lora_finetune.py` | 不适用 SeFi (Flux2Pipeline 装不上; 已移出 git, 本地保留) |
 | `build_sefi_image_outfit_manifest.py` | 仅 XDL jsonl, 官方训练不用 |
 | 本目录 | **当前推荐路径** |

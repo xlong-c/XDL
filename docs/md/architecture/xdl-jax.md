@@ -35,4 +35,4 @@ QAT,部署 runtime,serving 或压缩部署 workflow.
 实现入口见 [`xdl-jax/README.md`](../../../xdl-jax/README.md), API 和运行文档
 见 [`xdl-jax/docs/`](../../../xdl-jax/docs/), 抽象抽离与对齐优化方案见
 [`xdl-jax-refactor-and-alignment.md`](xdl-jax-refactor-and-alignment.md), 调研事实见
-[`research/xdl-jax/RESEARCH.md`](../../../research/xdl-jax/RESEARCH.md).
+[`third_party/research/xdl-jax/RESEARCH.md`](../../../third_party/research/xdl-jax/RESEARCH.md).

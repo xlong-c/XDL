@@ -39,6 +39,7 @@ from .resolver import load_config_with_schema, to_plain_dict
 from .schema import (
     CONFIG_SCHEMA_VERSION,
     CheckpointConfig,
+    DiagnosticsConfig,
     LoggingConfig,
     RuntimeConfig,
     TrainerConfig,
@@ -258,6 +259,9 @@ def setup_from_yaml(
 
     logging_cfg = _to_structured(merged_config.logging, LoggingConfig)
     checkpoint_cfg = _to_structured(merged_config.checkpoint, CheckpointConfig)
+    diagnostics_cfg = _to_structured(
+        merged_config.diagnostics, DiagnosticsConfig
+    )
     accelerate_cfg = (
         _to_structured(merged_config.accelerate, AccelerateConfig)
         if merged_config.accelerate is not None
@@ -303,6 +307,7 @@ def setup_from_yaml(
         runtime=runtime_cfg,
         logging=logging_cfg,
         checkpoint=checkpoint_cfg,
+        diagnostics=diagnostics_cfg,
         accelerate=accelerate_cfg,
         deepspeed=deepspeed_cfg,
     )

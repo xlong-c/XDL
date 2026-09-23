@@ -19,9 +19,9 @@ XDL 是一个基于 PyTorch 的模块化深度学习框架.它提供三条核心
 
 参考入口:
 
-- [train_VAE.py](train/pretrain/train_VAE.py)
-- [train_GAN.py](train/pretrain/train_GAN.py)
-- [train_TwinFlow.py](train/pretrain/train_TwinFlow.py)
+- [train_VAE.py](train/core/pretrain/train_VAE.py)
+- [train_GAN.py](train/core/pretrain/train_GAN.py)
+- [train_TwinFlow.py](train/core/pretrain/train_TwinFlow.py)
 
 典型写法:
 
@@ -55,13 +55,13 @@ trainer.fit(model, setup.train_loader, setup.val_loader)
 - [config/](config/):YAML 配置示例
 - [examples/](examples/):脚本级示例
 - [docs/md/](docs/md/): 给 agents 和开发者写代码前看的 MD 工作文档
-- [docs/html/assets/](docs/html/assets/): `research/` HTML 页面共用的样式与主题资产
+- [docs/html/assets/](docs/html/assets/): `third_party/research/` (mylearn/research) HTML 页面共用的样式与主题资产
 - [tests/](tests/):测试
 - [tools/](tools/):工具脚本
 
 ## 文档入口
 
-文档第一规则: `docs/md/` 是给 agents 和开发者写代码前看的工作文档,也是行为,字段,API 和兼容边界的事实源. `research/` 下的 HTML 页面只做面向人类的调研阅读层,不定义契约.
+文档第一规则: `docs/md/` 是给 agents 和开发者写代码前看的工作文档,也是行为,字段,API 和兼容边界的事实源. `third_party/research/` (mylearn/research) 下的 HTML 页面只做面向人类的调研阅读层,不定义契约.
 
 给 Codex 和开发者改代码前看的 MD 先从新总入口进入,兼容页只在需要旧链接时再看:
 
@@ -123,9 +123,9 @@ pytest tests/config -q
 运行现有训练脚本:
 
 ```bash
-python train/pretrain/train_VAE.py
-python train/pretrain/train_GAN.py
-python train/pretrain/train_TwinFlow.py
+python train/core/pretrain/train_VAE.py
+python train/core/pretrain/train_GAN.py
+python train/core/pretrain/train_TwinFlow.py
 ```
 
 ## Wheel 安装后的单文件入口

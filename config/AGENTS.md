@@ -6,7 +6,7 @@
 - 存放 DeepSpeed 与分布式 JSON 配置
 - 作为 `setup_from_yaml()` 的输入样例
 - 具体训练入口的运行 YAML 与入口脚本同目录放置 (预训练在
-  `train/pretrain/`, 后训练在 `train/posttrain/`), 不放这里
+  `train/core/pretrain/`, 后训练在 `train/core/posttrain/`), 不放这里
 
 ## 当前内容
 

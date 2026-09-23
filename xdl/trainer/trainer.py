@@ -164,6 +164,11 @@ class Trainer:
         self._is_setup = False
         self._test_loader_prepared = False
 
+        # 性能诊断 (由 DiagnosticsCallback 在 on_train_start 安装)
+        self._diag_enabled: bool = False
+        self._phase_timer: Optional[Any] = None
+        self._diag_counters: Optional[Any] = None
+
     def _should_use_accelerate(self) -> bool:
         """判断当前配置是否需要走 Accelerate 路径."""
         return (
@@ -229,6 +234,22 @@ class Trainer:
             enable_console=log_cfg.enable_console,
             enable_checkpoint=ckpt_cfg is not None,
         )
+
+        diagnostics_cfg = getattr(setup, "diagnostics", None)
+        if diagnostics_cfg is not None and bool(getattr(diagnostics_cfg, "enabled", False)):
+            from xdl.callbacks.diagnostics_callback import DiagnosticsCallback
+
+            report_dir = getattr(diagnostics_cfg, "report_dir", "logs/diagnostics")
+            if report_dir == "logs/diagnostics":
+                report_dir = str(Path(log_cfg.log_dir) / "diagnostics")
+            trainer.callback_list.add_callback(
+                DiagnosticsCallback(
+                    report_dir=report_dir,
+                    sample_interval_s=getattr(diagnostics_cfg, "sample_interval_s", 0.5),
+                    deep_dive=getattr(diagnostics_cfg, "deep_dive", True),
+                    max_deep_dives=getattr(diagnostics_cfg, "max_deep_dives", 1),
+                )
+            )
 
         return trainer
 
@@ -381,6 +402,32 @@ class Trainer:
         return self.is_accumulation_boundary
 
     @property
+    def total_train_steps(self) -> int:
+        """获取计划的全局总微步数 (max_epochs * steps_per_epoch)."""
+        if getattr(self, "_target_total_train_steps", None) is not None:
+            return self._target_total_train_steps
+        if self._train_dataloader is not None and hasattr(self._train_dataloader, "__len__"):
+            return len(self._train_dataloader) * self.max_epochs
+        return 1000
+
+    @property
+    def total_optimizer_steps(self) -> int:
+        """获取计划的优化器总更新步数 (考虑梯度累积: micro_steps // accumulation_steps)."""
+        accum = max(1, int(self.gradient_accumulation_steps or 1))
+        return max(1, self.total_train_steps // accum)
+
+    @property
+    def estimated_stepping_batches(self) -> int:
+        """向后兼容 PyTorch Lightning 命名的优化器总步数属性."""
+        return self.total_optimizer_steps
+
+    def attach_model(self, model: CoreModel) -> None:
+        """提前挂载模型并同步累积步数配置 (供外部在 fit 之前调用 setup 时使用)."""
+        self._model = model
+        self._assign_model_attribute("trainer", self)
+        self._sync_gradient_accumulation_to_model(model)
+
+    @property
     def current_epoch(self) -> int:
         """获取当前epoch"""
         if self._model and hasattr(self._model, "_current_epoch"):
@@ -435,7 +482,30 @@ class Trainer:
         self._train_dataloader = train_dataloader
         self._val_dataloader = val_dataloader
         self._inference_data = inference_data
+
+        # 立即回填 Trainer 到模型, 确保 setup/configure_optimizers 能通过 self.trainer 拿到实例
+        self._assign_model_attribute("trainer", self)
+
+        # 提前同步梯度累积配置到模型
         self._sync_gradient_accumulation_to_model(model)
+
+        # 提前计算计划总步数与步数区间, 确保 configure_optimizers() 执行时
+        # trainer.total_train_steps 与 total_optimizer_steps 已有准确值
+        original_steps_per_epoch = len(train_dataloader) if hasattr(train_dataloader, "__len__") else 1
+        val_step_interval = self._resolve_val_step_interval(
+            val_check_interval,
+            original_steps_per_epoch,
+        )
+        self._target_total_train_steps = self.max_epochs * original_steps_per_epoch
+
+        # 如果验证间隔不是原始的 epoch 长度, 则启用虚拟 epoch 模式
+        if val_step_interval != original_steps_per_epoch:
+            total_steps = self._target_total_train_steps
+            self.max_epochs = math.ceil(total_steps / val_step_interval)
+            self._virtual_steps_per_epoch = val_step_interval
+            self.state.max_epochs = self.max_epochs
+        else:
+            self._virtual_steps_per_epoch = None
 
         # 阶段1-3:设置 - 提前执行 setup 以确定设备
         if hasattr(model, "setup"):
@@ -452,22 +522,6 @@ class Trainer:
                 print(f"[Trainer] 已启用的回调: {', '.join(callback_names)}")
             else:
                 print("[Trainer] 未启用任何回调")
-
-        original_steps_per_epoch = len(train_dataloader)
-        val_step_interval = self._resolve_val_step_interval(
-            val_check_interval,
-            original_steps_per_epoch,
-        )
-        self._target_total_train_steps = self.max_epochs * original_steps_per_epoch
-
-        # 如果验证间隔不是原始的 epoch 长度, 则启用虚拟 epoch 模式
-        if val_step_interval != original_steps_per_epoch:
-            total_steps = self._target_total_train_steps
-            self.max_epochs = math.ceil(total_steps / val_step_interval)
-            self._virtual_steps_per_epoch = val_step_interval
-            self.state.max_epochs = self.max_epochs
-        else:
-            self._virtual_steps_per_epoch = None
 
         # 设置模型的 Accelerate 配置
         if self._accelerator:
@@ -568,7 +622,11 @@ class Trainer:
             remaining_steps = target_total_steps - self.state.global_step
             num_steps = 0 if remaining_steps <= 0 else min(num_steps, remaining_steps)
         for step in range(num_steps):
+            if self._diag_enabled and self._phase_timer is not None:
+                self._phase_timer.mark("step_begin")
             batch = next(self._train_iterator)
+            if self._diag_enabled and self._phase_timer is not None:
+                self._phase_timer.mark("data_ready")
 
             # 更新全局步数
             self.state.global_step += 1
@@ -581,6 +639,8 @@ class Trainer:
             )
 
             batch = self._transfer_to_device(batch)
+            if self._diag_enabled and self._phase_timer is not None:
+                self._phase_timer.mark("h2d_done")
 
             # 执行训练 (激活卸载由 ActivationOffloadCallback 包住训练步)
             try:
@@ -599,6 +659,9 @@ class Trainer:
                     logger.error("异常处理回调执行失败: %s", callback_exc)
                 raise
 
+            if self._diag_enabled and self._phase_timer is not None:
+                self._phase_timer.mark("step_done")
+
             if self.nan_monitor:
                 metric_bad = self._monitor_nan_values(model)
                 grad_bad = False
@@ -614,10 +677,17 @@ class Trainer:
                 else:
                     self._nan_steps = 0
 
+            if self._diag_enabled and self._phase_timer is not None:
+                self._phase_timer.mark("nan_done")
+
             model.on_train_batch_end()
             self.callback_list.train_batch_end(
                 trainer=self, core_module=model, outputs={}, batch=batch, batch_idx=step
             )
+            if self._diag_enabled and self._phase_timer is not None:
+                self._phase_timer.mark("batch_end")
+                self._phase_timer.set_step(step, self.state.current_epoch)
+                self._phase_timer.finish_step(step, self.state.current_epoch)
 
         # 获取平均指标并结束 epoch
         epoch_avg_metrics = (
@@ -739,6 +809,8 @@ class Trainer:
     def _monitor_nan_gradients(self, model: CoreModel) -> bool:
         """在累积窗口边界检查全局梯度范数是否有限, 返回是否异常."""
         norm = global_grad_norm(model, accelerator=self._accelerator)
+        if self._diag_counters is not None:
+            self._diag_counters.grad_norm += 1
         if norm is None:
             return False
         try:

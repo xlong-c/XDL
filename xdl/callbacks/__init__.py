@@ -2,6 +2,7 @@ from .base import Callback
 from .attention_rollout import AttentionRolloutCallback
 from .console_callback import ConsoleCallback
 from .device_stats_monitor import DeviceStatsMonitor
+from .diagnostics_callback import DiagnosticsCallback
 from .early_stopping import EarlyStopping
 from .feature_capture import FeatureCaptureCallback
 from .lambda_callback import LambdaCallback
@@ -24,6 +25,7 @@ __all__ = [
     "Callback",
     "AttentionRolloutCallback",
     "DeviceStatsMonitor",
+    "DiagnosticsCallback",
     "EarlyStopping",
     "FeatureCaptureCallback",
     "LambdaCallback",

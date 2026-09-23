@@ -96,6 +96,17 @@ class DataloaderDefaultsConfig:
 
 
 @dataclass
+class DiagnosticsConfig:
+    """性能诊断配置."""
+
+    enabled: bool = False
+    report_dir: str = "logs/diagnostics"
+    sample_interval_s: float = 0.5
+    deep_dive: bool = True
+    max_deep_dives: int = 1
+
+
+@dataclass
 class OptimizationConfig:
     """优化相关配置."""
 
@@ -153,6 +164,7 @@ class ConfigSchemaV1:
     loss: List[ComponentConfig] = field(default_factory=list)
     metrics: List[ComponentConfig] = field(default_factory=list)
     callbacks: List[ComponentConfig] = field(default_factory=list)
+    diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     accelerate: Optional[AccelerateConfig] = None
@@ -185,6 +197,7 @@ __all__ = [
     "DatasetConfig",
     "DataloaderConfig",
     "DataloaderDefaultsConfig",
+    "DiagnosticsConfig",
     "OptimizationConfig",
     "LoggingConfig",
     "CheckpointConfig",

@@ -20,6 +20,7 @@
 - `attention_rollout.py`:验证期 attention rollout 计算与落盘
 - `learning_rate_monitor.py`:学习率监控
 - `device_stats_monitor.py`:设备资源监控
+- `diagnostics_callback.py`:训练性能诊断 (阶段耗时/同步点/显存锯齿, 输出根因报告)
 - `timer.py`:计时
 - `torch_profiler.py`: PyTorch profiler trace 导出
 - `model_summary.py`:模型结构摘要

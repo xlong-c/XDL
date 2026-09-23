@@ -32,4 +32,4 @@
   `tests/loss/test_diffusion_distillation_loss.py`, `tests/loss/test_losses.py`
 - 回调改动跑 `tests/callbacks/`, batch 替换契约见
   `tests/callbacks/test_callback_batch_replacement.py`
-- 端到端链路用 `train/posttrain/train_GRPO.py` 玩具入口闭环验证
+- 端到端链路用 `train/core/posttrain/train_GRPO.py` 玩具入口闭环验证

@@ -4,7 +4,7 @@
 
 - 承载 `xdl-jax` 的正式实现,测试,示例和项目文档.
 - 保持 JAX 训练 runtime 的实现边界和可验证交付状态.
-- 研究结论统一引用 `../research/xdl-jax/RESEARCH.md`.
+- 研究结论统一引用 `../third_party/research/xdl-jax/RESEARCH.md`.
 
 本项目不承载:
 
@@ -17,7 +17,7 @@
 - `README.md`: 项目入口,安装和当前状态.
 - `GUIDE.md`: 长期指导, 约束设计和实现方向.
 - `docs/`: 长期使用和 API 文档.
-- `research/xdl-jax/RESEARCH.md`: 调研事实和来源,不写未验证的实现状态.
+- `third_party/research/xdl-jax/RESEARCH.md`: 调研事实和来源,不写未验证的实现状态.
 - `DESIGN.md`: 设计方案和 API 草案, 可以包含尚未实现的接口.
 - `TODO.md`: 可执行任务和验收记录, 不替代设计文档.
 - `xdl_jax/`: 可安装的实现包.

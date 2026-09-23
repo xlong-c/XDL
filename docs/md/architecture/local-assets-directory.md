@@ -2,7 +2,7 @@
 
 ## 目录职责
 
-- 存放不属于 `docs/`, `research/`, `data/`, `downloads/` 的辅助资产和阶段性产物.
+- 存放不属于 `docs/`, `third_party/research/`, `data/`, `downloads/` 的辅助资产和阶段性产物.
 - 存放需要被仓库内其他文档引用, 但本身不构成项目事实源的文件.
 - 典型内容包括导出产物, benchmark 结果图, GIF, 日志快照, 临时交付物和独立个人资产.
 
@@ -15,10 +15,10 @@
 
 ## 修改约束
 
-- 不把 `others/` 当作长期工作文档目录; 规范,教程,架构说明仍应放到 `docs/` 或 `research/`.
+- 不把 `others/` 当作长期工作文档目录; 规范,教程,架构说明仍应放到 `docs/` 或 `third_party/research/`.
 - 大文件,导出物和交付资产可以放在这里, 但目录名要表达用途, 不要堆到根下.
 - 若资产已经有明确主题归属, 优先放到对应子目录, 例如 `others/<topic>-artifacts/`.
-- 若某类资产开始承载稳定流程或长期知识, 应上提到 `docs/` 或 `research/`, 不继续留在 `others/`.
+- 若某类资产开始承载稳定流程或长期知识, 应上提到 `docs/` 或 `third_party/research/`, 不继续留在 `others/`.
 
 ## 写作建议
 

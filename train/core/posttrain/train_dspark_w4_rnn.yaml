@@ -1,0 +1,16 @@
+workspace: /root/workspace/xdl
+cache_dir: /root/workspace/xdl/data/dspark_restart/w4_full_context_v1/train
+output_dir: /root/workspace/xdl/artifacts/dspark_restart/w4_residual_rnn
+initial_checkpoint: /root/workspace/xdl/artifacts/dspark_restart/w4_prefix_5epochs/epoch_05
+training_head: /root/workspace/xdl/data/dspark_restart/w4_full_context_v1/training_head.pt
+prefix_loss_weight: 0.5
+residual_rnn_head: true
+head_learning_rate: 0.001
+slot_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+seed: 44
+learning_rate: 0.00001
+updates: null
+epochs: 5
+accumulation: 4
+anchors: 16
+save_every: 0

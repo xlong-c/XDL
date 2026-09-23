@@ -4,17 +4,17 @@
 
 - `docs/md/` 是给 agents 和开发者写代码前看的工作文档.
 - 行为,字段,API,兼容承诺和目录边界的事实源是源码和 `docs/md/`.
-- `research/` 下的 HTML 页面只做调研阅读层,可以提炼,重排和图文化 MD 内容,但不能单独定义新契约.
+- `third_party/research/` 下的 HTML 页面只做调研阅读层,可以提炼,重排和图文化 MD 内容,但不能单独定义新契约.
 - 同一主题发生变化时,先更新 `docs/md/` 中的事实源,再同步对应 HTML 页面.
 
 ## 目录职责
 
 - `md/`: 长期维护的 Markdown 工作文档. 面向 agents,强调入口,边界,约束,检查清单和源码关联.
-- `html/assets/`: `research/` HTML 页面共用的样式与主题资产,不含独立阅读页.
+- `html/assets/`: `third_party/research/` HTML 页面共用的样式与主题资产,不含独立阅读页.
 - `AGENTS.md`: 当前文件,只保存目录级执行规则.
 - `CLAUDE.md`: 兼容指针,不承载独立内容.
 
-`docs/` 根目录不新增普通长期文档. 新增 MD 放入 `docs/md/`;HTML 调研页放 `research/`.
+`docs/` 根目录不新增普通长期文档. 新增 MD 放入 `docs/md/`;HTML 调研页放 `third_party/research/`.
 
 `docs/md/` 内部按三层组织 `XDL` 长期正文:
 
@@ -53,7 +53,7 @@
 - `assets/xdl-theme.js`: HTML 页面主题和强调色切换脚本.
 - `resume.*` 已迁到 `../others/resume/`: 独立简历资产,当前不纳入 `XDL` 项目文档导航,也不作为事实源.
 
-docs/html/ 不再包含独立阅读页; 该目录只保留 research/ HTML 页面共用的资产.
+docs/html/ 不再包含独立阅读页; 该目录只保留 third_party/research/ HTML 页面共用的资产.
 
 ### `docs/superpowers/`
 
@@ -67,9 +67,9 @@ docs/html/ 不再包含独立阅读页; 该目录只保留 research/ HTML 页面
 - 大改动时同步更新交叉引用,`md/README.md` 和受影响的主题文档.
 - 重构 `XDL` 长期文档时,优先把正文落到 `md/architecture/`, `md/explanation/`, `md/usage/`; 不要继续把新主题堆进单个 `md/README.md`.
 - 规划文档与现状说明要分开写,避免把待办写成已实现事实.
-- `docs/` 只保留长期有效内容;阶段性调研优先放 `research/`.
+- `docs/` 只保留长期有效内容;阶段性调研优先放 `third_party/research/`.
 - 新增普通 MD 只能放在 `docs/md/`;不要继续把长期文档散放在 `docs/` 根目录.
-- 新增 HTML 页面放 `research/`,保持静态自包含,避免依赖外部 CDN.
+- 新增 HTML 页面放 `third_party/research/`,保持静态自包含,避免依赖外部 CDN.
 - 与项目无关的独立 HTML / PDF 资产不要混入主导航,也不要在规范文档里当作项目阅读页列出.
 - HTML 页面是教程与调研阅读层,不是唯一事实源;同一主题的 MD 事实变化时,必须同步对应 HTML.
 - 新增或重构自有 HTML 时必须先遵循 `md/architecture/html-style-policy.md`: 页面 body 必须且只能包含 `xdl-style-atlas` 或 `xdl-style-ledger` 两种模板之一,默认引用 `html/assets/xdl-doc.css`,不要复制大段内联 `<style>` 或散落 `style=`.

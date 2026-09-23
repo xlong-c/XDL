@@ -194,7 +194,7 @@
 证据:
 
 - `CoreModel.accumulation_steps` 优先读取 `self.gradient_accumulation_steps` 属性, 与 Trainer 注入的 `_gradient_accumulation_steps` 形成双源.
-- 复核发现这是被测试保护的 legacy 契约: `tests/test_trainer_device_transfer.py::test_accumulation_helpers_respect_legacy_model_attribute`, 且 `train/posttrain/train_sd35m_apex_xdl.py` 真实使用该属性. 直接删除会造成真实训练入口回归.
+- 复核发现这是被测试保护的 legacy 契约: `tests/test_trainer_device_transfer.py::test_accumulation_helpers_respect_legacy_model_attribute`, 且真实训练入口 (SD3.5 APEX LoRA, 已移出 git 本地保留) 使用该属性. 直接删除会造成真实训练入口回归.
 
 方案 (修订):
 

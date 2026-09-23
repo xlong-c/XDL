@@ -220,6 +220,10 @@ class CoreModel(Module):
         # Type hint for conditional accelerator attribute
         self._accelerator: Optional[Accelerator] = None
         self._batch_data = None
+        self._trainer: Optional[Any] = None
+
+        # 性能诊断计数器 (由 DiagnosticsCallback 在 on_train_start 安装)
+        self._diag_counters: Optional[Any] = None
 
     def setup_data(self, batch_data):
         self._batch_data = batch_data
@@ -683,6 +687,8 @@ class CoreModel(Module):
         """
         # 确保值是数值类型
         if isinstance(value, torch.Tensor):
+            if getattr(self, "_diag_counters", None) is not None:
+                self._diag_counters.log_item += 1
             value = value.item()
 
         value = float(value)
@@ -1159,6 +1165,24 @@ class CoreModel(Module):
                 normalized,
             )
         self._gradient_accumulation_steps = normalized
+
+    @property
+    def trainer(self) -> Optional[Any]:
+        """获取挂载的 Trainer 实例 (若未通过 Trainer.fit 启动则为 None)."""
+        return self._trainer
+
+    @trainer.setter
+    def trainer(self, value: Any) -> None:
+        self._trainer = value
+        if value is not None and hasattr(value, "gradient_accumulation_steps"):
+            self._set_gradient_accumulation_steps(value.gradient_accumulation_steps)
+
+    @property
+    def estimated_stepping_batches(self) -> int:
+        """预估优化器步数 (优先取挂载 Trainer 的 total_optimizer_steps)."""
+        if self._trainer is not None and hasattr(self._trainer, "total_optimizer_steps"):
+            return self._trainer.total_optimizer_steps
+        return 1000
 
     @property
     def total_train_steps(self) -> int:

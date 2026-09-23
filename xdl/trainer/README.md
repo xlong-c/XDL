@@ -66,13 +66,16 @@ from xdl.trainer import CoreModel, Trainer, TrainSetupModel
 - `Tensor / dict / list / tuple / dataclass` batch 递归迁移
 - callback 调度
 - 验证与推理采样周期
+- 训练生命周期管理：在 `model.setup("fit")` 与 `configure_optimizers()` 之前自动回填 `model.trainer`，提前注入梯度累积步数并预计算 `trainer.total_train_steps` 与 `trainer.total_optimizer_steps` (或通过 `trainer.attach_model(model)` 显式预挂载).
 
 最小用法:
 
 ```python
 from xdl.trainer import CoreModel, Trainer
 
-trainer = Trainer(max_epochs=10, device="cuda")
+trainer = Trainer(max_epochs=10, device="cuda", gradient_accumulation_steps=4)
+# 在 model.configure_optimizers() 内部可直接通过 self.trainer 拿到步数:
+# total_steps = self.trainer.total_optimizer_steps (即微步数 // accumulation_steps)
 trainer.fit(model, train_loader, val_loader)
 ```
 

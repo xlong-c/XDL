@@ -140,7 +140,7 @@ xdl/
 
 - 旧的 `xdl.post_training.preference_loss` 等模块路径保持兼容.
 - LOSS registry 只导入 `xdl.post_training._registry`, 不触发 callbacks.
-- 从零训练不经过本子模块; 端到端参考入口为 `train/posttrain/train_GRPO.py`
+- 从零训练不经过本子模块; 端到端参考入口为 `train/core/posttrain/train_GRPO.py`
 
 ## `xdl/metric`
 

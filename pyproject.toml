@@ -96,7 +96,7 @@ xdl-usage = "xdl.usage:main"
 #   pip install -e ../xqt
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["xdl*"]
+include = ["xdl", "xdl.*"]
 
 [tool.setuptools.package-data]
 xdl = ["py.typed", "USAGE.md"]
