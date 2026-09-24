@@ -22,7 +22,7 @@ from .records import GpuSample, GpuSummary
 logger = logging.getLogger(__name__)
 
 try:  # Optional dependency: never break import.
-    import pynvml
+    import pynvml  # pyright: ignore[reportMissingImports]  # 可选依赖, 缺失时降级
 except ImportError:  # pragma: no cover - exercised only without pynvml
     pynvml = None  # type: ignore[assignment]
 

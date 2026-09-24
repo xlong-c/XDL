@@ -30,7 +30,7 @@ except ImportError:
     TORCH_AVAILABLE = False
 
 try:
-    import pynvml
+    import pynvml  # pyright: ignore[reportMissingImports]  # 可选依赖, 缺失时降级
 
     NVML_AVAILABLE = True
     pynvml.nvmlInit()

@@ -10,7 +10,7 @@ import os
 
 os.environ.setdefault("NO_ALBUMENTATIONS_UPDATE", "1")
 
-import albumentations as A
+import albumentations as A  # pyright: ignore[reportMissingImports]  # 可选依赖
 import cv2
 import torchvision.transforms as transforms
 

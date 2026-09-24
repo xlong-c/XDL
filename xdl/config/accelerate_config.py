@@ -144,7 +144,7 @@ class DeepSpeedConfig:
     def is_available(self) -> bool:
         """检查 deepspeed 是否可导入."""
         try:
-            import deepspeed  # noqa: F401
+            import deepspeed  # noqa: F401  # pyright: ignore[reportMissingImports]
             return True
         except ImportError:
             return False

@@ -7,16 +7,45 @@
 
 import os
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
-import matplotlib
-matplotlib.use('Agg')  # 使用非交互式后端,避免弹出窗口
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
 
 from xdl.callbacks.base import Callback
+
+# matplotlib 属 cv 可选 extra, 缺失时只禁用本回调的渲染能力,
+# 不阻断 xdl.callbacks 的导入 (CI 的最小安装即无 matplotlib).
+matplotlib: Any
+plt: Any
+FuncAnimation: Any
+PillowWriter: Any
+FFMpegWriter: Any
+
+try:
+    import matplotlib  # pyright: ignore[reportMissingImports]  # 可选依赖, 缺失时降级
+    matplotlib.use('Agg')  # 使用非交互式后端,避免弹出窗口
+    import matplotlib.pyplot as plt  # pyright: ignore[reportMissingImports]
+    from matplotlib.animation import (  # pyright: ignore[reportMissingImports]
+        FFMpegWriter,
+        FuncAnimation,
+        PillowWriter,
+    )
+
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:  # pragma: no cover - 仅在未安装 matplotlib 的环境触发
+    matplotlib = plt = None
+    FuncAnimation = PillowWriter = FFMpegWriter = None
+    MATPLOTLIB_AVAILABLE = False
+
+
+def _require_matplotlib() -> None:
+    """渲染前显式校验 matplotlib 可用, 缺失时报出可操作的安装提示."""
+    if not MATPLOTLIB_AVAILABLE:
+        raise RuntimeError(
+            "SamplingAnimationCallback 需要 matplotlib, 请安装可选依赖: "
+            'pip install -e ".[cv]"'
+        )
 
 
 class SamplingAnimationCallback(Callback):
@@ -243,6 +272,7 @@ class SamplingAnimationCallback(Callback):
     def _save_epoch_image(self, samples, epoch_idx):
         """保存单个epoch的采样图像"""
         try:
+            _require_matplotlib()
             fig = self._create_samples_figure(samples, epoch_idx)
 
             # 保存图像
@@ -328,6 +358,7 @@ class SamplingAnimationCallback(Callback):
 
     def _generate_animation(self):
         """生成动画"""
+        _require_matplotlib()
         if self.animation_format == 'gif':
             self._generate_gif()
         elif self.animation_format == 'mp4':
@@ -369,7 +400,6 @@ class SamplingAnimationCallback(Callback):
     def _generate_mp4(self):
         """生成MP4动画"""
         try:
-            import matplotlib.animation as animation
             fig, ax = plt.subplots(figsize=self.figsize)
 
             def update(frame_idx):
@@ -475,7 +505,8 @@ class SamplingAnimationCallback(Callback):
     def _preview_animation(self):
         """预览动画(在Jupyter notebook中)"""
         try:
-            from IPython.display import HTML, display
+            # IPython 只在 Jupyter 预览时用, 缺失时下方 except 会提示
+            from IPython.display import HTML, display  # pyright: ignore[reportMissingImports]
             animation_path = self.save_dir / self.animation_filename
             if animation_path.exists():
                 display(HTML(f'<img src="{animation_path}">'))
