@@ -33,6 +33,7 @@ dependencies = [
     "typing-extensions>=4.0.0",
     "loguru>=0.7.0",
     "Pillow>=10.0.0",
+    "opencv-python>=4.5.0",
     "einops>=0.6.0",
     "timm>=0.9.0",
 ]
@@ -40,7 +41,6 @@ dependencies = [
 [project.optional-dependencies]
 # 计算机视觉增强
 cv = [
-    "opencv-python>=4.5.0",
     "albumentations>=1.0.0",
     "matplotlib>=3.5.0",
     "scikit-image>=0.19.0",
