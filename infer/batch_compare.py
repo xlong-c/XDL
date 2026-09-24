@@ -40,7 +40,7 @@ def load_aesop(config: Config):
     return model.to(config.device).eval()
 
 def load_esc(config: Config):
-    from xdl.model.lowlevel import ESC
+    from xdl.model.lowlevel.esc_arch import ESC
     model = ESC(dim=64, pdim=16, kernel_size=13, n_blocks=5, conv_blocks=5, window_size=32, num_heads=4, upscaling_factor=3, exp_ratio=1.25)
     ckpt = torch.load("others/ESC_DFLIP_X3.pth", map_location="cpu", weights_only=True)
     sd = ckpt.get("params_ema", ckpt)

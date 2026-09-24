@@ -14,7 +14,7 @@ from torchvision.transforms.functional import pil_to_tensor, to_pil_image
 
 from xdl.config.cli import parse_dataclass_cli
 
-from xdl.model.lowlevel import ESC
+from xdl.model.lowlevel.esc_arch import ESC
 
 
 @dataclass
