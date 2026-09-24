@@ -1,6 +1,6 @@
-jax>=0.11,<0.12
-jax-cuda12-plugin>=0.11,<0.12
-jax-cuda12-pjrt>=0.11,<0.12
+jax>=0.11,<0.11.2
+jax-cuda12-plugin>=0.11,<0.11.2
+jax-cuda12-pjrt>=0.11,<0.11.2
 flax>=0.12,<0.13
 optax>=0.2.8,<0.3
 orbax-checkpoint>=0.12,<0.13

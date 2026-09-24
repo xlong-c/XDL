@@ -23,7 +23,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "jax>=0.11,<0.12",
+    # Upper bound held below 0.11.2: jax 0.11.2 renamed
+    # jax.experimental.hijax.HiPrimitive to HiPrim, which flax <= 0.12.9 still
+    # imports as HiPrimitive (flax requires jax>=0.11.1 with no upper bound).
+    "jax>=0.11,<0.11.2",
     "flax>=0.12,<0.13",
     "optax>=0.2.8,<0.3",
     "orbax-checkpoint>=0.12,<0.13",
@@ -32,9 +35,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu = ["jax[cpu]>=0.11,<0.12"]
-gpu-cuda12 = ["jax[cuda12]>=0.11,<0.12"]
-gpu-cuda13 = ["jax[cuda13]>=0.11,<0.12"]
+cpu = ["jax[cpu]>=0.11,<0.11.2"]
+gpu-cuda12 = ["jax[cuda12]>=0.11,<0.11.2"]
+gpu-cuda13 = ["jax[cuda13]>=0.11,<0.11.2"]
 test = ["pytest>=8", "pytest-cov>=6", "ruff>=0.8"]
 dev = [
     "build>=1.2",
