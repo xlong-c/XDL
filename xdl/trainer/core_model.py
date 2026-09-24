@@ -687,8 +687,9 @@ class CoreModel(Module):
         """
         # 确保值是数值类型
         if isinstance(value, torch.Tensor):
-            if getattr(self, "_diag_counters", None) is not None:
-                self._diag_counters.log_item += 1
+            diag_counters = getattr(self, "_diag_counters", None)
+            if diag_counters is not None:
+                diag_counters.log_item += 1
             value = value.item()
 
         value = float(value)
