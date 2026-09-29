@@ -80,6 +80,7 @@ from xdl.trainer import CoreModel, Trainer
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class LinearTask(CoreModel):
     def __init__(self, in_dim: int, out_dim: int):
         super().__init__()
@@ -94,6 +95,7 @@ class LinearTask(CoreModel):
         self.log("loss", loss, prefix="train")
         return loss
 
+
 trainer = Trainer(max_epochs=5)
 trainer.fit(LinearTask(4, 1), train_loader)
 ```
@@ -103,6 +105,7 @@ trainer.fit(LinearTask(4, 1), train_loader)
 from xdl_jax import JaxTrainer, JaxTask, NNXModelAdapter, TrainerConfig
 from flax import nnx
 import optax, jax.numpy as jnp
+
 
 class LinearTask(JaxTask):
     def __init__(self, in_dim: int, out_dim: int):
@@ -118,6 +121,7 @@ class LinearTask(JaxTask):
         preds, new_state = model.apply(model_state, batch["x"], rng=rng)
         loss = jnp.mean((preds - batch["y"]) ** 2)
         return loss, {"loss": loss}, new_state
+
 
 trainer = JaxTrainer(LinearTask(4, 1), config=TrainerConfig(max_epochs=5))
 trainer.fit(train_data)

@@ -1,0 +1,18 @@
+# 本地提交门禁: 与 .github/workflows/xdl-ci.yml 的静态检查保持一致.
+# 使用环境内已安装的工具, 不锁版本; 保持本地 ruff 为最新版即可与 CI 同步.
+# 首次使用: pip install -e ".[dev]" && pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format --check
+        entry: ruff format --check .
+        language: system
+        pass_filenames: false
+        types_or: [python, markdown]
+      - id: ruff-check
+        name: ruff check
+        entry: ruff check .
+        language: system
+        pass_filenames: false
+        types_or: [python]

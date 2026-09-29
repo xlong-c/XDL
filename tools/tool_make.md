@@ -21,15 +21,18 @@ from functools import partial
 # 支持的图片扩展名
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".webp"}
 
+
 def path_win2wsl(win_path: str) -> str:
     """将 Windows 路径转换为 WSL 路径"""
-    if not win_path: return win_path
-    win_path = win_path.strip().replace('"', '')
+    if not win_path:
+        return win_path
+    win_path = win_path.strip().replace('"', "")
     if len(win_path) >= 2 and win_path[1] == ":":
         drive = win_path[0].lower()
         rest = win_path[2:].replace("\\", "/")
         return f"/mnt/{drive}{rest}"
     return win_path
+
 
 def find_images(input_path: Path):
     """递归查找所有图片文件"""
@@ -38,6 +41,7 @@ def find_images(input_path: Path):
             p = Path(root) / f
             if p.suffix.lower() in IMAGE_EXTENSIONS:
                 yield p.relative_to(input_path), p
+
 
 def _process_single(src: Path, dst: Path, param: float, quality: int):
     """
@@ -49,6 +53,7 @@ def _process_single(src: Path, dst: Path, param: float, quality: int):
     # result.save(dst, quality=quality)
     pass
 
+
 def _worker_wrapper(args, param, quality, keep_structure, output_path):
     """多进程包装函数"""
     idx, (rel, src) = args
@@ -58,11 +63,12 @@ def _worker_wrapper(args, param, quality, keep_structure, output_path):
         else:
             # 默认打平目录结构并编号
             dst = output_path / f"{idx:06d}{src.suffix}"
-        
+
         _process_single(src, dst, param, quality)
         return (src.name, True, None)
     except Exception as e:
         return (src.name, False, str(e))
+
 
 def process_files(input_path: Path, output_path: Path, **config):
     """批量处理主逻辑"""
@@ -72,17 +78,21 @@ def process_files(input_path: Path, output_path: Path, **config):
         return
 
     # 1. 预览模式
-    if config.get('PREVIEW'):
+    if config.get("PREVIEW"):
         print("=" * 80)
-        print(f"预览模式 (总计: {len(files)} | 显示前 {config.get('PREVIEW_LIMIT')} 个)")
+        print(
+            f"预览模式 (总计: {len(files)} | 显示前 {config.get('PREVIEW_LIMIT')} 个)"
+        )
         print("=" * 80)
-        for idx, (rel, src) in enumerate(files[:config.get('PREVIEW_LIMIT')], 1):
-            dst = output_path / (rel if config.get('KEEP_STRUCTURE') else f"{idx:06d}{src.suffix}")
+        for idx, (rel, src) in enumerate(files[: config.get("PREVIEW_LIMIT")], 1):
+            dst = output_path / (
+                rel if config.get("KEEP_STRUCTURE") else f"{idx:06d}{src.suffix}"
+            )
             print(f"\n[操作: 批量处理]")
             print(f"  源: {src}")
             print(f"  到: {dst}")
             print(f"  参数: {config.get('PARAM')}, Quality: {config.get('QUALITY')}")
-        
+
         print("\n" + "=" * 80)
         if input("确认执行? (y/n): ").lower() != "y":
             print("[!] 已取消")
@@ -90,24 +100,26 @@ def process_files(input_path: Path, output_path: Path, **config):
 
     # 2. 执行处理 (多进程)
     output_path.mkdir(parents=True, exist_ok=True)
-    worker_count = config.get('WORKERS') or cpu_count()
+    worker_count = config.get("WORKERS") or cpu_count()
     print(f"[*] 启动 {worker_count} 个进程处理 {len(files)} 个文件...")
-    
+
     args_list = list(enumerate(files, 1))
     worker_func = partial(
-        _worker_wrapper, 
-        param=config.get('PARAM'), 
-        quality=config.get('QUALITY'),
-        keep_structure=config.get('KEEP_STRUCTURE'),
-        output_path=output_path
+        _worker_wrapper,
+        param=config.get("PARAM"),
+        quality=config.get("QUALITY"),
+        keep_structure=config.get("KEEP_STRUCTURE"),
+        output_path=output_path,
     )
-    
+
     ok = fail = 0
     failed_log = []
-    
+
     with Pool(processes=worker_count) as pool:
         # 使用 imap_unordered 实时获取进度
-        for i, (name, success, error) in enumerate(pool.imap_unordered(worker_func, args_list), 1):
+        for i, (name, success, error) in enumerate(
+            pool.imap_unordered(worker_func, args_list), 1
+        ):
             if success:
                 print(f"[{i}/{len(files)}] ✓ {name}")
                 ok += 1
@@ -121,19 +133,21 @@ def process_files(input_path: Path, output_path: Path, **config):
     if failed_log:
         log_file = output_path / "_process_failed.log"
         with open(log_file, "w", encoding="utf-8") as f:
-            for name, err in failed_log: f.write(f"{name}: {err}\n")
+            for name, err in failed_log:
+                f.write(f"{name}: {err}\n")
         print(f"[!] 失败详情已记录至: {log_file}")
+
 
 def main():
     # ============ 配置参数 (直接修改此处) ============
-    INPUT  = path_win2wsl(r"F:\input")       # 输入路径
-    OUTPUT = path_win2wsl(r"F:\output")      # 输出路径
-    PARAM  = 1.0                             # 处理参数 (自定义)
-    QUALITY = 99                             # 保存质量 (1-100)
-    KEEP_STRUCTURE = False                   # 是否保持原文件夹结构
-    PREVIEW = True                           # 开启预览确认
-    PREVIEW_LIMIT = 5                        # 预览显示条数
-    WORKERS = None                           # 进程数 (None 为自动)
+    INPUT = path_win2wsl(r"F:\input")  # 输入路径
+    OUTPUT = path_win2wsl(r"F:\output")  # 输出路径
+    PARAM = 1.0  # 处理参数 (自定义)
+    QUALITY = 99  # 保存质量 (1-100)
+    KEEP_STRUCTURE = False  # 是否保持原文件夹结构
+    PREVIEW = True  # 开启预览确认
+    PREVIEW_LIMIT = 5  # 预览显示条数
+    WORKERS = None  # 进程数 (None 为自动)
     # ===============================================
 
     process_files(
@@ -144,8 +158,9 @@ def main():
         KEEP_STRUCTURE=KEEP_STRUCTURE,
         PREVIEW=PREVIEW,
         PREVIEW_LIMIT=PREVIEW_LIMIT,
-        WORKERS=WORKERS
+        WORKERS=WORKERS,
     )
+
 
 if __name__ == "__main__":
     main()

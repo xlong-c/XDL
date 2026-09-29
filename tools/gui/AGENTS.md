@@ -94,6 +94,7 @@ tools/gui/
 ```python
 #!/usr/bin/env python3
 """<工具名> - 一句话说明."""
+
 from __future__ import annotations
 
 import threading
@@ -114,28 +115,34 @@ CONFIG: dict[str, Any] = {
     "port": 8765,
 }
 
+
 # ═══ 2. 业务函数(无 UI 依赖,可独立单测)═══
-def do_thing(x: str) -> str:
-    ...
+def do_thing(x: str) -> str: ...
+
 
 # ═══ 3. FastAPI app + 路由 ═══
 app = FastAPI()
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
     return HTML
 
+
 @app.get("/api/run")
 async def run(name: str = "world") -> dict[str, str]:
     return {"result": do_thing(name)}
 
+
 # ═══ 4. HTML 模板(f-string)═══
 HTML = """<!DOCTYPE html>..."""
+
 
 # ═══ 5. pywebview js_api class(仅系统级操作)═══
 class API:
     def pick_file(self): ...
     def alert(self, msg: str): ...
+
 
 # ═══ 6. main():起 uvicorn 线程 → 等就绪 → 开窗口 ═══
 def main() -> None:
@@ -306,12 +313,14 @@ pywebview 的 js_api 是同步阻塞的,长任务**禁止**放 js_api.两条路:
 # 任务状态存到内存 dict
 TASKS: dict[str, dict] = {}
 
+
 @app.post("/api/long/start")
 async def long_start() -> dict[str, str]:
     tid = str(uuid.uuid4())
     TASKS[tid] = {"progress": 0.0, "done": False}
     threading.Thread(target=_run_long, args=(tid,), daemon=True).start()
     return {"task_id": tid}
+
 
 @app.get("/api/long/status")
 async def long_status(task_id: str) -> dict:
@@ -333,12 +342,14 @@ const timer = setInterval(async () => {
 ```python
 from sse_starlette.sse import EventSourceResponse
 
+
 @app.get("/api/long/stream")
 async def long_stream():
     async def gen():
         for i in range(100):
             yield {"event": "progress", "data": json.dumps({"p": i / 100})}
             await asyncio.sleep(0.1)
+
     return EventSourceResponse(gen())
 ```
 

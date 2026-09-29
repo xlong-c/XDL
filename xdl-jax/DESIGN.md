@@ -125,8 +125,7 @@ class ModelAdapter(Protocol):
         self,
         rng: jax.Array,
         sample_batch: Any,
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
     def apply(
         self,
@@ -135,11 +134,9 @@ class ModelAdapter(Protocol):
         rng: jax.Array,
         *,
         training: bool,
-    ) -> tuple[Any, Any]:
-        ...
+    ) -> tuple[Any, Any]: ...
 
-    def state_spec(self, model_state: Any) -> Any:
-        ...
+    def state_spec(self, model_state: Any) -> Any: ...
 ```
 
 `apply()` 的第二个返回值用于 mutable state, 例如 BatchNorm statistics. 没有 mutable state 时返回 `None` 或空 PyTree, 但必须统一语义.
@@ -155,8 +152,7 @@ import optax
 
 
 class JaxTask(Protocol):
-    def build_model(self) -> ModelAdapter:
-        ...
+    def build_model(self) -> ModelAdapter: ...
 
     def loss_and_metrics(
         self,
@@ -165,15 +161,13 @@ class JaxTask(Protocol):
         rng: jax.Array,
         *,
         training: bool,
-    ) -> tuple[jax.Array, Mapping[str, jax.Array], Any]:
-        ...
+    ) -> tuple[jax.Array, Mapping[str, jax.Array], Any]: ...
 
     def configure_optimizer(
         self,
         *,
         total_steps: int,
-    ) -> optax.GradientTransformation:
-        ...
+    ) -> optax.GradientTransformation: ...
 ```
 
 任务只描述模型, loss, metric 和 optimizer. 训练 loop 由 `JaxTrainer` 负责.
@@ -329,8 +323,7 @@ def build_optimizer(
     config: Mapping[str, Any],
     *,
     total_steps: int,
-) -> optax.GradientTransformation:
-    ...
+) -> optax.GradientTransformation: ...
 ```
 
 支持:
@@ -369,17 +362,13 @@ from typing import Any, Protocol
 
 
 class JaxDataSource(Protocol):
-    def __iter__(self) -> Iterator[Any]:
-        ...
+    def __iter__(self) -> Iterator[Any]: ...
 
-    def __len__(self) -> int:
-        ...
+    def __len__(self) -> int: ...
 
-    def state_dict(self) -> dict[str, Any]:
-        ...
+    def state_dict(self) -> dict[str, Any]: ...
 
-    def load_state_dict(self, state: dict[str, Any]) -> None:
-        ...
+    def load_state_dict(self, state: dict[str, Any]) -> None: ...
 ```
 
 `state_dict` 为可选增强能力, 但如果没有它, checkpoint report 必须标记 data iterator 不可 exact restore.
@@ -413,23 +402,17 @@ from xdl_jax.data import from_xdl_dataset
 
 ```python
 class JaxStrategy(Protocol):
-    def setup(self) -> None:
-        ...
+    def setup(self) -> None: ...
 
-    def place_batch(self, batch: Any) -> Any:
-        ...
+    def place_batch(self, batch: Any) -> Any: ...
 
-    def initialize_state(self, state: JaxTrainState) -> JaxTrainState:
-        ...
+    def initialize_state(self, state: JaxTrainState) -> JaxTrainState: ...
 
-    def compile_train_step(self, step_fn: Any) -> Any:
-        ...
+    def compile_train_step(self, step_fn: Any) -> Any: ...
 
-    def compile_eval_step(self, step_fn: Any) -> Any:
-        ...
+    def compile_eval_step(self, step_fn: Any) -> Any: ...
 
-    def report(self) -> Mapping[str, Any]:
-        ...
+    def report(self) -> Mapping[str, Any]: ...
 ```
 
 ### 9.2 Single device
@@ -495,17 +478,13 @@ JAX 默认显存预分配属于进程级运行时设置,共享 GPU 的多进程�
 class Callback:
     priority: int = 999
 
-    def on_fit_start(self, trainer, state) -> None:
-        ...
+    def on_fit_start(self, trainer, state) -> None: ...
 
-    def on_train_batch_end(self, trainer, snapshot) -> None:
-        ...
+    def on_train_batch_end(self, trainer, snapshot) -> None: ...
 
-    def on_validation_epoch_end(self, trainer, snapshot) -> None:
-        ...
+    def on_validation_epoch_end(self, trainer, snapshot) -> None: ...
 
-    def on_checkpoint_end(self, trainer, report) -> None:
-        ...
+    def on_checkpoint_end(self, trainer, report) -> None: ...
 ```
 
 callback 签名使用 JAX 侧 trainer/state/snapshot, 不引用当前 Torch `CoreModel` 类型.
@@ -547,8 +526,7 @@ class JaxCheckpointManager:
         data_state: Any = None,
         callback_state: Any = None,
         metadata: Mapping[str, Any],
-    ) -> CheckpointReport:
-        ...
+    ) -> CheckpointReport: ...
 
     def restore(
         self,
@@ -556,8 +534,7 @@ class JaxCheckpointManager:
         *,
         mode: str = "exact",
         target: Any = None,
-    ) -> RestoredCheckpoint:
-        ...
+    ) -> RestoredCheckpoint: ...
 ```
 
 ### 11.2 Restore modes

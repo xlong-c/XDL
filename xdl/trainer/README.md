@@ -240,8 +240,10 @@ from xdl.trainer import Trainer
 trainer = Trainer(
     max_epochs=10,
     callbacks=[
-        GradientCheckpointingCallback(),               # 需要模型实现 gradient_checkpointing_enable()
-        ActivationOffloadCallback(min_bytes=32 << 20), # 反向用的大激活同步卸载到 pinned CPU
+        GradientCheckpointingCallback(),  # 需要模型实现 gradient_checkpointing_enable()
+        ActivationOffloadCallback(
+            min_bytes=32 << 20
+        ),  # 反向用的大激活同步卸载到 pinned CPU
     ],
 )
 ```

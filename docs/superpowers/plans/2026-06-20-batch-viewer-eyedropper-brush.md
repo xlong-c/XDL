@@ -55,7 +55,9 @@ async def api_save_painted(data: dict[str, Any]):
     image_path = str(data.get("path", ""))
     base64_data = str(data.get("image", ""))
     if not image_path or not base64_data:
-        return JSONResponse({"error": "path 和 image(data URL/base64) 都是必填项"}, status_code=400)
+        return JSONResponse(
+            {"error": "path 和 image(data URL/base64) 都是必填项"}, status_code=400
+        )
     result = await asyncio.to_thread(save_painted_image, image_path, base64_data)
     if not result.get("ok"):
         return JSONResponse({"error": result.get("error", "unknown")}, status_code=400)
