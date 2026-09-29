@@ -10,7 +10,7 @@ from xdl.metric._utils import (
     _multilabel_stats,
     _precision_recall_f1,
     _safe_divide,
-    _to_label_predictions
+    _to_label_predictions,
 )
 
 
@@ -94,7 +94,9 @@ class Precision:
             if tp + fp > 0:
                 precision_sum += tp / (tp + fp)
                 valid_classes += 1
-        return (precision_sum / max(1, valid_classes)).item() if valid_classes > 0 else 0.0
+        return (
+            (precision_sum / max(1, valid_classes)).item() if valid_classes > 0 else 0.0
+        )
 
 
 class Recall:
@@ -522,4 +524,3 @@ class MultiLabelF1Score:
     def __call__(self, pred: torch.Tensor, target: torch.Tensor) -> float:
         stats = _multilabel_stats(pred, target, self.threshold, self.from_logits)
         return _multilabel_score(stats, self.average, "f1", self.epsilon)
-

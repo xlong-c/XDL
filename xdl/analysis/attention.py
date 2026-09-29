@@ -33,7 +33,9 @@ class AttentionCapture:
     ) -> tuple[torch.Tensor, ...]:
         kwargs = dict(forward_kwargs or {})
 
-        direct_attentions = self._capture_from_model_output(*forward_args, forward_kwargs=kwargs)
+        direct_attentions = self._capture_from_model_output(
+            *forward_args, forward_kwargs=kwargs
+        )
         if direct_attentions is not None:
             return direct_attentions
 
@@ -84,10 +86,12 @@ class AttentionCapture:
             for module in self.model.modules():
                 if _looks_like_attention_module(module):
                     handle = module.register_forward_hook(
-                        lambda module_ref, _inputs, output, bucket=captures: _append_attention_output(
-                            module_ref,
-                            output,
-                            bucket,
+                        lambda module_ref, _inputs, output, bucket=captures: (
+                            _append_attention_output(
+                                module_ref,
+                                output,
+                                bucket,
+                            )
                         )
                     )
                     handles.append(handle)
@@ -107,7 +111,9 @@ def _looks_like_attention_module(module: nn.Module) -> bool:
     return hasattr(module, "last_attention_weights")
 
 
-def _append_attention_output(module: nn.Module, output: Any, bucket: list[torch.Tensor]) -> None:
+def _append_attention_output(
+    module: nn.Module, output: Any, bucket: list[torch.Tensor]
+) -> None:
     attention_weights = getattr(module, "last_attention_weights", None)
     if isinstance(attention_weights, torch.Tensor) and attention_weights.ndim in (3, 4):
         bucket.append(attention_weights)
@@ -141,7 +147,9 @@ def attention_rollout_for_model(
 ) -> torch.Tensor:
     """Capture attention tensors from a model and return the rollout matrix."""
 
-    attentions = capture_attention_maps(model, *forward_args, forward_kwargs=forward_kwargs)
+    attentions = capture_attention_maps(
+        model, *forward_args, forward_kwargs=forward_kwargs
+    )
     return attention_rollout(
         attentions,
         average_heads=average_heads,
@@ -181,11 +189,15 @@ def attention_rollout(
                 f"Attention tensor must have shape [batch, heads, tokens, tokens] or [batch, tokens, tokens], got {tuple(attention.shape)}"
             )
         if matrix.shape[-1] != matrix.shape[-2]:
-            raise ValueError(f"Attention matrix must be square, got {tuple(matrix.shape)}")
+            raise ValueError(
+                f"Attention matrix must be square, got {tuple(matrix.shape)}"
+            )
 
         current = matrix.detach().float()
         if add_residual:
-            identity = torch.eye(current.shape[-1], device=current.device, dtype=current.dtype)
+            identity = torch.eye(
+                current.shape[-1], device=current.device, dtype=current.dtype
+            )
             current = current + identity.unsqueeze(0)
         if normalize_rows:
             current = current / current.sum(dim=-1, keepdim=True).clamp_min(1e-12)

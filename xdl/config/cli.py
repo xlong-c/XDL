@@ -5,7 +5,21 @@
 import sys
 from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, TypeVar, Union, cast, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from omegaconf import OmegaConf
 from omegaconf.errors import OmegaConfBaseException
@@ -27,7 +41,9 @@ _BOOL_LITERALS = {
 }
 
 
-def parse_dataclass_cli(config_type: Type[T], args: Optional[Sequence[str]] = None) -> T:
+def parse_dataclass_cli(
+    config_type: Type[T], args: Optional[Sequence[str]] = None
+) -> T:
     """
     将 CLI 参数解析为 dataclass 实例。
 
@@ -69,12 +85,14 @@ def format_dataclass_cli_help(config_type: Type[Any], program: str) -> str:
         lines.append(doc)
         lines.append("")
 
-    lines.extend([
-        "用法:",
-        f"  python {program} [--field value | field=value ...]",
-        "",
-        "参数:",
-    ])
+    lines.extend(
+        [
+            "用法:",
+            f"  python {program} [--field value | field=value ...]",
+            "",
+            "参数:",
+        ]
+    )
 
     for path, annotation in _iter_field_paths(config_type):
         default_value = OmegaConf.select(base_cfg, path)
@@ -84,15 +102,19 @@ def format_dataclass_cli_help(config_type: Type[Any], program: str) -> str:
             f"  --{cli_name:<24} {_format_annotation(annotation):<18} default={default_text}"
         )
 
-    lines.extend([
-        "",
-        "布尔参数支持 `--flag` / `--no-flag`，也支持 `flag=true`。",
-    ])
+    lines.extend(
+        [
+            "",
+            "布尔参数支持 `--flag` / `--no-flag`，也支持 `flag=true`。",
+        ]
+    )
     return "\n".join(lines)
 
 
 def _args_to_dotlist(config_type: Type[Any], args: Sequence[str]) -> List[str]:
-    field_map = {path: annotation for path, annotation in _iter_field_paths(config_type)}
+    field_map = {
+        path: annotation for path, annotation in _iter_field_paths(config_type)
+    }
     dotlist: List[str] = []
     index = 0
 
@@ -173,7 +195,9 @@ def _consume_flag_token(
     return value_index + 1
 
 
-def _iter_field_paths(config_type: Type[Any], prefix: str = "") -> List[Tuple[str, Any]]:
+def _iter_field_paths(
+    config_type: Type[Any], prefix: str = ""
+) -> List[Tuple[str, Any]]:
     annotations = get_type_hints(config_type)
     items: List[Tuple[str, Any]] = []
 

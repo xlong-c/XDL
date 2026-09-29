@@ -15,6 +15,7 @@
     pip install pywebview>=5.0 fastapi uvicorn pillow requests
     Linux: sudo apt install python3-gi gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0
 """
+
 from __future__ import annotations
 
 import base64
@@ -50,41 +51,79 @@ CONFIG: dict[str, Any] = {
 
 DEFAULT_PROVIDERS: list[dict[str, str]] = [
     {"name": "custom", "base_url": "", "api_key": "", "model": "gpt-image-2"},
-    {"name": "openai", "base_url": "https://api.openai.com/v1",
-     "api_key": "", "model": "gpt-image-1"},
+    {
+        "name": "openai",
+        "base_url": "https://api.openai.com/v1",
+        "api_key": "",
+        "model": "gpt-image-1",
+    },
 ]
 
 DEFAULT_PRESETS: list[dict[str, str]] = [
-    {"name": "换发", "prefix": "hairswap",
-     "prompt": ("Take the person in the first image. Replace their hair with the "
-                "hairstyle and hair color of the person in the second image. Keep "
-                "everything else exactly the same: face, facial features, body, "
-                "clothing, and background must remain unchanged.")},
-    {"name": "换装", "prefix": "clothswap",
-     "prompt": ("Take the person in the first image. Replace their clothing with "
-                "the clothing worn by the person in the second image. Keep the "
-                "person's face, body shape, pose, hairstyle, and background "
-                "exactly the same. Only change the clothes.")},
-    {"name": "背景替换", "prefix": "bgswap",
-     "prompt": ("Take the person in the first image and place them into the "
-                "background shown in the second image. Keep the person exactly as "
-                "they are. Only replace the background with the scene from the "
-                "second image. Make it look natural.")},
-    {"name": "风格迁移", "prefix": "styletransfer",
-     "prompt": ("Apply the artistic style, color palette, lighting, and visual "
-                "aesthetic of the second image to the first image. Preserve "
-                "content, subjects, and composition of the first image exactly.")},
-    {"name": "写实照片", "prefix": "realistic",
-     "prompt": ("A photorealistic, high-quality photograph. Natural lighting, "
-                "sharp focus, professional composition, 8K resolution, highly "
-                "detailed.")},
-    {"name": "动漫风格", "prefix": "anime",
-     "prompt": ("Anime and manga style illustration. Clean linework, vibrant "
-                "colors, cel-shaded, high quality Japanese animation art style.")},
+    {
+        "name": "换发",
+        "prefix": "hairswap",
+        "prompt": (
+            "Take the person in the first image. Replace their hair with the "
+            "hairstyle and hair color of the person in the second image. Keep "
+            "everything else exactly the same: face, facial features, body, "
+            "clothing, and background must remain unchanged."
+        ),
+    },
+    {
+        "name": "换装",
+        "prefix": "clothswap",
+        "prompt": (
+            "Take the person in the first image. Replace their clothing with "
+            "the clothing worn by the person in the second image. Keep the "
+            "person's face, body shape, pose, hairstyle, and background "
+            "exactly the same. Only change the clothes."
+        ),
+    },
+    {
+        "name": "背景替换",
+        "prefix": "bgswap",
+        "prompt": (
+            "Take the person in the first image and place them into the "
+            "background shown in the second image. Keep the person exactly as "
+            "they are. Only replace the background with the scene from the "
+            "second image. Make it look natural."
+        ),
+    },
+    {
+        "name": "风格迁移",
+        "prefix": "styletransfer",
+        "prompt": (
+            "Apply the artistic style, color palette, lighting, and visual "
+            "aesthetic of the second image to the first image. Preserve "
+            "content, subjects, and composition of the first image exactly."
+        ),
+    },
+    {
+        "name": "写实照片",
+        "prefix": "realistic",
+        "prompt": (
+            "A photorealistic, high-quality photograph. Natural lighting, "
+            "sharp focus, professional composition, 8K resolution, highly "
+            "detailed."
+        ),
+    },
+    {
+        "name": "动漫风格",
+        "prefix": "anime",
+        "prompt": (
+            "Anime and manga style illustration. Clean linework, vibrant "
+            "colors, cel-shaded, high quality Japanese animation art style."
+        ),
+    },
 ]
 
 SIZE_OPTIONS: list[str] = [
-    "1024x1024", "1024x1536", "1536x1024", "1792x1024", "1024x1792",
+    "1024x1024",
+    "1024x1536",
+    "1536x1024",
+    "1792x1024",
+    "1024x1792",
 ]
 
 # ════════════════════════════════════════════════════════════════
@@ -147,8 +186,10 @@ def call_generation_api(
 ) -> bytes:
     response = requests.post(
         base_url.rstrip("/") + "/images/generations",
-        headers={"Authorization": f"Bearer {api_key}",
-                 "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
         json={"model": model, "prompt": prompt, "size": size, "n": 1},
         timeout=180,
     )
@@ -158,7 +199,12 @@ def call_generation_api(
 
 
 def call_edit_api(
-    *, base_url: str, api_key: str, model: str, size: str, prompt: str,
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    size: str,
+    prompt: str,
     image_payloads: list[dict[str, Any]],
 ) -> bytes:
     files: list[tuple[str, tuple[str, bytes, str]]] = []
@@ -188,9 +234,15 @@ def _extract_image_bytes(payload: dict) -> bytes:
 
 
 def save_outputs(
-    *, output_dir: Path | None, result_bytes: bytes,
-    image1_bytes: bytes | None, image2_bytes: bytes | None,
-    preset_prefix: str, image1_name: str, image2_name: str, is_edit: bool,
+    *,
+    output_dir: Path | None,
+    result_bytes: bytes,
+    image1_bytes: bytes | None,
+    image2_bytes: bytes | None,
+    preset_prefix: str,
+    image1_name: str,
+    image2_name: str,
+    is_edit: bool,
 ) -> tuple[list[str], str]:
     if output_dir is None:
         return [], ""
@@ -201,17 +253,25 @@ def save_outputs(
     saved_paths: list[str] = []
 
     if is_edit and image1_bytes is not None:
-        p = output_dir / f"{prefix}_{file_stem(image1_name, 'img1')}_img1_{timestamp}_{unique}.png"
+        p = (
+            output_dir
+            / f"{prefix}_{file_stem(image1_name, 'img1')}_img1_{timestamp}_{unique}.png"
+        )
         safe_write_png(image1_bytes, p)
         saved_paths.append(str(p))
     if is_edit and image2_bytes is not None:
-        p = output_dir / f"{prefix}_{file_stem(image2_name, 'img2')}_img2_{timestamp}_{unique}.png"
+        p = (
+            output_dir
+            / f"{prefix}_{file_stem(image2_name, 'img2')}_img2_{timestamp}_{unique}.png"
+        )
         safe_write_png(image2_bytes, p)
         saved_paths.append(str(p))
 
     if is_edit:
-        result_name = (f"{prefix}_{file_stem(image1_name, 'img')}_with_"
-                       f"{file_stem(image2_name, 'ref')}_{timestamp}_{unique}.png")
+        result_name = (
+            f"{prefix}_{file_stem(image1_name, 'img')}_with_"
+            f"{file_stem(image2_name, 'ref')}_{timestamp}_{unique}.png"
+        )
     else:
         result_name = f"{prefix}_{timestamp}_{unique}.png"
     rp = output_dir / result_name
@@ -281,8 +341,9 @@ def save_config(cfg: dict[str, Any]) -> None:
     cfg_file: Path = CONFIG["config_file"]
     try:
         cfg_file.parent.mkdir(parents=True, exist_ok=True)
-        cfg_file.write_text(json.dumps(cfg, ensure_ascii=False, indent=2),
-                            encoding="utf-8")
+        cfg_file.write_text(
+            json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     except Exception as exc:
         print(f"[warn] 持久化配置失败: {exc}")
 
@@ -314,9 +375,14 @@ class State:
         if not name:
             raise ValueError("Provider 名称不能为空")
         providers = [p for p in self.config["providers"] if p.get("name") != name]
-        providers.append({"name": name, "base_url": data.get("base_url", "").strip(),
-                          "api_key": data.get("api_key", "").strip(),
-                          "model": data.get("model", "gpt-image-2").strip()})
+        providers.append(
+            {
+                "name": name,
+                "base_url": data.get("base_url", "").strip(),
+                "api_key": data.get("api_key", "").strip(),
+                "model": data.get("model", "gpt-image-2").strip(),
+            }
+        )
         self.config["providers"] = providers
         self.config["selected_provider"] = name
         save_config(self.config)
@@ -326,9 +392,12 @@ class State:
         name = data.get("name", "").strip()
         if not name:
             raise ValueError("Provider 名称不能为空")
-        new_prov = {"name": name, "base_url": data.get("base_url", "").strip(),
-                    "api_key": data.get("api_key", "").strip(),
-                    "model": data.get("model", "gpt-image-2").strip()}
+        new_prov = {
+            "name": name,
+            "base_url": data.get("base_url", "").strip(),
+            "api_key": data.get("api_key", "").strip(),
+            "model": data.get("model", "gpt-image-2").strip(),
+        }
         providers = []
         for p in self.config["providers"]:
             if p.get("name") == original_name:
@@ -343,8 +412,9 @@ class State:
     def delete_provider(self, name: str) -> dict[str, Any]:
         if len(self.config["providers"]) <= 1:
             raise ValueError("至少保留一个 Provider")
-        self.config["providers"] = [p for p in self.config["providers"]
-                                    if p.get("name") != name]
+        self.config["providers"] = [
+            p for p in self.config["providers"] if p.get("name") != name
+        ]
         if self.config.get("selected_provider") == name:
             self.config["selected_provider"] = self.config["providers"][0]["name"]
         save_config(self.config)
@@ -354,11 +424,13 @@ class State:
         name = data.get("name", "").strip()
         if not name:
             raise ValueError("预设名称不能为空")
-        self.config["presets"].append({
-            "name": name,
-            "prefix": data.get("prefix", "result").strip() or "result",
-            "prompt": data.get("prompt", "").strip(),
-        })
+        self.config["presets"].append(
+            {
+                "name": name,
+                "prefix": data.get("prefix", "result").strip() or "result",
+                "prompt": data.get("prompt", "").strip(),
+            }
+        )
         self.config["selected_preset"] = len(self.config["presets"]) - 1
         save_config(self.config)
         return self.config
@@ -383,9 +455,10 @@ class State:
         if not 0 <= index < len(self.config["presets"]):
             raise ValueError("预设索引越界")
         del self.config["presets"][index]
-        self.config["selected_preset"] = max(0, min(
-            self.config.get("selected_preset", 0), len(self.config["presets"]) - 1
-        ))
+        self.config["selected_preset"] = max(
+            0,
+            min(self.config.get("selected_preset", 0), len(self.config["presets"]) - 1),
+        )
         save_config(self.config)
         return self.config
 
@@ -517,8 +590,11 @@ async def clear_history() -> dict[str, Any]:
 # ── 长任务: 启动 + 轮询 ──
 def _run_generate(task_id: str, params: dict[str, Any]) -> None:
     try:
-        TASKS[task_id] = {"status": "running", "progress": 0.1,
-                           "msg": "正在调用远端图像接口..."}
+        TASKS[task_id] = {
+            "status": "running",
+            "progress": 0.1,
+            "msg": "正在调用远端图像接口...",
+        }
 
         # 决定 is_edit
         imgs = []
@@ -527,8 +603,9 @@ def _run_generate(task_id: str, params: dict[str, Any]) -> None:
                 with open(params["image1_path"], "rb") as f:
                     raw = f.read()
                 p1_bytes = image_to_png_bytes(raw)
-                imgs.append({"name": Path(params["image1_path"]).name,
-                             "png_bytes": p1_bytes})
+                imgs.append(
+                    {"name": Path(params["image1_path"]).name, "png_bytes": p1_bytes}
+                )
             except Exception as exc:
                 raise RuntimeError(f"读取图片1失败: {exc}") from exc
         if params.get("image2_path"):
@@ -536,8 +613,9 @@ def _run_generate(task_id: str, params: dict[str, Any]) -> None:
                 with open(params["image2_path"], "rb") as f:
                     raw = f.read()
                 p2_bytes = image_to_png_bytes(raw)
-                imgs.append({"name": Path(params["image2_path"]).name,
-                             "png_bytes": p2_bytes})
+                imgs.append(
+                    {"name": Path(params["image2_path"]).name, "png_bytes": p2_bytes}
+                )
             except Exception as exc:
                 raise RuntimeError(f"读取图片2失败: {exc}") from exc
 
@@ -546,27 +624,35 @@ def _run_generate(task_id: str, params: dict[str, Any]) -> None:
             raise ValueError("编辑模式至少需要图片1")
 
         # 调 API
-        TASKS[task_id] = {"status": "running", "progress": 0.4,
-                           "msg": "等待 API 响应 (可能 30-180s)..."}
+        TASKS[task_id] = {
+            "status": "running",
+            "progress": 0.4,
+            "msg": "等待 API 响应 (可能 30-180s)...",
+        }
         if is_edit:
             result_bytes = call_edit_api(
-                base_url=params["base_url"], api_key=params["api_key"],
-                model=params["model"], size=params["size"],
-                prompt=params["prompt"], image_payloads=imgs,
+                base_url=params["base_url"],
+                api_key=params["api_key"],
+                model=params["model"],
+                size=params["size"],
+                prompt=params["prompt"],
+                image_payloads=imgs,
             )
         else:
             result_bytes = call_generation_api(
-                base_url=params["base_url"], api_key=params["api_key"],
-                model=params["model"], size=params["size"],
+                base_url=params["base_url"],
+                api_key=params["api_key"],
+                model=params["model"],
+                size=params["size"],
                 prompt=params["prompt"],
             )
 
-        TASKS[task_id] = {"status": "running", "progress": 0.8,
-                           "msg": "保存输出..."}
+        TASKS[task_id] = {"status": "running", "progress": 0.8, "msg": "保存输出..."}
         out_dir = ensure_dir(params.get("output_dir", ""))
         preset_prefix = params.get("preset_prefix", "result")
         saved_files, saved_dir = save_outputs(
-            output_dir=out_dir, result_bytes=result_bytes,
+            output_dir=out_dir,
+            result_bytes=result_bytes,
             image1_bytes=imgs[0]["png_bytes"] if imgs else None,
             image2_bytes=imgs[1]["png_bytes"] if len(imgs) > 1 else None,
             preset_prefix=preset_prefix,
@@ -589,28 +675,37 @@ def _run_generate(task_id: str, params: dict[str, Any]) -> None:
         bundle = {
             "stitched_b64": base64.b64encode(stitched).decode("ascii"),
             "result_b64": base64.b64encode(result_bytes).decode("ascii"),
-            "image1_b64": base64.b64encode(imgs[0]["png_bytes"]).decode("ascii") if imgs else None,
-            "image2_b64": base64.b64encode(imgs[1]["png_bytes"]).decode("ascii") if len(imgs) > 1 else None,
+            "image1_b64": base64.b64encode(imgs[0]["png_bytes"]).decode("ascii")
+            if imgs
+            else None,
+            "image2_b64": base64.b64encode(imgs[1]["png_bytes"]).decode("ascii")
+            if len(imgs) > 1
+            else None,
             "is_edit": is_edit,
             "saved_files": saved_files,
             "saved_dir": saved_dir,
             "title": f"[{params.get('preset_name', '未命名')}]",
-            "status_message": (f"完成: 已保存 {len(saved_files)} 个文件到 {saved_dir}"
-                                if saved_files else "完成: 未落盘,仅保留页面结果"),
+            "status_message": (
+                f"完成: 已保存 {len(saved_files)} 个文件到 {saved_dir}"
+                if saved_files
+                else "完成: 未落盘,仅保留页面结果"
+            ),
         }
         STATE.current_result = bundle
 
         # 入历史
-        STATE.push_history({
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "title": bundle["title"],
-            "is_edit": is_edit,
-            "saved_message": bundle["status_message"].replace("完成: ", "", 1),
-            "stitched_b64": bundle["stitched_b64"],
-            "result_b64": bundle["result_b64"],
-            "image1_b64": bundle["image1_b64"],
-            "image2_b64": bundle["image2_b64"],
-        })
+        STATE.push_history(
+            {
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "title": bundle["title"],
+                "is_edit": is_edit,
+                "saved_message": bundle["status_message"].replace("完成: ", "", 1),
+                "stitched_b64": bundle["stitched_b64"],
+                "result_b64": bundle["result_b64"],
+                "image1_b64": bundle["image1_b64"],
+                "image2_b64": bundle["image2_b64"],
+            }
+        )
 
         TASKS[task_id] = {"status": "done", "progress": 1.0, "result": bundle}
     except Exception as exc:
@@ -626,15 +721,17 @@ async def start_generate(params: dict[str, Any]) -> dict[str, str]:
     if not params.get("prompt"):
         raise ValueError("请输入提示词")
     parse_size(params.get("size", "1024x1024"))
-    STATE.update_config({
-        "selected_provider": params.get("provider_name"),
-        "selected_preset": params.get("preset_index"),
-        "base_url": params["base_url"],
-        "api_key": params["api_key"],
-        "model": params["model"],
-        "img_size": params["size"],
-        "output_dir": params.get("output_dir", ""),
-    })
+    STATE.update_config(
+        {
+            "selected_provider": params.get("provider_name"),
+            "selected_preset": params.get("preset_index"),
+            "base_url": params["base_url"],
+            "api_key": params["api_key"],
+            "model": params["model"],
+            "img_size": params["size"],
+            "output_dir": params.get("output_dir", ""),
+        }
+    )
     tid = uuid.uuid4().hex
     TASKS[tid] = {"status": "queued", "progress": 0.0, "msg": "排队中..."}
     threading.Thread(target=_run_generate, args=(tid, params), daemon=True).start()
@@ -1262,7 +1359,10 @@ class API:
 
 def _run_server() -> None:
     config = uvicorn.Config(
-        app, host=CONFIG["host"], port=CONFIG["port"], log_level="warning",
+        app,
+        host=CONFIG["host"],
+        port=CONFIG["port"],
+        log_level="warning",
     )
     uvicorn.Server(config).run()
 

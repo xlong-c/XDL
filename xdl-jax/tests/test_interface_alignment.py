@@ -60,7 +60,10 @@ class CustomBaseTask(BaseJaxTask):
     def build_model(self) -> FunctionalModelAdapter:
         def init_fn(rng: jax.Array, sample_batch: Any) -> dict[str, jax.Array]:
             del sample_batch
-            return {"w": jax.random.normal(rng, (self.input_dim, 1)), "b": jnp.zeros((1,))}
+            return {
+                "w": jax.random.normal(rng, (self.input_dim, 1)),
+                "b": jnp.zeros((1,)),
+            }
 
         def apply_fn(
             params: Any,
@@ -131,7 +134,9 @@ def test_base_jax_task_custom_validation_and_callbacks():
     )
 
     # 自动收集 task.configure_callbacks()
-    assert any(isinstance(c, AlignmentRecordingCallback) for c in trainer.callbacks.callbacks)
+    assert any(
+        isinstance(c, AlignmentRecordingCallback) for c in trainer.callbacks.callbacks
+    )
 
     result = trainer.fit(data, val_data=val_data)
     assert len(result.validation_history) == 1

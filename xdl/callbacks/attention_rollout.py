@@ -41,7 +41,9 @@ class AttentionRolloutCallback(Callback):
         self.every_n_epochs = max(1, int(every_n_epochs))
         self.first_val_batch_only = bool(first_val_batch_only)
         self.max_batches_per_epoch = (
-            max(1, int(max_batches_per_epoch)) if max_batches_per_epoch is not None else None
+            max(1, int(max_batches_per_epoch))
+            if max_batches_per_epoch is not None
+            else None
         )
         self.file_prefix = file_prefix
         self.save_format = save_format.lower()
@@ -50,7 +52,9 @@ class AttentionRolloutCallback(Callback):
         if self.save_format not in {"pt", "safetensors"}:
             raise ValueError(f"Unsupported save_format: {save_format}")
 
-    def on_validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         del core_module
         if self._should_capture_epoch(trainer):
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -70,14 +74,19 @@ class AttentionRolloutCallback(Callback):
             return
         if self.first_val_batch_only and batch_idx != 0:
             return
-        if self.max_batches_per_epoch is not None and self._captured_batches >= self.max_batches_per_epoch:
+        if (
+            self.max_batches_per_epoch is not None
+            and self._captured_batches >= self.max_batches_per_epoch
+        ):
             return
         if not self._is_main_process(trainer, core_module):
             return
 
         model = self._resolve_model(core_module)
         forward_args, forward_kwargs = self._adapt_batch(batch)
-        rollout = attention_rollout_for_model(model, *forward_args, forward_kwargs=forward_kwargs)
+        rollout = attention_rollout_for_model(
+            model, *forward_args, forward_kwargs=forward_kwargs
+        )
         payload = {
             "epoch": int(getattr(trainer, "current_epoch", 0)),
             "global_step": int(getattr(trainer, "global_step", 0)),

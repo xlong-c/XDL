@@ -17,10 +17,16 @@ def test_normalize_lora_parameters_accepts_string_and_coerces_values() -> None:
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"target_modules": [], "rank": 8, "alpha": 16, "dropout": 0.0}, "target_modules"),
+        (
+            {"target_modules": [], "rank": 8, "alpha": 16, "dropout": 0.0},
+            "target_modules",
+        ),
         ({"target_modules": ["to_q"], "rank": 0, "alpha": 16, "dropout": 0.0}, "rank"),
         ({"target_modules": ["to_q"], "rank": 8, "alpha": 0, "dropout": 0.0}, "alpha"),
-        ({"target_modules": ["to_q"], "rank": 8, "alpha": 16, "dropout": 1.0}, "dropout"),
+        (
+            {"target_modules": ["to_q"], "rank": 8, "alpha": 16, "dropout": 1.0},
+            "dropout",
+        ),
     ],
 )
 def test_normalize_lora_parameters_rejects_invalid_values(kwargs, message) -> None:

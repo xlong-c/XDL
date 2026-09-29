@@ -37,7 +37,9 @@ class FocalLoss(nn.Module):
         Returns:
             计算的focal loss
         """
-        ce_loss = F.cross_entropy(inputs, targets, ignore_index=self.ignore_index, reduction="none")
+        ce_loss = F.cross_entropy(
+            inputs, targets, ignore_index=self.ignore_index, reduction="none"
+        )
         pt = torch.exp(-ce_loss)
         focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
 
@@ -101,7 +103,9 @@ def focal_loss(alpha=1.0, gamma=2.0, reduction="mean", ignore_index=-100):
     Returns:
         FocalLoss损失函数实例
     """
-    return FocalLoss(alpha=alpha, gamma=gamma, reduction=reduction, ignore_index=ignore_index)
+    return FocalLoss(
+        alpha=alpha, gamma=gamma, reduction=reduction, ignore_index=ignore_index
+    )
 
 
 def binary_focal_loss(alpha=1.0, gamma=2.0, reduction="mean"):

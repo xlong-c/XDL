@@ -25,6 +25,7 @@
     Shift+方向键    快速移动 (10px)
     Esc / Q        退出
 """
+
 from __future__ import annotations
 
 import base64
@@ -51,8 +52,8 @@ CONFIG: dict[str, Any] = {
     "height": 820,
     "host": "127.0.0.1",
     "port": 8765,
-    "mode": "single",        # "single" 双图对比 | "grid" 拼合图拆分
-    "cols": 5,                # 拼合图横向切分数
+    "mode": "single",  # "single" 双图对比 | "grid" 拼合图拆分
+    "cols": 5,  # 拼合图横向切分数
 }
 
 # ════════════════════════════════════════════════════════════════
@@ -198,7 +199,9 @@ class State:
         }
 
     @staticmethod
-    def _img_info(img: Image.Image | None, path: str | None = None) -> dict[str, Any] | None:
+    def _img_info(
+        img: Image.Image | None, path: str | None = None
+    ) -> dict[str, Any] | None:
         if img is None:
             return None
         return {"w": img.size[0], "h": img.size[1], "path": path}

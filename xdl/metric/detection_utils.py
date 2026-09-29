@@ -233,9 +233,7 @@ def decode_detection_output(
             scores_per_class = _score_activation(class_logits, config.score_activation)
         scores, labels = scores_per_class.max(dim=-1)
         keep = scores >= config.score_threshold
-        predictions.append(
-            _apply_nms(boxes[keep], scores[keep], labels[keep], config)
-        )
+        predictions.append(_apply_nms(boxes[keep], scores[keep], labels[keep], config))
     return predictions
 
 

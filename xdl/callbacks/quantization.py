@@ -44,13 +44,19 @@ class QATLifecycleCallback(Callback):
         model = self._resolve_model(core_module)
         state = QATLifecycleState()
 
-        if self.disable_observer_epoch is not None and epoch >= self.disable_observer_epoch:
+        if (
+            self.disable_observer_epoch is not None
+            and epoch >= self.disable_observer_epoch
+        ):
             state.observer_disabled = self._call_on_modules(
                 model.modules(),
                 "disable_observer",
             )
 
-        if self.disable_fake_quant_epoch is not None and epoch >= self.disable_fake_quant_epoch:
+        if (
+            self.disable_fake_quant_epoch is not None
+            and epoch >= self.disable_fake_quant_epoch
+        ):
             state.fake_quant_disabled = self._call_on_modules(
                 model.modules(),
                 "disable_fake_quant",

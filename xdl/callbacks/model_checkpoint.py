@@ -68,7 +68,9 @@ class ModelCheckpoint(Callback):
         self.save_scheduler = save_scheduler
         self.include_components = include_components
         self.format = format
-        self.naming_keys = naming_keys or (["step"] if every_n_train_steps else ["epoch"])
+        self.naming_keys = naming_keys or (
+            ["step"] if every_n_train_steps else ["epoch"]
+        )
         self.verbose = verbose
 
         # 内部状态
@@ -116,7 +118,9 @@ class ModelCheckpoint(Callback):
         if self.save_last:
             self._save_checkpoint(trainer, core_module, "last")
 
-    def _get_monitor_value(self, trainer: "Trainer", core_module: "CoreModel") -> Optional[float]:
+    def _get_monitor_value(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> Optional[float]:
         """从 trainer 或 core_module 获取监控指标"""
         if not self.monitor:
             return None
@@ -183,7 +187,9 @@ class ModelCheckpoint(Callback):
             self._update_best_models(actual_path, monitor_val)
 
         # 如果没有 monitor 且 save_top_k == 1, 则保留最新的
-        elif self.save_top_k == 1 and not (self.every_n_train_steps or self.every_n_epochs):
+        elif self.save_top_k == 1 and not (
+            self.every_n_train_steps or self.every_n_epochs
+        ):
             if self.last_model_path and self.last_model_path != actual_path:
                 lp = Path(self.last_model_path)
                 if lp.exists():
@@ -207,7 +213,9 @@ class ModelCheckpoint(Callback):
         """清理已不再作为 last 且不在 best_k 列表中的过期 checkpoint"""
         retained = []
         for p_str in self._pending_delete_paths:
-            if p_str != self.last_model_path and not any(m["path"] == p_str for m in self.best_k_models):
+            if p_str != self.last_model_path and not any(
+                m["path"] == p_str for m in self.best_k_models
+            ):
                 p = Path(p_str)
                 if p.exists():
                     try:
@@ -216,7 +224,9 @@ class ModelCheckpoint(Callback):
                         else:
                             p.unlink()
                         if self.verbose:
-                            self._logger.info(f"Removed pending deleted checkpoint: {p}")
+                            self._logger.info(
+                                f"Removed pending deleted checkpoint: {p}"
+                            )
                     except Exception as e:
                         self._logger.warning(f"Failed to remove checkpoint {p}: {e}")
             else:

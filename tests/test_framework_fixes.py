@@ -104,6 +104,7 @@ def test_component_config_strict_recognition() -> None:
 
 def test_callback_and_task_registries() -> None:
     """验证 CALLBACK_REGISTRY 和 TASK_REGISTRY 正常注册和通过 builder 映射."""
+
     @register_callback("MockCallbackForTest")
     class MockCallback(Callback):
         pass
@@ -132,14 +133,19 @@ def test_fsdp_collective_sampling_guard() -> None:
 def test_model_checkpoint_pending_delete_cleanup() -> None:
     """验证 ModelCheckpoint 淘汰策略正确追踪与延迟清理与 last_model_path 冲突的文件."""
     with tempfile.TemporaryDirectory() as temp_dir:
-        ckpt = ModelCheckpoint(dirpath=temp_dir, save_top_k=1, mode="min", monitor="val_loss")
+        ckpt = ModelCheckpoint(
+            dirpath=temp_dir, save_top_k=1, mode="min", monitor="val_loss"
+        )
         ckpt.last_model_path = str(Path(temp_dir) / "last.pt")
         # 创建假文件
         Path(ckpt.last_model_path).touch()
 
         # 模拟 worst 等于 last_model_path 时被加入待删除队列
         worst_item = {"path": ckpt.last_model_path, "score": 2.0}
-        ckpt.best_k_models = [worst_item, {"path": str(Path(temp_dir) / "best.pt"), "score": 0.5}]
+        ckpt.best_k_models = [
+            worst_item,
+            {"path": str(Path(temp_dir) / "best.pt"), "score": 0.5},
+        ]
         ckpt._update_best_models(str(Path(temp_dir) / "new_best.pt"), 0.3)
 
         assert ckpt.last_model_path in ckpt._pending_delete_paths

@@ -23,22 +23,32 @@ def format_value_for_dirname(value: Any) -> str:
     return str(value)
 
 
-def generate_checkpoint_dirname(naming_keys: List[str], values_dict: Dict[str, Any]) -> str:
+def generate_checkpoint_dirname(
+    naming_keys: List[str], values_dict: Dict[str, Any]
+) -> str:
     """生成语义化的目录名"""
     parts = [
-        f"{k}_{format_value_for_dirname(values_dict[k])}" for k in naming_keys if k in values_dict
+        f"{k}_{format_value_for_dirname(values_dict[k])}"
+        for k in naming_keys
+        if k in values_dict
     ]
     return "_".join(parts) if parts else "checkpoint"
 
 
-def flatten_state_dict(state_dict: Dict[str, Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+def flatten_state_dict(
+    state_dict: Dict[str, Dict[str, torch.Tensor]],
+) -> Dict[str, torch.Tensor]:
     """嵌套 dict -> 扁平 dict (module.param)"""
     return {
-        f"{m}.{p}": v.detach().cpu() for m, params in state_dict.items() for p, v in params.items()
+        f"{m}.{p}": v.detach().cpu()
+        for m, params in state_dict.items()
+        for p, v in params.items()
     }
 
 
-def unflatten_state_dict(flat_dict: Dict[str, torch.Tensor]) -> Dict[str, Dict[str, torch.Tensor]]:
+def unflatten_state_dict(
+    flat_dict: Dict[str, torch.Tensor],
+) -> Dict[str, Dict[str, torch.Tensor]]:
     """扁平 dict -> 嵌套 dict"""
     res = {}
     for k, v in flat_dict.items():
@@ -47,14 +57,18 @@ def unflatten_state_dict(flat_dict: Dict[str, torch.Tensor]) -> Dict[str, Dict[s
     return res
 
 
-def save_checkpoint(save_dir: Path, checkpoint: Dict[str, Any], format: str = "pt") -> None:
+def save_checkpoint(
+    save_dir: Path, checkpoint: Dict[str, Any], format: str = "pt"
+) -> None:
     """统一保存入口. 不修改传入的 checkpoint 字典."""
     save_dir.mkdir(parents=True, exist_ok=True)
     if format in ("st", "safetensors"):
         if not safetensors_save_file:
             raise ImportError("请安装 safetensors 以使用该格式")
         state_dict = checkpoint.get("state_dict", {})
-        safetensors_save_file(flatten_state_dict(state_dict), str(save_dir / "model.safetensors"))
+        safetensors_save_file(
+            flatten_state_dict(state_dict), str(save_dir / "model.safetensors")
+        )
         meta = {key: value for key, value in checkpoint.items() if key != "state_dict"}
         torch.save(meta, save_dir / "meta.pt")
     else:
@@ -74,7 +88,9 @@ def detect_and_load_checkpoint(
     if (ckpt_path / "model.safetensors").exists():
         if not safetensors_load_file:
             raise ImportError("请安装 safetensors 以加载该格式")
-        flat = safetensors_load_file(str(ckpt_path / "model.safetensors"), device=str(map_location))
+        flat = safetensors_load_file(
+            str(ckpt_path / "model.safetensors"), device=str(map_location)
+        )
         ckpt = (
             torch.load(str(ckpt_path / "meta.pt"), map_location=map_location)
             if (ckpt_path / "meta.pt").exists()

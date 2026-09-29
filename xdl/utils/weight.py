@@ -4,6 +4,7 @@
 
 import os
 from collections import OrderedDict
+from typing import Literal
 
 import torch
 import torch.nn as nn
@@ -87,7 +88,25 @@ def xavier_init(module, gain=1, bias=0, distribution="normal"):
 
 
 def kaiming_init(
-    module, a=0, mode="fan_in", nonlinearity="leaky_relu", bias=0, distribution="normal"
+    module,
+    a=0,
+    mode: Literal["fan_in", "fan_out"] = "fan_in",
+    nonlinearity: Literal[
+        "linear",
+        "conv1d",
+        "conv2d",
+        "conv3d",
+        "conv_transpose1d",
+        "conv_transpose2d",
+        "conv_transpose3d",
+        "sigmoid",
+        "tanh",
+        "relu",
+        "leaky_relu",
+        "selu",
+    ] = "leaky_relu",
+    bias=0,
+    distribution="normal",
 ):
     """
     使用Kaiming初始化方法初始化模块的权重.
@@ -102,11 +121,17 @@ def kaiming_init(
     """
     assert distribution in ["normal", "uniform"]
     # 验证mode参数的有效性
-    assert mode in ["fan_in", "fan_out"], f"mode参数必须是'fan_in'或'fan_out',当前值为'{mode}'"
+    assert mode in ["fan_in", "fan_out"], (
+        f"mode参数必须是'fan_in'或'fan_out',当前值为'{mode}'"
+    )
     if distribution == "normal":
-        nn.init.kaiming_normal_(module.weight, a=a, mode=mode, nonlinearity=nonlinearity)  # type: ignore
+        nn.init.kaiming_normal_(
+            module.weight, a=a, mode=mode, nonlinearity=nonlinearity
+        )
     else:
-        nn.init.kaiming_uniform_(module.weight, a=a, mode=mode, nonlinearity=nonlinearity)  # type: ignore
+        nn.init.kaiming_uniform_(
+            module.weight, a=a, mode=mode, nonlinearity=nonlinearity
+        )
     if hasattr(module, "bias") and module.bias is not None:
         nn.init.constant_(module.bias, bias)
 

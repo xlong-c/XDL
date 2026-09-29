@@ -249,10 +249,14 @@ class _SpatialTransformerBlock(nn.Module):
         query, key, val = query_key_value.permute(2, 0, 3, 1, 4)
         attention = (query @ key.transpose(-2, -1)) * self.scale
         attention = attention.softmax(dim=-1)
-        hidden = (attention @ val).transpose(1, 2).reshape(
-            batch_size,
-            token_count,
-            channels,
+        hidden = (
+            (attention @ val)
+            .transpose(1, 2)
+            .reshape(
+                batch_size,
+                token_count,
+                channels,
+            )
         )
         value = value + self.proj(hidden)
         return value + self.mlp(self.norm2(value))
@@ -295,9 +299,7 @@ class ScatteringTracker(nn.Module):
             nn.SiLU(),
         )
         self.cond_fuse = nn.Sequential(
-            nn.utils.spectral_norm(
-                nn.Linear(hidden_dim * 2, hidden_dim, bias=False)
-            ),
+            nn.utils.spectral_norm(nn.Linear(hidden_dim * 2, hidden_dim, bias=False)),
             _ParameterFreeRMSNorm(),
             nn.SiLU(),
         )
@@ -320,14 +322,10 @@ class ScatteringTracker(nn.Module):
         nn.init.zeros_(self.out_proj.weight)
         self.potential_head = (
             nn.Sequential(
-                nn.utils.spectral_norm(
-                    nn.Linear(feat_dim, hidden_dim, bias=False)
-                ),
+                nn.utils.spectral_norm(nn.Linear(feat_dim, hidden_dim, bias=False)),
                 _ParameterFreeRMSNorm(),
                 nn.SiLU(),
-                nn.utils.spectral_norm(
-                    nn.Linear(hidden_dim, hidden_dim, bias=False)
-                ),
+                nn.utils.spectral_norm(nn.Linear(hidden_dim, hidden_dim, bias=False)),
                 _ParameterFreeRMSNorm(),
                 nn.SiLU(),
                 nn.utils.spectral_norm(nn.Linear(hidden_dim, 1, bias=False)),
@@ -459,9 +457,7 @@ class RepresentationScatteringField(nn.Module):
         self.loss_weight = float(loss_weight)
         self.feature_norm = tuple(feature_norm)
         self.beta = float(ema_beta)
-        tracker_config_dict = (
-            {} if tracker_config is None else dict(tracker_config)
-        )
+        tracker_config_dict = {} if tracker_config is None else dict(tracker_config)
         self.tracker = (
             ScatteringTracker(
                 num_classes,
@@ -551,9 +547,7 @@ class RepresentationScatteringField(nn.Module):
         use_std = "std" in self.feature_norm
         use_rms = "rms" in self.feature_norm
         if use_mu or use_std:
-            mu_new = _distributed_mean(
-                real_source.mean(dim=(0, 1)).detach().float()
-            )
+            mu_new = _distributed_mean(real_source.mean(dim=(0, 1)).detach().float())
             x2_new = None
             if use_std:
                 x2_new = _distributed_mean(
@@ -629,14 +623,13 @@ class RepresentationScatteringField(nn.Module):
         )
         inter_bearing = inter_offset / (inter_radius + SCATTERING_EPS)
         intra_bearing = intra_offset / (intra_radius + SCATTERING_EPS)
-        lambda_vector = (
-            inter_bearing - self.lambda_weight * intra_bearing
-        ).view_as(projectile) * radius_scale
+        lambda_vector = (inter_bearing - self.lambda_weight * intra_bearing).view_as(
+            projectile
+        ) * radius_scale
         mixed_vector = (
             lambda_vector
             if tracked_vector is None
-            else (1.0 - self.rho) * lambda_vector
-            + self.rho * tracked_vector
+            else (1.0 - self.rho) * lambda_vector + self.rho * tracked_vector
         )
         return (projectile + mixed_vector).detach(), lambda_vector
 
@@ -675,9 +668,7 @@ class RepresentationScatteringField(nn.Module):
         ) * (1.0 - self.lambda_weight)
         query = alpha * real_source + (1.0 - alpha) * projectile.detach()
         tracked_vector = (
-            None
-            if self.tracker is None
-            else self.tracker(condition, query, time)
+            None if self.tracker is None else self.tracker(condition, query, time)
         )
         target, lambda_vector = self._frozen_target(
             real_source,
@@ -685,9 +676,7 @@ class RepresentationScatteringField(nn.Module):
             generated_source,
             tracked_vector,
         )
-        tracker_prediction = (
-            lambda_vector if tracked_vector is None else tracked_vector
-        )
+        tracker_prediction = lambda_vector if tracked_vector is None else tracked_vector
         raw_projectile_loss = F.mse_loss(projectile, target)
         raw_tracker_loss = F.mse_loss(tracker_prediction, lambda_vector)
         projectile_loss = self.loss_weight * _self_normalized(raw_projectile_loss)

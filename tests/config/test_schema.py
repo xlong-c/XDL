@@ -89,9 +89,15 @@ def test_can_merge_and_resolve_references() -> None:
     assert cfg.trainer.max_epochs == 5
     assert resolved["runtime"]["data_dir"] == "./dataset_root"
     assert resolved["dataloader_defaults"]["batch_size"] == 8
-    assert resolved["train_dataset"]["params"]["transform"]["target"] == "torchvision.transforms:Compose"
+    assert (
+        resolved["train_dataset"]["params"]["transform"]["target"]
+        == "torchvision.transforms:Compose"
+    )
     assert resolved["train_dataset"]["params"]["root"] == "./dataset_root"
-    assert resolved["train_dataloader"]["dataset"]["target"] == "torchvision.datasets:CIFAR100"
+    assert (
+        resolved["train_dataloader"]["dataset"]["target"]
+        == "torchvision.datasets:CIFAR100"
+    )
     assert resolved["model"]["target"] == "registry:vgg16_bn"
 
 

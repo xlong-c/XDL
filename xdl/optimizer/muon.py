@@ -84,7 +84,9 @@ class Muon(torch.optim.Optimizer):
             with torch.enable_grad():
                 loss = closure()
 
-        is_dist = dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
+        is_dist = (
+            dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
+        )
 
         for group in self.param_groups:
             params = group["params"]
@@ -95,7 +97,9 @@ class Muon(torch.optim.Optimizer):
                     state = self.state[p]
                     if len(state) == 0:
                         state["momentum_buffer"] = torch.zeros_like(p)
-                    update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
+                    update = muon_update(
+                        p.grad, state["momentum_buffer"], beta=group["momentum"]
+                    )
                     p.mul_(1 - group["lr"] * group["weight_decay"])
                     p.add_(update.reshape(p.shape), alpha=-group["lr"])
             else:
@@ -109,7 +113,9 @@ class Muon(torch.optim.Optimizer):
                         state = self.state[p]
                         if len(state) == 0:
                             state["momentum_buffer"] = torch.zeros_like(p)
-                        update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
+                        update = muon_update(
+                            p.grad, state["momentum_buffer"], beta=group["momentum"]
+                        )
                         p.mul_(1 - group["lr"] * group["weight_decay"])
                         p.add_(update.reshape(p.shape), alpha=-group["lr"])
                     for r in range(world_size):
@@ -144,7 +150,9 @@ class SingleDeviceMuon(torch.optim.Optimizer):
                 state = self.state[p]
                 if len(state) == 0:
                     state["momentum_buffer"] = torch.zeros_like(p)
-                update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
+                update = muon_update(
+                    p.grad, state["momentum_buffer"], beta=group["momentum"]
+                )
                 p.mul_(1 - group["lr"] * group["weight_decay"])
                 p.add_(update.reshape(p.shape), alpha=-group["lr"])
 
@@ -191,12 +199,20 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
         for group in param_groups:
             assert "use_muon" in group
             if group["use_muon"]:
-                group["params"] = sorted(group["params"], key=lambda x: x.size(), reverse=True)
+                group["params"] = sorted(
+                    group["params"], key=lambda x: x.size(), reverse=True
+                )
                 # defaults
                 group["lr"] = group.get("lr", 0.02)
                 group["momentum"] = group.get("momentum", 0.95)
                 group["weight_decay"] = group.get("weight_decay", 0)
-                assert set(group.keys()) == {"params", "lr", "momentum", "weight_decay", "use_muon"}
+                assert set(group.keys()) == {
+                    "params",
+                    "lr",
+                    "momentum",
+                    "weight_decay",
+                    "use_muon",
+                }
             else:
                 # defaults
                 group["lr"] = group.get("lr", 3e-4)
@@ -222,7 +238,11 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
 
         for group in self.param_groups:
             if group["use_muon"]:
-                is_dist = dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
+                is_dist = (
+                    dist.is_available()
+                    and dist.is_initialized()
+                    and dist.get_world_size() > 1
+                )
                 params = group["params"]
                 if not is_dist:
                     for p in params:
@@ -294,7 +314,13 @@ class SingleDeviceMuonWithAuxAdam(torch.optim.Optimizer):
                 group["lr"] = group.get("lr", 0.02)
                 group["momentum"] = group.get("momentum", 0.95)
                 group["weight_decay"] = group.get("weight_decay", 0)
-                assert set(group.keys()) == {"params", "lr", "momentum", "weight_decay", "use_muon"}
+                assert set(group.keys()) == {
+                    "params",
+                    "lr",
+                    "momentum",
+                    "weight_decay",
+                    "use_muon",
+                }
             else:
                 # defaults
                 group["lr"] = group.get("lr", 3e-4)
@@ -327,7 +353,9 @@ class SingleDeviceMuonWithAuxAdam(torch.optim.Optimizer):
                     state = self.state[p]
                     if len(state) == 0:
                         state["momentum_buffer"] = torch.zeros_like(p)
-                    update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
+                    update = muon_update(
+                        p.grad, state["momentum_buffer"], beta=group["momentum"]
+                    )
                     p.mul_(1 - group["lr"] * group["weight_decay"])
                     p.add_(update.reshape(p.shape), alpha=-group["lr"])
             else:

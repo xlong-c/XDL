@@ -47,15 +47,15 @@ class ReferenceModelCallback(Callback):
         priority: int = 100,
     ) -> None:
         """Args:
-            ema_sync_every_n_steps: If set, sync reference weights toward
-                policy weights every N training steps (global step count).
-                ``None`` means no sync after initial freeze.
-            ema_decay: EMA decay factor (closer to 1 = slower update).
-            ref_attr: Attribute name on ``core_module`` holding the
-                reference model.  Default: ``"ref_model"``.
-            policy_attr: Attribute name on ``core_module`` holding the
-                policy model.  Default: ``"policy"``.
-            priority: Callback priority (lower = earlier).
+        ema_sync_every_n_steps: If set, sync reference weights toward
+            policy weights every N training steps (global step count).
+            ``None`` means no sync after initial freeze.
+        ema_decay: EMA decay factor (closer to 1 = slower update).
+        ref_attr: Attribute name on ``core_module`` holding the
+            reference model.  Default: ``"ref_model"``.
+        policy_attr: Attribute name on ``core_module`` holding the
+            policy model.  Default: ``"policy"``.
+        priority: Callback priority (lower = earlier).
         """
         super().__init__(priority=priority)
         self.ema_sync_every_n_steps = ema_sync_every_n_steps
@@ -106,9 +106,7 @@ class ReferenceModelCallback(Callback):
                 f"Please set self.{self.ref_attr} in __init__."
             )
         if not isinstance(ref, nn.Module):
-            raise TypeError(
-                f"'{self.ref_attr}' must be an nn.Module, got {type(ref)}"
-            )
+            raise TypeError(f"'{self.ref_attr}' must be an nn.Module, got {type(ref)}")
         return ref
 
     def _get_policy(self, core_module: "CoreModel") -> nn.Module:

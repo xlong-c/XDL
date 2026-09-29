@@ -89,7 +89,9 @@ class RecordTripletDataset(RecordDatasetBase):
         if input_key is None or record.get(input_key) in (None, ""):
             return
         value = str(record[input_key])
-        sample[output_key] = self.text_transform(value) if self.text_transform is not None else value
+        sample[output_key] = (
+            self.text_transform(value) if self.text_transform is not None else value
+        )
 
 
 __all__ = ["RecordTripletDataset"]

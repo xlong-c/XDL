@@ -135,7 +135,9 @@ class TqdmCallback(Callback):
         # 确保没有遗留的进度条
         self._cleanup_progress_bars(force=True)
 
-    def teardown(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
+    def teardown(
+        self, trainer: "Trainer", core_module: "CoreModel", stage: str
+    ) -> None:
         """清理进度条"""
         self._cleanup_progress_bars()
 
@@ -168,7 +170,9 @@ class TqdmCallback(Callback):
                 self._batch_counts.clear()
                 self._last_metrics.clear()
 
-    def on_train_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_train_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         """训练epoch开始时创建进度条"""
         with self._lock:
             self._batch_counts["train"] = 0
@@ -202,7 +206,9 @@ class TqdmCallback(Callback):
                     with self._lock:
                         self._active_bars["train"] = bar
                 else:
-                    print("[DEBUG] TqdmCallback: No train dataloader found for total progress")
+                    print(
+                        "[DEBUG] TqdmCallback: No train dataloader found for total progress"
+                    )
             else:
                 # 更新现有进度条的描述
                 progress_bar.set_description(f"Training [{current_epoch}/{max_epochs}]")
@@ -262,7 +268,7 @@ class TqdmCallback(Callback):
         if batch_count % self.log_frequency == 0 or batch_idx == 0:
             # 提取显示的指标
             metrics = {}
-            
+
             # 优先从 core_module.current_metrics 获取指标 (xdl 核心推荐方式)
             if hasattr(core_module, "current_metrics"):
                 for key, value in core_module.current_metrics.items():
@@ -312,7 +318,9 @@ class TqdmCallback(Callback):
                     progress_bar.close()
                     self._active_bars["train"] = None
 
-    def on_validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         """验证epoch开始时创建进度条"""
         if self.total_progress:
             # 总进度模式下隐藏验证进度条
@@ -368,7 +376,7 @@ class TqdmCallback(Callback):
         # 按频率更新指标
         if batch_count % self.log_frequency == 0:
             metrics = {}
-            
+
             # 优先从 core_module.current_metrics 获取指标
             if hasattr(core_module, "current_metrics"):
                 for key, value in core_module.current_metrics.items():
@@ -391,7 +399,9 @@ class TqdmCallback(Callback):
             with self._lock:
                 self._last_metrics["val"] = metrics
 
-    def on_validation_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_end(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         """验证epoch结束时关闭进度条"""
         if self.total_progress:
             return
@@ -415,12 +425,18 @@ class TqdmCallback(Callback):
         if total_steps > 0:
             # 创建测试进度条
             bar = self._create_progress_bar(
-                total=total_steps, description="Testing", stage="test", epoch=None, leave=self.leave
+                total=total_steps,
+                description="Testing",
+                stage="test",
+                epoch=None,
+                leave=self.leave,
             )
             with self._lock:
                 self._active_bars["test"] = bar
 
-    def on_test_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_test_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """测试批次结束时更新进度条"""
         with self._lock:
             self._batch_counts["test"] += 1
@@ -435,7 +451,7 @@ class TqdmCallback(Callback):
         # 按频率更新
         if batch_count % self.log_frequency == 0:
             metrics = {}
-            
+
             # 优先从 core_module.current_metrics 获取指标
             if hasattr(core_module, "current_metrics"):
                 for key, value in core_module.current_metrics.items():
@@ -655,7 +671,9 @@ class TqdmCallback(Callback):
                     except Exception as e:
                         print(f"警告: 进度条更新失败: {e}")
 
-    def _set_description(self, description: str, stage: str = "train", epoch: Optional[int] = None):
+    def _set_description(
+        self, description: str, stage: str = "train", epoch: Optional[int] = None
+    ):
         """
         设置进度条描述
 
@@ -742,7 +760,11 @@ class TqdmCallback(Callback):
 
     def get_average_batch_time(self) -> float:
         """获取平均批次处理时间"""
-        return sum(self._batch_times) / len(self._batch_times) if self._batch_times else 0.0
+        return (
+            sum(self._batch_times) / len(self._batch_times)
+            if self._batch_times
+            else 0.0
+        )
 
     def reset_statistics(self):
         """重置统计信息"""

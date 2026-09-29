@@ -106,7 +106,9 @@ class DeviceStatsMonitor(Callback):
         if getattr(core_module, "current_epoch", 0) % self.log_frequency == 0:
             self._record_device_stats(trainer, core_module, "epoch")
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """批次结束时记录设备统计(降低频率)"""
         if batch_idx % (self.log_frequency * 100) == 0:  # 降低批次级别记录频率
             self._record_device_stats(trainer, core_module, "step")
@@ -150,7 +152,9 @@ class DeviceStatsMonitor(Callback):
             # CPU统计
             if self.cpu_stats and psutil is not None:
                 stats["cpu_percent"] = psutil.cpu_percent()
-                stats["load_avg"] = psutil.getloadavg() if hasattr(psutil, "getloadavg") else None
+                stats["load_avg"] = (
+                    psutil.getloadavg() if hasattr(psutil, "getloadavg") else None
+                )
 
             # 内存统计
             if self.memory_stats and psutil is not None:
@@ -190,14 +194,15 @@ class DeviceStatsMonitor(Callback):
         """获取GPU统计信息"""
         gpu_stats = {}
 
-        if not self.gpu_stats or self._gpu_count == 0:
+        nvml = pynvml
+        if not self.gpu_stats or self._gpu_count == 0 or nvml is None:
             return gpu_stats
 
         for i, handle in enumerate(self._gpu_handles):
             try:
                 # 获取GPU使用率
-                util = pynvml.nvmlDeviceGetUtilizationRates(handle)  # type: ignore[attr-defined]
-                memory_info = pynvml.nvmlDeviceGetMemoryInfo(handle)  # type: ignore[attr-defined]
+                util = nvml.nvmlDeviceGetUtilizationRates(handle)  # type: ignore[attr-defined]
+                memory_info = nvml.nvmlDeviceGetMemoryInfo(handle)  # type: ignore[attr-defined]
 
                 prefix = f"gpu_{i}"
                 gpu_stats[f"{prefix}_utilization"] = util.gpu
@@ -209,7 +214,9 @@ class DeviceStatsMonitor(Callback):
 
                 # 获取温度(如果可用)
                 try:
-                    temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)  # type: ignore[attr-defined]
+                    temp = nvml.nvmlDeviceGetTemperature(
+                        handle, nvml.NVML_TEMPERATURE_GPU
+                    )  # type: ignore[attr-defined]
                     gpu_stats[f"{prefix}_temperature"] = temp
                 except Exception:
                     # 温度获取失败, 忽略但记录到日志
@@ -229,7 +236,11 @@ class DeviceStatsMonitor(Callback):
             self._logger.warning(f"High CPU usage: {stats['cpu_percent']:.1f}%")
 
         # 内存警告
-        if self.memory_stats and "memory_percent" in stats and stats["memory_percent"] > 90:
+        if (
+            self.memory_stats
+            and "memory_percent" in stats
+            and stats["memory_percent"] > 90
+        ):
             self._logger.warning(f"High memory usage: {stats['memory_percent']:.1f}%")
 
         # GPU警告

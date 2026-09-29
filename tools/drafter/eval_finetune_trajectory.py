@@ -68,9 +68,7 @@ def build(ckpt: Path, cfg, embed, head) -> Qwen3DSparkModel:
         raise AssertionError(f"{ckpt}: 意外张量 {list(unexpected)[:5]}")
     if set(missing) - {"embed_tokens.weight", "lm_head.weight"}:
         raise AssertionError(f"{ckpt}: 缺非冻结张量 {sorted(set(missing))[:5]}")
-    model.initialize_embeddings_and_head(
-        embed_tokens=embed, lm_head=head, freeze=True
-    )
+    model.initialize_embeddings_and_head(embed_tokens=embed, lm_head=head, freeze=True)
     return model.to("cuda").to(torch.bfloat16).eval()
 
 
@@ -114,13 +112,21 @@ def stats(model, sample) -> dict:
             if early_n:
                 early = float(accepted[0][sel].mean().item())
     ce = (
-        float(F.cross_entropy(out.draft_logits[eval_mask].float(), out.target_ids[eval_mask]))
+        float(
+            F.cross_entropy(
+                out.draft_logits[eval_mask].float(), out.target_ids[eval_mask]
+            )
+        )
         if int(eval_mask.sum().item())
         else float("nan")
     )
     result = {
-        "tau": tau, "ce": ce, "slot_hits": slot_hits, "n_pos": n_pos,
-        "tau_early": early, "n_early": early_n,
+        "tau": tau,
+        "ce": ce,
+        "slot_hits": slot_hits,
+        "n_pos": n_pos,
+        "tau_early": early,
+        "n_early": early_n,
     }
     del inputs, out, eval_mask, hits, accepted
     return result

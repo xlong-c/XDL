@@ -63,13 +63,13 @@ class TrainerConfig:
         if self.check_val_every_n_epoch is not None:
             if self.check_val_every_n_epoch < 1:
                 raise ValueError("check_val_every_n_epoch must be positive")
-            object.__setattr__(self, "validate_every_n_epochs", self.check_val_every_n_epoch)
+            object.__setattr__(
+                self, "validate_every_n_epochs", self.check_val_every_n_epoch
+            )
         if self.grad_clip_max_norm is not None and self.grad_clip_max_norm <= 0:
             raise ValueError("grad_clip_max_norm must be positive")
         if self.platform not in {"auto", "cpu", "gpu", "tpu"}:
-            raise ValueError(
-                "platform must be one of 'auto', 'cpu', 'gpu' or 'tpu'"
-            )
+            raise ValueError("platform must be one of 'auto', 'cpu', 'gpu' or 'tpu'")
 
 
 def _tree_zeros_like(value: Any) -> Any:
@@ -219,9 +219,7 @@ class JaxTrainer:
         state: JaxTrainState | None,
     ) -> JaxTrainState:
         self._adapter = self.task.build_model()
-        init_key, train_key = jax.random.split(
-            jax.random.PRNGKey(self.config.seed)
-        )
+        init_key, train_key = jax.random.split(jax.random.PRNGKey(self.config.seed))
         if state is None:
             model_state = self.adapter.initialize(init_key, first_batch)
         else:
@@ -259,7 +257,9 @@ class JaxTrainer:
         optimizer = self.optimizer
         accumulation_steps = self.config.gradient_accumulation_steps
 
-        def train_step(state: JaxTrainState, batch: Any) -> tuple[JaxTrainState, StepOutput]:
+        def train_step(
+            state: JaxTrainState, batch: Any
+        ) -> tuple[JaxTrainState, StepOutput]:
             step_key, next_key = jax.random.split(state.rng_key)
             params = adapter.get_params(state.model_state)
 
@@ -377,12 +377,15 @@ class JaxTrainer:
         ) -> tuple[jax.Array, Mapping[str, jax.Array]]:
             val_fn = getattr(task, "validation_loss_and_metrics", None)
             if callable(val_fn):
-                val_out = cast(tuple[Any, Any], val_fn(
-                    adapter,
-                    model_state,
-                    batch,
-                    rng,
-                ))
+                val_out = cast(
+                    tuple[Any, Any],
+                    val_fn(
+                        adapter,
+                        model_state,
+                        batch,
+                        rng,
+                    ),
+                )
                 loss, metrics = val_out[0], val_out[1]
             else:
                 loss, metrics, _updated_model = task.loss_and_metrics(
@@ -429,11 +432,11 @@ class JaxTrainer:
             optimizer_step=int(np.asarray(jax.device_get(state.optimizer_step))),
             metrics=metrics,
             loss=_host_float(output.loss),
-            did_optimizer_step=bool(np.asarray(jax.device_get(output.did_optimizer_step))),
-            loss_finite=bool(np.asarray(jax.device_get(output.loss_finite))),
-            gradients_finite=bool(
-                np.asarray(jax.device_get(output.gradients_finite))
+            did_optimizer_step=bool(
+                np.asarray(jax.device_get(output.did_optimizer_step))
             ),
+            loss_finite=bool(np.asarray(jax.device_get(output.loss_finite))),
+            gradients_finite=bool(np.asarray(jax.device_get(output.gradients_finite))),
             gradient_norm=_host_float(output.gradient_norm),
             step_time_s=step_time_s,
             compile_time_s=self._first_compile_time_s,
@@ -521,7 +524,9 @@ class JaxTrainer:
         state: JaxTrainState | None = None,
     ) -> dict[str, float]:
         """在测试集上评估指标 (对齐 PyTorch Trainer.test)."""
-        target_state = state if state is not None else getattr(self, "_last_state", None)
+        target_state = (
+            state if state is not None else getattr(self, "_last_state", None)
+        )
         if target_state is None:
             raise TrainingError("test requires an explicit state or a prior fit() run")
         return self.validate(target_state, test_data, epoch=self._current_epoch)
@@ -533,9 +538,13 @@ class JaxTrainer:
         state: JaxTrainState | None = None,
     ) -> list[Any]:
         """批量推理预测 (对齐 PyTorch Trainer.predict)."""
-        target_state = state if state is not None else getattr(self, "_last_state", None)
+        target_state = (
+            state if state is not None else getattr(self, "_last_state", None)
+        )
         if target_state is None:
-            raise TrainingError("predict requires an explicit state or a prior fit() run")
+            raise TrainingError(
+                "predict requires an explicit state or a prior fit() run"
+            )
         if self._predict_step_fn is None:
             self._predict_step_fn = self._make_predict_step()
         self.callbacks.invoke("on_predict_start", self)
@@ -581,9 +590,7 @@ class JaxTrainer:
         )
         state = self.strategy.initialize_state(state)
         local_train_step = self._make_train_step(reduce_across_devices=False)
-        distributed_train_step = self._make_train_step(
-            reduce_across_devices=True
-        )
+        distributed_train_step = self._make_train_step(reduce_across_devices=True)
         output_example = jax.eval_shape(
             local_train_step,
             state,

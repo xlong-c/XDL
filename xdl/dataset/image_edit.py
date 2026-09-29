@@ -11,7 +11,12 @@ from torch.utils.data import Dataset
 
 from .collate import ImageEditCollate
 from .transforms import PairedImageTransform
-from .utils import build_sample_id, first_present_value, load_manifest_context, resolve_path
+from .utils import (
+    build_sample_id,
+    first_present_value,
+    load_manifest_context,
+    resolve_path,
+)
 
 IMAGE_KEYS = ("source_image", "target_image", "reference_image")
 REQUIRED_IMAGE_KEYS = ("source_image", "target_image")
@@ -84,10 +89,7 @@ class ImageEditDataset(Dataset[Dict[str, Any]]):
                 dtype=source_tensor.dtype,
             )
 
-        sample: Dict[str, Any] = {
-            key: image_tensors[key]
-            for key in self.image_keys
-        }
+        sample: Dict[str, Any] = {key: image_tensors[key] for key in self.image_keys}
         sample.update(
             {
                 "edit_mask": mask_tensor.to(torch.float32),
@@ -113,7 +115,9 @@ class ImageEditDataset(Dataset[Dict[str, Any]]):
         for key in self.mask_keys:
             value = record.get(key)
             if value not in (None, ""):
-                return {key: Image.open(resolve_path(value, self.base_dir)).convert("L")}
+                return {
+                    key: Image.open(resolve_path(value, self.base_dir)).convert("L")
+                }
         return {}
 
     def _prompt(self, record: Mapping[str, Any]) -> str:
@@ -122,7 +126,9 @@ class ImageEditDataset(Dataset[Dict[str, Any]]):
 
     def _sample_id(self, record: Mapping[str, Any], index: int) -> str:
         source_value = record.get(self.image_keys[0])
-        fallback = Path(str(source_value)).stem if source_value not in (None, "") else None
+        fallback = (
+            Path(str(source_value)).stem if source_value not in (None, "") else None
+        )
         return build_sample_id(
             record,
             index=index,

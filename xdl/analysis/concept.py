@@ -12,7 +12,9 @@ from torch import nn
 
 def _flatten_features(features: torch.Tensor) -> torch.Tensor:
     if features.ndim < 2:
-        raise ValueError(f"Expected features with ndim >= 2, got shape {tuple(features.shape)}")
+        raise ValueError(
+            f"Expected features with ndim >= 2, got shape {tuple(features.shape)}"
+        )
     if features.ndim == 2:
         return features
     return features.reshape(features.shape[0], -1)
@@ -32,7 +34,9 @@ class ConceptProbe:
         return self.weight.detach().reshape(-1)
 
     def score_samples(self, features: torch.Tensor) -> torch.Tensor:
-        flattened = _flatten_features(features).to(dtype=self.weight.dtype, device=self.weight.device)
+        flattened = _flatten_features(features).to(
+            dtype=self.weight.dtype, device=self.weight.device
+        )
         logits = flattened @ self.weight.view(-1, 1) + self.bias
         return logits.view(-1)
 
@@ -64,7 +68,9 @@ def fit_concept_probe(
     targets = labels.detach().float().view(-1)
     unique_values = set(int(value) for value in targets.unique().tolist())
     if not unique_values.issubset({0, 1}):
-        raise ValueError(f"Concept probe expects binary labels in {{0,1}}, got {sorted(unique_values)}")
+        raise ValueError(
+            f"Concept probe expects binary labels in {{0,1}}, got {sorted(unique_values)}"
+        )
 
     train_device = device or torch.device("cpu")
     weight = torch.nn.Parameter(torch.zeros(flattened.shape[1], device=train_device))
@@ -177,9 +183,15 @@ def compute_module_tcav(
     model.eval()
     try:
         outputs = model(*forward_args, **kwargs)
-        logits = output_selector(outputs) if output_selector is not None else _default_output_selector(outputs)
+        logits = (
+            output_selector(outputs)
+            if output_selector is not None
+            else _default_output_selector(outputs)
+        )
         if logits.ndim != 2:
-            raise ValueError(f"TCAV expects logits with shape [batch, classes], got {tuple(logits.shape)}")
+            raise ValueError(
+                f"TCAV expects logits with shape [batch, classes], got {tuple(logits.shape)}"
+            )
 
         if target_index is None:
             target_indices = logits.argmax(dim=-1)

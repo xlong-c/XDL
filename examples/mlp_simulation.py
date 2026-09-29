@@ -21,6 +21,7 @@ project_root = Path(__file__).resolve().parent.parent
 
 # 1. 定义双层 MLP 模型
 
+
 class TwoLayerMLP(CoreModel):
     def __init__(self, input_dim=16, hidden_dim=32, output_dim=1):
         super().__init__()
@@ -28,7 +29,7 @@ class TwoLayerMLP(CoreModel):
         self.mlp = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, output_dim)
+            nn.Linear(hidden_dim, output_dim),
         )
         self.loss_fn = nn.MSELoss()
 
@@ -69,8 +70,7 @@ def run_simulation():
     val_x = torch.randn(batch_size * 2, 16)  # 验证集小一点
     val_y = torch.randn(batch_size * 2, 1)
 
-    train_loader = DataLoader(TensorDataset(
-        train_x, train_y), batch_size=batch_size)
+    train_loader = DataLoader(TensorDataset(train_x, train_y), batch_size=batch_size)
     val_loader = DataLoader(TensorDataset(val_x, val_y), batch_size=batch_size)
 
     # 3. 设置保存路径
@@ -87,7 +87,7 @@ def run_simulation():
         mode="min",
         every_n_train_steps=5,
         save_optimizer=False,
-        verbose=True
+        verbose=True,
     )
 
     # 5. 初始化 Trainer 并运行
@@ -102,7 +102,7 @@ def run_simulation():
     trainer.fit(model, train_loader, val_loader)
 
     # 6. 验证结果
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("模拟训练完成。检查保存的节点：")
     saved_dirs = list(ckpt_dir.glob("step_*"))
     for d in sorted(saved_dirs):
@@ -112,7 +112,7 @@ def run_simulation():
         print(f"目录: {d.name} | 优化器状态: {has_opt}")
 
     print(f"总计保留节点数: {len(saved_dirs)} (预期应 <= 3 个监控节点 + 可能的 last)")
-    print("="*50)
+    print("=" * 50)
 
 
 if __name__ == "__main__":

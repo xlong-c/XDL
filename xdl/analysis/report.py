@@ -116,7 +116,9 @@ def write_analysis_bundle(
 
     outputs["json"] = write_json_report(summary, bundle_dir / f"{report_name}.json")
     if records:
-        outputs["csv"] = write_csv_report(records_to_rows(records), bundle_dir / f"{report_name}.csv")
+        outputs["csv"] = write_csv_report(
+            records_to_rows(records), bundle_dir / f"{report_name}.csv"
+        )
     if markdown_sections:
         outputs["md"] = write_markdown_summary(
             report_name,

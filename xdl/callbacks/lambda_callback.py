@@ -200,14 +200,18 @@ class LambdaCallback(Callback):
         if "on_train_epoch_end" in self._hooks:
             self._hooks["on_train_epoch_end"](trainer, core_module)
 
-    def on_train_batch_start(self, trainer, core_module, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_start(
+        self, trainer, core_module, batch, batch_idx, dataloader_idx=0
+    ):
         """训练批次开始时的钩子"""
         if "on_train_batch_start" in self._hooks:
             self._hooks["on_train_batch_start"](
                 trainer, core_module, batch, batch_idx, dataloader_idx
             )
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """训练批次结束时的钩子"""
         if "on_train_batch_end" in self._hooks:
             self._hooks["on_train_batch_end"](

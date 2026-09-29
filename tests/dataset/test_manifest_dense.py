@@ -18,7 +18,9 @@ from xdl.dataset import (
 from xdl.utils.registry import COLLATE_REGISTRY, DATASET_REGISTRY, TRANSFORM_REGISTRY
 
 
-def _save_rgb(path: Path, color: tuple[int, int, int], size: tuple[int, int] = (8, 6)) -> None:
+def _save_rgb(
+    path: Path, color: tuple[int, int, int], size: tuple[int, int] = (8, 6)
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", size, color=color).save(path)
 
@@ -135,7 +137,9 @@ def test_image_mask_sidecar_dataset_skips_or_errors_on_missing_masks(tmp_path) -
         )
 
 
-def test_manifest_detection_dataset_parses_json_strings_and_collates(tmp_path, monkeypatch) -> None:
+def test_manifest_detection_dataset_parses_json_strings_and_collates(
+    tmp_path, monkeypatch
+) -> None:
     data_dir = tmp_path / "data"
     other_cwd = tmp_path / "cwd"
     other_cwd.mkdir()
@@ -231,7 +235,9 @@ def test_dense_dataset_components_are_registered_and_buildable(tmp_path) -> None
     )
 
     assert sidecar_dataset[0]["image"].shape == (3, 4, 4)
-    assert DATASET_REGISTRY.get("RecordSegmentationDataset") is RecordSegmentationDataset
+    assert (
+        DATASET_REGISTRY.get("RecordSegmentationDataset") is RecordSegmentationDataset
+    )
     assert DATASET_REGISTRY.get("RecordDetectionDataset") is RecordDetectionDataset
     assert DATASET_REGISTRY.get("ImageMaskSidecarDataset") is ImageMaskSidecarDataset
     assert TRANSFORM_REGISTRY.get("ImageMaskTransform") is ImageMaskTransform

@@ -62,9 +62,15 @@ class RecordPairDataset(RecordDatasetBase):
         if self.label_key is not None and self.label_key in record:
             target = record[self.label_key]
             sample["label"] = apply_optional(self.target_transform, target)
-        if self.text_a_key is not None and record.get(self.text_a_key) not in (None, ""):
+        if self.text_a_key is not None and record.get(self.text_a_key) not in (
+            None,
+            "",
+        ):
             sample["text_a"] = self._transform_text(record[self.text_a_key])
-        if self.text_b_key is not None and record.get(self.text_b_key) not in (None, ""):
+        if self.text_b_key is not None and record.get(self.text_b_key) not in (
+            None,
+            "",
+        ):
             sample["text_b"] = self._transform_text(record[self.text_b_key])
         sample["sample_id"] = self._sample_id_from_fallback(
             record,

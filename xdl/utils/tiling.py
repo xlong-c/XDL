@@ -16,9 +16,14 @@ def _blend_mask(h: int, w: int, pad: int) -> Tensor:
         ramp_size = min(pad, max_pos // 2)
         mask = torch.ones_like(pos)
         if ramp_size > 0:
-            mask = torch.minimum(mask, torch.sin(torch.clamp(pos / ramp_size, 0, 1) * 1.5707963))
             mask = torch.minimum(
-                mask, torch.sin(torch.clamp((max_pos - 1 - pos) / ramp_size, 0, 1) * 1.5707963)
+                mask, torch.sin(torch.clamp(pos / ramp_size, 0, 1) * 1.5707963)
+            )
+            mask = torch.minimum(
+                mask,
+                torch.sin(
+                    torch.clamp((max_pos - 1 - pos) / ramp_size, 0, 1) * 1.5707963
+                ),
             )
         return mask
 
@@ -53,7 +58,9 @@ def tile_inference(
     B, C, H, W = image.shape
     stride = tile_size - 2 * tile_pad
     if stride <= 0:
-        raise ValueError(f"tile_pad ({tile_pad}) must be less than tile_size/2 ({tile_size / 2})")
+        raise ValueError(
+            f"tile_pad ({tile_pad}) must be less than tile_size/2 ({tile_size / 2})"
+        )
 
     # 计算 tile 网格
     y_steps = max(1, (H - 2 * tile_pad + stride - 1) // stride)
@@ -70,7 +77,9 @@ def tile_inference(
     output = torch.zeros(B, C, out_H, out_W, dtype=torch.float32, device=device)
     weight = torch.zeros(B, 1, out_H, out_W, dtype=torch.float32, device=device)
 
-    blend = _blend_mask(out_tile_h, out_tile_w, out_pad).to(device=device, dtype=torch.float32)
+    blend = _blend_mask(out_tile_h, out_tile_w, out_pad).to(
+        device=device, dtype=torch.float32
+    )
 
     # 收集所有 tile 坐标：(y_in, x_in, y_out, x_out)
     tiles: list[tuple[int, int, int, int]] = []
@@ -87,15 +96,21 @@ def tile_inference(
         batch_tiles = tiles[i : i + batch_size]
         tile_batch: list[Tensor] = []
         for y_in, x_in, _, _ in batch_tiles:
-            tile_batch.append(image[0, :, y_in : y_in + tile_size, x_in : x_in + tile_size])
+            tile_batch.append(
+                image[0, :, y_in : y_in + tile_size, x_in : x_in + tile_size]
+            )
 
         inp = torch.stack(tile_batch, dim=0).to(device)
         with torch.no_grad():
             out_tiles: Tensor = model(inp)
 
         for j, (_, _, y_out, x_out) in enumerate(batch_tiles):
-            output[0, :, y_out : y_out + out_tile_h, x_out : x_out + out_tile_w] += out_tiles[j] * blend
-            weight[0, :, y_out : y_out + out_tile_h, x_out : x_out + out_tile_w] += blend
+            output[0, :, y_out : y_out + out_tile_h, x_out : x_out + out_tile_w] += (
+                out_tiles[j] * blend
+            )
+            weight[0, :, y_out : y_out + out_tile_h, x_out : x_out + out_tile_w] += (
+                blend
+            )
 
     output = output / weight.clamp_min(1e-8)
 

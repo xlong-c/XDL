@@ -68,7 +68,11 @@ class TrainerState:
         if isinstance(value, torch.Tensor):
             value = value.item()
 
-        metric_info = {"value": value, "step": self.global_step, "epoch": self.current_epoch}
+        metric_info = {
+            "value": value,
+            "step": self.global_step,
+            "epoch": self.current_epoch,
+        }
 
         if where == "callback":
             self.callback_metrics[name] = metric_info

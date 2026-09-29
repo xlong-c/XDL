@@ -27,7 +27,11 @@ from .collate import DetectionCollate, DictCollate, ImageEditCollate, PadCollate
 from .detection import RecordDetectionDataset
 from .folder import ImageFolderDataset
 from .image_edit import ImageEditDataset
-from .image_text import ImagePromptDataset, ImageTextSidecarDataset, RecordImageTextDataset
+from .image_text import (
+    ImagePromptDataset,
+    ImageTextSidecarDataset,
+    RecordImageTextDataset,
+)
 from .pair import RecordPairDataset
 from .record import RecordDataset, RecordDatasetBase
 from .regression import RecordRegressionDataset

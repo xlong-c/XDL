@@ -8,6 +8,8 @@ import torch
 from torch import Tensor, nn
 from torch.nn.init import trunc_normal_
 from torch.nn import functional as F
+
+
 class DySample(nn.Module):
     """Adapted from 'Learning to Upsample by Learning to Sample':
     https://arxiv.org/abs/2308.15085
@@ -93,7 +95,8 @@ class DySample(nn.Module):
             output = self.end_conv(output)
 
         return output
-    
+
+
 class LayerNorm(nn.Module):
     def __init__(self, dim: int, eps: float = 1e-6) -> None:
         super().__init__()

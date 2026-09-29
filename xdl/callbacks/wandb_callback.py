@@ -149,7 +149,9 @@ class WandbCallback(Callback):
         if hparams:
             self.run.config.update(hparams)
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """训练批次结束时的WandB记录"""
         if not self.log_train or not self.run:
             return
@@ -275,13 +277,17 @@ class WandbCallback(Callback):
         # 从模型收集参数
         if hasattr(core_module, "parameters"):
             total_params = sum(p.numel() for p in core_module.parameters())
-            trainable_params = sum(p.numel() for p in core_module.parameters() if p.requires_grad)
+            trainable_params = sum(
+                p.numel() for p in core_module.parameters() if p.requires_grad
+            )
             hparams["total_parameters"] = total_params
             hparams["trainable_parameters"] = trainable_params
 
         return hparams
 
-    def _extract_metrics(self, core_module, outputs: Optional[Dict[str, Any]]) -> Dict[str, float]:
+    def _extract_metrics(
+        self, core_module, outputs: Optional[Dict[str, Any]]
+    ) -> Dict[str, float]:
         """
         从core_module和outputs中提取指标
 

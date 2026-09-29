@@ -20,6 +20,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 # 工具函数 (从 arch_util 内联)
 # ---------------------------------------------------------------------------
 
+
 @torch.no_grad()
 def default_init_weights(module_list, scale=1.0, bias_fill=0, **kwargs):
     if not isinstance(module_list, list):
@@ -49,11 +50,11 @@ def make_layer(basic_block, num_basic_block, **kwarg):
 
 def pixel_unshuffle(x: torch.Tensor, scale: int) -> torch.Tensor:
     b, c, hh, hw = x.size()
-    out_channel = c * (scale ** 2)
+    out_channel = c * (scale**2)
     if hh % scale != 0:
-        x = x[:, :, :-(hh % scale), :]
+        x = x[:, :, : -(hh % scale), :]
     if hw % scale != 0:
-        x = x[:, :, :, :-(hw % scale)]
+        x = x[:, :, :, : -(hw % scale)]
     b, c, hh, hw = x.size()
     h, w = hh // scale, hw // scale
     x_view = x.view(b, c, h, scale, w, scale)
@@ -63,6 +64,7 @@ def pixel_unshuffle(x: torch.Tensor, scale: int) -> torch.Tensor:
 # ---------------------------------------------------------------------------
 # 模型组件
 # ---------------------------------------------------------------------------
+
 
 class ResidualDenseBlock(nn.Module):
     """残差密集块 (Residual Dense Block) — ESRGAN 核心构建块。
@@ -143,7 +145,9 @@ class RRDBNet(nn.Module):
             num_in_ch = num_in_ch * 16
 
         self.conv_first = nn.Conv2d(num_in_ch, num_feat, 3, 1, 1)
-        self.body = make_layer(RRDB, num_block, num_feat=num_feat, num_grow_ch=num_grow_ch)
+        self.body = make_layer(
+            RRDB, num_block, num_feat=num_feat, num_grow_ch=num_grow_ch
+        )
         self.conv_body = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
 
         # 上采样
@@ -168,10 +172,16 @@ class RRDBNet(nn.Module):
         body_feat = self.conv_body(self.body(feat))
         feat = feat + body_feat
 
-        feat = self.lrelu(self.conv_up1(F.interpolate(feat, scale_factor=2, mode='nearest')))
-        feat = self.lrelu(self.conv_up2(F.interpolate(feat, scale_factor=2, mode='nearest')))
+        feat = self.lrelu(
+            self.conv_up1(F.interpolate(feat, scale_factor=2, mode="nearest"))
+        )
+        feat = self.lrelu(
+            self.conv_up2(F.interpolate(feat, scale_factor=2, mode="nearest"))
+        )
         if self.scale == 8:
-            feat = self.lrelu(self.conv_up3(F.interpolate(feat, scale_factor=2, mode='nearest')))
+            feat = self.lrelu(
+                self.conv_up3(F.interpolate(feat, scale_factor=2, mode="nearest"))
+            )
 
         out = self.conv_last(self.lrelu(self.conv_hr(feat)))
         return out

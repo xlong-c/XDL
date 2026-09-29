@@ -43,9 +43,9 @@ from xdl.trainer import CoreModel, Trainer
 
 SEED: int = 0
 LATENT_SHAPE: Tuple[int, int, int] = (1, 8, 8)
-NUM_PROMPTS: int = 4          # 每个 batch 的 prompt 数 (B)
-NUM_ROLLOUTS: int = 4         # 每个 prompt 的 rollout 数 (K)
-DATASET_SIZE: int = 8         # 数据集大小 = 2 个 batch, 即每 epoch 2 步
+NUM_PROMPTS: int = 4  # 每个 batch 的 prompt 数 (B)
+NUM_ROLLOUTS: int = 4  # 每个 prompt 的 rollout 数 (K)
+DATASET_SIZE: int = 8  # 数据集大小 = 2 个 batch, 即每 epoch 2 步
 MAX_EPOCHS: int = 60
 LEARNING_RATE: float = 0.03
 CLIP_EPSILON: float = 0.2
@@ -121,7 +121,9 @@ def toy_rollout_fn(
     return latents.view(len(prompts), num_rollouts, *latents.shape[1:])
 
 
-def toy_ref_logp_fn(ref_model: nn.Module, rollout_latents: torch.Tensor) -> torch.Tensor:
+def toy_ref_logp_fn(
+    ref_model: nn.Module, rollout_latents: torch.Tensor
+) -> torch.Tensor:
     """冻结参考模型对 rollout 的 logps, 返回 (B, K), 回调内部 no_grad 调用."""
     b, k = rollout_latents.shape[0], rollout_latents.shape[1]
     flat = rollout_latents.reshape(b * k, *rollout_latents.shape[2:])
@@ -247,7 +249,9 @@ def main() -> None:
     # The toy run is a wiring smoke test, not a convergence benchmark.
     # Validate the actual optimization signal without making a fragile
     # assertion about stochastic reward trends.
-    if not model._loss_history or not all(math.isfinite(v) for v in model._loss_history):
+    if not model._loss_history or not all(
+        math.isfinite(v) for v in model._loss_history
+    ):
         raise RuntimeError("GRPO toy loss history contains non-finite values")
 
 

@@ -173,7 +173,9 @@ def load_requirement_type() -> Any:
     try:
         module = __import__("packaging.requirements", fromlist=["Requirement"])
     except ModuleNotFoundError:
-        module = __import__("pip._vendor.packaging.requirements", fromlist=["Requirement"])
+        module = __import__(
+            "pip._vendor.packaging.requirements", fromlist=["Requirement"]
+        )
     return module.Requirement
 
 
@@ -228,7 +230,9 @@ def discover_python_files(
     return sorted(set(files))
 
 
-def extract_imports_from_file(file_path: Path, project_root: Path) -> tuple[list[ImportOccurrence], list[SyntaxIssue]]:
+def extract_imports_from_file(
+    file_path: Path, project_root: Path
+) -> tuple[list[ImportOccurrence], list[SyntaxIssue]]:
     """从单个文件中提取 import。"""
 
     try:
@@ -251,7 +255,11 @@ def extract_imports_from_file(file_path: Path, project_root: Path) -> tuple[list
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            statement = lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "import"
+            statement = (
+                lines[node.lineno - 1].strip()
+                if node.lineno <= len(lines)
+                else "import"
+            )
             for alias in node.names:
                 top_level = alias.name.split(".", maxsplit=1)[0]
                 occurrences.append(
@@ -265,7 +273,9 @@ def extract_imports_from_file(file_path: Path, project_root: Path) -> tuple[list
                     )
                 )
         elif isinstance(node, ast.ImportFrom):
-            statement = lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "from"
+            statement = (
+                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "from"
+            )
             module_name = node.module or ""
             top_level = module_name.split(".", maxsplit=1)[0] if module_name else ""
             occurrences.append(
@@ -328,7 +338,9 @@ def parse_requirement_line(
         warn(f"无法解析 requirement，已跳过: {source}: {stripped}")
         return None
 
-    if project_name and normalize_name(requirement.name) == normalize_name(project_name):
+    if project_name and normalize_name(requirement.name) == normalize_name(
+        project_name
+    ):
         return None
 
     return ConfigPackage(
@@ -339,7 +351,9 @@ def parse_requirement_line(
     )
 
 
-def load_declared_packages_from_pyproject(pyproject_path: Path) -> tuple[str | None, list[ConfigPackage]]:
+def load_declared_packages_from_pyproject(
+    pyproject_path: Path,
+) -> tuple[str | None, list[ConfigPackage]]:
     """从 pyproject.toml 提取声明依赖。"""
 
     with pyproject_path.open("rb") as handle:
@@ -383,7 +397,9 @@ def load_declared_packages_from_pyproject(pyproject_path: Path) -> tuple[str | N
     return project_name_value, packages
 
 
-def load_declared_packages_from_requirements(requirements_path: Path, project_root: Path) -> list[ConfigPackage]:
+def load_declared_packages_from_requirements(
+    requirements_path: Path, project_root: Path
+) -> list[ConfigPackage]:
     """从 requirements.txt 提取声明依赖。"""
 
     packages: list[ConfigPackage] = []
@@ -406,14 +422,18 @@ def load_declared_packages(
 
     for config_path in config_files:
         if config_path.name == "pyproject.toml":
-            discovered_project_name, discovered_packages = load_declared_packages_from_pyproject(
-                config_path
+            discovered_project_name, discovered_packages = (
+                load_declared_packages_from_pyproject(config_path)
             )
             if discovered_project_name:
                 project_name = discovered_project_name
             packages.extend(discovered_packages)
-        elif config_path.name.startswith("requirements") and config_path.suffix == ".txt":
-            packages.extend(load_declared_packages_from_requirements(config_path, project_root))
+        elif (
+            config_path.name.startswith("requirements") and config_path.suffix == ".txt"
+        ):
+            packages.extend(
+                load_declared_packages_from_requirements(config_path, project_root)
+            )
 
     return project_name, packages
 
@@ -463,7 +483,9 @@ def build_import_to_distribution_index() -> dict[str, list[str]]:
     return index
 
 
-def is_probably_stdlib(top_level: str, stdlib_dir: Path | None, site_dirs: list[Path]) -> bool:
+def is_probably_stdlib(
+    top_level: str, stdlib_dir: Path | None, site_dirs: list[Path]
+) -> bool:
     """判断模块是否大概率属于标准库。"""
 
     stdlib_names = getattr(sys, "stdlib_module_names", set())
@@ -659,8 +681,7 @@ def resolve_imports(
             continue
 
         declared_in = [
-            package.source
-            for package in declared_index.get(distribution, [])
+            package.source for package in declared_index.get(distribution, [])
         ]
         installed = distribution in installed_distribution_names
         resolutions[top_level] = ImportResolution(
@@ -698,7 +719,9 @@ def build_text_report(
     lines.append(f"扫描文件数: {len(scanned_files)}")
     lines.append(f"依赖配置文件数: {len(config_files)}")
     lines.append(f"声明依赖数: {len(declared_packages)}")
-    lines.append(f"第三方 import 数: {sum(1 for item in resolutions.values() if item.category == 'third_party')}")
+    lines.append(
+        f"第三方 import 数: {sum(1 for item in resolutions.values() if item.category == 'third_party')}"
+    )
     lines.append(f"缺失声明数: {len(missing_declarations)}")
     lines.append(f"缺失安装数: {len(missing_installations)}")
     lines.append(f"无法解析 import 数: {len(unresolved_imports)}")
@@ -768,15 +791,17 @@ def build_text_report(
     lines.append("第三方依赖解析明细")
     lines.append("----------------")
     third_party_items = [
-        item
-        for item in resolutions.values()
-        if item.category == "third_party"
+        item for item in resolutions.values() if item.category == "third_party"
     ]
     if not third_party_items:
         lines.append("- 无")
     else:
-        for item in sorted(third_party_items, key=lambda value: value.distribution or value.top_level):
-            declared_text = ", ".join(item.declared_in) if item.declared_in else "未声明"
+        for item in sorted(
+            third_party_items, key=lambda value: value.distribution or value.top_level
+        ):
+            declared_text = (
+                ", ".join(item.declared_in) if item.declared_in else "未声明"
+            )
             sample = item.occurrences[0]
             lines.append(
                 f"- {item.distribution}: import `{item.top_level}`, "
@@ -836,26 +861,16 @@ def run_dependency_audit(config: ScanConfig) -> int:
     )
 
     third_party_items = [
-        item
-        for item in resolutions.values()
-        if item.category == "third_party"
+        item for item in resolutions.values() if item.category == "third_party"
     ]
-    missing_declarations = [
-        item for item in third_party_items if not item.declared_in
-    ]
-    missing_installations = [
-        item for item in third_party_items if not item.installed
-    ]
+    missing_declarations = [item for item in third_party_items if not item.declared_in]
+    missing_installations = [item for item in third_party_items if not item.installed]
     unresolved_imports = [
-        item
-        for item in resolutions.values()
-        if item.category == "unresolved"
+        item for item in resolutions.values() if item.category == "unresolved"
     ]
 
     used_distribution_names = {
-        item.distribution
-        for item in third_party_items
-        if item.distribution
+        item.distribution for item in third_party_items if item.distribution
     }
     unused_declarations = [
         package
@@ -866,7 +881,9 @@ def run_dependency_audit(config: ScanConfig) -> int:
     report_data = {
         "config": asdict(config),
         "project_name": project_name,
-        "scanned_files": [str(path.relative_to(project_root)) for path in scanned_files],
+        "scanned_files": [
+            str(path.relative_to(project_root)) for path in scanned_files
+        ],
         "config_files": [str(path.relative_to(project_root)) for path in config_paths],
         "declared_packages": [asdict(package) for package in declared_packages],
         "syntax_issues": [asdict(issue) for issue in syntax_issues],
@@ -947,7 +964,10 @@ def run_dependency_audit(config: ScanConfig) -> int:
     log(f"文本报告已写入: {text_report_path}")
 
     if config.fail_on_issues and (
-        missing_declarations or missing_installations or unresolved_imports or syntax_issues
+        missing_declarations
+        or missing_installations
+        or unresolved_imports
+        or syntax_issues
     ):
         return 1
 

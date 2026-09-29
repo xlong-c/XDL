@@ -14,6 +14,7 @@ from torch import nn
 
 # ── LayerNorm helpers ──────────────────────────────────────────
 
+
 def to_3d(x):
     return rearrange(x, "b c h w -> b (h w) c")
 
@@ -55,7 +56,9 @@ class WithBias_LayerNorm(nn.Module):
 class LayerNorm(nn.Module):
     def __init__(self, dim, LayerNorm_type):
         super().__init__()
-        body = WithBias_LayerNorm if LayerNorm_type == "WithBias" else BiasFree_LayerNorm
+        body = (
+            WithBias_LayerNorm if LayerNorm_type == "WithBias" else BiasFree_LayerNorm
+        )
         self.body = body(dim)
 
     def forward(self, x):
@@ -65,14 +68,20 @@ class LayerNorm(nn.Module):
 
 # ── FeedForward ────────────────────────────────────────────────
 
+
 class FeedForward(nn.Module):
     def __init__(self, dim, ffn_expansion_factor, bias, input_resolution=None):
         super().__init__()
         hidden_features = int(dim * ffn_expansion_factor)
         self.project_in = nn.Conv2d(dim, hidden_features * 2, kernel_size=1, bias=bias)
         self.dwconv = nn.Conv2d(
-            hidden_features * 2, hidden_features * 2, kernel_size=3, stride=1,
-            padding=1, groups=hidden_features * 2, bias=bias,
+            hidden_features * 2,
+            hidden_features * 2,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            groups=hidden_features * 2,
+            bias=bias,
         )
         self.project_out = nn.Conv2d(hidden_features, dim, kernel_size=1, bias=bias)
 
@@ -85,6 +94,7 @@ class FeedForward(nn.Module):
 
 # ── Attention modules ─────────────────────────────────────────
 
+
 class GSA(nn.Module):
     """Global Self-Attention."""
 
@@ -94,8 +104,13 @@ class GSA(nn.Module):
         self.temperature = nn.Parameter(torch.ones(1, 1, 1))
         self.qkv = nn.Conv2d(channels, channels * 3, kernel_size=1, bias=bias)
         self.qkv_dwconv = nn.Conv2d(
-            channels * 3, channels * 3, kernel_size=3, stride=1,
-            padding=1, groups=channels * 3, bias=bias,
+            channels * 3,
+            channels * 3,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            groups=channels * 3,
+            bias=bias,
         )
         self.project_out = nn.Conv2d(channels, channels, kernel_size=1, bias=bias)
 
@@ -112,14 +127,22 @@ class GSA(nn.Module):
             attn = (q @ k.transpose(-2, -1)) * self.temperature
             attn = torch.relu(attn)
             out = attn @ v
-            y = rearrange(out, "b head c (h w) -> b (head c) h w", head=self.num_heads, h=h, w=w)
-            y = rearrange(y, "b (head c) h w -> b (c head) h w", head=self.num_heads, h=h, w=w)
+            y = rearrange(
+                out, "b head c (h w) -> b (head c) h w", head=self.num_heads, h=h, w=w
+            )
+            y = rearrange(
+                y, "b (head c) h w -> b (c head) h w", head=self.num_heads, h=h, w=w
+            )
             return self.project_out(y), attn
         else:
             v = rearrange(x, "b (head c) h w -> b head c (h w)", head=self.num_heads)
             out = prev_atns @ v
-            y = rearrange(out, "b head c (h w) -> b (head c) h w", head=self.num_heads, h=h, w=w)
-            y = rearrange(y, "b (head c) h w -> b (c head) h w", head=self.num_heads, h=h, w=w)
+            y = rearrange(
+                out, "b head c (h w) -> b (head c) h w", head=self.num_heads, h=h, w=w
+            )
+            y = rearrange(
+                y, "b (head c) h w -> b (c head) h w", head=self.num_heads, h=h, w=w
+            )
             return self.project_out(y)
 
 
@@ -133,8 +156,13 @@ class RSA(nn.Module):
         self.temperature = nn.Parameter(torch.ones(1, 1, 1))
         self.qkv = nn.Conv2d(channels, channels * 3, kernel_size=1, bias=bias)
         self.qkv_dwconv = nn.Conv2d(
-            channels * 3, channels * 3, kernel_size=3, stride=1,
-            padding=1, groups=channels * 3, bias=bias,
+            channels * 3,
+            channels * 3,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            groups=channels * 3,
+            bias=bias,
         )
         self.project_out = nn.Conv2d(channels, channels, kernel_size=1, bias=bias)
 
@@ -147,16 +175,28 @@ class RSA(nn.Module):
                 x_ = torch.roll(x_, shifts=(-wsize // 2, -wsize // 2), dims=(2, 3))
             qkv = self.qkv_dwconv(self.qkv(x_))
             q, k, v = qkv.chunk(3, dim=1)
-            q = rearrange(q, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize)
-            k = rearrange(k, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize)
-            v = rearrange(v, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize)
+            q = rearrange(
+                q, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize
+            )
+            k = rearrange(
+                k, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize
+            )
+            v = rearrange(
+                v, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize
+            )
             q = F.normalize(q, dim=-1)
             k = F.normalize(k, dim=-1)
             attn = (q.transpose(-2, -1) @ k) * self.temperature
             attn = torch.relu(attn)
             out = v @ attn
-            out = rearrange(out, "b (h w) (dh dw) c -> b c (h dh) (w dw)",
-                            h=h // wsize, w=w // wsize, dh=wsize, dw=wsize)
+            out = rearrange(
+                out,
+                "b (h w) (dh dw) c -> b c (h dh) (w dw)",
+                h=h // wsize,
+                w=w // wsize,
+                dh=wsize,
+                dw=wsize,
+            )
             if self.shifts > 0:
                 out = torch.roll(out, shifts=(wsize // 2, wsize // 2), dims=(2, 3))
             return self.project_out(out), attn
@@ -164,10 +204,18 @@ class RSA(nn.Module):
             x_ = x
             if self.shifts > 0:
                 x_ = torch.roll(x_, shifts=(-wsize // 2, -wsize // 2), dims=(2, 3))
-            v = rearrange(x_, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize)
+            v = rearrange(
+                x_, "b c (h dh) (w dw) -> b (h w) (dh dw) c", dh=wsize, dw=wsize
+            )
             out = v @ prev_atns
-            out = rearrange(out, "b (h w) (dh dw) c -> b c (h dh) (w dw)",
-                            h=h // wsize, w=w // wsize, dh=wsize, dw=wsize)
+            out = rearrange(
+                out,
+                "b (h w) (dh dw) c -> b c (h dh) (w dw)",
+                h=h // wsize,
+                w=w // wsize,
+                dh=wsize,
+                dw=wsize,
+            )
             if self.shifts > 0:
                 out = torch.roll(out, shifts=(wsize // 2, wsize // 2), dims=(2, 3))
             return self.project_out(out)
@@ -176,13 +224,22 @@ class RSA(nn.Module):
 class FDT(nn.Module):
     """Full-Domain Transformer (RSA + GSA)."""
 
-    def __init__(self, inp_channels, window_sizes, shifts, num_heads,
-                 shared_depth=1, ffn_expansion_factor=2.66):
+    def __init__(
+        self,
+        inp_channels,
+        window_sizes,
+        shifts,
+        num_heads,
+        shared_depth=1,
+        ffn_expansion_factor=2.66,
+    ):
         super().__init__()
 
         modules_ffd, modules_att, modules_norm = {}, {}, {}
         for i in range(shared_depth):
-            modules_ffd[f"ffd{i}"] = FeedForward(inp_channels, ffn_expansion_factor, bias=False)
+            modules_ffd[f"ffd{i}"] = FeedForward(
+                inp_channels, ffn_expansion_factor, bias=False
+            )
             modules_att[f"att_{i}"] = RSA(inp_channels, num_heads, shifts, window_sizes)
             modules_norm[f"norm_{i}"] = LayerNorm(inp_channels, "WithBias")
             modules_norm[f"norm_{i + 2}"] = LayerNorm(inp_channels, "WithBias")
@@ -192,7 +249,9 @@ class FDT(nn.Module):
 
         modulec_ffd, modulec_att, modulec_norm = {}, {}, {}
         for i in range(shared_depth):
-            modulec_ffd[f"ffd{i}"] = FeedForward(inp_channels, ffn_expansion_factor, bias=False)
+            modulec_ffd[f"ffd{i}"] = FeedForward(
+                inp_channels, ffn_expansion_factor, bias=False
+            )
             modulec_att[f"att_{i}"] = GSA(inp_channels, num_heads)
             modulec_norm[f"norm_{i}"] = LayerNorm(inp_channels, "WithBias")
             modulec_norm[f"norm_{i + 2}"] = LayerNorm(inp_channels, "WithBias")
@@ -205,31 +264,50 @@ class FDT(nn.Module):
         for i in range(len(self.modules_ffd)):
             if i == 0:
                 x_, atn = self.modules_att[f"att_{i}"](
-                    self.modules_norm[f"norm_{i}"](x), None)
-                x = self.modules_ffd[f"ffd{i}"](
-                    self.modules_norm[f"norm_{i + 2}"](x_ + x)) + x_
+                    self.modules_norm[f"norm_{i}"](x), None
+                )
+                x = (
+                    self.modules_ffd[f"ffd{i}"](
+                        self.modules_norm[f"norm_{i + 2}"](x_ + x)
+                    )
+                    + x_
+                )
             else:
                 x_ = self.modules_att[f"att_{i}"](
-                    self.modules_norm[f"norm_{i}"](x), atn)
-                x = self.modules_ffd[f"ffd{i}"](
-                    self.modules_norm[f"norm_{i + 2}"](x_ + x)) + x_
+                    self.modules_norm[f"norm_{i}"](x), atn
+                )
+                x = (
+                    self.modules_ffd[f"ffd{i}"](
+                        self.modules_norm[f"norm_{i + 2}"](x_ + x)
+                    )
+                    + x_
+                )
 
         for i in range(len(self.modulec_ffd)):
             if i == 0:
                 x_, atn = self.modulec_att[f"att_{i}"](
-                    self.modulec_norm[f"norm_{i}"](x), None)
-                x = self.modulec_ffd[f"ffd{i}"](
-                    self.modulec_norm[f"norm_{i + 2}"](x_ + x)) + x_
+                    self.modulec_norm[f"norm_{i}"](x), None
+                )
+                x = (
+                    self.modulec_ffd[f"ffd{i}"](
+                        self.modulec_norm[f"norm_{i + 2}"](x_ + x)
+                    )
+                    + x_
+                )
             else:
-                x = self.modulec_att[f"att_{i}"](
-                    self.modulec_norm[f"norm_{i}"](x), atn)
-                x = self.modulec_ffd[f"ffd{i}"](
-                    self.modulec_norm[f"norm_{i + 2}"](x_ + x)) + x_
+                x = self.modulec_att[f"att_{i}"](self.modulec_norm[f"norm_{i}"](x), atn)
+                x = (
+                    self.modulec_ffd[f"ffd{i}"](
+                        self.modulec_norm[f"norm_{i + 2}"](x_ + x)
+                    )
+                    + x_
+                )
 
         return x
 
 
 # ── Haar Wavelet ───────────────────────────────────────────────
+
 
 class HaarWavelet(nn.Module):
     def __init__(self, in_channels, grad=False):
@@ -248,17 +326,31 @@ class HaarWavelet(nn.Module):
 
     def forward(self, x, rev=False):
         if not rev:
-            out = F.conv2d(x, self.haar_weights, bias=None, stride=2, groups=self.in_channels) / 4.0
-            out = out.reshape(x.shape[0], self.in_channels, 4, x.shape[2] // 2, x.shape[3] // 2)
-            out = out.transpose(1, 2).reshape(x.shape[0], self.in_channels * 4, x.shape[2] // 2, x.shape[3] // 2)
+            out = (
+                F.conv2d(
+                    x, self.haar_weights, bias=None, stride=2, groups=self.in_channels
+                )
+                / 4.0
+            )
+            out = out.reshape(
+                x.shape[0], self.in_channels, 4, x.shape[2] // 2, x.shape[3] // 2
+            )
+            out = out.transpose(1, 2).reshape(
+                x.shape[0], self.in_channels * 4, x.shape[2] // 2, x.shape[3] // 2
+            )
             return out
         else:
             out = x.reshape(x.shape[0], 4, self.in_channels, x.shape[2], x.shape[3])
-            out = out.transpose(1, 2).reshape(x.shape[0], self.in_channels * 4, x.shape[2], x.shape[3])
-            return F.conv_transpose2d(out, self.haar_weights, bias=None, stride=2, groups=self.in_channels)
+            out = out.transpose(1, 2).reshape(
+                x.shape[0], self.in_channels * 4, x.shape[2], x.shape[3]
+            )
+            return F.conv_transpose2d(
+                out, self.haar_weights, bias=None, stride=2, groups=self.in_channels
+            )
 
 
 # ── Wavelet Feature Up/Down ────────────────────────────────────
+
 
 class WFU(nn.Module):
     """Wavelet Feature Upgrade (decoder)."""
@@ -306,11 +398,16 @@ class WFD(nn.Module):
             x = self.first_conv(x)
         haar = self.HaarWavelet(x, rev=False)
         a = haar.narrow(1, 0, self.dim)
-        hvd = haar.narrow(1, self.dim, self.dim) + haar.narrow(1, self.dim * 2, self.dim) + haar.narrow(1, self.dim * 3, self.dim)
+        hvd = (
+            haar.narrow(1, self.dim, self.dim)
+            + haar.narrow(1, self.dim * 2, self.dim)
+            + haar.narrow(1, self.dim * 3, self.dim)
+        )
         return a, hvd
 
 
 # ── WFEN Main Model ───────────────────────────────────────────
+
 
 class WFEN(nn.Module):
     """Wavelet-based Feature Enhancement Network.
@@ -341,15 +438,18 @@ class WFEN(nn.Module):
         )
 
         self.RB1 = nn.Sequential(
-            nn.Conv2d(min_ch * 2, min_ch * 2, 1), nn.ReLU(),
+            nn.Conv2d(min_ch * 2, min_ch * 2, 1),
+            nn.ReLU(),
             nn.Conv2d(min_ch * 2, min_ch * 2, 1),
         )
         self.RB2 = nn.Sequential(
-            nn.Conv2d(min_ch * 4, min_ch * 4, 1), nn.ReLU(),
+            nn.Conv2d(min_ch * 4, min_ch * 4, 1),
+            nn.ReLU(),
             nn.Conv2d(min_ch * 4, min_ch * 4, 1),
         )
         self.RB3 = nn.Sequential(
-            nn.Conv2d(min_ch * 4, min_ch * 4, 1), nn.ReLU(),
+            nn.Conv2d(min_ch * 4, min_ch * 4, 1),
+            nn.ReLU(),
             nn.Conv2d(min_ch * 4, min_ch * 4, 1),
         )
 
@@ -357,9 +457,13 @@ class WFEN(nn.Module):
         Transformer = []
         for i in range(res_depth - 1):
             if i % 2 == 0:
-                Transformer.append(FDT(min_ch * 4, window_sizes=1, shifts=1, num_heads=8))
+                Transformer.append(
+                    FDT(min_ch * 4, window_sizes=1, shifts=1, num_heads=8)
+                )
             else:
-                Transformer.append(FDT(min_ch * 4, window_sizes=1, shifts=0, num_heads=8))
+                Transformer.append(
+                    FDT(min_ch * 4, window_sizes=1, shifts=0, num_heads=8)
+                )
         self.Transformer = nn.Sequential(*Transformer)
 
         self.TransformerUp1 = nn.Sequential(

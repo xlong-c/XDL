@@ -56,9 +56,7 @@ def merge_checkpoints(
     reference_keys = set(state_dicts[0])
     for index, state_dict in enumerate(state_dicts[1:], start=1):
         if set(state_dict) != reference_keys:
-            raise ValueError(
-                f"Checkpoint key mismatch: {paths[0]} vs {paths[index]}"
-            )
+            raise ValueError(f"Checkpoint key mismatch: {paths[0]} vs {paths[index]}")
 
     normalized_weights = [weight / total_weight for weight in weights]
     merged: dict[str, Any] = {}
@@ -116,18 +114,18 @@ class ModelMergeCallback(Callback):
         priority: int = 999,
     ) -> None:
         """Args:
-            checkpoint_paths: Paths to checkpoint files to merge.
-            merge_weights: Per-checkpoint interpolation weights.
-                ``None`` means equal weight (1.0 for each).
-            output_path: Where to save the merged checkpoint.  Defaults to
-                ``checkpoint_paths[0]_merged.pt``.
-            method: Merge algorithm.  Only ``"linear"`` is implemented
-                in the first stage; ``"ties"`` and ``"dare"`` raise
-                ``NotImplementedError``.
-            merge_at_start: If ``True``, merge in ``on_fit_start``
-                (useful for loading merged checkpoint into a new model).
-                Default ``False`` (merge in ``on_fit_end``).
-            priority: Callback priority.
+        checkpoint_paths: Paths to checkpoint files to merge.
+        merge_weights: Per-checkpoint interpolation weights.
+            ``None`` means equal weight (1.0 for each).
+        output_path: Where to save the merged checkpoint.  Defaults to
+            ``checkpoint_paths[0]_merged.pt``.
+        method: Merge algorithm.  Only ``"linear"`` is implemented
+            in the first stage; ``"ties"`` and ``"dare"`` raise
+            ``NotImplementedError``.
+        merge_at_start: If ``True``, merge in ``on_fit_start``
+            (useful for loading merged checkpoint into a new model).
+            Default ``False`` (merge in ``on_fit_end``).
+        priority: Callback priority.
         """
         super().__init__(priority=priority)
         self.checkpoint_paths = [Path(p) for p in checkpoint_paths]
@@ -139,9 +137,9 @@ class ModelMergeCallback(Callback):
         self.output_path = (
             Path(output_path)
             if output_path
-            else self.checkpoint_paths[0].with_suffix("").with_name(
-                self.checkpoint_paths[0].stem + "_merged.pt"
-            )
+            else self.checkpoint_paths[0]
+            .with_suffix("")
+            .with_name(self.checkpoint_paths[0].stem + "_merged.pt")
         )
         self.method = method
         self.merge_at_start = merge_at_start
@@ -174,9 +172,7 @@ class ModelMergeCallback(Callback):
     # Merge logic
     # ------------------------------------------------------------------
 
-    def _merge_and_save(
-        self, _trainer: "Trainer", _core_module: "CoreModel"
-    ) -> None:
+    def _merge_and_save(self, _trainer: "Trainer", _core_module: "CoreModel") -> None:
         if self.method == "linear":
             merge_checkpoints(
                 self.checkpoint_paths,

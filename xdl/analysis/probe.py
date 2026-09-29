@@ -13,7 +13,9 @@ from torch.utils.data import DataLoader, TensorDataset
 
 def _flatten_features(features: torch.Tensor) -> torch.Tensor:
     if features.ndim < 2:
-        raise ValueError(f"Expected features with ndim >= 2, got shape {tuple(features.shape)}")
+        raise ValueError(
+            f"Expected features with ndim >= 2, got shape {tuple(features.shape)}"
+        )
     if features.ndim == 2:
         return features
     return features.reshape(features.shape[0], -1)

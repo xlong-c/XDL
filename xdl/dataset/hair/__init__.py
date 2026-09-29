@@ -1,5 +1,5 @@
 """毛发数据集与共享增强变换.
 
-本子包依赖可选三方库 (albumentations / opencv), 因此 ``__init__`` 不主动
+本子包使用核心依赖 opencv-python 和可选依赖 albumentations. 因此 ``__init__`` 不主动
 导入子模块; 具体数据集与变换从对应模块按需导入.
 """

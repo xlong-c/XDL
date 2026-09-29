@@ -24,6 +24,7 @@ from xdl.utils.tiling import tile_inference
 @dataclass
 class Config:
     """WFEN x4 人脸超分辨率推理"""
+
     input: str = "infer/images/debug_before_sr.png"
     output: str = "infer/images/debug_wfen_x4.png"
     weight: str = "others/WFEN.pth"
@@ -70,7 +71,7 @@ def main():
     tensor = pil_to_tensor(img_hr).to(dtype=dtype, device=config.device) / 255.0
 
     # warmup
-    test_tile = tensor[:, :config.tile_size, :config.tile_size].unsqueeze(0)
+    test_tile = tensor[:, : config.tile_size, : config.tile_size].unsqueeze(0)
     for _ in range(2):
         with torch.no_grad():
             _ = model(test_tile)
@@ -81,7 +82,13 @@ def main():
     t0 = time.perf_counter()
     with torch.no_grad():
         if config.tile:
-            out = tile_inference(model, tensor, tile_size=config.tile_size, tile_pad=config.tile_pad, scale=1)
+            out = tile_inference(
+                model,
+                tensor,
+                tile_size=config.tile_size,
+                tile_pad=config.tile_pad,
+                scale=1,
+            )
         else:
             out = model(tensor.unsqueeze(0)).squeeze(0)
     if config.device == "cuda":
@@ -92,9 +99,13 @@ def main():
     sr = to_pil_image(out.cpu())
     sr.save(config.output)
 
-    mem = torch.cuda.max_memory_reserved(config.device) / 1024 ** 2 if config.device == "cuda" else 0
+    mem = (
+        torch.cuda.max_memory_reserved(config.device) / 1024**2
+        if config.device == "cuda"
+        else 0
+    )
     print(f"输出: {config.output} ({sr.size[0]}x{sr.size[1]})")
-    print(f"推理耗时: {elapsed*1000:.1f}ms  |  显存占用: {mem:.0f} MB")
+    print(f"推理耗时: {elapsed * 1000:.1f}ms  |  显存占用: {mem:.0f} MB")
 
 
 if __name__ == "__main__":

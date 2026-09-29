@@ -2,7 +2,9 @@
 CosineAnnealingWarmRestarts学习率调度器
 """
 
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts as TorchCosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import (
+    CosineAnnealingWarmRestarts as TorchCosineAnnealingWarmRestarts,
+)
 
 
 class CosineAnnealingWarmRestarts(TorchCosineAnnealingWarmRestarts):
@@ -27,9 +29,7 @@ class CosineAnnealingWarmRestarts(TorchCosineAnnealingWarmRestarts):
         )
 
 
-def cosine_annealing_warm_restarts(
-    optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1
-):
+def cosine_annealing_warm_restarts(optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1):
     """
     创建CosineAnnealingWarmRestarts调度器的便捷函数
 

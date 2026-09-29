@@ -28,7 +28,10 @@ class Timer(Callback):
     """
 
     def __init__(
-        self, verbose: bool = True, track_eta: bool = True, track_batch_speed: bool = True
+        self,
+        verbose: bool = True,
+        track_eta: bool = True,
+        track_batch_speed: bool = True,
     ):
         super().__init__()
 
@@ -143,7 +146,9 @@ class Timer(Callback):
         """批次开始时计时"""
         self._start_timer(f"batch_{batch_idx}")
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """批次结束时记录时间"""
         batch_time = self._end_timer(f"batch_{batch_idx}")
 
@@ -292,7 +297,9 @@ class Timer(Callback):
             current_epoch = len(epoch_times) if epoch_times else 0
             if current_epoch > 0 and self._state.get("processed_samples", 0) > 0:
                 avg_samples_per_sec = self._state["processed_samples"] / total_time
-                print(f"Average processing speed: {avg_samples_per_sec:.1f} samples/sec")
+                print(
+                    f"Average processing speed: {avg_samples_per_sec:.1f} samples/sec"
+                )
 
         # 验证时间
         val_time = self._state.get("last_validation_time", 0)

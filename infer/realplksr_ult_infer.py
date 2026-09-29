@@ -23,6 +23,7 @@ from xdl.model.lowlevel.realplksr_arch_ult import realplksr
 @dataclass
 class Config:
     """RealPLKSR UltraSharpV2 Lite x4 超分辨率推理"""
+
     input: str = "infer/images/debug_before_sr.png"
     output: str = "infer/images/debug_realplksr_ult_x4.png"
     weight: str = "others/4x-UltraSharpV2_Lite.pth"
@@ -59,7 +60,9 @@ def load_model(config: Config):
         model = torch.compile(model, mode="reduce-overhead")
 
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"已加载: RealPLKSR UltraSharpV2 x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16+compile)")
+    print(
+        f"已加载: RealPLKSR UltraSharpV2 x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16+compile)"
+    )
     return model
 
 
@@ -94,9 +97,13 @@ def main():
     sr = to_pil_image(out.cpu())
     sr.save(config.output)
 
-    mem = torch.cuda.max_memory_reserved(config.device) / 1024 ** 2 if config.device == "cuda" else 0
+    mem = (
+        torch.cuda.max_memory_reserved(config.device) / 1024**2
+        if config.device == "cuda"
+        else 0
+    )
     print(f"输出: {config.output} ({sr.size[0]}x{sr.size[1]})")
-    print(f"推理耗时: {elapsed*1000:.1f}ms  |  显存占用: {mem:.0f} MB")
+    print(f"推理耗时: {elapsed * 1000:.1f}ms  |  显存占用: {mem:.0f} MB")
 
 
 if __name__ == "__main__":

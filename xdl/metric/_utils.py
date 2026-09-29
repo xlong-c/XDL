@@ -235,4 +235,3 @@ def _lcs_length(left: Sequence[str], right: Sequence[str]) -> int:
                 current.append(max(previous[index], current[-1]))
         previous = current
     return previous[-1]
-

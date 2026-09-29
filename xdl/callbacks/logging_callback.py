@@ -76,7 +76,9 @@ class LoggingCallback(Callback):
     def setup(self, trainer: Any, core_module: Any, stage: str):
         """配置 loguru 处理器"""
         # DDP 下只让主进程写日志文件/控制台.
-        is_main = trainer.is_main_process() if hasattr(trainer, "is_main_process") else True
+        is_main = (
+            trainer.is_main_process() if hasattr(trainer, "is_main_process") else True
+        )
         self._enabled = bool(is_main)
         if not self._enabled:
             return
@@ -103,7 +105,9 @@ class LoggingCallback(Callback):
         os.makedirs(effective_log_dir, exist_ok=True)
 
         # 确定文件名
-        effective_filename = self.log_filename or f"train_{time.strftime('%Y%m%d_%H%M%S')}.log"
+        effective_filename = (
+            self.log_filename or f"train_{time.strftime('%Y%m%d_%H%M%S')}.log"
+        )
         log_path = os.path.join(effective_log_dir, effective_filename)
 
         # 3. 添加文件处理器
@@ -141,13 +145,17 @@ class LoggingCallback(Callback):
         self.train_batch_count = 0
         logger.info(f"📅 开始训练 Epoch {core_module.current_epoch}")
 
-    def on_train_batch_start(self, trainer, core_module, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_start(
+        self, trainer, core_module, batch, batch_idx, dataloader_idx=0
+    ):
         """训练批次开始时的钩子"""
         if not self._enabled:
             return
         self.train_batch_count += 1
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """训练批次结束时记录指标"""
         if not self._enabled or not self.log_train_metrics:
             return
@@ -172,7 +180,9 @@ class LoggingCallback(Callback):
                             metrics[f"train/opt_{i}_lr"] = lr
 
             if metrics:
-                metric_str = " | ".join([f"{k}: <cyan>{v:.4f}</cyan>" for k, v in metrics.items()])
+                metric_str = " | ".join(
+                    [f"{k}: <cyan>{v:.4f}</cyan>" for k, v in metrics.items()]
+                )
                 step = (
                     core_module.global_step
                     if hasattr(core_module, "global_step")
@@ -208,7 +218,9 @@ class LoggingCallback(Callback):
                 metric_str = " | ".join(
                     [f"{k}: <yellow>{v:.4f}</yellow>" for k, v in metrics.items()]
                 )
-                logger.opt(colors=True).info(f"Val Batch {self.val_batch_count} - {metric_str}")
+                logger.opt(colors=True).info(
+                    f"Val Batch {self.val_batch_count} - {metric_str}"
+                )
 
     def on_train_epoch_end(self, trainer, core_module):
         """训练epoch结束时的钩子"""
@@ -257,7 +269,9 @@ class SystemStatsCallback(Callback):
         self.log_frequency = log_frequency
         self.last_time = time.time()
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """记录系统状态"""
         if not getattr(self, "_enabled", True):
             return

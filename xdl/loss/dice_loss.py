@@ -28,7 +28,11 @@ class DiceLoss(nn.Module):
 
         if num_classes == 1:
             pred_prob = torch.sigmoid(pred)
-            target_onehot = target.float() if target.dim() == pred_prob.dim() else target.unsqueeze(1).float()
+            target_onehot = (
+                target.float()
+                if target.dim() == pred_prob.dim()
+                else target.unsqueeze(1).float()
+            )
         else:
             pred_prob = torch.softmax(pred, dim=1)
             if target.dim() < pred_prob.dim():
@@ -39,12 +43,16 @@ class DiceLoss(nn.Module):
         intersection = (pred_prob * target_onehot).sum(dim=(0, 2, 3))
         cardinality = pred_prob.sum(dim=(0, 2, 3)) + target_onehot.sum(dim=(0, 2, 3))
 
-        dice_per_class = (2.0 * intersection + self.smooth) / (cardinality + self.smooth)
+        dice_per_class = (2.0 * intersection + self.smooth) / (
+            cardinality + self.smooth
+        )
 
         if self.average == "micro":
             intersection_all = intersection.sum()
             cardinality_all = cardinality.sum()
-            dice = (2.0 * intersection_all + self.smooth) / (cardinality_all + self.smooth)
+            dice = (2.0 * intersection_all + self.smooth) / (
+                cardinality_all + self.smooth
+            )
         else:
             dice = dice_per_class.mean()
 
@@ -67,7 +75,11 @@ class GeneralizedDiceLoss(nn.Module):
 
         if num_classes == 1:
             pred_prob = torch.sigmoid(pred)
-            target_onehot = target.float() if target.dim() == pred_prob.dim() else target.unsqueeze(1).float()
+            target_onehot = (
+                target.float()
+                if target.dim() == pred_prob.dim()
+                else target.unsqueeze(1).float()
+            )
         else:
             pred_prob = torch.softmax(pred, dim=1)
             if target.dim() < pred_prob.dim():
@@ -81,10 +93,16 @@ class GeneralizedDiceLoss(nn.Module):
         # 类别权重 = 1 / (target 中各类像素数的平方)
         w = 1.0 / (target_onehot.sum(dim=(0, 2, 3)) ** 2 + self.smooth)
 
-        dice_per_class = (2.0 * intersection + self.smooth) / (cardinality + self.smooth)
+        dice_per_class = (2.0 * intersection + self.smooth) / (
+            cardinality + self.smooth
+        )
         return 1.0 - (w * dice_per_class).sum() / w.sum()
 
 
 def F_onehot(labels: torch.Tensor, num_classes: int) -> torch.Tensor:
     """将标签转为 one-hot 编码。"""
-    return torch.nn.functional.one_hot(labels.long(), num_classes).permute(0, 3, 1, 2).float()
+    return (
+        torch.nn.functional.one_hot(labels.long(), num_classes)
+        .permute(0, 3, 1, 2)
+        .float()
+    )

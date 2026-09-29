@@ -70,5 +70,5 @@ __all__ = [
     "MeanReciprocalRank",
     "HitRateAtK",
     "BLEUScore",
-    "ROUGELScore"
+    "ROUGELScore",
 ]

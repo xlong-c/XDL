@@ -56,7 +56,9 @@ def build_label_mapping(
         return {str(key): int(value) for key, value in class_to_idx.items()}
     if all(is_int_like(label) for label in labels):
         return None
-    return {label: idx for idx, label in enumerate(sorted({str(item) for item in labels}))}
+    return {
+        label: idx for idx, label in enumerate(sorted({str(item) for item in labels}))
+    }
 
 
 def target_from_label(label: Any, label_mapping: Optional[Mapping[str, int]]) -> int:
@@ -92,6 +94,7 @@ def parse_sequence_field(
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         return list(value)
     raise TypeError("Expected a sequence-like field")
+
 
 # ---------------------------------------------------------------------------
 # Path helpers

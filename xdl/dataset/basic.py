@@ -25,7 +25,9 @@ class SyntheticClassificationDataset(Dataset):
         self.num_classes = int(num_classes)
 
         generator = torch.Generator().manual_seed(int(seed))
-        self.features = torch.randn((self.num_samples, *self.input_shape), generator=generator)
+        self.features = torch.randn(
+            (self.num_samples, *self.input_shape), generator=generator
+        )
         self.targets = torch.randint(
             low=0,
             high=self.num_classes,

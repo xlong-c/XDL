@@ -16,6 +16,7 @@
     3. pywebview 开原生窗口, 加载 http://127.0.0.1:PORT
     4. 窗口关闭 → webview.start() 返回 → 进程退出
 """
+
 from __future__ import annotations
 
 import threading
@@ -82,8 +83,11 @@ async def long_start() -> dict[str, str]:
 
     def run() -> None:
         for i in range(20):
-            TASKS[tid] = {"done": False, "progress": (i + 1) / 20,
-                          "msg": f"步骤 {i + 1}/20"}
+            TASKS[tid] = {
+                "done": False,
+                "progress": (i + 1) / 20,
+                "msg": f"步骤 {i + 1}/20",
+            }
             time.sleep(0.1)
         TASKS[tid] = {"done": True, "progress": 1.0, "msg": "完成"}
 

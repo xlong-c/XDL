@@ -55,10 +55,10 @@ class ValueDictData:
 
     values: Dict[str, List[float]] = field(default_factory=dict)  # 总历史值列表
     current_values: Dict[str, float] = field(default_factory=dict)  # 当前值
-    epoch_values: Dict[str, List[float]] = field(
-        default_factory=dict)  # 当前epoch的值
+    epoch_values: Dict[str, List[float]] = field(default_factory=dict)  # 当前epoch的值
     last_epoch_avg: Dict[str, float] = field(
-        default_factory=dict)  # 上一个epoch的平均值
+        default_factory=dict
+    )  # 上一个epoch的平均值
 
     def log(self, name: str, value: float) -> None:
         """记录新指标值"""
@@ -166,7 +166,9 @@ def _format_metric_name(name: str, prefix: Optional[str] = None) -> str:
         return metric_prefix
     if metric_name == metric_prefix:
         return metric_name
-    if metric_name.startswith(f"{metric_prefix}_") or metric_name.startswith(f"{metric_prefix}/"):
+    if metric_name.startswith(f"{metric_prefix}_") or metric_name.startswith(
+        f"{metric_prefix}/"
+    ):
         return metric_name
     return f"{metric_prefix}_{metric_name.lstrip('_/')}"
 
@@ -647,7 +649,9 @@ class CoreModel(Module):
 
     def wait_for_everyone(self) -> None:
         """阻塞当前进程直到所有 rank 都到达该点 (单进程时为空操作)."""
-        if self._accelerator is not None and hasattr(self._accelerator, "wait_for_everyone"):
+        if self._accelerator is not None and hasattr(
+            self._accelerator, "wait_for_everyone"
+        ):
             self._accelerator.wait_for_everyone()
 
     @property
@@ -698,7 +702,9 @@ class CoreModel(Module):
         # 使用统一的指标存储系统记录指标
         self._step_metrics.log(metric_name, value)
 
-    def log_metrics(self, metrics: Mapping[str, MetricValue], prefix: Optional[str] = None) -> None:
+    def log_metrics(
+        self, metrics: Mapping[str, MetricValue], prefix: Optional[str] = None
+    ) -> None:
         """
         批量记录指标
 
@@ -765,19 +771,15 @@ class CoreModel(Module):
         if self._accelerator:
             # 使用 Accelerate 的分布式梯度裁剪
             if gradient_clip_algorithm == "norm":
-                self._accelerator.clip_grad_norm_(
-                    model_parameters, gradient_clip_val)
+                self._accelerator.clip_grad_norm_(model_parameters, gradient_clip_val)
             elif gradient_clip_algorithm == "value":
-                self._accelerator.clip_grad_value_(
-                    model_parameters, gradient_clip_val)
+                self._accelerator.clip_grad_value_(model_parameters, gradient_clip_val)
         else:
             # 使用 PyTorch 原生梯度裁剪
             if gradient_clip_algorithm == "norm":
-                torch.nn.utils.clip_grad_norm_(
-                    model_parameters, gradient_clip_val)
+                torch.nn.utils.clip_grad_norm_(model_parameters, gradient_clip_val)
             elif gradient_clip_algorithm == "value":
-                torch.nn.utils.clip_grad_value_(
-                    model_parameters, gradient_clip_val)
+                torch.nn.utils.clip_grad_value_(model_parameters, gradient_clip_val)
 
     def manual_backward(self, loss: torch.Tensor):
         """
@@ -859,8 +861,7 @@ class CoreModel(Module):
         self, custom_values: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """获取用于checkpoint命名的值字典"""
-        values = {"step": self._total_train_steps,
-                  "epoch": self._current_epoch}
+        values = {"step": self._total_train_steps, "epoch": self._current_epoch}
         values.update(self._step_metrics.current_values)
         if custom_values:
             values.update(custom_values)
@@ -951,7 +952,9 @@ class CoreModel(Module):
                 for n, m in all_modules.items()
                 if not include_components or n in include_components
             },
-            "optimizer_states": {f"opt_{i}": o.state_dict() for i, o in enumerate(self._optimizers)}
+            "optimizer_states": {
+                f"opt_{i}": o.state_dict() for i, o in enumerate(self._optimizers)
+            }
             if save_optimizer
             else None,
             "scheduler_states": {
@@ -971,7 +974,10 @@ class CoreModel(Module):
             try:
                 from accelerate.utils import DistributedType
 
-                if getattr(accelerator, "distributed_type", None) == DistributedType.FSDP:
+                if (
+                    getattr(accelerator, "distributed_type", None)
+                    == DistributedType.FSDP
+                ):
                     return True
             except Exception:
                 pass
@@ -1071,7 +1077,11 @@ class CoreModel(Module):
 
     @classmethod
     def load_from_checkpoint(
-        cls, checkpoint_path: str, map_location: str = "cpu", format: str = "pt", **kwargs
+        cls,
+        checkpoint_path: str,
+        map_location: str = "cpu",
+        format: str = "pt",
+        **kwargs,
     ):
         """从文件直接实例化模型"""
         model = cls(**kwargs)
@@ -1104,15 +1114,22 @@ class CoreModel(Module):
 
             # 检查是否是 [optimizers, schedulers] 格式
             # 这里的逻辑是:如果是两个元素的列表/元组,且第一个元素本身也是列表/元组,或者是包含调度器的格式
-            if len(optimizers_return) == 2 and isinstance(optimizers_return[0], (list, tuple)):
+            if len(optimizers_return) == 2 and isinstance(
+                optimizers_return[0], (list, tuple)
+            ):
                 self._optimizers = list(optimizers_return[0])
                 schedulers = optimizers_return[1]
-                self._schedules = list(schedulers) if isinstance(schedulers, (list, tuple)) else [schedulers]
+                self._schedules = (
+                    list(schedulers)
+                    if isinstance(schedulers, (list, tuple))
+                    else [schedulers]
+                )
             else:
                 # 否则视为优化器列表
                 # 过滤掉非优化器对象(以防用户混入调度器但没按格式传)
                 self._optimizers = [
-                    opt for opt in optimizers_return if isinstance(opt, Optimizer)]
+                    opt for opt in optimizers_return if isinstance(opt, Optimizer)
+                ]
                 # 如果列表里还有调度器,则提取出来
                 self._schedules = [
                     sch for sch in optimizers_return if not isinstance(sch, Optimizer)
@@ -1181,7 +1198,9 @@ class CoreModel(Module):
     @property
     def estimated_stepping_batches(self) -> int:
         """预估优化器步数 (优先取挂载 Trainer 的 total_optimizer_steps)."""
-        if self._trainer is not None and hasattr(self._trainer, "total_optimizer_steps"):
+        if self._trainer is not None and hasattr(
+            self._trainer, "total_optimizer_steps"
+        ):
             return self._trainer.total_optimizer_steps
         return 1000
 
@@ -1217,11 +1236,14 @@ class CoreModel(Module):
         (legacy 路径); 与 Trainer 注入值不一致时由
         ``_set_gradient_accumulation_steps`` 显式告警.
         """
-        steps = getattr(
-            self,
-            "gradient_accumulation_steps",
-            self._gradient_accumulation_steps,
-        ) or self._gradient_accumulation_steps
+        steps = (
+            getattr(
+                self,
+                "gradient_accumulation_steps",
+                self._gradient_accumulation_steps,
+            )
+            or self._gradient_accumulation_steps
+        )
         return max(1, int(steps or 1))
 
     @property

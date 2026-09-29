@@ -9,7 +9,9 @@ import torch
 from torch import nn
 
 
-def _resolve_target_module(model: nn.Module, target_module: str | nn.Module) -> nn.Module:
+def _resolve_target_module(
+    model: nn.Module, target_module: str | nn.Module
+) -> nn.Module:
     if isinstance(target_module, nn.Module):
         return target_module
     modules = dict(model.named_modules())
@@ -77,9 +79,13 @@ def compute_grad_cam(
         outputs = model(*forward_args, **kwargs)
         logits = outputs[0] if isinstance(outputs, (tuple, list)) else outputs
         if not isinstance(logits, torch.Tensor):
-            raise TypeError("Grad-CAM expects model outputs to be a Tensor or tuple with Tensor first")
+            raise TypeError(
+                "Grad-CAM expects model outputs to be a Tensor or tuple with Tensor first"
+            )
         if logits.ndim != 2:
-            raise ValueError(f"Grad-CAM expects classifier logits with shape [batch, classes], got {tuple(logits.shape)}")
+            raise ValueError(
+                f"Grad-CAM expects classifier logits with shape [batch, classes], got {tuple(logits.shape)}"
+            )
 
         if target_index is None:
             target_indices = logits.argmax(dim=-1)
@@ -102,7 +108,9 @@ def compute_grad_cam(
         score.backward()
 
         if "value" not in activations or "value" not in gradients:
-            raise RuntimeError("Grad-CAM hooks did not capture activations and gradients")
+            raise RuntimeError(
+                "Grad-CAM hooks did not capture activations and gradients"
+            )
 
         activation_tensor = activations["value"]
         gradient_tensor = gradients["value"]

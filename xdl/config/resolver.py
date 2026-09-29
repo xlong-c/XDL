@@ -27,7 +27,9 @@ def register_default_resolvers() -> None:
     if not OmegaConf.has_resolver("xdl.abspath"):
         OmegaConf.register_new_resolver(
             "xdl.abspath",
-            lambda *parts: str(Path(*[str(part) for part in parts]).expanduser().resolve()),
+            lambda *parts: str(
+                Path(*[str(part) for part in parts]).expanduser().resolve()
+            ),
         )
 
 
@@ -79,7 +81,9 @@ def _to_dict_config(config: ConfigInput) -> DictConfig:
     if isinstance(config, (str, Path)):
         config_path = Path(config)
         if not config_path.exists():
-            raise ConfigValidationError("Config file not found", field_path=str(config_path))
+            raise ConfigValidationError(
+                "Config file not found", field_path=str(config_path)
+            )
         try:
             return _inject_xdl_context(
                 _ensure_mapping_config(OmegaConf.load(config_path)),
@@ -98,9 +102,13 @@ def _to_dict_config(config: ConfigInput) -> DictConfig:
                 config_path=None,
             )
         except OmegaConfBaseException as exc:
-            raise ConfigValidationError(f"Failed to create config from mapping: {exc}") from exc
+            raise ConfigValidationError(
+                f"Failed to create config from mapping: {exc}"
+            ) from exc
 
-    raise ConfigValidationError(f"Unsupported config input type: {type(config).__name__}")
+    raise ConfigValidationError(
+        f"Unsupported config input type: {type(config).__name__}"
+    )
 
 
 def merge_with_schema(
@@ -117,7 +125,9 @@ def merge_with_schema(
     try:
         merged_cfg = OmegaConf.merge(base_cfg, raw_cfg)
     except OmegaConfBaseException as exc:
-        raise ConfigValidationError(f"Failed to merge config with schema: {exc}") from exc
+        raise ConfigValidationError(
+            f"Failed to merge config with schema: {exc}"
+        ) from exc
 
     return cast(DictConfig, merged_cfg)
 
@@ -132,7 +142,9 @@ def resolve_config(config: DictConfig) -> DictConfig:
         OmegaConf.resolve(cfg_copy)
         return cfg_copy
     except OmegaConfBaseException as exc:
-        raise ConfigInterpolationError(f"Failed to resolve config interpolation: {exc}") from exc
+        raise ConfigInterpolationError(
+            f"Failed to resolve config interpolation: {exc}"
+        ) from exc
 
 
 def to_plain_dict(config: DictConfig, *, resolve: bool = True) -> Dict[str, Any]:
@@ -141,7 +153,9 @@ def to_plain_dict(config: DictConfig, *, resolve: bool = True) -> Dict[str, Any]
     try:
         data = OmegaConf.to_container(config, resolve=resolve, enum_to_str=True)
     except OmegaConfBaseException as exc:
-        raise ConfigInterpolationError(f"Failed to convert config to dict: {exc}") from exc
+        raise ConfigInterpolationError(
+            f"Failed to convert config to dict: {exc}"
+        ) from exc
 
     if not isinstance(data, dict):
         raise ConfigValidationError("Resolved config must be a mapping")

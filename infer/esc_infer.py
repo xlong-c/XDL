@@ -20,6 +20,7 @@ from xdl.model.lowlevel.esc_arch import ESC
 @dataclass
 class Config:
     """ESC x3 超分辨率推理"""
+
     input: str = "infer/images/debug_before_sr.png"
     output: str = "infer/images/debug_esc_x3.png"
     weight: str = "others/ESC_DFLIP_X3.pth"
@@ -31,9 +32,15 @@ class Config:
 
 def load_model(config: Config) -> ESC:
     model = ESC(
-        dim=64, pdim=16, kernel_size=13,
-        n_blocks=5, conv_blocks=5, window_size=32,
-        num_heads=4, upscaling_factor=config.scale, exp_ratio=1.25,
+        dim=64,
+        pdim=16,
+        kernel_size=13,
+        n_blocks=5,
+        conv_blocks=5,
+        window_size=32,
+        num_heads=4,
+        upscaling_factor=config.scale,
+        exp_ratio=1.25,
         attn_type=config.attn,
     )
     ckpt = torch.load(config.weight, map_location="cpu", weights_only=True)
@@ -48,7 +55,9 @@ def load_model(config: Config) -> ESC:
     model.eval()
 
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"已加载: ESC x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16={config.fp16}, attn={config.attn})")
+    print(
+        f"已加载: ESC x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16={config.fp16}, attn={config.attn})"
+    )
     return model
 
 
@@ -83,9 +92,13 @@ def main():
     sr = to_pil_image(out.cpu())
     sr.save(config.output)
 
-    mem = torch.cuda.max_memory_reserved(config.device) / 1024 ** 2 if config.device == "cuda" else 0
+    mem = (
+        torch.cuda.max_memory_reserved(config.device) / 1024**2
+        if config.device == "cuda"
+        else 0
+    )
     print(f"输出: {config.output} ({sr.size[0]}x{sr.size[1]})")
-    print(f"推理耗时: {elapsed*1000:.1f}ms  |  显存占用: {mem:.0f} MB")
+    print(f"推理耗时: {elapsed * 1000:.1f}ms  |  显存占用: {mem:.0f} MB")
 
 
 if __name__ == "__main__":

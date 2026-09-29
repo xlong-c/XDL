@@ -48,9 +48,7 @@ def _validate_fields(
 ) -> None:
     unknown = set(values) - allowed
     if unknown:
-        raise ConfigurationError(
-            f"unknown fields in {name}: {sorted(unknown)}"
-        )
+        raise ConfigurationError(f"unknown fields in {name}: {sorted(unknown)}")
 
 
 def _build_checkpoint_callback(
@@ -136,9 +134,7 @@ def setup_from_yaml(config_path: str | Path) -> JaxTrainSetup:
     )
     val_config = config.get("val_data")
     val_data = (
-        build_dataset(_require_mapping(val_config, "val_data"))
-        if val_config
-        else None
+        build_dataset(_require_mapping(val_config, "val_data")) if val_config else None
     )
     trainer_values = _require_mapping(config.get("trainer", {}), "trainer")
     runtime_values = _require_mapping(config.get("runtime", {}), "runtime")
@@ -183,9 +179,7 @@ def setup_from_yaml(config_path: str | Path) -> JaxTrainSetup:
         fail_on_callback_error=bool(
             trainer_values.get("fail_on_callback_error", False)
         ),
-        validate_every_n_epochs=int(
-            trainer_values.get("validate_every_n_epochs", 1)
-        ),
+        validate_every_n_epochs=int(trainer_values.get("validate_every_n_epochs", 1)),
         max_train_steps=trainer_values.get("max_train_steps"),
         platform=str(runtime_values.get("platform", "cpu")),
     )
@@ -212,10 +206,7 @@ def setup_from_yaml(config_path: str | Path) -> JaxTrainSetup:
         raise ConfigurationError("optimization.optimizer must be a mapping")
     if optimizer_config is not None:
         optimizer_target = str(optimizer_config.get("target", ""))
-        if (
-            ":" not in optimizer_target
-            or optimizer_target.split(":", 1)[0] != "optax"
-        ):
+        if ":" not in optimizer_target or optimizer_target.split(":", 1)[0] != "optax":
             raise ConfigurationError(
                 "xdl-jax optimization.optimizer target must use 'optax:name'"
             )

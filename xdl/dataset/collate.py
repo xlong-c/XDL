@@ -63,7 +63,10 @@ class DictCollate:
             values = [item[key] for item in batch]
             if isinstance(values[0], torch.Tensor):
                 first_shape = values[0].shape
-                if all(isinstance(v, torch.Tensor) and v.shape == first_shape for v in values):
+                if all(
+                    isinstance(v, torch.Tensor) and v.shape == first_shape
+                    for v in values
+                ):
                     collated[key] = default_collate(values)
                 else:
                     # 形状不一致的 tensor 保留为 list, 例如 pair/detection 的变长字段.

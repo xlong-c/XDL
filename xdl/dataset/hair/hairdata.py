@@ -11,7 +11,9 @@ from .hair_transforms import HairAugMixin
 class GridImageDataset(HairAugMixin, Dataset):
     """一个从CSV索引加载图像的数据集类, 从网格中提取特定部分。"""
 
-    def __init__(self, csv_file: str, base_dir: str, grid_rows: int | None = None) -> None:
+    def __init__(
+        self, csv_file: str, base_dir: str, grid_rows: int | None = None
+    ) -> None:
         self.csv_file = csv_file
         self.base_dir = base_dir
 

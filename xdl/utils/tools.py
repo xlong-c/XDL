@@ -168,11 +168,15 @@ def print_model_parameters(obj: nn.Module) -> None:
     # 遍历并打印每个模块的参数
     for name, module in modules_to_check:
         module_params = sum(p.numel() for p in module.parameters())
-        module_trainable = sum(p.numel() for p in module.parameters() if p.requires_grad)
+        module_trainable = sum(
+            p.numel() for p in module.parameters() if p.requires_grad
+        )
         module_frozen = module_params - module_trainable
 
         if module_params > 0:
-            trainable_ratio = module_trainable / module_params * 100 if module_params > 0 else 0
+            trainable_ratio = (
+                module_trainable / module_params * 100 if module_params > 0 else 0
+            )
             # 每一行数据使用固定宽度对齐
             print(
                 f"{name:<30} {module_params:>15,} {module_trainable:>15,} {module_frozen:>15,} {trainable_ratio:>11.2f}%"
@@ -196,7 +200,9 @@ def print_model_parameters(obj: nn.Module) -> None:
 
     # 打印总计
     print("-" * 91)
-    total_trainable_ratio = trainable_params / total_params * 100 if total_params > 0 else 0
+    total_trainable_ratio = (
+        trainable_params / total_params * 100 if total_params > 0 else 0
+    )
     # "总计" (2中文字=4宽, 补26空)
     print(
         f"{'总计' + ' ' * 26} {total_params:>15,} {trainable_params:>15,} {frozen_params:>15,} {total_trainable_ratio:>11.2f}%"

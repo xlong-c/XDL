@@ -44,7 +44,9 @@ class ImageFolderClassificationDataset(Dataset[Tuple[Any, Any]]):
             class_dirs = sorted(path for path in self.root.iterdir() if path.is_dir())
             self.class_to_idx = {path.name: idx for idx, path in enumerate(class_dirs)}
         else:
-            self.class_to_idx = {str(key): int(value) for key, value in class_to_idx.items()}
+            self.class_to_idx = {
+                str(key): int(value) for key, value in class_to_idx.items()
+            }
 
         self.classes = [
             class_name
@@ -59,12 +61,17 @@ class ImageFolderClassificationDataset(Dataset[Tuple[Any, Any]]):
 
     def _collect_samples(self) -> List[Tuple[Path, int]]:
         samples: List[Tuple[Path, int]] = []
-        for class_name, target in sorted(self.class_to_idx.items(), key=lambda item: item[1]):
+        for class_name, target in sorted(
+            self.class_to_idx.items(), key=lambda item: item[1]
+        ):
             class_dir = self.root / class_name
             if not class_dir.is_dir():
                 continue
             for image_path in sorted(class_dir.rglob("*")):
-                if image_path.is_file() and image_path.suffix.lower() in self.extensions:
+                if (
+                    image_path.is_file()
+                    and image_path.suffix.lower() in self.extensions
+                ):
                     samples.append((image_path, target))
         return samples
 
@@ -155,12 +162,13 @@ class RecordMultiLabelClassificationDataset(RecordDatasetBase):
         self.dtype = dtype
 
         label_lists = [
-            self._coerce_labels(record.get(self.labels_key))
-            for record in self.records
+            self._coerce_labels(record.get(self.labels_key)) for record in self.records
         ]
         # 多标签模板需要先扫描一次 manifest, 才能从字符串 label 推断 class_to_idx.
         flat_labels = [item for labels in label_lists for item in labels]
-        self.class_to_idx = build_label_mapping(flat_labels, class_to_idx) if flat_labels else None
+        self.class_to_idx = (
+            build_label_mapping(flat_labels, class_to_idx) if flat_labels else None
+        )
         if self.class_to_idx is not None:
             inferred_num_classes = len(self.class_to_idx)
             self.classes = [
@@ -177,7 +185,9 @@ class RecordMultiLabelClassificationDataset(RecordDatasetBase):
                 else 0
             )
             self.classes = []
-        self.num_classes = inferred_num_classes if num_classes is None else int(num_classes)
+        self.num_classes = (
+            inferred_num_classes if num_classes is None else int(num_classes)
+        )
         if self.num_classes < inferred_num_classes:
             raise ValueError(
                 f"num_classes={self.num_classes} is smaller than inferred class count "

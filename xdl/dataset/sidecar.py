@@ -27,6 +27,7 @@ from .utils import (
 # Basename-aligned sidecar reader registry
 # ---------------------------------------------------------------------------
 
+
 def _read_text_sidecar(path: Path) -> str:
     return path.read_text("utf-8").strip()
 

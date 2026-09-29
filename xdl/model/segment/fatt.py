@@ -83,7 +83,9 @@ class CBAM(nn.Module):
 
 
 def autopad(
-    k: Union[int, Tuple[int, int]], p: Union[int, Tuple[int, int], None] = None, d: int = 1
+    k: Union[int, Tuple[int, int]],
+    p: Union[int, Tuple[int, int], None] = None,
+    d: int = 1,
 ) -> Union[int, Tuple[int, int]]:  # kernel, padding, dilation
     """Pad to 'same' shape outputs."""
     if d > 1:
@@ -126,7 +128,9 @@ class Conv(nn.Module):
             act: Activation function
         """
         super().__init__()
-        self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False)
+        self.conv = nn.Conv2d(
+            c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False
+        )
         self.bn = nn.BatchNorm2d(c2)
         self.act = (
             self.default_act
@@ -210,16 +214,28 @@ class FATT(nn.Module):
         x1, x2, x3, x4 = x
         out_size = [x1.shape[2] * 4, x1.shape[3] * 4]
         x1 = F.interpolate(
-            self.pinwheel1(x1), size=self.size_fea[0], mode="bilinear", align_corners=True
+            self.pinwheel1(x1),
+            size=self.size_fea[0],
+            mode="bilinear",
+            align_corners=True,
         )  # 88
         x2 = F.interpolate(
-            self.pinwheel2(x2), size=self.size_fea[1], mode="bilinear", align_corners=True
+            self.pinwheel2(x2),
+            size=self.size_fea[1],
+            mode="bilinear",
+            align_corners=True,
         )  # 44
         x3 = F.interpolate(
-            self.pinwheel3(x3), size=self.size_fea[2], mode="bilinear", align_corners=True
+            self.pinwheel3(x3),
+            size=self.size_fea[2],
+            mode="bilinear",
+            align_corners=True,
         )  # 22
         x4 = F.interpolate(
-            self.pinwheel4(x4), size=self.size_fea[3], mode="bilinear", align_corners=True
+            self.pinwheel4(x4),
+            size=self.size_fea[3],
+            mode="bilinear",
+            align_corners=True,
         )  # 11
 
         fea = torch.cat(
@@ -245,19 +261,28 @@ class FATT(nn.Module):
         xx = F.interpolate(x4, x3.shape[2:], mode="bilinear", align_corners=False)
         # gf的输入是x1,x2,x3的平均化特征维度是[B,1,H,W],转换为对于的频域特征,在gf内部使用相同大小的权重进行点乘,然后转换回到空域最后的结果是[B,1,H,W]的
         xx = self.cbam1(
-            x3 * self.gf3(F.interpolate(fea, x3.shape[2:], mode="bilinear", align_corners=False))
+            x3
+            * self.gf3(
+                F.interpolate(fea, x3.shape[2:], mode="bilinear", align_corners=False)
+            )
             + xx
         ) * self.ca1(can)
         # ca1的输入是来自x1,x2,x3的特征图的全局平均池化,最后的结果是一个[B,C*3,1,1]的通道特征向量
         xx = F.interpolate(xx, x2.shape[2:], mode="bilinear", align_corners=False)
         xx = self.cbam2(
-            x2 * self.gf2(F.interpolate(fea, x2.shape[2:], mode="bilinear", align_corners=False))
+            x2
+            * self.gf2(
+                F.interpolate(fea, x2.shape[2:], mode="bilinear", align_corners=False)
+            )
             + xx
         ) * self.ca2(can)
 
         xx = F.interpolate(xx, x1.shape[2:], mode="bilinear", align_corners=False)
         xx = self.cbam3(
-            x1 * self.gf1(F.interpolate(fea, x1.shape[2:], mode="bilinear", align_corners=False))
+            x1
+            * self.gf1(
+                F.interpolate(fea, x1.shape[2:], mode="bilinear", align_corners=False)
+            )
             + xx
         ) * self.ca3(can)
         xx = self.out(xx)

@@ -63,7 +63,9 @@ class RecordImageTextDataset(RecordDatasetBase):
         image_path = self._resolve_record_path(record, self.image_key)
         image = apply_optional(self.transform, load_image(image_path, self.image_mode))
         text = self._select_text(record)
-        text_value = self.text_transform(text) if self.text_transform is not None else text
+        text_value = (
+            self.text_transform(text) if self.text_transform is not None else text
+        )
         sample: Record = {
             "image": image,
             "text": text_value,
@@ -115,9 +117,7 @@ class ImageTextSidecarDataset(Dataset[Record]):
 
         self.image_root = Path(resolved_image_root).expanduser().resolve()
         self.text_root = (
-            Path(text_root).expanduser().resolve()
-            if text_root is not None
-            else None
+            Path(text_root).expanduser().resolve() if text_root is not None else None
         )
         self.text_extension = normalize_extension(text_extension)
         self.transform = transform
@@ -146,7 +146,9 @@ class ImageTextSidecarDataset(Dataset[Record]):
             sidecar_name="text",
         )
         if not self.samples:
-            raise ValueError(f"No image/text sidecar samples found under: {self.image_root}")
+            raise ValueError(
+                f"No image/text sidecar samples found under: {self.image_root}"
+            )
 
     def _text_path_for_image(self, image_path: Path) -> Path:
         return sidecar_path_for_image(
@@ -168,7 +170,9 @@ class ImageTextSidecarDataset(Dataset[Record]):
                 self.transform,
                 load_image(image_path, self.image_mode),
             ),
-            "text": self.text_transform(text) if self.text_transform is not None else text,
+            "text": self.text_transform(text)
+            if self.text_transform is not None
+            else text,
             "sample_id": path_sample_id(
                 image_path,
                 root=self.image_root,
@@ -197,6 +201,8 @@ class ImageTextSidecarDataset(Dataset[Record]):
         raise ValueError(
             "text_selection must be one of: 'full', 'first_line', 'random_line'"
         )
+
+
 class ImagePromptDataset(Dataset[tuple[Any, str]]):
     """Manifest-backed image/prompt dataset for multimodal training.
 

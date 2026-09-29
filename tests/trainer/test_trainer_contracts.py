@@ -203,4 +203,3 @@ def test_tqdm_progress_bar_lr_formatting() -> None:
     assert TqdmCallback._format_metric_entry("loss", 0.123456) == "loss: 0.1235"
     # 0.0 保持 0.0000
     assert TqdmCallback._format_metric_entry("lr", 0.0) == "lr: 0.0000"
-

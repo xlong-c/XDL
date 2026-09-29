@@ -15,6 +15,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils import checkpoint
 
+
 def img2windows(img, H_sp, W_sp):
     """
     Input: Image (B, C, H, W)

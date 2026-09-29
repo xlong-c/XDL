@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from xdl.metric._utils import (
-    _segmentation_labels
-)
+from xdl.metric._utils import _segmentation_labels
 
 
 class IoU:
@@ -238,4 +236,3 @@ class FrequencyWeightedIoU(MeanIoU):
         iou = self.intersection / (self.union + self.epsilon)
         weights = self.target_count / total
         return (weights * iou).sum().item()
-

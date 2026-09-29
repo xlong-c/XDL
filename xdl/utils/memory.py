@@ -24,7 +24,10 @@ def enable_gradient_checkpointing(model: torch.nn.Module) -> bool:
     优先调用 ``gradient_checkpointing_enable()`` (HF 风格), 其次尝试
     ``set_gradient_checkpointing(True)``. 两者都没有时返回 False.
     """
-    for method_name in ("gradient_checkpointing_enable", "enable_gradient_checkpointing"):
+    for method_name in (
+        "gradient_checkpointing_enable",
+        "enable_gradient_checkpointing",
+    ):
         method = getattr(model, method_name, None)
         if callable(method):
             method()
@@ -53,9 +56,7 @@ def activation_offload_context(
     """
     hooks = getattr(torch.autograd.graph, "saved_tensors_hooks", None)
     if hooks is None:
-        logger.warning(
-            "当前 PyTorch 不支持 saved_tensors_hooks, 激活卸载被跳过"
-        )
+        logger.warning("当前 PyTorch 不支持 saved_tensors_hooks, 激活卸载被跳过")
         yield
         return
 

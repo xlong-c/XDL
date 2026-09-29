@@ -109,7 +109,9 @@ class ActivationOffloadCallback(Callback):
         del trainer, core_module, exception
         self._close()
 
-    def teardown(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
+    def teardown(
+        self, trainer: "Trainer", core_module: "CoreModel", stage: str
+    ) -> None:
         del trainer, core_module, stage
         self._close()
 

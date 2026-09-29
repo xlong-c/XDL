@@ -1,7 +1,11 @@
 import torch
 from torch import nn
 
-from xdl.analysis import attention_rollout, attention_rollout_for_model, capture_attention_maps
+from xdl.analysis import (
+    attention_rollout,
+    attention_rollout_for_model,
+    capture_attention_maps,
+)
 from xdl.model.vit import VisionTransformer
 
 

@@ -20,6 +20,7 @@ from xdl.utils.tiling import tile_inference
 @dataclass
 class Config:
     """DAT UltraSharpV2 推理配置"""
+
     input: str = "infer/images/debug_before_sr.png"
     output: str = "infer/images/debug_dat_ultrasharp_x4.png"
     weight: str = "others/4x-UltraSharpV2.pth"
@@ -61,7 +62,9 @@ def load_model(config: Config):
         model = torch.compile(model, mode="reduce-overhead")
 
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"已加载: DAT (dat_2) x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16+compile)")
+    print(
+        f"已加载: DAT (dat_2) x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16+compile)"
+    )
     return model
 
 
@@ -88,7 +91,13 @@ def main():
     t0 = time.perf_counter()
     with torch.no_grad():
         if config.tile:
-            out = tile_inference(model, tensor, tile_size=config.tile_size, tile_pad=config.tile_pad, scale=config.scale)
+            out = tile_inference(
+                model,
+                tensor,
+                tile_size=config.tile_size,
+                tile_pad=config.tile_pad,
+                scale=config.scale,
+            )
         else:
             out = model(tensor.unsqueeze(0)).squeeze(0)
     if config.device == "cuda":
@@ -99,9 +108,13 @@ def main():
     sr = to_pil_image(out.cpu())
     sr.save(config.output)
 
-    mem = torch.cuda.max_memory_reserved(config.device) / 1024 ** 2 if config.device == "cuda" else 0
+    mem = (
+        torch.cuda.max_memory_reserved(config.device) / 1024**2
+        if config.device == "cuda"
+        else 0
+    )
     print(f"输出: {config.output} ({sr.size[0]}x{sr.size[1]})")
-    print(f"推理耗时: {elapsed*1000:.1f}ms  |  显存占用: {mem:.0f} MB")
+    print(f"推理耗时: {elapsed * 1000:.1f}ms  |  显存占用: {mem:.0f} MB")
 
 
 if __name__ == "__main__":

@@ -21,8 +21,10 @@ import torch.nn.functional as F
 # 神经网络工具 (从 models/nn.py 内联)
 # ---------------------------------------------------------------------------
 
+
 class SiLU(nn.Module):
     """PyTorch 1.5 兼容的 SiLU 激活。"""
+
     def forward(self, x):
         return x * th.sigmoid(x)
 
@@ -66,12 +68,12 @@ def normalization(channels: int) -> nn.Module:
     return GroupNorm32(32, channels)
 
 
-def timestep_embedding(timesteps: th.Tensor, dim: int, max_period: int = 10000) -> th.Tensor:
+def timestep_embedding(
+    timesteps: th.Tensor, dim: int, max_period: int = 10000
+) -> th.Tensor:
     half = dim // 2
     freqs = th.exp(
-        -math.log(max_period)
-        * th.arange(start=0, end=half, dtype=th.float32)
-        / half
+        -math.log(max_period) * th.arange(start=0, end=half, dtype=th.float32) / half
     ).to(device=timesteps.device)
     args = timesteps[:, None] * freqs[None]
     embedding = th.cat([th.cos(args), th.sin(args)], dim=-1)
@@ -118,6 +120,7 @@ class CheckpointFunction(th.autograd.Function):
 # fp16/fp32 转换
 # ---------------------------------------------------------------------------
 
+
 def convert_module_to_f16(module: nn.Module):
     if isinstance(module, (nn.Conv1d, nn.Conv2d, nn.Conv3d)):
         module.weight.data = module.weight.data.half()
@@ -136,8 +139,10 @@ def convert_module_to_f32(module: nn.Module):
 # 注意力
 # ---------------------------------------------------------------------------
 
+
 class QKVAttention(nn.Module):
     """QKV 注意力 — head split 在 chunk 之前。"""
+
     def __init__(self, n_heads: int):
         super().__init__()
         self.n_heads = n_heads
@@ -160,6 +165,7 @@ class QKVAttention(nn.Module):
 
 class QKVAttentionLegacy(nn.Module):
     """QKV 注意力 (legacy) — split head 在 chunk 之前。"""
+
     def __init__(self, n_heads: int):
         super().__init__()
         self.n_heads = n_heads
@@ -178,6 +184,7 @@ class QKVAttentionLegacy(nn.Module):
 
 class AttentionPool2d(nn.Module):
     """CLIP 风格的 2D 注意力池化。"""
+
     def __init__(
         self,
         spacial_dim: int,
@@ -187,7 +194,7 @@ class AttentionPool2d(nn.Module):
     ):
         super().__init__()
         self.positional_embedding = nn.Parameter(
-            th.randn(embed_dim, spacial_dim ** 2 + 1) / embed_dim ** 0.5
+            th.randn(embed_dim, spacial_dim**2 + 1) / embed_dim**0.5
         )
         self.qkv_proj = conv_nd(1, embed_dim, 3 * embed_dim, 1)
         self.c_proj = conv_nd(1, embed_dim, output_dim or embed_dim, 1)
@@ -209,15 +216,17 @@ class AttentionPool2d(nn.Module):
 # UNet 构建块
 # ---------------------------------------------------------------------------
 
+
 class TimestepBlock(nn.Module):
     """forward 接受 timestep embedding 作为第二个参数的模块。"""
+
     @abstractmethod
-    def forward(self, x: th.Tensor, emb: th.Tensor):
-        ...
+    def forward(self, x: th.Tensor, emb: th.Tensor): ...
 
 
 class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
     """按序传递 timestep embedding 给子模块。"""
+
     def forward(self, x: th.Tensor, emb: th.Tensor) -> th.Tensor:
         for layer in self:
             if isinstance(layer, TimestepBlock):
@@ -228,7 +237,13 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
 
 
 class Upsample(nn.Module):
-    def __init__(self, channels: int, use_conv: bool, dims: int = 2, out_channels: Optional[int] = None):
+    def __init__(
+        self,
+        channels: int,
+        use_conv: bool,
+        dims: int = 2,
+        out_channels: Optional[int] = None,
+    ):
         super().__init__()
         self.channels = channels
         self.out_channels = out_channels or channels
@@ -240,7 +255,9 @@ class Upsample(nn.Module):
     def forward(self, x: th.Tensor) -> th.Tensor:
         assert x.shape[1] == self.channels
         if self.dims == 3:
-            x = F.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
+            x = F.interpolate(
+                x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest"
+            )
         else:
             x = F.interpolate(x, scale_factor=2, mode="nearest")
         if self.use_conv:
@@ -249,7 +266,13 @@ class Upsample(nn.Module):
 
 
 class Downsample(nn.Module):
-    def __init__(self, channels: int, use_conv: bool, dims: int = 2, out_channels: Optional[int] = None):
+    def __init__(
+        self,
+        channels: int,
+        use_conv: bool,
+        dims: int = 2,
+        out_channels: Optional[int] = None,
+    ):
         super().__init__()
         self.channels = channels
         self.out_channels = out_channels or channels
@@ -257,7 +280,9 @@ class Downsample(nn.Module):
         self.dims = dims
         stride = 2 if dims != 3 else (1, 2, 2)
         if use_conv:
-            self.op = conv_nd(dims, self.channels, self.out_channels, 3, stride=stride, padding=1)
+            self.op = conv_nd(
+                dims, self.channels, self.out_channels, 3, stride=stride, padding=1
+            )
         else:
             assert self.channels == self.out_channels
             self.op = avg_pool_nd(dims, kernel_size=stride, stride=stride)
@@ -315,24 +340,33 @@ class ResBlock(TimestepBlock):
 
         self.emb_layers = nn.Sequential(
             nn.SiLU(),
-            linear(emb_channels, 2 * self.out_channels if use_scale_shift_norm else self.out_channels),
+            linear(
+                emb_channels,
+                2 * self.out_channels if use_scale_shift_norm else self.out_channels,
+            ),
         )
         self.out_layers = nn.Sequential(
             normalization(self.out_channels) if self.use_group_norm else nn.Identity(),
             nn.SiLU(),
             nn.Dropout(p=dropout),
-            zero_module(conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1)),
+            zero_module(
+                conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1)
+            ),
         )
 
         if self.out_channels == channels:
             self.skip_connection = nn.Identity()
         elif use_conv:
-            self.skip_connection = conv_nd(dims, channels, self.out_channels, 3, padding=1)
+            self.skip_connection = conv_nd(
+                dims, channels, self.out_channels, 3, padding=1
+            )
         else:
             self.skip_connection = conv_nd(dims, channels, self.out_channels, 1)
 
     def forward(self, x: th.Tensor, emb: th.Tensor) -> th.Tensor:
-        return checkpoint(self._forward, (x, emb), self.parameters(), self.use_checkpoint)
+        return checkpoint(
+            self._forward, (x, emb), self.parameters(), self.use_checkpoint
+        )
 
     def _forward(self, x: th.Tensor, emb: th.Tensor) -> th.Tensor:
         if self.updown:
@@ -361,6 +395,7 @@ class ResBlock(TimestepBlock):
 
 class AttentionBlock(nn.Module):
     """空间自注意力块 — 兼容 N-d (1D/2D/3D)。"""
+
     def __init__(
         self,
         channels: int,
@@ -401,6 +436,7 @@ class AttentionBlock(nn.Module):
 # ---------------------------------------------------------------------------
 # OFTSR Guided UNet
 # ---------------------------------------------------------------------------
+
 
 class OFTSR_UNet(nn.Module):
     """条件 Flow Matching UNet — OFTSR 核心模型。
@@ -488,9 +524,9 @@ class OFTSR_UNet(nn.Module):
         self.dims = dims
         self.use_cond = use_cond
 
-        self.input_blocks = nn.ModuleList([
-            TimestepEmbedSequential(conv_nd(dims, in_channels, ch, 3, padding=1))
-        ])
+        self.input_blocks = nn.ModuleList(
+            [TimestepEmbedSequential(conv_nd(dims, in_channels, ch, 3, padding=1))]
+        )
         self._feature_size = ch
         input_block_chans = [ch]
         ds = 1
@@ -499,9 +535,12 @@ class OFTSR_UNet(nn.Module):
             for _ in range(num_res_blocks):
                 layers: list[nn.Module] = [
                     ResBlock(
-                        ch, time_embed_dim, dropout,
+                        ch,
+                        time_embed_dim,
+                        dropout,
                         out_channels=int(mult * model_channels),
-                        dims=dims, use_checkpoint=use_checkpoint,
+                        dims=dims,
+                        use_checkpoint=use_checkpoint,
                         use_scale_shift_norm=use_scale_shift_norm,
                         use_group_norm=self.use_group_norm,
                     )
@@ -510,7 +549,8 @@ class OFTSR_UNet(nn.Module):
                 if ds in attention_resolutions and self.use_attention:
                     layers.append(
                         AttentionBlock(
-                            ch, use_checkpoint=use_checkpoint,
+                            ch,
+                            use_checkpoint=use_checkpoint,
                             num_heads=num_heads,
                             num_head_channels=num_head_channels,
                             use_new_attention_order=use_new_attention_order,
@@ -526,15 +566,20 @@ class OFTSR_UNet(nn.Module):
                 self.input_blocks.append(
                     TimestepEmbedSequential(
                         ResBlock(
-                            ch, time_embed_dim, dropout,
-                            out_channels=out_ch, dims=dims,
+                            ch,
+                            time_embed_dim,
+                            dropout,
+                            out_channels=out_ch,
+                            dims=dims,
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             down=True,
                             use_group_norm=self.use_group_norm,
                         )
                         if resblock_updown
-                        else Downsample(ch, conv_resample, dims=dims, out_channels=out_ch)
+                        else Downsample(
+                            ch, conv_resample, dims=dims, out_channels=out_ch
+                        )
                     )
                 )
                 ch = out_ch
@@ -544,19 +589,29 @@ class OFTSR_UNet(nn.Module):
 
         self.middle_block = TimestepEmbedSequential(
             ResBlock(
-                ch, time_embed_dim, dropout, dims=dims,
+                ch,
+                time_embed_dim,
+                dropout,
+                dims=dims,
                 use_checkpoint=use_checkpoint,
                 use_scale_shift_norm=use_scale_shift_norm,
                 use_group_norm=self.use_group_norm,
             ),
             AttentionBlock(
-                ch, use_checkpoint=use_checkpoint,
-                num_heads=num_heads, num_head_channels=num_head_channels,
+                ch,
+                use_checkpoint=use_checkpoint,
+                num_heads=num_heads,
+                num_head_channels=num_head_channels,
                 use_new_attention_order=use_new_attention_order,
                 use_group_norm=self.use_group_norm,
-            ) if self.use_attention else nn.Identity(),
+            )
+            if self.use_attention
+            else nn.Identity(),
             ResBlock(
-                ch, time_embed_dim, dropout, dims=dims,
+                ch,
+                time_embed_dim,
+                dropout,
+                dims=dims,
                 use_checkpoint=use_checkpoint,
                 use_scale_shift_norm=use_scale_shift_norm,
                 use_group_norm=self.use_group_norm,
@@ -570,9 +625,12 @@ class OFTSR_UNet(nn.Module):
                 ich = input_block_chans.pop()
                 layers: list[nn.Module] = [
                     ResBlock(
-                        ch + ich, time_embed_dim, dropout,
+                        ch + ich,
+                        time_embed_dim,
+                        dropout,
                         out_channels=int(model_channels * mult),
-                        dims=dims, use_checkpoint=use_checkpoint,
+                        dims=dims,
+                        use_checkpoint=use_checkpoint,
                         use_scale_shift_norm=use_scale_shift_norm,
                         use_group_norm=self.use_group_norm,
                     )
@@ -581,7 +639,8 @@ class OFTSR_UNet(nn.Module):
                 if ds in attention_resolutions and self.use_attention:
                     layers.append(
                         AttentionBlock(
-                            ch, use_checkpoint=use_checkpoint,
+                            ch,
+                            use_checkpoint=use_checkpoint,
                             num_heads=num_heads_upsample,
                             num_head_channels=num_head_channels,
                             use_new_attention_order=use_new_attention_order,
@@ -592,8 +651,11 @@ class OFTSR_UNet(nn.Module):
                     out_ch = ch
                     layers.append(
                         ResBlock(
-                            ch, time_embed_dim, dropout,
-                            out_channels=out_ch, dims=dims,
+                            ch,
+                            time_embed_dim,
+                            dropout,
+                            out_channels=out_ch,
+                            dims=dims,
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             up=True,

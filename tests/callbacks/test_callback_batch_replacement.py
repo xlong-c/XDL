@@ -10,7 +10,11 @@ class NoReplaceCallback(Callback):
     """不替换 batch 的回调 (返回 None)."""
 
     def on_train_batch_start(
-        self, trainer: Any, core_module: Any, batch: Any, batch_idx: int,
+        self,
+        trainer: Any,
+        core_module: Any,
+        batch: Any,
+        batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         return None
@@ -20,7 +24,11 @@ class PassthroughCallback(Callback):
     """原样返回 batch (非 None, 等价于不替换)."""
 
     def on_train_batch_start(
-        self, trainer: Any, core_module: Any, batch: Any, batch_idx: int,
+        self,
+        trainer: Any,
+        core_module: Any,
+        batch: Any,
+        batch_idx: int,
         dataloader_idx: int = 0,
     ) -> Any:
         return batch
@@ -34,7 +42,11 @@ class ReplaceBatchCallback(Callback):
         self.replacement = replacement
 
     def on_train_batch_start(
-        self, trainer: Any, core_module: Any, batch: Any, batch_idx: int,
+        self,
+        trainer: Any,
+        core_module: Any,
+        batch: Any,
+        batch_idx: int,
         dataloader_idx: int = 0,
     ) -> Any:
         return self.replacement
@@ -48,7 +60,11 @@ class ObserveBatchCallback(Callback):
         self.seen: Any = None
 
     def on_train_batch_start(
-        self, trainer: Any, core_module: Any, batch: Any, batch_idx: int,
+        self,
+        trainer: Any,
+        core_module: Any,
+        batch: Any,
+        batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         self.seen = batch

@@ -95,15 +95,11 @@ def test_interrupted_and_restored_training_matches_continuous_run(
 
     continuous_leaves = [
         np.asarray(value)
-        for value in jax.tree_util.tree_leaves(
-            continuous.state.model_state.params
-        )
+        for value in jax.tree_util.tree_leaves(continuous.state.model_state.params)
     ]
     resumed_leaves = [
         np.asarray(value)
-        for value in jax.tree_util.tree_leaves(
-            resumed.state.model_state.params
-        )
+        for value in jax.tree_util.tree_leaves(resumed.state.model_state.params)
     ]
     assert len(continuous_leaves) == len(resumed_leaves)
     assert all(

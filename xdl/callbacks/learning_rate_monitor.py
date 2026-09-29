@@ -43,7 +43,9 @@ class LearningRateMonitor(Callback):
 
         # 验证参数
         if self.logging_interval not in ["epoch", "step"]:
-            raise ValueError(f"logging_interval must be 'epoch' or 'step', got {logging_interval}")
+            raise ValueError(
+                f"logging_interval must be 'epoch' or 'step', got {logging_interval}"
+            )
 
         # 状态管理
         self._state.update({"last_lr_values": {}, "lr_history": []})
@@ -55,7 +57,9 @@ class LearningRateMonitor(Callback):
         if self.logging_interval == "epoch":
             self._log_learning_rates(trainer, core_module, "epoch")
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """训练批次结束时记录学习率(如果间隔为step)"""
         if self.logging_interval == "step":
             # 按频率记录, 避免过于频繁
@@ -98,7 +102,9 @@ class LearningRateMonitor(Callback):
                         self._logger.info(f"LearningRateMonitor - {name}: lr={lr:.6e}")
                 else:
                     if self.verbose:
-                        self._logger.info(f"LearningRateMonitor - {name}: lr={info:.6e}")
+                        self._logger.info(
+                            f"LearningRateMonitor - {name}: lr={info:.6e}"
+                        )
 
         except Exception as e:
             self._logger.error(f"Error logging learning rates: {e}")
@@ -131,7 +137,8 @@ class LearningRateMonitor(Callback):
                 # 记录动量(如果启用)
                 if self.log_momentum:
                     momentums = [
-                        param_group.get("momentum", 0) for param_group in optimizer.param_groups
+                        param_group.get("momentum", 0)
+                        for param_group in optimizer.param_groups
                     ]
                     if any(m > 0 for m in momentums):
                         lr_info[f"{name}_momentum"] = (
@@ -141,15 +148,20 @@ class LearningRateMonitor(Callback):
                 # 记录权重衰减(如果启用)
                 if self.log_weight_decay:
                     weight_decays = [
-                        param_group.get("weight_decay", 0) for param_group in optimizer.param_groups
+                        param_group.get("weight_decay", 0)
+                        for param_group in optimizer.param_groups
                     ]
                     if any(wd > 0 for wd in weight_decays):
                         lr_info[f"{name}_weight_decay"] = (
-                            weight_decays[0] if len(weight_decays) == 1 else weight_decays
+                            weight_decays[0]
+                            if len(weight_decays) == 1
+                            else weight_decays
                         )
 
             except Exception as e:
-                self._logger.warning(f"Error extracting learning rate info from {name}: {e}")
+                self._logger.warning(
+                    f"Error extracting learning rate info from {name}: {e}"
+                )
 
         return lr_info
 

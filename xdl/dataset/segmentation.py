@@ -54,9 +54,7 @@ class ImageMaskSidecarDataset(Dataset[Record]):
 
         self.image_root = Path(resolved_image_root).expanduser().resolve()
         self.mask_root = (
-            Path(mask_root).expanduser().resolve()
-            if mask_root is not None
-            else None
+            Path(mask_root).expanduser().resolve() if mask_root is not None else None
         )
         self.mask_extension = mask_extension
         self.transform = transform
@@ -84,7 +82,9 @@ class ImageMaskSidecarDataset(Dataset[Record]):
             sidecar_name="mask",
         )
         if not self.samples:
-            raise ValueError(f"No image/mask sidecar samples found under: {self.image_root}")
+            raise ValueError(
+                f"No image/mask sidecar samples found under: {self.image_root}"
+            )
 
     def __len__(self) -> int:
         return len(self.samples) * self.repeat

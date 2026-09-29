@@ -66,7 +66,9 @@ def feature_distillation_loss(
     """Match intermediate features with MSE or normalized cosine-style MSE."""
 
     if student_features.shape != teacher_features.shape:
-        raise ValueError("student_features and teacher_features must have the same shape")
+        raise ValueError(
+            "student_features and teacher_features must have the same shape"
+        )
 
     student = student_features.float().reshape(student_features.shape[0], -1)
     teacher = teacher_features.float().reshape(teacher_features.shape[0], -1)
@@ -85,7 +87,9 @@ def relation_distillation_loss(
     """Match pairwise sample relations inside a batch."""
 
     if student_features.shape != teacher_features.shape:
-        raise ValueError("student_features and teacher_features must have the same shape")
+        raise ValueError(
+            "student_features and teacher_features must have the same shape"
+        )
 
     student = F.normalize(
         student_features.float().reshape(student_features.shape[0], -1), dim=-1
@@ -130,7 +134,9 @@ def distillation_loss(
     feature_loss: Optional[torch.Tensor] = None
     if feature_student is not None or feature_teacher is not None:
         if feature_student is None or feature_teacher is None:
-            raise ValueError("feature_student and feature_teacher must be provided together")
+            raise ValueError(
+                "feature_student and feature_teacher must be provided together"
+            )
         feature_loss = feature_distillation_loss(feature_student, feature_teacher)
 
     relation_loss: Optional[torch.Tensor] = None

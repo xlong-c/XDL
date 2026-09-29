@@ -1,6 +1,11 @@
 import torch
 
-from xdl.analysis import concept_activation_vector, fit_concept_probe, tcav_from_probe, tcav_score
+from xdl.analysis import (
+    concept_activation_vector,
+    fit_concept_probe,
+    tcav_from_probe,
+    tcav_score,
+)
 
 
 def test_fit_concept_probe_learns_binary_concept_direction() -> None:

@@ -179,7 +179,10 @@ def _build_nested_component_value(value: Any, *, nested_kind: str) -> Any:
             for key, item in value.items()
         }
     if isinstance(value, list):
-        return [_build_nested_component_value(item, nested_kind=nested_kind) for item in value]
+        return [
+            _build_nested_component_value(item, nested_kind=nested_kind)
+            for item in value
+        ]
     return value
 
 
@@ -192,7 +195,9 @@ def _build_component(
         config,
         kind=kind,
     )
-    component_cls = _resolve_component(kind, component_cfg["type"], component_cfg["source"])
+    component_cls = _resolve_component(
+        kind, component_cfg["type"], component_cfg["source"]
+    )
     params = dict(component_cfg["params"])
 
     if kind == "transform":
@@ -221,11 +226,15 @@ def _normalize_transform_shorthand(config: Any) -> Any:
         }
 
     if not isinstance(config, Mapping):
-        raise ConfigValidationError("transform config must be a mapping, list, or target string")
+        raise ConfigValidationError(
+            "transform config must be a mapping, list, or target string"
+        )
 
     config_dict = dict(config)
     if "target" not in config_dict:
-        raise ConfigValidationError("transform config requires 'target' when using mapping syntax")
+        raise ConfigValidationError(
+            "transform config requires 'target' when using mapping syntax"
+        )
 
     invalid_inline_keys = sorted(
         key
@@ -249,8 +258,7 @@ def _normalize_transform_shorthand(config: Any) -> Any:
 
     if "transforms" in params and isinstance(params["transforms"], list):
         params["transforms"] = [
-            _normalize_transform_shorthand(item)
-            for item in params["transforms"]
+            _normalize_transform_shorthand(item) for item in params["transforms"]
         ]
 
     normalized = {
@@ -294,7 +302,9 @@ def build_transform(config: Any) -> Any:
     elif isinstance(config, Mapping):
         normalized = _normalize_transform_shorthand(dict(config))
     else:
-        raise ConfigValidationError("transform config must be a mapping, list, or target string")
+        raise ConfigValidationError(
+            "transform config must be a mapping, list, or target string"
+        )
 
     return _build_component(normalized, kind="transform")
 
@@ -324,7 +334,9 @@ def build_dataset(config: Dict[str, Any], transform: Optional[Any] = None) -> An
         if optional_key in params:
             params[optional_key] = _resolve_optional_transform(params[optional_key])
 
-    dataset_cls = _resolve_component("dataset", dataset_cfg["type"], dataset_cfg["source"])
+    dataset_cls = _resolve_component(
+        "dataset", dataset_cfg["type"], dataset_cfg["source"]
+    )
     return dataset_cls(**params)
 
 
@@ -343,7 +355,9 @@ def build_dataloader(
 
 def _module_parameters(module: Any) -> List[torch.nn.Parameter]:
     if not hasattr(module, "parameters"):
-        raise ConfigValidationError(f"Target '{type(module).__name__}' does not expose parameters()")
+        raise ConfigValidationError(
+            f"Target '{type(module).__name__}' does not expose parameters()"
+        )
     return list(module.parameters())
 
 
@@ -359,7 +373,9 @@ def _select_model_parameters(
     elif isinstance(target_modules, Sequence):
         target_names = [str(name) for name in target_modules]
     else:
-        raise ConfigValidationError("optimizer target modules must be a string or list of strings")
+        raise ConfigValidationError(
+            "optimizer target modules must be a string or list of strings"
+        )
 
     aliases = {"model", "all"}
     collected: List[torch.nn.Parameter] = []
@@ -370,7 +386,9 @@ def _select_model_parameters(
             modules = [model]
         else:
             if not hasattr(model, name):
-                raise ConfigValidationError(f"Model has no submodule or attribute named '{name}'")
+                raise ConfigValidationError(
+                    f"Model has no submodule or attribute named '{name}'"
+                )
             modules = [getattr(model, name)]
 
         for module in modules:
@@ -528,6 +546,8 @@ def build_metrics(config: List[Dict[str, Any]]) -> List[Any]:
             metric_item,
             kind="metric",
         )
-        metric_cls = _resolve_component("metric", metric_cfg["type"], metric_cfg["source"])
+        metric_cls = _resolve_component(
+            "metric", metric_cfg["type"], metric_cfg["source"]
+        )
         metrics.append(metric_cls(**metric_cfg["params"]))
     return metrics

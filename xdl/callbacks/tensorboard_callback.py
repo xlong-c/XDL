@@ -83,7 +83,9 @@ class TensorBoardCallback(Callback):
     def setup(self, trainer, core_module, stage: str):
         """初始化计数器"""
         # DDP 下只让主进程创建 writer, 避免多个进程写同一目录互相覆盖.
-        is_main = trainer.is_main_process() if hasattr(trainer, "is_main_process") else True
+        is_main = (
+            trainer.is_main_process() if hasattr(trainer, "is_main_process") else True
+        )
         self._enabled = bool(is_main)
 
         if self._enabled and TENSORBOARD_AVAILABLE and SummaryWriter is not None:
@@ -123,7 +125,14 @@ class TensorBoardCallback(Callback):
             self.hparams_cache.update(hparams)
 
     def on_train_batch_end(
-        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx: int = 0, **kwargs
+        self,
+        trainer,
+        core_module,
+        outputs,
+        batch,
+        batch_idx,
+        dataloader_idx: int = 0,
+        **kwargs,
     ):
         """训练批次结束时的TensorBoard记录"""
         if not self.log_train or not self.writer:
@@ -164,7 +173,14 @@ class TensorBoardCallback(Callback):
         self._maybe_flush()
 
     def on_validation_batch_end(
-        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx: int = 0, **kwargs
+        self,
+        trainer,
+        core_module,
+        outputs,
+        batch,
+        batch_idx,
+        dataloader_idx: int = 0,
+        **kwargs,
     ):
         """验证批次结束时的TensorBoard记录"""
         if not self.log_validation or not self.writer:
@@ -184,7 +200,9 @@ class TensorBoardCallback(Callback):
                 for name, value in metrics.items():
                     if self.metric_prefix and not name.startswith("val/"):
                         name = f"val/{name}"
-                    self.writer.add_scalar(name, value, self.train_step)  # 使用全局训练步数
+                    self.writer.add_scalar(
+                        name, value, self.train_step
+                    )  # 使用全局训练步数
 
                 # 定期刷新
                 self._maybe_flush()
@@ -201,7 +219,9 @@ class TensorBoardCallback(Callback):
                 for name, value in val_metrics.items():
                     if self.metric_prefix and not name.startswith("val/"):
                         name = f"val/{name}"
-                    self.writer.add_scalar(name, value, self.train_step)  # 使用全局训练步数
+                    self.writer.add_scalar(
+                        name, value, self.train_step
+                    )  # 使用全局训练步数
 
         # 定期刷新
         self._maybe_flush()
@@ -234,13 +254,17 @@ class TensorBoardCallback(Callback):
         # 从模型收集参数
         if hasattr(core_module, "parameters"):
             total_params = sum(p.numel() for p in core_module.parameters())
-            trainable_params = sum(p.numel() for p in core_module.parameters() if p.requires_grad)
+            trainable_params = sum(
+                p.numel() for p in core_module.parameters() if p.requires_grad
+            )
             hparams["model/total_parameters"] = total_params
             hparams["model/trainable_parameters"] = trainable_params
 
         return hparams
 
-    def _extract_metrics(self, core_module, outputs: Optional[Dict[str, Any]]) -> Dict[str, float]:
+    def _extract_metrics(
+        self, core_module, outputs: Optional[Dict[str, Any]]
+    ) -> Dict[str, float]:
         """
         从core_module和outputs中提取指标
 
@@ -269,7 +293,10 @@ class TensorBoardCallback(Callback):
 
     def _maybe_flush(self):
         """根据需要刷新数据到磁盘"""
-        if self.writer and (self.train_step - self.last_flush_step) >= self.flush_frequency:
+        if (
+            self.writer
+            and (self.train_step - self.last_flush_step) >= self.flush_frequency
+        ):
             self.writer.flush()
             self.last_flush_step = self.train_step
 

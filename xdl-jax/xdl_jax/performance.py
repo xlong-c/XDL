@@ -59,7 +59,9 @@ def benchmark_callable(
     """测量 callable, 将首次执行单独计为 compile/first-execution 时间."""
 
     if warmup_steps < 0 or measured_steps < 1:
-        raise ValueError("warmup_steps must be >= 0 and measured_steps must be positive")
+        raise ValueError(
+            "warmup_steps must be >= 0 and measured_steps must be positive"
+        )
     started = time.perf_counter()
     result = _block(fn(*args, **kwargs))
     first_compile_time_s = time.perf_counter() - started

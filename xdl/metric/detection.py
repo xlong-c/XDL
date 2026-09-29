@@ -11,7 +11,7 @@ from xdl.metric._utils import (
     _aligned_box_iou,
     _box_area,
     _boxes_to_xyxy,
-    _prediction_tensor
+    _prediction_tensor,
 )
 
 
@@ -182,4 +182,3 @@ class DetectionMeanAveragePrecision:
             precision[index - 1] = torch.maximum(precision[index - 1], precision[index])
         delta = recall[1:] - recall[:-1]
         return float((delta * precision[1:]).sum().item())
-

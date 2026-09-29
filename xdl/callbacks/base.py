@@ -40,7 +40,9 @@ class Callback:
         """Called when fit or test begins"""
         pass
 
-    def teardown(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
+    def teardown(
+        self, trainer: "Trainer", core_module: "CoreModel", stage: str
+    ) -> None:
         """Called when fit or test ends"""
         pass
 
@@ -50,7 +52,9 @@ class Callback:
     def on_train_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         pass
 
-    def on_train_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_train_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         pass
 
     def on_train_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
@@ -107,27 +111,43 @@ class Callback:
     def on_validation_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         pass
 
-    def on_validation_end(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
-        pass
-
-    def on_validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
-        pass
-
-    def on_validation_epoch_end(
-        self, trainer: "Trainer", core_module: "CoreModel", outputs: Optional[Any] = None, **kwargs: Any
+    def on_validation_end(
+        self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
     ) -> None:
         pass
 
-    def on_test_start(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
+    def on_validation_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
+    ) -> None:
         pass
 
-    def on_test_end(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
+    def on_validation_epoch_end(
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> None:
         pass
 
-    def on_test_epoch_start(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
+    def on_test_start(
+        self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
+    ) -> None:
         pass
 
-    def on_test_epoch_end(self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any) -> None:
+    def on_test_end(
+        self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
+    ) -> None:
+        pass
+
+    def on_test_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
+    ) -> None:
+        pass
+
+    def on_test_epoch_end(
+        self, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
+    ) -> None:
         pass
 
     def on_predict_batch_start(
@@ -312,10 +332,14 @@ class Callback:
         """Called when predict ends"""
         pass
 
-    def on_predict_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_predict_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         pass
 
-    def on_predict_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_predict_epoch_end(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         pass
 
     # ========================================

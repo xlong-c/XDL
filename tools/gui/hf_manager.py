@@ -255,7 +255,9 @@ def scan_cache_file_types(cache_dir: Path) -> dict[str, int]:
             for filename in filenames:
                 suffix = Path(filename).suffix.lower() or "(noext)"
                 try:
-                    extensions[suffix] += os.path.getsize(os.path.join(dirpath, filename))
+                    extensions[suffix] += os.path.getsize(
+                        os.path.join(dirpath, filename)
+                    )
                 except OSError:
                     pass
     except (PermissionError, OSError):
@@ -346,7 +348,9 @@ def collect_summary() -> dict[str, Any]:
 
         # hub/ 目录物理占用(不跟随符号链接,真实磁盘占用)
         hub_path = cache_dir / "hub"
-        raw_hub_size = get_dir_size(hub_path, follow_symlinks=False) if hub_path.exists() else 0
+        raw_hub_size = (
+            get_dir_size(hub_path, follow_symlinks=False) if hub_path.exists() else 0
+        )
 
         # .incomplete 统计
         incomplete_count = 0
@@ -357,7 +361,9 @@ def collect_summary() -> dict[str, Any]:
                     if fn.endswith(".incomplete"):
                         incomplete_count += 1
                         try:
-                            incomplete_size += os.path.getsize(os.path.join(dirpath, fn))
+                            incomplete_size += os.path.getsize(
+                                os.path.join(dirpath, fn)
+                            )
                         except OSError:
                             pass
 
@@ -401,7 +407,9 @@ def collect_summary() -> dict[str, Any]:
         )[:ENV_FILE_TYPES_LIMIT]
     ]
 
-    top_repos_raw = sorted(all_repos, key=lambda repo: repo["size"], reverse=True)[:TOP_REPOS_LIMIT]
+    top_repos_raw = sorted(all_repos, key=lambda repo: repo["size"], reverse=True)[
+        :TOP_REPOS_LIMIT
+    ]
 
     def _decorate(repo: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -416,7 +424,11 @@ def collect_summary() -> dict[str, Any]:
     for repo in all_repos:
         tp = repo["type"]
         if tp not in type_counts:
-            type_counts[tp] = {"count": 0, "size": 0, "label": REPO_TYPE_LABELS.get(tp, tp)}
+            type_counts[tp] = {
+                "count": 0,
+                "size": 0,
+                "label": REPO_TYPE_LABELS.get(tp, tp),
+            }
         type_counts[tp]["count"] += 1
         type_counts[tp]["size"] += repo["size"]
     type_counts_list = [
@@ -427,7 +439,9 @@ def collect_summary() -> dict[str, Any]:
             "size": info["size"],
             "size_text": format_size(info["size"]),
         }
-        for tp, info in sorted(type_counts.items(), key=lambda kv: kv[1]["size"], reverse=True)
+        for tp, info in sorted(
+            type_counts.items(), key=lambda kv: kv[1]["size"], reverse=True
+        )
     ]
 
     return {

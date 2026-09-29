@@ -77,7 +77,9 @@ class LayerMonitor(Callback):
 
         # 验证参数
         if self.logging_interval not in ["epoch", "step"]:
-            raise ValueError(f"logging_interval must be 'epoch' or 'step', got {logging_interval}")
+            raise ValueError(
+                f"logging_interval must be 'epoch' or 'step', got {logging_interval}"
+            )
 
         # 状态管理
         self._state.update({"layer_stats_history": [], "matched_layers": []})
@@ -103,9 +105,14 @@ class LayerMonitor(Callback):
             if epoch % self.log_frequency == 0:
                 self._record_layer_stats(trainer, core_module, "epoch")
 
-    def on_train_batch_end(self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_train_batch_end(
+        self, trainer, core_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         """每个 batch 结束时记录统计（如果间隔为 step）"""
-        if self.logging_interval == "step" and batch_idx % (self.log_frequency * 10) == 0:
+        if (
+            self.logging_interval == "step"
+            and batch_idx % (self.log_frequency * 10) == 0
+        ):
             # 降低记录频率避免日志过多
             self._record_layer_stats(trainer, core_module, "step")
 
@@ -115,7 +122,9 @@ class LayerMonitor(Callback):
         model = core_module
 
         # 如果 core_module 包装了 model，获取实际的 model
-        if hasattr(core_module, "model") and hasattr(core_module.model, "named_parameters"):
+        if hasattr(core_module, "model") and hasattr(
+            core_module.model, "named_parameters"
+        ):
             model = core_module.model
 
         # 获取所有参数名称
@@ -125,7 +134,10 @@ class LayerMonitor(Callback):
         for pattern in self.layer_names:
             # 支持简单的通配符匹配
             for param_name in all_param_names:
-                if self._match_pattern(pattern, param_name) and param_name not in matched:
+                if (
+                    self._match_pattern(pattern, param_name)
+                    and param_name not in matched
+                ):
                     matched.append(param_name)
 
         self._state["matched_layers"] = sorted(matched)
@@ -154,7 +166,9 @@ class LayerMonitor(Callback):
             model = core_module
 
             # 如果 core_module 包装了 model，获取实际的 model
-            if hasattr(core_module, "model") and hasattr(core_module.model, "named_parameters"):
+            if hasattr(core_module, "model") and hasattr(
+                core_module.model, "named_parameters"
+            ):
                 model = core_module.model
 
             stats = {

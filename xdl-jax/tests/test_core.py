@@ -41,10 +41,7 @@ def _tree_allclose(left: object, right: object, atol: float = 1e-6) -> bool:
 
 def test_import_does_not_load_torch() -> None:
     package_root = Path(__file__).parents[1]
-    script = (
-        "import sys; import xdl_jax; "
-        "assert 'torch' not in sys.modules"
-    )
+    script = "import sys; import xdl_jax; assert 'torch' not in sys.modules"
     result = subprocess.run(
         [sys.executable, "-c", script],
         cwd=package_root,
@@ -213,8 +210,16 @@ def test_nnx_adapter_supports_dropout_batchnorm_and_eval_state() -> None:
         lambda rng, batch: TinyStatefulNNX(nnx.Rngs(rng)),
     )
     inputs = jnp.asarray(
-        [[1.0, 2.0], [2.0, 4.0], [3.0, 6.0], [4.0, 8.0],
-         [5.0, 10.0], [6.0, 12.0], [7.0, 14.0], [8.0, 16.0]],
+        [
+            [1.0, 2.0],
+            [2.0, 4.0],
+            [3.0, 6.0],
+            [4.0, 8.0],
+            [5.0, 10.0],
+            [6.0, 12.0],
+            [7.0, 14.0],
+            [8.0, 16.0],
+        ],
         dtype=jnp.float32,
     )
     state = adapter.initialize(jax.random.key(17), inputs)

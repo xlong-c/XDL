@@ -26,8 +26,11 @@ from xdl.model.lowlevel.rrdb_arch import RRDBNet, RRDB, make_layer
 # 工具函数
 # ---------------------------------------------------------------------------
 
+
 @torch.no_grad()
-def _default_init_weights(module_list, scale: float = 1.0, bias_fill: float = 0, **kwargs):
+def _default_init_weights(
+    module_list, scale: float = 1.0, bias_fill: float = 0, **kwargs
+):
     if not isinstance(module_list, list):
         module_list = [module_list]
     for module in module_list:
@@ -51,6 +54,7 @@ def _default_init_weights(module_list, scale: float = 1.0, bias_fill: float = 0,
 # ---------------------------------------------------------------------------
 # 模型
 # ---------------------------------------------------------------------------
+
 
 class AutoEncoder_RRDBNet(nn.Module):
     """AESOP 核心 Auto-Encoder — 用于计算 L_AESOP loss。
@@ -101,7 +105,9 @@ class AutoEncoder_RRDBNet(nn.Module):
             nn.PixelUnshuffle(2),
             nn.PixelUnshuffle(2),
         )
-        self.body = make_layer(RRDB, num_basic_block=2, num_feat=num_feat, num_grow_ch=num_grow_ch)
+        self.body = make_layer(
+            RRDB, num_basic_block=2, num_feat=num_feat, num_grow_ch=num_grow_ch
+        )
         self.conv_last = nn.Sequential(
             nn.Conv2d(num_feat, num_feat, 3, 1, 1),
             nn.Conv2d(num_feat, num_in_ch, 3, 1, 1),
@@ -197,7 +203,9 @@ class ProbabilisticAutoEncoder_RRDBNet(AutoEncoder_RRDBNet):
         self._body_feat: torch.Tensor | None = None
         self._conv_first_feat: torch.Tensor | None = None
         self._body_hook = self.decoder.body.register_forward_hook(self._hook_body)
-        self._conv_first_hook = self.decoder.body[0].register_forward_hook(self._hook_conv_first)
+        self._conv_first_hook = self.decoder.body[0].register_forward_hook(
+            self._hook_conv_first
+        )
 
     def _hook_body(self, module, input, output):
         self._body_feat = output.clone()

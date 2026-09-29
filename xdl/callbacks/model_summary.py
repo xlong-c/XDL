@@ -37,7 +37,12 @@ class ModelSummary(Callback):
 
         # 状态管理
         self._state.update(
-            {"model_summary": {}, "parameter_count": 0, "layer_count": 0, "model_size_mb": 0}
+            {
+                "model_summary": {},
+                "parameter_count": 0,
+                "layer_count": 0,
+                "model_size_mb": 0,
+            }
         )
 
         self._logger = logging.getLogger(__name__)
@@ -78,7 +83,9 @@ class ModelSummary(Callback):
         summary.update(layer_info)
 
         # 计算模型大小
-        summary["model_size_mb"] = summary["total_params"] * 4 / (1024**2)  # 假设float32
+        summary["model_size_mb"] = (
+            summary["total_params"] * 4 / (1024**2)
+        )  # 假设float32
 
         return summary
 
@@ -187,7 +194,9 @@ class ModelSummary(Callback):
 
         # 参数分布
         if summary["trainable_params"] > 0:
-            trainable_ratio = (summary["trainable_params"] / summary["total_params"]) * 100
+            trainable_ratio = (
+                summary["trainable_params"] / summary["total_params"]
+            ) * 100
             print(f"Trainable parameter ratio: {trainable_ratio:.1f}%")
 
         # 层结构(如果深度允许)
@@ -195,7 +204,9 @@ class ModelSummary(Callback):
             print("\n" + "-" * 80)
             print("LAYER STRUCTURE")
             print("-" * 80)
-            print(f"{'Layer Name':<40} {'Type':<20} {'Params':<15} {'Output Shape':<15}")
+            print(
+                f"{'Layer Name':<40} {'Type':<20} {'Params':<15} {'Output Shape':<15}"
+            )
             print("-" * 80)
 
             for layer in summary["layer_info"]:

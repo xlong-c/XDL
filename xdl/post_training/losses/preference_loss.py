@@ -262,13 +262,11 @@ def _validate_preference_shapes(
         )
     if rw.shape != rl.shape:
         raise ValueError(
-            f"ref_win and ref_lose must have same shape, "
-            f"got {rw.shape} vs {rl.shape}"
+            f"ref_win and ref_lose must have same shape, got {rw.shape} vs {rl.shape}"
         )
     if pw.shape != rw.shape:
         raise ValueError(
-            f"policy and ref shapes must match, "
-            f"got {pw.shape} vs {rw.shape}"
+            f"policy and ref shapes must match, got {pw.shape} vs {rw.shape}"
         )
 
 

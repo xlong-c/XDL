@@ -23,21 +23,33 @@ PRESETS = {
     "rgt": {
         "weight": "others/RGT_x2.pth",
         "cfg": {
-            "img_size": 64, "in_chans": 3, "embed_dim": 180,
+            "img_size": 64,
+            "in_chans": 3,
+            "embed_dim": 180,
             "depth": [6, 6, 6, 6, 6, 6, 6, 6],
             "num_heads": [6, 6, 6, 6, 6, 6, 6, 6],
-            "mlp_ratio": 2, "upscale": 2, "split_size": [8, 32],
-            "c_ratio": 0.5, "resi_connection": "1conv", "img_range": 1.0,
+            "mlp_ratio": 2,
+            "upscale": 2,
+            "split_size": [8, 32],
+            "c_ratio": 0.5,
+            "resi_connection": "1conv",
+            "img_range": 1.0,
         },
     },
     "rgt_s": {
         "weight": "others/RGT_S_x2.pth",
         "cfg": {
-            "img_size": 64, "in_chans": 3, "embed_dim": 180,
+            "img_size": 64,
+            "in_chans": 3,
+            "embed_dim": 180,
             "depth": [6, 6, 6, 6, 6, 6],
             "num_heads": [6, 6, 6, 6, 6, 6],
-            "mlp_ratio": 2, "upscale": 2, "split_size": [8, 32],
-            "c_ratio": 0.5, "resi_connection": "1conv", "img_range": 1.0,
+            "mlp_ratio": 2,
+            "upscale": 2,
+            "split_size": [8, 32],
+            "c_ratio": 0.5,
+            "resi_connection": "1conv",
+            "img_range": 1.0,
         },
     },
 }
@@ -46,6 +58,7 @@ PRESETS = {
 @dataclass
 class Config:
     """RGT x2 超分辨率推理"""
+
     input: str = "infer/images/debug_before_sr.png"
     output: str = "infer/images/debug_rgt_x2.png"
     model: str = "rgt"
@@ -72,14 +85,18 @@ def load_model(config: Config) -> RGT:
     model.eval()
 
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"已加载: {config.model} ({n_params:.1f}M) <- {preset['weight']}  (fp16={config.fp16})")
+    print(
+        f"已加载: {config.model} ({n_params:.1f}M) <- {preset['weight']}  (fp16={config.fp16})"
+    )
     return model
 
 
 def main():
     config = parse_dataclass_cli(Config)
 
-    print(f"设备: {config.device}  |  {config.model}  |  fp16={config.fp16}  |  tile={config.tile_size if config.tile else 0}  |  batch={config.batch_size}")
+    print(
+        f"设备: {config.device}  |  {config.model}  |  fp16={config.fp16}  |  tile={config.tile_size if config.tile else 0}  |  batch={config.batch_size}"
+    )
 
     model = load_model(config)
 
@@ -101,7 +118,14 @@ def main():
     t0 = time.perf_counter()
     with torch.no_grad():
         if config.tile:
-            out = tile_inference(model, tensor, tile_size=config.tile_size, tile_pad=config.tile_pad, scale=2, batch_size=config.batch_size)
+            out = tile_inference(
+                model,
+                tensor,
+                tile_size=config.tile_size,
+                tile_pad=config.tile_pad,
+                scale=2,
+                batch_size=config.batch_size,
+            )
         else:
             out = model(tensor.unsqueeze(0)).squeeze(0)
     if config.device == "cuda":
@@ -112,9 +136,13 @@ def main():
     sr = to_pil_image(out.cpu())
     sr.save(config.output)
 
-    mem = torch.cuda.max_memory_reserved(config.device) / 1024 ** 2 if config.device == "cuda" else 0
+    mem = (
+        torch.cuda.max_memory_reserved(config.device) / 1024**2
+        if config.device == "cuda"
+        else 0
+    )
     print(f"输出: {config.output} ({sr.size[0]}x{sr.size[1]})")
-    print(f"推理耗时: {elapsed*1000:.1f}ms  |  显存占用: {mem:.0f} MB")
+    print(f"推理耗时: {elapsed * 1000:.1f}ms  |  显存占用: {mem:.0f} MB")
 
 
 if __name__ == "__main__":

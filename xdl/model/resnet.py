@@ -169,7 +169,9 @@ class ResNet(nn.Module):
         self.base_width = width_per_group
 
         # 输入处理层
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(
+            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -276,7 +278,9 @@ class ResNet(nn.Module):
         return self._forward_impl(x)
 
 
-def _resnet(block: Type[Union[BasicBlock, Bottleneck]], layers: List[int], **kwargs: Any) -> ResNet:
+def _resnet(
+    block: Type[Union[BasicBlock, Bottleneck]], layers: List[int], **kwargs: Any
+) -> ResNet:
     """构建ResNet模型"""
     model = ResNet(block, layers, **kwargs)
     return model

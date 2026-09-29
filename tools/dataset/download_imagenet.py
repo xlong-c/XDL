@@ -18,9 +18,9 @@ def setup_hf_mirror(mirror_url=None):
         # 默认使用国内镜像
         mirror_url = "https://hf-mirror.com"
 
-    os.environ['HF_ENDPOINT'] = mirror_url
+    os.environ["HF_ENDPOINT"] = mirror_url
     # 禁用 symlink 警告(Windows 不支持)
-    os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
+    os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
     print(f"✓ 已配置 Hugging Face 镜像: {mirror_url}")
 
 
@@ -35,7 +35,7 @@ def setup_hf_token(token=None):
 
     if token is None:
         # 尝试从环境变量读取
-        token = os.environ.get('HF_TOKEN')
+        token = os.environ.get("HF_TOKEN")
         if token:
             print("✓ 从环境变量读取到 HF Token")
         else:
@@ -47,7 +47,9 @@ def setup_hf_token(token=None):
             print("  3. 访问: https://huggingface.co/datasets/ILSVRC/imagenet-1k")
             print("  4. 同意使用条款并申请访问权限")
             print("\n使用方法：")
-            print("  python download_imagenet.py --token hf_xxx --dataset full --split validation --convert")
+            print(
+                "  python download_imagenet.py --token hf_xxx --dataset full --split validation --convert"
+            )
             return False
 
     try:
@@ -65,12 +67,14 @@ def check_dependencies():
     print("正在检查依赖...")
     try:
         import datasets
+
         print(f"✓ datasets 库已安装 (版本: {datasets.__version__})")
     except ImportError:
         print("✗ datasets 库未安装")
         print("正在安装 datasets 库...")
         os.system("pip install datasets -i https://pypi.tuna.tsinghua.edu.cn/simple")
         import datasets
+
         print(f"✓ datasets 库安装成功 (版本: {datasets.__version__})")
 
 
@@ -84,11 +88,11 @@ def download_imagenet_full(save_path, split="validation"):
     """
     from datasets import load_dataset
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"下载完整 ImageNet-1K 数据集 ({split} 集)")
     print(f"目标路径: {save_path}")
     print("预计大小: 验证集 ~6.5GB | 训练集 ~140GB")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     dataset = load_dataset("ILSVRC/imagenet-1k", split=split)
 
@@ -109,11 +113,11 @@ def download_imagenet_wds(save_path):
     """
     from datasets import load_dataset
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("下载 ImageNet-1K (WebDataset 格式)")
     print(f"目标路径: {save_path}")
     print("预计大小: ~150GB")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     dataset = load_dataset("timm/imagenet-1k-wds")
 
@@ -133,11 +137,11 @@ def download_tiny_imagenet(save_path):
     """
     from datasets import load_dataset
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("下载 Tiny ImageNet 数据集")
     print(f"目标路径: {save_path}")
     print("预计大小: ~500MB")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     dataset = load_dataset("zh-plus/tiny-imagenet")
 
@@ -158,11 +162,11 @@ def download_imagenet_subset(save_path, num_samples=10000):
     """
     from datasets import load_dataset
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("下载 ImageNet 子集 (测试用)")
     print(f"目标路径: {save_path}")
     print(f"样本数量: {num_samples}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # 加载并采样子集
     dataset = load_dataset("ILSVRC/imagenet-1k", split="validation")
@@ -183,11 +187,11 @@ def convert_to_torchvision_format(huggingface_path, output_path):
         huggingface_path: Hugging Face 数据集路径
         output_path: 输出路径(应该是 F:/dataset/imagenet)
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("转换数据集格式为 torchvision 兼容格式")
     print(f"源路径: {huggingface_path}")
     print(f"目标路径: {output_path}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     from datasets import load_from_disk
 
@@ -229,8 +233,8 @@ def _convert_split(dataset, output_path):
 
     for idx in tqdm(range(len(dataset))):
         item = dataset[idx]
-        img = item['image']
-        label = item['label']
+        img = item["image"]
+        label = item["label"]
 
         # 获取类别文件夹名称(如果是数值标签,需要映射)
         # ImageNet 使用 WordNet ID(如 n01440764)
@@ -248,11 +252,12 @@ def _convert_split(dataset, output_path):
         img_path = os.path.join(class_path, img_filename)
 
         # 如果 img 是 PIL Image,直接保存
-        if hasattr(img, 'save'):
+        if hasattr(img, "save"):
             img.save(img_path)
         else:
             # 如果是其他格式(如 numpy array),转换后保存
             from PIL import Image
+
             Image.fromarray(img).save(img_path)
 
 
@@ -264,28 +269,20 @@ def main():
         # 数据集类型: "full"(完整 ImageNet-1K), "wds"(WebDataset 格式),
         #              "tiny"(Tiny ImageNet), "subset"(子集用于快速测试)
         "dataset": "full",
-
         # HuggingFace 格式数据集的保存路径
         "save_path": r"F:\dataset\imagenet_hf",
-
         # torchvision 格式数据集的输出路径(仅在 convert=True 时使用)
         "torchvision_path": r"F:\dataset\imagenet",
-
         # 下载的数据集分割(仅对 "full" 模式有效): "train" 或 "validation"
         "split": "validation",
-
         # 子集模式的样本数量(仅对 "subset" 模式有效)
         "num_samples": 10000,
-
         # 是否在下载完成后转换为 torchvision 格式
         "convert": False,
-
         # HuggingFace 镜像站点 URL,设为 None 则使用默认镜像 https://hf-mirror.com
         "mirror": None,
-
         # 是否关闭镜像站点,设为 True 则直接从官方源下载
         "no_mirror": False,
-
         # HuggingFace 访问 Token(ImageNet-1K 需要认证)
         # 获取方式: https://huggingface.co/settings/tokens
         "token": None,
@@ -320,9 +317,9 @@ def main():
     if CONFIG["convert"]:
         convert_to_torchvision_format(CONFIG["save_path"], CONFIG["torchvision_path"])
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("✓ 所有操作完成！")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print("\n使用方法:")
     print("\n1. HuggingFace 格式:")
     print("   from datasets import load_from_disk")
@@ -331,7 +328,9 @@ def main():
     if CONFIG["convert"]:
         print("\n2. torchvision 格式:")
         print("   from torchvision.datasets import ImageNet")
-        print(f"   dataset = ImageNet(root='{CONFIG['torchvision_path']}', split='val')")
+        print(
+            f"   dataset = ImageNet(root='{CONFIG['torchvision_path']}', split='val')"
+        )
 
 
 if __name__ == "__main__":

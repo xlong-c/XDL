@@ -1,7 +1,12 @@
 """Model interpretation and representation analysis helpers for XDL."""
 
 from .activation import ActivationCapture, ActivationRecord, capture_activations
-from .attention import AttentionCapture, attention_rollout, attention_rollout_for_model, capture_attention_maps
+from .attention import (
+    AttentionCapture,
+    attention_rollout,
+    attention_rollout_for_model,
+    capture_attention_maps,
+)
 from .concept import (
     ConceptProbe,
     concept_activation_vector,

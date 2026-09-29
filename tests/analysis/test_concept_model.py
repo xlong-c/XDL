@@ -25,7 +25,9 @@ def test_compute_module_tcav_returns_score_and_derivatives() -> None:
     probe = fit_concept_probe(concept_features, concept_labels, epochs=250, lr=0.05)
 
     batch = torch.tensor([[2.0, 0.0], [1.0, 0.0], [-1.0, 0.0]], requires_grad=True)
-    score, derivatives = compute_module_tcav(model, "backbone", probe.direction, batch, target_index=0)
+    score, derivatives = compute_module_tcav(
+        model, "backbone", probe.direction, batch, target_index=0
+    )
 
     assert derivatives.shape == (3,)
     assert 0.0 <= score <= 1.0

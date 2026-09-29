@@ -22,7 +22,14 @@ class DemoConfig:
 def test_parse_dataclass_cli_supports_flag_style() -> None:
     cfg = parse_dataclass_cli(
         DemoConfig,
-        args=["--input", "x.png", "--fp16", "--nested.tile-size", "96", "--no-nested.tile"],
+        args=[
+            "--input",
+            "x.png",
+            "--fp16",
+            "--nested.tile-size",
+            "96",
+            "--no-nested.tile",
+        ],
     )
 
     assert cfg.input == "x.png"

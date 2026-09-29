@@ -145,6 +145,7 @@ class DeepSpeedConfig:
         """检查 deepspeed 是否可导入."""
         try:
             import deepspeed  # noqa: F401  # pyright: ignore[reportMissingImports]
+
             return True
         except ImportError:
             return False
@@ -350,15 +351,15 @@ def build_fsdp_plugin(fsdp: Union[int, Dict[str, Any], FSDPConfig, Any]) -> Any:
         plugin_dict = dict(fsdp)
         unknown = sorted(set(plugin_dict) - _FSDP_PLUGIN_KEYS)
         if unknown:
-            raise TrainingError(
-                "fsdp 配置包含插件不支持的字段: " + ", ".join(unknown)
-            )
+            raise TrainingError("fsdp 配置包含插件不支持的字段: " + ", ".join(unknown))
         # sharding_strategy 已弃用, 转换成 reshard_after_forward 再透传:
         # FSDP2 用 bool, FSDP1 保留字符串.
         if "sharding_strategy" in plugin_dict:
             strategy = str(plugin_dict.pop("sharding_strategy")).upper()
             if plugin_dict.get("fsdp_version") == 2:
-                plugin_dict.setdefault("reshard_after_forward", strategy == "FULL_SHARD")
+                plugin_dict.setdefault(
+                    "reshard_after_forward", strategy == "FULL_SHARD"
+                )
             else:
                 plugin_dict.setdefault("reshard_after_forward", strategy)
         if plugin_dict.get("fsdp_version") == 2:

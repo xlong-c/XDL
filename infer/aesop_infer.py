@@ -23,6 +23,7 @@ from xdl.model.lowlevel import RRDBNet
 @dataclass
 class Config:
     """AESOP x4 超分辨率推理 (RRDBNet backbone)"""
+
     input: str = "infer/images/debug_before_sr.png"
     output: str = "infer/images/debug_aesop_x4.png"
     weight: str = "others/RealAESOP_RRDB256_400K.pth"
@@ -33,8 +34,11 @@ class Config:
 
 def load_model(config: Config) -> RRDBNet:
     model = RRDBNet(
-        num_in_ch=3, num_out_ch=3,
-        num_feat=64, num_block=23, num_grow_ch=32,
+        num_in_ch=3,
+        num_out_ch=3,
+        num_feat=64,
+        num_block=23,
+        num_grow_ch=32,
         scale=config.scale,
     )
     ckpt = torch.load(config.weight, map_location="cpu", weights_only=True)
@@ -52,7 +56,9 @@ def load_model(config: Config) -> RRDBNet:
         model = torch.compile(model, mode="reduce-overhead")
 
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"已加载: AESOP-SR x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16+compile)")
+    print(
+        f"已加载: AESOP-SR x{config.scale} ({n_params:.1f}M) <- {config.weight}  (fp16+compile)"
+    )
     return model
 
 
@@ -87,9 +93,13 @@ def main():
     sr = to_pil_image(out.cpu())
     sr.save(config.output)
 
-    mem = torch.cuda.max_memory_reserved(config.device) / 1024 ** 2 if config.device == "cuda" else 0
+    mem = (
+        torch.cuda.max_memory_reserved(config.device) / 1024**2
+        if config.device == "cuda"
+        else 0
+    )
     print(f"输出: {config.output} ({sr.size[0]}x{sr.size[1]})")
-    print(f"推理耗时: {elapsed*1000:.1f}ms  |  显存占用: {mem:.0f} MB")
+    print(f"推理耗时: {elapsed * 1000:.1f}ms  |  显存占用: {mem:.0f} MB")
 
 
 if __name__ == "__main__":

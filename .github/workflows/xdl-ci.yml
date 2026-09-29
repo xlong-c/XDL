@@ -7,12 +7,14 @@ on:
       - "tests/**"
       - "pyproject.toml"
       - ".github/workflows/xdl-ci.yml"
+      - "**/*.py"
   pull_request:
     paths:
       - "xdl/**"
       - "tests/**"
       - "pyproject.toml"
       - ".github/workflows/xdl-ci.yml"
+      - "**/*.py"
   workflow_dispatch:
 
 permissions:
@@ -32,8 +34,10 @@ jobs:
         run: python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
       - name: Install XDL development dependencies
         run: python -m pip install -e ".[dev,safetensors]"
-      - name: Check formatting and imports
-        run: ruff check xdl
+      - name: Check formatting
+        run: ruff format --check .
+      - name: Check imports and lint
+        run: ruff check .
       - name: Check types
         run: python -m pyright xdl
       - name: Run CPU tests
@@ -43,6 +47,7 @@ jobs:
           tests/config
           tests/trainer
           tests/callbacks
+          tests/diagnostics
           tests/utils
           tests/loss
           tests/metric

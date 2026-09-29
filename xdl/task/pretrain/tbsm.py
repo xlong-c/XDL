@@ -52,13 +52,9 @@ class TBSMCoreModel(CoreModel):
             raise ValueError("optimizer betas must contain exactly two values")
 
         self.generator = generator
-        self.representation_fields = nn.ModuleList(
-            list(representation_fields or [])
-        )
+        self.representation_fields = nn.ModuleList(list(representation_fields or []))
         self._ema_generator = (
-            copy.deepcopy(generator)
-            if ema_generator is None
-            else ema_generator
+            copy.deepcopy(generator) if ema_generator is None else ema_generator
         )
         self._ema_generator.requires_grad_(False)
         self._ema_generator.eval()
@@ -106,7 +102,9 @@ class TBSMCoreModel(CoreModel):
         generator = self._unwrap_parallel(self.generator)
         backbone = getattr(generator, "backbone", None)
         module = backbone if isinstance(backbone, nn.Module) else generator
-        parameters = [parameter for parameter in module.parameters() if parameter.requires_grad]
+        parameters = [
+            parameter for parameter in module.parameters() if parameter.requires_grad
+        ]
         if not parameters:
             raise RuntimeError("TBSM generator has no trainable parameters")
         return parameters
@@ -144,19 +142,11 @@ class TBSMCoreModel(CoreModel):
 
         if isinstance(batch, Mapping):
             image_key = next(
-                (
-                    key
-                    for key in ("images", "image", "x")
-                    if key in batch
-                ),
+                (key for key in ("images", "image", "x") if key in batch),
                 None,
             )
             label_key = next(
-                (
-                    key
-                    for key in ("labels", "label", "y")
-                    if key in batch
-                ),
+                (key for key in ("labels", "label", "y") if key in batch),
                 None,
             )
             if image_key is None or label_key is None:
@@ -225,10 +215,7 @@ class TBSMCoreModel(CoreModel):
     ) -> Optional[torch.Tensor]:
         """Generate the independent source required by intra-source scattering."""
 
-        if not any(
-            field.lambda_weight > 0
-            for field in self._fields()
-        ):
+        if not any(field.lambda_weight > 0 for field in self._fields()):
             return None
         generator = self._unwrap_parallel(self.generator)
         was_training = generator.training
@@ -277,9 +264,7 @@ class TBSMCoreModel(CoreModel):
             generator_loss = generator_loss + generator_term
             tracker_loss = tracker_loss + tracker_term
             suffix = f"_{index}" if multiple_fields else ""
-            logs.update(
-                {name + suffix: value for name, value in field_logs.items()}
-            )
+            logs.update({name + suffix: value for name, value in field_logs.items()})
         if not fields:
             raise RuntimeError(
                 "TBSMCoreModel requires at least one representation field"

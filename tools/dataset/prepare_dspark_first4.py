@@ -40,9 +40,7 @@ def prepare_wide() -> None:
         )
     )
     OUT.mkdir(parents=True, exist_ok=False)
-    rows = [
-        json.loads(line) for line in body_source.read_text().splitlines()
-    ]
+    rows = [json.loads(line) for line in body_source.read_text().splitlines()]
     parent = {r["source_sha256"]: r["source_sha256"] for r in rows}
 
     def find(key: str) -> str:
@@ -97,9 +95,7 @@ def prepare_wide() -> None:
     splits: dict[str, str] = {}
     conflicts: list[dict[str, Any]] = []
     for group, members in members_of_group.items():
-        inherited = {
-            v1_split_of_source[m] for m in members if m in v1_split_of_source
-        }
+        inherited = {v1_split_of_source[m] for m in members if m in v1_split_of_source}
         if len(inherited) > 1:
             conflicts.append(
                 {

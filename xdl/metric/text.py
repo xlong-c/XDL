@@ -12,7 +12,7 @@ from xdl.metric._utils import (
     _lcs_length,
     _ngram_counts,
     _normalize_sequence_batch,
-    _rouge_l_f1
+    _rouge_l_f1,
 )
 
 
@@ -229,4 +229,3 @@ class ROUGELScore:
             for pred_tokens, target_tokens in zip(pred_sequences, target_sequences)
         ]
         return sum(scores) / len(scores)
-

@@ -44,8 +44,10 @@ def _prefix_text(value: str) -> str:
 def test_manifest_record_dataset_loads_jsonl_and_repeat(tmp_path) -> None:
     manifest_path = tmp_path / "records.jsonl"
     manifest_path.write_text(
-        json.dumps({"id": "a", "value": 1}) + "\n"
-        + json.dumps({"id": "b", "value": 2}) + "\n",
+        json.dumps({"id": "a", "value": 1})
+        + "\n"
+        + json.dumps({"id": "b", "value": 2})
+        + "\n",
         encoding="utf-8",
     )
 
@@ -157,7 +159,9 @@ def test_manifest_classification_dataset_supports_string_labels_and_csv(
     assert target == 1
 
 
-def test_manifest_image_prompt_dataset_supports_prompt_aliases_and_repeat(tmp_path) -> None:
+def test_manifest_image_prompt_dataset_supports_prompt_aliases_and_repeat(
+    tmp_path,
+) -> None:
     image_path = tmp_path / "image.png"
     manifest_path = tmp_path / "prompts.jsonl"
     _save_rgb(image_path, (255, 0, 0))
@@ -599,8 +603,10 @@ def test_split_dataset_produces_correct_subset_lengths(tmp_path) -> None:
     _save_rgb(tmp_path / "b.png", (0, 255, 0))
     manifest_path = tmp_path / "rec.jsonl"
     manifest_path.write_text(
-        json.dumps({"id": "a", "value": 1}) + "\n"
-        + json.dumps({"id": "b", "value": 2}) + "\n",
+        json.dumps({"id": "a", "value": 1})
+        + "\n"
+        + json.dumps({"id": "b", "value": 2})
+        + "\n",
         encoding="utf-8",
     )
     dataset = RecordDataset(manifest_path)
@@ -613,9 +619,7 @@ def test_split_dataset_produces_correct_subset_lengths(tmp_path) -> None:
 
 def test_split_dataset_is_deterministic(tmp_path) -> None:
     manifest_path = tmp_path / "rec.jsonl"
-    lines = "\n".join(
-        json.dumps({"id": str(i), "value": i}) for i in range(10)
-    )
+    lines = "\n".join(json.dumps({"id": str(i), "value": i}) for i in range(10))
     manifest_path.write_text(lines + "\n", encoding="utf-8")
     dataset = RecordDataset(manifest_path)
 
@@ -642,9 +646,7 @@ def test_split_dataset_rejects_mismatched_lengths(tmp_path) -> None:
 
 def test_train_val_split_default_ratio(tmp_path) -> None:
     manifest_path = tmp_path / "rec.jsonl"
-    lines = "\n".join(
-        json.dumps({"id": str(i), "value": i}) for i in range(10)
-    )
+    lines = "\n".join(json.dumps({"id": str(i), "value": i}) for i in range(10))
     manifest_path.write_text(lines + "\n", encoding="utf-8")
     dataset = RecordDataset(manifest_path)
 

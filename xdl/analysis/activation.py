@@ -94,7 +94,9 @@ class ActivationCapture(AbstractContextManager["ActivationCapture"]):
             shape: Optional[tuple[int, ...]] = None
             if isinstance(normalized, torch.Tensor):
                 shape = tuple(int(dim) for dim in normalized.shape)
-            self.records[name] = ActivationRecord(name=name, value=normalized, shape=shape)
+            self.records[name] = ActivationRecord(
+                name=name, value=normalized, shape=shape
+            )
 
         return hook
 

@@ -136,9 +136,10 @@ class TwinFlow(torch.nn.Module):
         """
         # 1. Init time and containers
         bsz, device = x.shape[0], x.device
-        assert bsz >= 4  # we need minimal batch=4 to assign different target time, see L132
-        t = self.sample_beta(self.tdc[0], self.tdc[1], x).clamp_(
-            0, 1) * self.tdc[2]
+        assert (
+            bsz >= 4
+        )  # we need minimal batch=4 to assign different target time, see L132
+        t = self.sample_beta(self.tdc[0], self.tdc[1], x).clamp_(0, 1) * self.tdc[2]
         c = [torch.zeros_like(t)] if c is None else c
         e = [torch.zeros_like(t)] if e is None else e
 
@@ -156,7 +157,7 @@ class TwinFlow(torch.nn.Module):
         for k, length in zip(keys, lens):
             m = torch.zeros(bsz, dtype=torch.bool, device=device)
             if length > 0:
-                m[cursor: cursor + length] = True
+                m[cursor : cursor + length] = True
             masks[k] = m
             cursor += length
 
@@ -211,11 +212,9 @@ class TwinFlow(torch.nn.Module):
         e: List[torch.Tensor],
     ):
         torch.cuda.set_rng_state(rng_state)
-        refer_x, refer_z, refer_v, _ = self.forward(
-            model, x_t, t, tt, **dict(c=e))
+        refer_x, refer_z, refer_v, _ = self.forward(model, x_t, t, tt, **dict(c=e))
         torch.cuda.set_rng_state(rng_state)
-        predc_x, predc_z, predc_v, _ = self.forward(
-            model, x_t, t, tt, **dict(c=c))
+        predc_x, predc_z, predc_v, _ = self.forward(model, x_t, t, tt, **dict(c=c))
         return refer_x, refer_z, refer_v, predc_x, predc_z, predc_v
 
     @torch.no_grad()
@@ -291,14 +290,18 @@ class TwinFlow(torch.nn.Module):
         if self.emd > 0.0 and self.emd < 1.0:
             ema_transformer = getattr(model, "ema_transformer", None)
             transformer = getattr(model, "transformer", None)
-            
+
             if ema_transformer is not None and isinstance(ema_transformer, nn.Module):
                 self.mod = self.mod or ema_transformer
-            
-            if self.mod is not None and transformer is not None and isinstance(transformer, nn.Module):
+
+            if (
+                self.mod is not None
+                and transformer is not None
+                and isinstance(transformer, nn.Module)
+            ):
                 update_ema(self.mod, transformer, decay=self.cmd)
                 self.cmd += (1 - self.cmd) * (self.emd - self.cmd) * 0.5
-                
+
         elif self.emd == 0.0:
             transformer = getattr(model, "transformer", None)
             if transformer is not None and isinstance(transformer, nn.Module):
@@ -350,12 +353,10 @@ class TwinFlow(torch.nn.Module):
         5. 加权L2损失 + 一致性损失 (dist_match)
         """
         with torch.no_grad():
-            x_t, t, tt, c, e, target, sample_masks = self.prepare_inputs(
-                model, x, c, e)
+            x_t, t, tt, c, e, target, sample_masks = self.prepare_inputs(model, x, c, e)
 
         loss, rng_state = 0, torch.cuda.get_rng_state()
-        x_wc_t, z_wc_t, F_th_t, den_t = self.forward(
-            model, x_t, t, tt, **dict(c=c))
+        x_wc_t, z_wc_t, F_th_t, den_t = self.forward(model, x_t, t, tt, **dict(c=c))
 
         # Start update the state of ema model
         if (self.enr != 0.0) or (self.cor != 0.0) or (self.emd != 0.0):
@@ -370,8 +371,7 @@ class TwinFlow(torch.nn.Module):
             idx = (t.flatten() < self.eng[1]) & (t.flatten() > self.eng[0])
             idx = idx & (~sample_masks["adv"])
             target_ = target.clone()
-            target = self.enhance_target(
-                target, idx, self.enr, predc_v, refer_v)
+            target = self.enhance_target(target, idx, self.enr, predc_v, refer_v)
             if self.emd == 1.0:
                 target[idx] = (target - target_)[idx] + refer_v[idx]
 
@@ -394,8 +394,7 @@ class TwinFlow(torch.nn.Module):
             rcgm_idx = ~(sample_masks["adv"])
             target[rcgm_idx] = rcgm_target[rcgm_idx]
 
-        weighting = (torch.tan((1 - (t.abs() - tt.abs()))
-                     * np.pi / 2.5) + 1).flatten()
+        weighting = (torch.tan((1 - (t.abs() - tt.abs())) * np.pi / 2.5) + 1).flatten()
         weighting[sample_masks["adv"]] = 1
         loss = self.loss_func(F_th_t, target) * weighting
         # Only calculate the multi-step generation loss (if self.eso = 0)
@@ -441,14 +440,14 @@ class TwinFlow(torch.nn.Module):
         """
         if tt is not None:
             tt = tt.flatten()
-        
+
         alpha_t_prime = self.alpha_to(t)
         gamma_t_prime = self.gamma_to(t)
         dent = self.alpha_in(t) * gamma_t_prime - self.gamma_in(t) * alpha_t_prime
 
         q = t.flatten() if self.integ_st == 1 else 1 - t.flatten()
         F_t = alpha_t_prime * model(x_t, t=q, tt=tt, **model_kwargs)
-        
+
         t = torch.abs(t)
         z_hat = (x_t * gamma_t_prime - F_t * self.gamma_in(t)) / dent
         x_hat = (F_t * self.alpha_in(t) - x_t * alpha_t_prime) / dent
@@ -486,12 +485,10 @@ class TwinFlow(torch.nn.Module):
         """
         input_dtype = inital_noise_z.dtype
         assert sampling_order in [1, 2]
-        num_steps = (sampling_steps +
-                     1) // 2 if sampling_order == 2 else sampling_steps
+        num_steps = (sampling_steps + 1) // 2 if sampling_order == 2 else sampling_steps
 
         # Time step discretization.
-        num_steps = num_steps + \
-            1 if (rfba_gap_steps[1] - 0.0) == 0.0 else num_steps
+        num_steps = num_steps + 1 if (rfba_gap_steps[1] - 0.0) == 0.0 else num_steps
         t_steps = torch.linspace(
             rfba_gap_steps[0], 1.0 - rfba_gap_steps[1], num_steps, dtype=torch.float64
         ).to(inital_noise_z)
@@ -531,10 +528,8 @@ class TwinFlow(torch.nn.Module):
                 z_hats.append(z_hat)
                 x_hats.append(x_hat)
                 if i > buffer_freq:
-                    z_hat = z_hat + extrapol_ratio * \
-                        (z_hat - z_hats[-buffer_freq - 1])
-                    x_hat = x_hat + extrapol_ratio * \
-                        (x_hat - x_hats[-buffer_freq - 1])
+                    z_hat = z_hat + extrapol_ratio * (z_hat - z_hats[-buffer_freq - 1])
+                    x_hat = x_hat + extrapol_ratio * (x_hat - x_hats[-buffer_freq - 1])
                     _ = z_hats.pop(0), x_hats.pop(0)
 
             if stochast_ratio == "SDE":
@@ -546,10 +541,12 @@ class TwinFlow(torch.nn.Module):
                 st_ratio = torch.clamp(st_ratio ** (1 / 0.50), min=0, max=1)
                 noi = torch.randn(x_cur.size()).to(x_cur)
             else:
-                st_ratio = torch.tensor(stochast_ratio, device=x_cur.device) if isinstance(
-                    stochast_ratio, (float, int)) else stochast_ratio
-                noi = torch.randn(x_cur.size()).to(
-                    x_cur) if stochast_ratio > 0 else 0.0
+                st_ratio = (
+                    torch.tensor(stochast_ratio, device=x_cur.device)
+                    if isinstance(stochast_ratio, (float, int))
+                    else stochast_ratio
+                )
+                noi = torch.randn(x_cur.size()).to(x_cur) if stochast_ratio > 0 else 0.0
 
             x_next = self.gamma_in(t_next) * x_hat + self.alpha_in(t_next) * (
                 z_hat * ((1 - st_ratio) ** 0.5) + noi * (st_ratio**0.5)

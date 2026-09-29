@@ -63,7 +63,9 @@ class EarlyStopping(Callback):
             self.stopped_epoch = trainer.current_epoch
             trainer.should_stop = True
 
-    def _get_monitor_value(self, trainer: "Trainer", core_module: "CoreModel") -> Optional[float]:
+    def _get_monitor_value(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> Optional[float]:
         """获取监控指标的值"""
         if (
             hasattr(core_module, "_latest_val_metrics")

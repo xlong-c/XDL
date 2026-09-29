@@ -80,7 +80,9 @@ def test_feature_capture_callback_skips_non_matching_epoch(tmp_path: Path) -> No
     assert list(tmp_path.glob("*.pt")) == []
 
 
-def test_feature_capture_callback_respects_max_batches_per_epoch(tmp_path: Path) -> None:
+def test_feature_capture_callback_respects_max_batches_per_epoch(
+    tmp_path: Path,
+) -> None:
     trainer = FakeTrainer()
     core = FakeCoreModel()
     callback = FeatureCaptureCallback(

@@ -158,7 +158,9 @@ class JaxCheckpointManager:
             if wait:
                 self._manager.wait_until_finished()
         except Exception as exc:
-            raise CheckpointError(f"failed to save checkpoint step {step}: {exc}") from exc
+            raise CheckpointError(
+                f"failed to save checkpoint step {step}: {exc}"
+            ) from exc
         return CheckpointReport(
             saved=bool(saved),
             step=step,

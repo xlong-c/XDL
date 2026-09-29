@@ -16,7 +16,12 @@ from .errors import (
 )
 
 # 配置解析工具:负责 schema merge,插值解析和普通 dict 转换.
-from .resolver import load_config_with_schema, merge_with_schema, resolve_config, to_plain_dict
+from .resolver import (
+    load_config_with_schema,
+    merge_with_schema,
+    resolve_config,
+    to_plain_dict,
+)
 
 # Accelerate/FSDP 配置辅助.
 from .accelerate_config import FSDPConfig, build_fsdp_plugin

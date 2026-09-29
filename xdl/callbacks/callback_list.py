@@ -59,7 +59,9 @@ class CallbackList:
             for callback in callbacks:
                 self.add_callback(callback)
 
-    def add_callback(self, callback: "Callback", priority: Optional[int] = None) -> None:
+    def add_callback(
+        self, callback: "Callback", priority: Optional[int] = None
+    ) -> None:
         """添加回调
 
         Args:
@@ -90,10 +92,16 @@ class CallbackList:
 
     def _sort_callbacks(self):
         """按优先级排序回调"""
-        self.callbacks.sort(key=lambda cb: self._callback_metadata.get(cb, {}).get("priority", 999))
+        self.callbacks.sort(
+            key=lambda cb: self._callback_metadata.get(cb, {}).get("priority", 999)
+        )
 
     def invoke_callbacks(
-        self, hook_name: str, trainer: "Trainer", core_module: "CoreModel", **kwargs: Any
+        self,
+        hook_name: str,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        **kwargs: Any,
     ) -> List[Any]:
         """统一调用回调, 支持错误隔离和性能监控
 
@@ -123,12 +131,16 @@ class CallbackList:
                 # 执行回调: 先按签名预过滤 kwargs, 只调用一次.
                 # 回调体内抛出的 TypeError 不再被当作参数不匹配重试.
                 method = getattr(callback, hook_name)
-                result = method(trainer, core_module, **self._filter_kwargs(method, kwargs))
+                result = method(
+                    trainer, core_module, **self._filter_kwargs(method, kwargs)
+                )
                 results.append(result)
 
                 # 记录执行统计
                 execution_time = time.time() - start_time
-                self._record_execution_stats(callback_name, hook_name, execution_time, success=True)
+                self._record_execution_stats(
+                    callback_name, hook_name, execution_time, success=True
+                )
 
             except Exception as e:
                 # 记录执行统计
@@ -269,7 +281,9 @@ class CallbackList:
         """设置回调"""
         self.invoke_callbacks("setup", trainer, core_module, stage=stage)
 
-    def teardown(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
+    def teardown(
+        self, trainer: "Trainer", core_module: "CoreModel", stage: str
+    ) -> None:
         """清理回调"""
         self.invoke_callbacks("teardown", trainer, core_module, stage=stage)
 
@@ -296,12 +310,17 @@ class CallbackList:
         """验证开始回调"""
         self.invoke_callbacks("on_validation_start", trainer, core_module)
 
-    def validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def validation_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         """验证epoch开始回调"""
         self.invoke_callbacks("on_validation_epoch_start", trainer, core_module)
 
     def validation_epoch_end(
-        self, trainer: "Trainer", core_module: "CoreModel", outputs: Optional[Any] = None
+        self,
+        trainer: "Trainer",
+        core_module: "CoreModel",
+        outputs: Optional[Any] = None,
     ) -> None:
         """验证epoch结束回调"""
         kwargs = {"outputs": outputs} if outputs is not None else {}
@@ -589,7 +608,7 @@ class CallbackList:
         if pending <= 0:
             return []
         # 错误历史超过 _max_errors 时会从队首弹出, 按数量取尾部即可.
-        return self._error_history[max(0, len(self._error_history) - pending):]
+        return self._error_history[max(0, len(self._error_history) - pending) :]
 
     def report_epoch_errors(self) -> None:
         """汇总并打印自上次调用以来新增的回调失败."""

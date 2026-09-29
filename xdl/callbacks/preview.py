@@ -131,8 +131,7 @@ class PreviewCallback(Callback):
         signature = inspect.signature(method)
         parameters = list(signature.parameters.values())
         has_var_keyword = any(
-            parameter.kind == inspect.Parameter.VAR_KEYWORD
-            for parameter in parameters
+            parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters
         )
         if "output_dir" in signature.parameters or has_var_keyword:
             method(batch, output_dir=self.output_dir)

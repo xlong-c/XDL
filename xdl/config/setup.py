@@ -96,11 +96,15 @@ def _resolve_dataset_value(
         if isinstance(dataset_value, str) and dataset_value in built_datasets:
             return built_datasets[dataset_value]
         if isinstance(dataset_value, Mapping) and dataset_value.get("target"):
-            transform_value = _resolve_dataset_transform_value(dataset_value, built_transforms)
+            transform_value = _resolve_dataset_transform_value(
+                dataset_value, built_transforms
+            )
             return build_dataset(dict(dataset_value), transform=transform_value)
         if dataset_value is not None and not isinstance(dataset_value, str):
             return dataset_value
-        raise ConfigValidationError(f"No pre-built dataset found for dataloader '{dataset_name}'")
+        raise ConfigValidationError(
+            f"No pre-built dataset found for dataloader '{dataset_name}'"
+        )
     return built_datasets[dataset_name]
 
 
@@ -136,9 +140,7 @@ def _merge_dataloader_params(
 
     merged_config = dict(dataloader_cfg)
     merged_params = {
-        key: value
-        for key, value in dataloader_defaults.items()
-        if value is not None
+        key: value for key, value in dataloader_defaults.items() if value is not None
     }
     if merged_params.get("batch_size") is None and trainer_batch_size is not None:
         merged_params["batch_size"] = int(trainer_batch_size)
@@ -184,21 +186,30 @@ def setup_from_yaml(
     else:
         model = build_model(model_config)
 
-    transform_config = _collect_configs(resolved_config, (
-        ("train_transforms", "train"),
-        ("val_transforms", "val"),
-        ("test_transforms", "test"),
-    ))
-    dataset_config = _collect_configs(resolved_config, (
-        ("train_dataset", "train"),
-        ("val_dataset", "val"),
-        ("test_dataset", "test"),
-    ))
-    dataloader_config = _collect_configs(resolved_config, (
-        ("train_dataloader", "train"),
-        ("val_dataloader", "val"),
-        ("test_dataloader", "test"),
-    ))
+    transform_config = _collect_configs(
+        resolved_config,
+        (
+            ("train_transforms", "train"),
+            ("val_transforms", "val"),
+            ("test_transforms", "test"),
+        ),
+    )
+    dataset_config = _collect_configs(
+        resolved_config,
+        (
+            ("train_dataset", "train"),
+            ("val_dataset", "val"),
+            ("test_dataset", "test"),
+        ),
+    )
+    dataloader_config = _collect_configs(
+        resolved_config,
+        (
+            ("train_dataloader", "train"),
+            ("val_dataloader", "val"),
+            ("test_dataloader", "test"),
+        ),
+    )
     dataloader_defaults = _collect_dataloader_defaults(resolved_config)
     trainer_cfg = _to_structured(merged_config.trainer, TrainerConfig)
     trainer_batch_size = trainer_cfg.batch_size
@@ -209,8 +220,12 @@ def setup_from_yaml(
 
     built_datasets: Dict[str, Any] = {}
     for dataset_name, dataset_cfg in dataset_config.items():
-        transform_value = _resolve_dataset_transform_value(dataset_cfg, built_transforms)
-        built_datasets[dataset_name] = build_dataset(dataset_cfg, transform=transform_value)
+        transform_value = _resolve_dataset_transform_value(
+            dataset_cfg, built_transforms
+        )
+        built_datasets[dataset_name] = build_dataset(
+            dataset_cfg, transform=transform_value
+        )
 
     built_dataloaders: Dict[str, DataLoader] = {}
     for dataloader_name, dataloader_cfg in dataloader_config.items():
@@ -239,7 +254,9 @@ def setup_from_yaml(
     optimizer = build_optimizer(model, optimizer_config) if optimizer_config else None
 
     scheduler_config = optimization_config.get("scheduler") or {}
-    scheduler = build_scheduler(optimizer, scheduler_config) if optimizer is not None else None
+    scheduler = (
+        build_scheduler(optimizer, scheduler_config) if optimizer is not None else None
+    )
 
     loss_config = resolved_config.get("loss", [])
     if loss_config:
@@ -259,9 +276,7 @@ def setup_from_yaml(
 
     logging_cfg = _to_structured(merged_config.logging, LoggingConfig)
     checkpoint_cfg = _to_structured(merged_config.checkpoint, CheckpointConfig)
-    diagnostics_cfg = _to_structured(
-        merged_config.diagnostics, DiagnosticsConfig
-    )
+    diagnostics_cfg = _to_structured(merged_config.diagnostics, DiagnosticsConfig)
     accelerate_cfg = (
         _to_structured(merged_config.accelerate, AccelerateConfig)
         if merged_config.accelerate is not None
@@ -277,7 +292,9 @@ def setup_from_yaml(
     if selected_batch_size is None:
         selected_batch_size = dataloader_defaults.get("batch_size")
     if selected_batch_size is None and "train" in dataloader_config:
-        selected_batch_size = dataloader_config["train"].get("params", {}).get("batch_size")
+        selected_batch_size = (
+            dataloader_config["train"].get("params", {}).get("batch_size")
+        )
     if selected_batch_size is None and built_dataloaders.get("train") is not None:
         selected_batch_size = built_dataloaders["train"].batch_size
     if selected_batch_size is None:

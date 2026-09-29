@@ -17,7 +17,9 @@ def _build_schedule(value: Any, *, total_steps: int) -> Any:
     params = dict(value.get("params") or {})
     name = target.rsplit(":", 1)[-1] if target else str(value.get("name", ""))
     if name in {"constant", "constant_schedule"}:
-        return optax.constant_schedule(float(params.get("value", params.get("learning_rate", 0.001))))
+        return optax.constant_schedule(
+            float(params.get("value", params.get("learning_rate", 0.001)))
+        )
     if name in {"cosine_decay", "cosine_decay_schedule"}:
         return optax.cosine_decay_schedule(
             init_value=float(params.get("init_value", 0.001)),

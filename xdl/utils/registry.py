@@ -72,7 +72,11 @@ class Registry:
         try:
             if inspect.isclass(obj):
                 target = obj.__init__
-            elif inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.isbuiltin(obj):
+            elif (
+                inspect.isfunction(obj)
+                or inspect.ismethod(obj)
+                or inspect.isbuiltin(obj)
+            ):
                 target = obj
             else:
                 target = getattr(obj, "__call__", obj)
@@ -148,7 +152,10 @@ def _bootstrap_modules_for_registry(registry: Registry) -> List[str]:
 def _ensure_builtin_registries_for(registry: Registry) -> None:
     """按需导入内置组件模块,避免依赖顶层 xdl import 的副作用."""
     for module_path in _bootstrap_modules_for_registry(registry):
-        if _BOOTSTRAPPED_MODULES.get(module_path) or module_path in _BOOTSTRAPPING_MODULES:
+        if (
+            _BOOTSTRAPPED_MODULES.get(module_path)
+            or module_path in _BOOTSTRAPPING_MODULES
+        ):
             continue
         _BOOTSTRAPPING_MODULES.add(module_path)
         try:

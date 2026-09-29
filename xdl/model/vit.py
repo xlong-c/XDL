@@ -13,7 +13,11 @@ class PatchEmbedding(nn.Module):
     """图像patch嵌入层"""
 
     def __init__(
-        self, img_size: int = 224, patch_size: int = 16, in_channels: int = 3, embed_dim: int = 768
+        self,
+        img_size: int = 224,
+        patch_size: int = 16,
+        in_channels: int = 3,
+        embed_dim: int = 768,
     ):
         super().__init__()
         self.img_size = img_size
@@ -21,7 +25,9 @@ class PatchEmbedding(nn.Module):
         self.n_patches = (img_size // patch_size) ** 2
 
         # 使用卷积层进行patch嵌入
-        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv2d(
+            in_channels, embed_dim, kernel_size=patch_size, stride=patch_size
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: [B, C, H, W]
@@ -172,7 +178,9 @@ class VisionTransformer(nn.Module):
 
         # 分类头
         self.norm = nn.LayerNorm(embed_dim)
-        self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        self.head = (
+            nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        )
 
         # 权重初始化
         self._init_weights()
@@ -225,7 +233,12 @@ class VisionTransformer(nn.Module):
 def vit_tiny_patch16_224(num_classes: int = 1000, **kwargs) -> VisionTransformer:
     """ViT-Tiny/16模型"""
     model = VisionTransformer(
-        patch_size=16, embed_dim=192, depth=12, num_heads=3, num_classes=num_classes, **kwargs
+        patch_size=16,
+        embed_dim=192,
+        depth=12,
+        num_heads=3,
+        num_classes=num_classes,
+        **kwargs,
     )
     return model
 
@@ -233,7 +246,12 @@ def vit_tiny_patch16_224(num_classes: int = 1000, **kwargs) -> VisionTransformer
 def vit_small_patch16_224(num_classes: int = 1000, **kwargs) -> VisionTransformer:
     """ViT-Small/16模型"""
     model = VisionTransformer(
-        patch_size=16, embed_dim=384, depth=12, num_heads=6, num_classes=num_classes, **kwargs
+        patch_size=16,
+        embed_dim=384,
+        depth=12,
+        num_heads=6,
+        num_classes=num_classes,
+        **kwargs,
     )
     return model
 
@@ -241,7 +259,12 @@ def vit_small_patch16_224(num_classes: int = 1000, **kwargs) -> VisionTransforme
 def vit_base_patch16_224(num_classes: int = 1000, **kwargs) -> VisionTransformer:
     """ViT-Base/16模型"""
     model = VisionTransformer(
-        patch_size=16, embed_dim=768, depth=12, num_heads=12, num_classes=num_classes, **kwargs
+        patch_size=16,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        num_classes=num_classes,
+        **kwargs,
     )
     return model
 
@@ -249,7 +272,12 @@ def vit_base_patch16_224(num_classes: int = 1000, **kwargs) -> VisionTransformer
 def vit_large_patch16_224(num_classes: int = 1000, **kwargs) -> VisionTransformer:
     """ViT-Large/16模型"""
     model = VisionTransformer(
-        patch_size=16, embed_dim=1024, depth=24, num_heads=16, num_classes=num_classes, **kwargs
+        patch_size=16,
+        embed_dim=1024,
+        depth=24,
+        num_heads=16,
+        num_classes=num_classes,
+        **kwargs,
     )
     return model
 

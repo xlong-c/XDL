@@ -84,32 +84,32 @@ class RolloutCallback(Callback):
         priority: int = 50,
     ) -> None:
         """Args:
-            reward_models: Name → reward model mapping.  Each model must
-                accept a batch of images and return scalar rewards.
-            prompt_pool: List of prompt strings.  Also accepts ``None``
-                when the callback is configured purely for scoring (the
-                user's training loop provides rollouts externally).
-            num_rollouts_per_prompt: Number of rollouts (K) per prompt.
-            rollout_fn: Function ``(policy, prompt, num_rollouts) -> latents``
-                that runs diffusion inference.  If ``None``, the callback
-                only handles reward scoring (user must inject rollouts).
-            ref_logp_fn: Function ``(ref_model, rollout_latents) -> Tensor(B, K)``
-                computing frozen-reference log-probabilities for each
-                rollout; invoked under ``torch.no_grad()``.  Required for
-                GRPO/DPO-style training - without it the callback raises
-                instead of writing zero placeholders into
-                ``rollout_ref_logps``.
-            reward_fn: Function ``(reward_models, rollout_latents, prompts)
-                -> dict[str, Tensor(N, K)]``.  If ``None``, each reward
-                model is called independently with ``.forward(latents)``.
-            reward_weights: Per-model weights for aggregating rewards.
-                Default: equal weight 1.0 for each model.
-            rollout_every_n_steps: Generate rollouts every N training steps.
-            prompt_selection_strategy: ``"uniform"`` (random sampling) or
-                ``"adaptive"`` (prioritize prompts with learning signal).
-            policy_attr: Attribute name on ``core_module`` for the policy.
-            ref_attr: Attribute name on ``core_module`` for the reference.
-            priority: Callback priority.
+        reward_models: Name → reward model mapping.  Each model must
+            accept a batch of images and return scalar rewards.
+        prompt_pool: List of prompt strings.  Also accepts ``None``
+            when the callback is configured purely for scoring (the
+            user's training loop provides rollouts externally).
+        num_rollouts_per_prompt: Number of rollouts (K) per prompt.
+        rollout_fn: Function ``(policy, prompt, num_rollouts) -> latents``
+            that runs diffusion inference.  If ``None``, the callback
+            only handles reward scoring (user must inject rollouts).
+        ref_logp_fn: Function ``(ref_model, rollout_latents) -> Tensor(B, K)``
+            computing frozen-reference log-probabilities for each
+            rollout; invoked under ``torch.no_grad()``.  Required for
+            GRPO/DPO-style training - without it the callback raises
+            instead of writing zero placeholders into
+            ``rollout_ref_logps``.
+        reward_fn: Function ``(reward_models, rollout_latents, prompts)
+            -> dict[str, Tensor(N, K)]``.  If ``None``, each reward
+            model is called independently with ``.forward(latents)``.
+        reward_weights: Per-model weights for aggregating rewards.
+            Default: equal weight 1.0 for each model.
+        rollout_every_n_steps: Generate rollouts every N training steps.
+        prompt_selection_strategy: ``"uniform"`` (random sampling) or
+            ``"adaptive"`` (prioritize prompts with learning signal).
+        policy_attr: Attribute name on ``core_module`` for the policy.
+        ref_attr: Attribute name on ``core_module`` for the reference.
+        priority: Callback priority.
         """
         super().__init__(priority=priority)
         self.reward_models = reward_models
@@ -118,9 +118,7 @@ class RolloutCallback(Callback):
         self._rollout_fn = rollout_fn
         self._ref_logp_fn = ref_logp_fn
         self._reward_fn = reward_fn
-        self.reward_weights = reward_weights or {
-            name: 1.0 for name in reward_models
-        }
+        self.reward_weights = reward_weights or {name: 1.0 for name in reward_models}
         self.rollout_every_n_steps = rollout_every_n_steps
         self.prompt_selection_strategy = prompt_selection_strategy
         self.policy_attr = policy_attr
@@ -296,9 +294,7 @@ class RolloutCallback(Callback):
             result = result + v
         return result
 
-    def _update_prompt_stats(
-        self, prompts: list[str], scores: torch.Tensor
-    ) -> None:
+    def _update_prompt_stats(self, prompts: list[str], scores: torch.Tensor) -> None:
         """Update running statistics for adaptive prompt selection."""
         for i, p in enumerate(prompts):
             row = scores[i]  # (K,)

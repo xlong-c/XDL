@@ -17,17 +17,15 @@ JaxDevice = Any
 
 def _validate_platform(platform: str) -> str:
     if platform not in {"auto", "cpu", "gpu", "tpu"}:
-        raise ValueError(
-            "platform must be one of 'auto', 'cpu', 'gpu' or 'tpu'"
-        )
+        raise ValueError("platform must be one of 'auto', 'cpu', 'gpu' or 'tpu'")
     return platform
 
 
 def _available_devices(platform: str) -> tuple[JaxDevice, ...]:
     platform = _validate_platform(platform)
     try:
-        return tuple(jax.devices()) if platform == "auto" else tuple(
-            jax.devices(platform)
+        return (
+            tuple(jax.devices()) if platform == "auto" else tuple(jax.devices(platform))
         )
     except RuntimeError as exc:
         raise TrainingError(
@@ -174,9 +172,7 @@ class SingleDeviceStrategy:
             platform=selected.platform,
             process_index=jax.process_index(),
             process_count=jax.process_count(),
-            visible_devices=tuple(
-                _device_name(item) for item in visible_devices
-            ),
+            visible_devices=tuple(_device_name(item) for item in visible_devices),
             selected_devices=(_device_name(selected),),
             strategy="single_device",
             axis_names=(),
@@ -259,8 +255,7 @@ class DataParallelStrategy:
             raise TrainingError("no JAX device is available")
         if self.config.require_multiple_devices and len(selected) < 2:
             raise TrainingError(
-                "data parallel requires at least two devices; "
-                f"found {len(selected)}"
+                f"data parallel requires at least two devices; found {len(selected)}"
             )
         self.devices = selected
         self.mesh = jax.sharding.Mesh(

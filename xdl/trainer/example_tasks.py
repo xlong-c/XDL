@@ -6,7 +6,13 @@ from typing import Any, List
 
 import torch
 import torch.nn as nn
-from xdl.metric import Accuracy, DiceCoefficient, IoU, MeanAbsoluteError, MeanSquaredError
+from xdl.metric import (
+    Accuracy,
+    DiceCoefficient,
+    IoU,
+    MeanAbsoluteError,
+    MeanSquaredError,
+)
 
 from .core_model import CoreModel
 
@@ -64,7 +70,9 @@ class TinySegmentationTask(CoreModel):
     def configure_optimizers(self) -> torch.optim.Optimizer:
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
-    def _log_metrics(self, logits: torch.Tensor, mask: torch.Tensor, *, prefix: str) -> None:
+    def _log_metrics(
+        self, logits: torch.Tensor, mask: torch.Tensor, *, prefix: str
+    ) -> None:
         for metric in self.metrics:
             metric_name = type(metric).__name__
             self.log(metric_name, metric(logits, mask), prefix=prefix)
@@ -103,7 +111,9 @@ class TinyDetectionTask(CoreModel):
         image = batch["image"]
         label_targets, box_targets = self._first_targets(batch)
         class_logits, box_pred = self.forward(image)
-        loss = self.cls_loss(class_logits, label_targets) + self.box_loss(box_pred, box_targets)
+        loss = self.cls_loss(class_logits, label_targets) + self.box_loss(
+            box_pred, box_targets
+        )
 
         self.manual_optimization_step(
             loss,
@@ -117,7 +127,9 @@ class TinyDetectionTask(CoreModel):
         image = batch["image"]
         label_targets, box_targets = self._first_targets(batch)
         class_logits, box_pred = self.forward(image)
-        loss = self.cls_loss(class_logits, label_targets) + self.box_loss(box_pred, box_targets)
+        loss = self.cls_loss(class_logits, label_targets) + self.box_loss(
+            box_pred, box_targets
+        )
 
         self.log("loss", loss, prefix="val")
         self._log_metrics(class_logits, label_targets, prefix="val")
@@ -130,13 +142,17 @@ class TinyDetectionTask(CoreModel):
         boxes = batch["boxes"]
         label_targets = torch.stack(
             [
-                item[0].long() if item.numel() > 0 else torch.tensor(0, device=self.device)
+                item[0].long()
+                if item.numel() > 0
+                else torch.tensor(0, device=self.device)
                 for item in labels
             ]
         )
         box_targets = torch.stack(
             [
-                item[0].float() if item.numel() > 0 else torch.zeros(4, device=self.device)
+                item[0].float()
+                if item.numel() > 0
+                else torch.zeros(4, device=self.device)
                 for item in boxes
             ]
         )
@@ -150,7 +166,11 @@ class TinyDetectionTask(CoreModel):
         prefix: str,
     ) -> None:
         for metric in self.metrics:
-            self.log(type(metric).__name__, metric(class_logits, label_targets), prefix=prefix)
+            self.log(
+                type(metric).__name__,
+                metric(class_logits, label_targets),
+                prefix=prefix,
+            )
 
 
 class TinyRegressionTask(CoreModel):
@@ -166,7 +186,9 @@ class TinyRegressionTask(CoreModel):
         self.lr = float(lr)
         self.metrics: List[Any] = [MeanAbsoluteError(), MeanSquaredError()]
         self.encoder = nn.Sequential(
-            nn.Conv2d(int(input_channels), int(hidden_channels), kernel_size=3, padding=1),
+            nn.Conv2d(
+                int(input_channels), int(hidden_channels), kernel_size=3, padding=1
+            ),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
@@ -203,7 +225,9 @@ class TinyRegressionTask(CoreModel):
     def configure_optimizers(self) -> torch.optim.Optimizer:
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
-    def _log_metrics(self, pred: torch.Tensor, target: torch.Tensor, *, prefix: str) -> None:
+    def _log_metrics(
+        self, pred: torch.Tensor, target: torch.Tensor, *, prefix: str
+    ) -> None:
         for metric in self.metrics:
             self.log(type(metric).__name__, metric(pred, target), prefix=prefix)
 
@@ -222,7 +246,9 @@ class TinyPairClassificationTask(CoreModel):
         self.lr = float(lr)
         self.metrics: List[Any] = [Accuracy(num_classes=2)]
         self.encoder = nn.Sequential(
-            nn.Conv2d(int(input_channels), int(hidden_channels), kernel_size=3, padding=1),
+            nn.Conv2d(
+                int(input_channels), int(hidden_channels), kernel_size=3, padding=1
+            ),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
@@ -269,6 +295,8 @@ class TinyPairClassificationTask(CoreModel):
     def configure_optimizers(self) -> torch.optim.Optimizer:
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
-    def _log_metrics(self, logits: torch.Tensor, labels: torch.Tensor, *, prefix: str) -> None:
+    def _log_metrics(
+        self, logits: torch.Tensor, labels: torch.Tensor, *, prefix: str
+    ) -> None:
         for metric in self.metrics:
             self.log(type(metric).__name__, metric(logits, labels), prefix=prefix)

@@ -113,7 +113,9 @@ def _capture_hidden_states(
 
     try:
         for layer_id in target_layer_ids:
-            handles.append(backbone.layers[layer_id].register_forward_hook(capture(layer_id)))
+            handles.append(
+                backbone.layers[layer_id].register_forward_hook(capture(layer_id))
+            )
         handles.append(backbone.norm.register_forward_hook(capture_last))
         with torch.no_grad():
             model(
@@ -142,9 +144,7 @@ def _truncate_at_eos(sequence: torch.Tensor, n_prompt: int) -> int:
     """
 
     response = sequence[n_prompt:]
-    eos_hits = torch.isin(
-        response, torch.tensor(EOS_TOKEN_IDS, device=sequence.device)
-    )
+    eos_hits = torch.isin(response, torch.tensor(EOS_TOKEN_IDS, device=sequence.device))
     if bool(eos_hits.any()):
         return int(eos_hits.to(torch.int32).argmax().item()) + 1
     return int(response.shape[0])
@@ -213,7 +213,9 @@ def build_batch(
     for index, n_prompt in enumerate(n_prompts):
         n_response = _truncate_at_eos(generated[index], max_prompt_width)
         if n_response <= 0:
-            raise RuntimeError(f"{records[index]['doc_id']}: 目标模型没有生成任何 token")
+            raise RuntimeError(
+                f"{records[index]['doc_id']}: 目标模型没有生成任何 token"
+            )
         sequences.append(
             torch.cat(
                 [
@@ -228,9 +230,7 @@ def build_batch(
     padded = torch.full(
         (len(sequences), max_width), PAD_TOKEN_ID, dtype=torch.long, device=DEVICE
     )
-    pad_mask = torch.zeros(
-        (len(sequences), max_width), dtype=torch.long, device=DEVICE
-    )
+    pad_mask = torch.zeros((len(sequences), max_width), dtype=torch.long, device=DEVICE)
     for index, sequence in enumerate(sequences):
         padded[index, : widths[index]] = sequence
         pad_mask[index, : widths[index]] = 1
@@ -264,7 +264,9 @@ def build_batch(
                     "response_tokens": width - n_prompt,
                     "total_tokens": width,
                     "ended_with_eos": ended_with_eos,
-                    "hit_max_new_tokens": (width - n_prompt >= MAX_NEW_TOKENS and not ended_with_eos),
+                    "hit_max_new_tokens": (
+                        width - n_prompt >= MAX_NEW_TOKENS and not ended_with_eos
+                    ),
                     "source_ids": record["source_ids"],
                     "source_count": record["source_count"],
                     "target_model": MODEL_PATH,
@@ -343,9 +345,7 @@ def run_split(
                 failed.extend(
                     {"doc_id": record["doc_id"], "error": repr(exc)} for record in chunk
                 )
-                print(
-                    f"  [fail] {[r['doc_id'] for r in chunk]}: {exc}", flush=True
-                )
+                print(f"  [fail] {[r['doc_id'] for r in chunk]}: {exc}", flush=True)
                 torch.cuda.empty_cache()
                 continue
 

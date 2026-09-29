@@ -125,7 +125,9 @@ class TorchProfilerCallback(Callback):
         del trainer, core_module
         self._stop_profiler()
 
-    def teardown(self, trainer: "Trainer", core_module: "CoreModel", stage: str) -> None:
+    def teardown(
+        self, trainer: "Trainer", core_module: "CoreModel", stage: str
+    ) -> None:
         del trainer, core_module, stage
         self._stop_profiler()
 

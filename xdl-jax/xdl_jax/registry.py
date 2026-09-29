@@ -37,9 +37,13 @@ class Registry:
         try:
             return self._values[name]
         except KeyError as exc:
-            matches = difflib.get_close_matches(name, list(self._values.keys()), n=3, cutoff=0.6)
+            matches = difflib.get_close_matches(
+                name, list(self._values.keys()), n=3, cutoff=0.6
+            )
             suggestion = f"; did you mean {matches}?" if matches else ""
-            raise ConfigurationError(f"{name!r} is not registered in {self.name}{suggestion}") from exc
+            raise ConfigurationError(
+                f"{name!r} is not registered in {self.name}{suggestion}"
+            ) from exc
 
     def list_available(self) -> list[str]:
         """获取所有可用注册组件名."""
@@ -112,9 +116,7 @@ def resolve_target(target: str, *, kind: str) -> Any:
         module = importlib.import_module(source)
         return getattr(module, name)
     except (ImportError, AttributeError) as exc:
-        raise ConfigurationError(
-            f"cannot resolve {kind} target {target!r}"
-        ) from exc
+        raise ConfigurationError(f"cannot resolve {kind} target {target!r}") from exc
 
 
 def build_component(config: dict[str, Any], *, kind: str) -> Any:

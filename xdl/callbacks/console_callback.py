@@ -84,7 +84,9 @@ class ConsoleCallback(Callback):
             if self.custom_format:
                 formatter = logging.Formatter(self.custom_format)
             else:
-                formatter = logging.Formatter("%(asctime)s - %(message)s", datefmt="%H:%M:%S")
+                formatter = logging.Formatter(
+                    "%(asctime)s - %(message)s", datefmt="%H:%M:%S"
+                )
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
@@ -108,7 +110,9 @@ class ConsoleCallback(Callback):
             self.logger.info(f"最大训练轮数: {trainer.max_epochs}")
         self.logger.info("=" * 50)
 
-    def on_train_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_train_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         """训练epoch开始时的日志"""
         if not self.log_train or self.logger is None:
             return
@@ -158,8 +162,12 @@ class ConsoleCallback(Callback):
         if hasattr(core_module, "_step_metrics"):
             epoch_metrics = core_module._step_metrics.get_all_epoch_avg()
             if epoch_metrics:
-                metric_str = ", ".join([f"{k}: {v:.4f}" for k, v in epoch_metrics.items()])
-                self.logger.info(f"Epoch {core_module.current_epoch} 完成 - {metric_str}")
+                metric_str = ", ".join(
+                    [f"{k}: {v:.4f}" for k, v in epoch_metrics.items()]
+                )
+                self.logger.info(
+                    f"Epoch {core_module.current_epoch} 完成 - {metric_str}"
+                )
 
     def on_validation_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """验证开始时的日志"""
@@ -203,7 +211,9 @@ class ConsoleCallback(Callback):
 
                 self.logger.info(log_msg)
 
-    def on_validation_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_end(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         """验证epoch结束时的日志"""
         if not self.log_validation or self.logger is None:
             return
@@ -212,8 +222,12 @@ class ConsoleCallback(Callback):
             # 获取验证epoch平均指标
             val_metrics = getattr(core_module, "last_epoch_avg", {})
             if val_metrics:
-                metric_str = ", ".join([f"{k}: {v:.4f}" for k, v in val_metrics.items()])
-                self.logger.info(f"验证 Epoch {core_module.current_epoch} 完成 - {metric_str}")
+                metric_str = ", ".join(
+                    [f"{k}: {v:.4f}" for k, v in val_metrics.items()]
+                )
+                self.logger.info(
+                    f"验证 Epoch {core_module.current_epoch} 完成 - {metric_str}"
+                )
 
     def on_train_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
         """训练结束时的日志"""
@@ -258,7 +272,9 @@ class ConsoleCallback(Callback):
             metrics = {
                 k: v
                 for k, v in metrics.items()
-                if any(target_key.lower() in k.lower() for target_key in self.metric_keys)
+                if any(
+                    target_key.lower() in k.lower() for target_key in self.metric_keys
+                )
             }
 
         return metrics

@@ -1,8 +1,8 @@
-import torch 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from einops import rearrange 
+from einops import rearrange
 
 
 from torch.nn.attention.flex_attention import flex_attention
@@ -10,7 +10,7 @@ from torch.nn.attention import SDPBackend, sdpa_kernel
 from typing import Any, Callable, Literal, Mapping, Optional, Sequence, cast
 
 
-ATTN_TYPE = Literal['Naive', 'SDPA', 'Flex', 'FlashBias']
+ATTN_TYPE = Literal["Naive", "SDPA", "Flex", "FlashBias"]
 """
 Naive Self-Attention: 
     - Numerically stable
@@ -34,8 +34,10 @@ FlashBias (Flash Attention with low-rank decomposed relative position bias):
 """
 
 
-def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
-    score = q @ k.transpose(-2, -1) / q.shape[-1]**0.5
+def attention(
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, bias: torch.Tensor
+) -> torch.Tensor:
+    score = q @ k.transpose(-2, -1) / q.shape[-1] ** 0.5
     score = score + bias
     score = F.softmax(score, dim=-1)
     out = score @ v
@@ -52,20 +54,29 @@ def apply_rpe(table: torch.Tensor, window_size: int):
         rel_w = k_w - q_w + window_size - 1
         rel_idx = rel_h * (2 * window_size - 1) + rel_w
         return score + table[h, rel_idx]
+
     return bias_mod
 
 
 def feat_to_win(x: torch.Tensor, window_size: Sequence[int], heads: int):
     return rearrange(
-        x, 'b (qkv heads c) (h wh) (w ww) -> qkv (b h w) heads (wh ww) c',
-        heads=heads, wh=window_size[0], ww=window_size[1], qkv=3
+        x,
+        "b (qkv heads c) (h wh) (w ww) -> qkv (b h w) heads (wh ww) c",
+        heads=heads,
+        wh=window_size[0],
+        ww=window_size[1],
+        qkv=3,
     )
 
 
 def win_to_feat(x, window_size: Sequence[int], h_div: int, w_div: int):
     return rearrange(
-        x, '(b h w) heads (wh ww) c -> b (heads c) (h wh) (w ww)',
-        h=h_div, w=w_div, wh=window_size[0], ww=window_size[1]
+        x,
+        "(b h w) heads (wh ww) c -> b (heads c) (h wh) (w ww)",
+        h=h_div,
+        w=w_div,
+        wh=window_size[0],
+        ww=window_size[1],
     )
 
 
@@ -78,16 +89,34 @@ class LayerNorm(nn.Module):
         self.data_format = data_format
         if self.data_format not in ["channels_last", "channels_first"]:
             raise NotImplementedError
-        self.normalized_shape = (normalized_shape, )
+        self.normalized_shape = (normalized_shape,)
 
     def forward(self, x):
         if self.data_format == "channels_last":
-            return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
+            return F.layer_norm(
+                x, self.normalized_shape, self.weight, self.bias, self.eps
+            )
         elif self.data_format == "channels_first":
             if self.training:
-                return F.layer_norm(x.permute(0, 2, 3, 1).contiguous(), self.normalized_shape, self.weight, self.bias, self.eps).permute(0, 3, 1, 2).contiguous()
+                return (
+                    F.layer_norm(
+                        x.permute(0, 2, 3, 1).contiguous(),
+                        self.normalized_shape,
+                        self.weight,
+                        self.bias,
+                        self.eps,
+                    )
+                    .permute(0, 3, 1, 2)
+                    .contiguous()
+                )
             else:
-                return F.layer_norm(x.permute(0, 2, 3, 1), self.normalized_shape, self.weight, self.bias, self.eps).permute(0, 3, 1, 2)
+                return F.layer_norm(
+                    x.permute(0, 2, 3, 1),
+                    self.normalized_shape,
+                    self.weight,
+                    self.bias,
+                    self.eps,
+                ).permute(0, 3, 1, 2)
 
 
 class ConvolutionalAttention(nn.Module):
@@ -100,7 +129,7 @@ class ConvolutionalAttention(nn.Module):
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(pdim, pdim // 2, 1, 1, 0),
             nn.GELU(),
-            nn.Conv2d(pdim // 2, pdim * self.sk_size * self.sk_size, 1, 1, 0)
+            nn.Conv2d(pdim // 2, pdim * self.sk_size * self.sk_size, 1, 1, 0),
         )
         last_conv = self.dwc_proj[-1]
         if not isinstance(last_conv, nn.Conv2d):
@@ -112,35 +141,52 @@ class ConvolutionalAttention(nn.Module):
 
     def forward(self, x: torch.Tensor, lk_filter: torch.Tensor) -> torch.Tensor:
         if self.training:
-            x1, x2 = torch.split(x, [self.pdim, x.shape[1]-self.pdim], dim=1)
-            
+            x1, x2 = torch.split(x, [self.pdim, x.shape[1] - self.pdim], dim=1)
+
             # Dynamic Conv
             bs = x1.shape[0]
-            dynamic_kernel = self.dwc_proj(x[:, :self.pdim]).reshape(-1, 1, self.sk_size, self.sk_size)
-            x1_ = rearrange(x1, 'b c h w -> 1 (b c) h w')
-            x1_ = F.conv2d(x1_, dynamic_kernel, stride=1, padding=self.sk_size//2, groups=bs * self.pdim)
-            x1_ = rearrange(x1_, '1 (b c) h w -> b c h w', b=bs, c=self.pdim)
-            
+            dynamic_kernel = self.dwc_proj(x[:, : self.pdim]).reshape(
+                -1, 1, self.sk_size, self.sk_size
+            )
+            x1_ = rearrange(x1, "b c h w -> 1 (b c) h w")
+            x1_ = F.conv2d(
+                x1_,
+                dynamic_kernel,
+                stride=1,
+                padding=self.sk_size // 2,
+                groups=bs * self.pdim,
+            )
+            x1_ = rearrange(x1_, "1 (b c) h w -> b c h w", b=bs, c=self.pdim)
+
             # Static LK Conv + Dynamic Conv
             x1 = F.conv2d(x1, lk_filter, stride=1, padding=self.lk_size // 2) + x1_
-            
+
             x = torch.cat([x1, x2], dim=1)
         else:
             # for GPU
-            dynamic_kernel = self.dwc_proj(x[:, :self.pdim]).reshape(self.pdim, 1, self.sk_size, self.sk_size) 
-            x[:, :self.pdim] = F.conv2d(x[:, :self.pdim], lk_filter, stride=1, padding=self.lk_size // 2) \
-                + F.conv2d(x[:, :self.pdim], dynamic_kernel, stride=1, padding=self.sk_size // 2, groups=self.pdim)
-            
+            dynamic_kernel = self.dwc_proj(x[:, : self.pdim]).reshape(
+                self.pdim, 1, self.sk_size, self.sk_size
+            )
+            x[:, : self.pdim] = F.conv2d(
+                x[:, : self.pdim], lk_filter, stride=1, padding=self.lk_size // 2
+            ) + F.conv2d(
+                x[:, : self.pdim],
+                dynamic_kernel,
+                stride=1,
+                padding=self.sk_size // 2,
+                groups=self.pdim,
+            )
+
             # For Mobile Conversion, uncomment the following code
             # x_1, x_2 = torch.split(x, [self.pdim, x.shape[1]-self.pdim], dim=1)
             # dynamic_kernel = self.dwc_proj(x_1).reshape(16, 1, 3, 3)
             # x_1 = F.conv2d(x_1, lk_filter, stride=1, padding=13 // 2) + F.conv2d(x_1, dynamic_kernel, stride=1, padding=1, groups=16)
             # x = torch.cat([x_1, x_2], dim=1)
         return x
-    
+
     def extra_repr(self):
-        return f'pdim={self.pdim}'
-    
+        return f"pdim={self.pdim}"
+
 
 class ConvAttnWrapper(nn.Module):
     def __init__(self, dim: int, pdim: int, kernel_size: int = 13):
@@ -151,15 +197,22 @@ class ConvAttnWrapper(nn.Module):
     def forward(self, x: torch.Tensor, lk_filter: torch.Tensor) -> torch.Tensor:
         x = self.plk(x, lk_filter)
         x = self.aggr(x)
-        return x 
+        return x
 
 
 class ConvFFN(nn.Module):
     def __init__(self, dim: int, kernel_size: int, exp_ratio: int):
         super().__init__()
-        self.proj = nn.Conv2d(dim, int(dim*exp_ratio), 1, 1, 0)
-        self.dwc = nn.Conv2d(int(dim*exp_ratio), int(dim*exp_ratio), kernel_size, 1, kernel_size//2, groups=int(dim*exp_ratio))
-        self.aggr = nn.Conv2d(int(dim*exp_ratio), dim, 1, 1, 0)
+        self.proj = nn.Conv2d(dim, int(dim * exp_ratio), 1, 1, 0)
+        self.dwc = nn.Conv2d(
+            int(dim * exp_ratio),
+            int(dim * exp_ratio),
+            kernel_size,
+            1,
+            kernel_size // 2,
+            groups=int(dim * exp_ratio),
+        )
+        self.aggr = nn.Conv2d(int(dim * exp_ratio), dim, 1, 1, 0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.gelu(self.proj(x))
@@ -170,10 +223,14 @@ class ConvFFN(nn.Module):
 
 class WindowAttention(nn.Module):
     def __init__(
-            self, dim: int, window_size: int | Sequence[int], num_heads: int,
-            attn_func: Optional[Callable[..., Any]] = None, attn_type: str = 'Flex',
-            flashbias_rank: Optional[int] = None
-        ):
+        self,
+        dim: int,
+        window_size: int | Sequence[int],
+        num_heads: int,
+        attn_func: Optional[Callable[..., Any]] = None,
+        attn_type: str = "Flex",
+        flashbias_rank: Optional[int] = None,
+    ):
         super().__init__()
         self.dim = dim
         if isinstance(window_size, int):
@@ -181,7 +238,7 @@ class WindowAttention(nn.Module):
         else:
             self.window_size = (int(window_size[0]), int(window_size[1]))
         self.num_heads = num_heads
-        self.to_qkv = nn.Conv2d(dim, dim*3, 1, 1, 0)
+        self.to_qkv = nn.Conv2d(dim, dim * 3, 1, 1, 0)
         self.to_out = nn.Conv2d(dim, dim, 1, 1, 0)
 
         self.attn_type = attn_type
@@ -195,23 +252,37 @@ class WindowAttention(nn.Module):
         self.flashbias_k: Optional[nn.Parameter]
         self.rpe_bias: nn.Parameter
 
-        if attn_type != 'FlashBias':
+        if attn_type != "FlashBias":
             self.relative_position_bias = nn.Parameter(
-                torch.randn(num_heads, (2*self.window_size[0]-1)*(2*self.window_size[1]-1)).to(torch.float32) * 0.001
+                torch.randn(
+                    num_heads,
+                    (2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1),
+                ).to(torch.float32)
+                * 0.001
             )
 
-        if self.attn_type == 'Flex':
+        if self.attn_type == "Flex":
             self.get_rpe = apply_rpe(self.relative_position_bias, self.window_size[0])
         else:
             self.rpe_idxs = self.create_table_idxs(self.window_size[0], num_heads)
 
-        self.flashbias_rank: int = 256 - (dim // num_heads) if flashbias_rank is None else flashbias_rank
-        if self.attn_type == 'FlashBias':
+        self.flashbias_rank: int = (
+            256 - (dim // num_heads) if flashbias_rank is None else flashbias_rank
+        )
+        if self.attn_type == "FlashBias":
             self.flashbias_q = nn.Parameter(
-                torch.zeros(num_heads, self.window_size[0]*self.window_size[1], self.flashbias_rank)
+                torch.zeros(
+                    num_heads,
+                    self.window_size[0] * self.window_size[1],
+                    self.flashbias_rank,
+                )
             )
             self.flashbias_k = nn.Parameter(
-                torch.zeros(num_heads, self.window_size[0]*self.window_size[1], self.flashbias_rank)
+                torch.zeros(
+                    num_heads,
+                    self.window_size[0] * self.window_size[1],
+                    self.flashbias_rank,
+                )
             )
         else:
             self.flashbias_q = None
@@ -239,16 +310,23 @@ class WindowAttention(nn.Module):
     def pad_to_win(self, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
         pad_h = (self.window_size[0] - h % self.window_size[0]) % self.window_size[0]
         pad_w = (self.window_size[1] - w % self.window_size[1]) % self.window_size[1]
-        x = F.pad(x, (0, pad_w, 0, pad_h), mode='reflect')
+        x = F.pad(x, (0, pad_w, 0, pad_h), mode="reflect")
         return x
 
     def to_mobile(self):
         bias = self.relative_position_bias[self.rpe_idxs[:, 0], self.rpe_idxs[:, 1]]
-        self.rpe_bias = nn.Parameter(bias.reshape(1, self.num_heads, self.window_size[0]*self.window_size[1], self.window_size[0]*self.window_size[1]))
-        
+        self.rpe_bias = nn.Parameter(
+            bias.reshape(
+                1,
+                self.num_heads,
+                self.window_size[0] * self.window_size[1],
+                self.window_size[0] * self.window_size[1],
+            )
+        )
+
         del self.relative_position_bias
         del self.rpe_idxs
-        
+
         self.is_mobile = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -258,35 +336,40 @@ class WindowAttention(nn.Module):
         """
         _, _, h, w = x.shape
         x = self.pad_to_win(x, h, w)
-        h_div, w_div = x.shape[2] // self.window_size[0], x.shape[3] // self.window_size[1]
+        h_div, w_div = (
+            x.shape[2] // self.window_size[0],
+            x.shape[3] // self.window_size[1],
+        )
 
         qkv = self.to_qkv(x)
         dtype = qkv.dtype
         qkv = feat_to_win(qkv, self.window_size, self.num_heads)
         q, k, v = qkv[0], qkv[1], qkv[2]  # (B*nwin, heads, N, head_dim)
 
-        if self.attn_type == 'Flex':
+        if self.attn_type == "Flex":
             out = self.attn_func(q, k, v, score_mod=self.get_rpe)
 
-        elif self.attn_type == 'SDPA':
+        elif self.attn_type == "SDPA":
             bias = self.relative_position_bias[self.rpe_idxs[:, 0], self.rpe_idxs[:, 1]]
             bias = bias.reshape(
-                1, self.num_heads,
-                self.window_size[0]*self.window_size[1],
-                self.window_size[0]*self.window_size[1]
+                1,
+                self.num_heads,
+                self.window_size[0] * self.window_size[1],
+                self.window_size[0] * self.window_size[1],
             )
             out = self.attn_func(q, k, v, attn_mask=bias, is_causal=False)
 
-        elif self.attn_type == 'Naive':
+        elif self.attn_type == "Naive":
             bias = self.relative_position_bias[self.rpe_idxs[:, 0], self.rpe_idxs[:, 1]]
             bias = bias.reshape(
-                1, self.num_heads,
-                self.window_size[0]*self.window_size[1],
-                self.window_size[0]*self.window_size[1]
+                1,
+                self.num_heads,
+                self.window_size[0] * self.window_size[1],
+                self.window_size[0] * self.window_size[1],
             )
             out = self.attn_func(q, k, v, bias)
 
-        elif self.attn_type == 'FlashBias':
+        elif self.attn_type == "FlashBias":
             Bwin = q.shape[0]
             heads = q.shape[1]
             N = q.shape[2]
@@ -294,27 +377,49 @@ class WindowAttention(nn.Module):
 
             flashbias_q = cast(nn.Parameter, self.flashbias_q)
             flashbias_k = cast(nn.Parameter, self.flashbias_k)
-            q_bias = flashbias_q.to(dtype=q.dtype, device=q.device).unsqueeze(0).expand(Bwin, -1, -1, -1)
-            k_bias = flashbias_k.to(dtype=k.dtype, device=k.device).unsqueeze(0).expand(Bwin, -1, -1, -1)
+            q_bias = (
+                flashbias_q.to(dtype=q.dtype, device=q.device)
+                .unsqueeze(0)
+                .expand(Bwin, -1, -1, -1)
+            )
+            k_bias = (
+                flashbias_k.to(dtype=k.dtype, device=k.device)
+                .unsqueeze(0)
+                .expand(Bwin, -1, -1, -1)
+            )
 
-            softmax_scale = head_dim ** -0.5
+            softmax_scale = head_dim**-0.5
             q_cat = torch.cat([q * softmax_scale, q_bias], dim=-1)
             k_cat = torch.cat([k, k_bias], dim=-1)
-            v_cat = torch.cat([v, torch.zeros((Bwin, heads, N, k_bias.shape[-1]), device=v.device, dtype=v.dtype)], dim=-1)
+            v_cat = torch.cat(
+                [
+                    v,
+                    torch.zeros(
+                        (Bwin, heads, N, k_bias.shape[-1]),
+                        device=v.device,
+                        dtype=v.dtype,
+                    ),
+                ],
+                dim=-1,
+            )
 
             # Is this necessary? Just in case?
             d_total = q_cat.shape[-1]
             pad = (8 - (d_total % 8)) % 8
             if pad:
-                z = torch.zeros((Bwin, heads, N, pad), device=q_cat.device, dtype=q_cat.dtype)
+                z = torch.zeros(
+                    (Bwin, heads, N, pad), device=q_cat.device, dtype=q_cat.dtype
+                )
                 q_cat = torch.cat([q_cat, z], dim=-1)
                 k_cat = torch.cat([k_cat, z], dim=-1)
                 v_cat = torch.cat([v_cat, z], dim=-1)
-                
+
             with sdpa_kernel(SDPBackend.FLASH_ATTENTION):
                 out = self.attn_func(
                     # BF16 for Flash Attention Kernel; not F16 for not to use grad scaler
-                    q_cat.to(torch.bfloat16).contiguous(), k_cat.to(torch.bfloat16).contiguous(), v_cat.to(torch.bfloat16).contiguous(),
+                    q_cat.to(torch.bfloat16).contiguous(),
+                    k_cat.to(torch.bfloat16).contiguous(),
+                    v_cat.to(torch.bfloat16).contiguous(),
                     attn_mask=None,
                     dropout_p=0.0,
                     is_causal=False,
@@ -322,34 +427,57 @@ class WindowAttention(nn.Module):
                 )[:, :, :, :head_dim]
 
         else:
-            raise NotImplementedError(f'Attention type {self.attn_type} is not supported.')
+            raise NotImplementedError(
+                f"Attention type {self.attn_type} is not supported."
+            )
 
         out = win_to_feat(out, self.window_size, h_div, w_div)
         out = self.to_out(out.to(dtype)[:, :, :h, :w])
         return out
 
     def extra_repr(self):
-        return f'dim={self.dim}, window_size={self.window_size}, num_heads={self.num_heads}, attn_type={self.attn_type}'
+        return f"dim={self.dim}, window_size={self.window_size}, num_heads={self.num_heads}, attn_type={self.attn_type}"
 
 
 class Block(nn.Module):
     def __init__(
-            self, dim: int, pdim: int, conv_blocks: int, 
-            kernel_size: int, window_size: int, num_heads: int, exp_ratio: int, 
-            attn_func=None, attn_type: ATTN_TYPE = 'Flex', use_ln: bool = False,
-            flashbias_rank: Optional[int] = None
-        ):
+        self,
+        dim: int,
+        pdim: int,
+        conv_blocks: int,
+        kernel_size: int,
+        window_size: int,
+        num_heads: int,
+        exp_ratio: int,
+        attn_func=None,
+        attn_type: ATTN_TYPE = "Flex",
+        use_ln: bool = False,
+        flashbias_rank: Optional[int] = None,
+    ):
         super().__init__()
         self.ln_proj = LayerNorm(dim)
         self.proj = ConvFFN(dim, 3, 2)
 
-        self.ln_attn = LayerNorm(dim) 
-        self.attn = WindowAttention(dim, window_size, num_heads, attn_func, attn_type, flashbias_rank=flashbias_rank)
-        
-        self.lns = nn.ModuleList([LayerNorm(dim) if use_ln else nn.Identity() for _ in range(conv_blocks)])
-        self.pconvs = nn.ModuleList([ConvAttnWrapper(dim, pdim, kernel_size) for _ in range(conv_blocks)])
-        self.convffns = nn.ModuleList([ConvFFN(dim, 3, exp_ratio) for _ in range(conv_blocks)])
-        
+        self.ln_attn = LayerNorm(dim)
+        self.attn = WindowAttention(
+            dim,
+            window_size,
+            num_heads,
+            attn_func,
+            attn_type,
+            flashbias_rank=flashbias_rank,
+        )
+
+        self.lns = nn.ModuleList(
+            [LayerNorm(dim) if use_ln else nn.Identity() for _ in range(conv_blocks)]
+        )
+        self.pconvs = nn.ModuleList(
+            [ConvAttnWrapper(dim, pdim, kernel_size) for _ in range(conv_blocks)]
+        )
+        self.convffns = nn.ModuleList(
+            [ConvFFN(dim, 3, exp_ratio) for _ in range(conv_blocks)]
+        )
+
         self.ln_out = LayerNorm(dim)
         self.conv_out = nn.Conv2d(dim, dim, 3, 1, 1)
 
@@ -374,112 +502,181 @@ def _geo_ensemble(k):
     k_rot90_hflip = k_rot90.flip([3])
     k_rot90_vflip = k_rot90.flip([2])
     k_rot90_hvflip = k_rot90.flip([2, 3])
-    k = (k + k_hflip + k_vflip + k_hvflip + k_rot90 + k_rot90_hflip + k_rot90_vflip + k_rot90_hvflip) / 8
+    k = (
+        k
+        + k_hflip
+        + k_vflip
+        + k_hvflip
+        + k_rot90
+        + k_rot90_hflip
+        + k_rot90_vflip
+        + k_rot90_hvflip
+    ) / 8
     return k
 
 
 class ESC(nn.Module):
     def __init__(
-        self, dim: int, pdim: int, kernel_size: int,
-        n_blocks: int, conv_blocks: int, window_size: int, num_heads: int,
-        upscaling_factor: int, exp_ratio: int = 2, attn_type: ATTN_TYPE = 'Flex',
-        use_ln: bool = False, flashbias_rank: Optional[int] = None
+        self,
+        dim: int,
+        pdim: int,
+        kernel_size: int,
+        n_blocks: int,
+        conv_blocks: int,
+        window_size: int,
+        num_heads: int,
+        upscaling_factor: int,
+        exp_ratio: int = 2,
+        attn_type: ATTN_TYPE = "Flex",
+        use_ln: bool = False,
+        flashbias_rank: Optional[int] = None,
     ):
         super().__init__()
-        if attn_type == 'Naive':
+        if attn_type == "Naive":
             attn_func = attention
-        elif attn_type == 'SDPA' or attn_type == 'FlashBias':
+        elif attn_type == "SDPA" or attn_type == "FlashBias":
             attn_func = F.scaled_dot_product_attention
-        elif attn_type == 'Flex':
+        elif attn_type == "Flex":
             attn_func = torch.compile(flex_attention, dynamic=True)
         else:
-            raise NotImplementedError(f'Attention type {attn_type} is not supported.')
-            
+            raise NotImplementedError(f"Attention type {attn_type} is not supported.")
+
         self.plk_func = _geo_ensemble
-            
-        self.plk_filter = nn.Parameter(torch.randn(pdim, pdim, kernel_size, kernel_size))
+
+        self.plk_filter = nn.Parameter(
+            torch.randn(pdim, pdim, kernel_size, kernel_size)
+        )
         # Initializing LK filters using orthogonal initialization is important for stabilizing early training phase.
-        torch.nn.init.orthogonal_(self.plk_filter)  
-        
+        torch.nn.init.orthogonal_(self.plk_filter)
+
         self.proj = nn.Conv2d(3, dim, 3, 1, 1)
-        self.blocks = nn.ModuleList([
-            Block(
-                dim, pdim, conv_blocks, 
-                kernel_size, window_size, num_heads, exp_ratio,
-                attn_func, attn_type, use_ln=use_ln, flashbias_rank=flashbias_rank
-            ) for _ in range(n_blocks)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                Block(
+                    dim,
+                    pdim,
+                    conv_blocks,
+                    kernel_size,
+                    window_size,
+                    num_heads,
+                    exp_ratio,
+                    attn_func,
+                    attn_type,
+                    use_ln=use_ln,
+                    flashbias_rank=flashbias_rank,
+                )
+                for _ in range(n_blocks)
+            ]
+        )
         self.last = nn.Conv2d(dim, dim, 3, 1, 1)
-        self.to_img = nn.Conv2d(dim, 3*upscaling_factor**2, 3, 1, 1)
+        self.to_img = nn.Conv2d(dim, 3 * upscaling_factor**2, 3, 1, 1)
         self.upscaling_factor = upscaling_factor
-        
+
     @torch.no_grad()
     def convert(self):
         self.plk_filter = nn.Parameter(self.plk_func(self.plk_filter))
         self.plk_func = nn.Identity()
 
     @torch.no_grad()
-    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False):
+    def load_state_dict(
+        self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False
+    ):
         state_dict = dict(state_dict)
         # For SubPixel Interpolation
-        to_img_k = state_dict.get('to_img.weight')
-        to_img_b = state_dict.get('to_img.bias')
+        to_img_k = state_dict.get("to_img.weight")
+        to_img_b = state_dict.get("to_img.bias")
         if to_img_k is None or to_img_b is None:
-            raise ValueError("ESC state_dict must contain to_img.weight and to_img.bias")
-        sd_scale = int((to_img_k.shape[0] // 3)**0.5)
+            raise ValueError(
+                "ESC state_dict must contain to_img.weight and to_img.bias"
+            )
+        sd_scale = int((to_img_k.shape[0] // 3) ** 0.5)
         if sd_scale != self.upscaling_factor:
-            print(f'[ESC] Converting SubPixelConvolution from {sd_scale}x to {self.upscaling_factor}x')
+            print(
+                f"[ESC] Converting SubPixelConvolution from {sd_scale}x to {self.upscaling_factor}x"
+            )
 
             def interpolate_kernel(kernel, scale_in, scale_out):
                 _, _, kh, kw = kernel.shape
-                kernel = rearrange(kernel, '(rgb rh rw) cin kh kw -> (cin kh kw) rgb rh rw', rgb=3, rh=scale_in, rw=scale_in)
-                kernel = F.interpolate(kernel, size=(scale_out, scale_out), mode='bilinear', align_corners=False)
-                kernel = rearrange(kernel, '(cin kh kw) rgb rh rw -> (rgb rh rw) cin kh kw', kh=kh, kw=kw)
+                kernel = rearrange(
+                    kernel,
+                    "(rgb rh rw) cin kh kw -> (cin kh kw) rgb rh rw",
+                    rgb=3,
+                    rh=scale_in,
+                    rw=scale_in,
+                )
+                kernel = F.interpolate(
+                    kernel,
+                    size=(scale_out, scale_out),
+                    mode="bilinear",
+                    align_corners=False,
+                )
+                kernel = rearrange(
+                    kernel,
+                    "(cin kh kw) rgb rh rw -> (rgb rh rw) cin kh kw",
+                    kh=kh,
+                    kw=kw,
+                )
                 return kernel
 
             def interpolate_bias(bias, scale_in, scale_out):
-                bias = rearrange(bias, '(rgb rh rw) -> 1 rgb rh rw', rgb=3, rh=scale_in, rw=scale_in)
-                bias = F.interpolate(bias, size=(scale_out, scale_out), mode='bilinear', align_corners=False)
-                bias = rearrange(bias, '1 rgb rh rw -> (rgb rh rw)')
+                bias = rearrange(
+                    bias, "(rgb rh rw) -> 1 rgb rh rw", rgb=3, rh=scale_in, rw=scale_in
+                )
+                bias = F.interpolate(
+                    bias,
+                    size=(scale_out, scale_out),
+                    mode="bilinear",
+                    align_corners=False,
+                )
+                bias = rearrange(bias, "1 rgb rh rw -> (rgb rh rw)")
                 return bias
-            
+
             to_img_k = interpolate_kernel(to_img_k, sd_scale, self.upscaling_factor)
             to_img_b = interpolate_bias(to_img_b, sd_scale, self.upscaling_factor)
-            state_dict['to_img.weight'] = to_img_k
-            state_dict['to_img.bias'] = to_img_b
-        
+            state_dict["to_img.weight"] = to_img_k
+            state_dict["to_img.bias"] = to_img_b
+
         # For RelPos Decomposition
         first_attn = getattr(self.blocks[0], "attn", None)
-        if getattr(first_attn, "attn_type", None) == 'FlashBias' and 'blocks.0.attn.relative_position_bias' in state_dict:
+        if (
+            getattr(first_attn, "attn_type", None) == "FlashBias"
+            and "blocks.0.attn.relative_position_bias" in state_dict
+        ):
             # Decompose RPE table into FlashBias factors when loading weights
-            print('[ESC] Decomposing RPE table into FlashBias factors when loading weights...')
-            capture_str = 'attn.relative_position_bias'
+            print(
+                "[ESC] Decomposing RPE table into FlashBias factors when loading weights..."
+            )
+            capture_str = "attn.relative_position_bias"
             for block_idx in range(len(self.blocks)):
-                rpe_key = f'blocks.{block_idx}.{capture_str}'
+                rpe_key = f"blocks.{block_idx}.{capture_str}"
                 rpe_table = state_dict[rpe_key]
                 num_heads, table_size = rpe_table.shape
-                window_size = int(((table_size)**0.5 + 1) // 2)
-                
+                window_size = int(((table_size) ** 0.5 + 1) // 2)
+
                 # recreate idxs
                 rpe_idxs = WindowAttention.create_table_idxs(window_size, num_heads)
                 N = window_size * window_size
-                bias_vec = rpe_table[rpe_idxs[:, 0], rpe_idxs[:, 1]] 
-                bias = bias_vec.view(num_heads, N, N).to(torch.float32)  
+                bias_vec = rpe_table[rpe_idxs[:, 0], rpe_idxs[:, 1]]
+                bias = bias_vec.view(num_heads, N, N).to(torch.float32)
 
-                U, S, Vh = torch.linalg.svd(bias, full_matrices=False) 
+                U, S, Vh = torch.linalg.svd(bias, full_matrices=False)
                 block_attn = getattr(self.blocks[block_idx], "attn")
                 r = int(getattr(block_attn, "flashbias_rank"))
-                sr = torch.sqrt(S[:, :r]).unsqueeze(1) 
-                q_bias = U[:, :, :r] * sr 
-                k_bias = Vh[:, :r, :].transpose(-2, -1) * sr 
+                sr = torch.sqrt(S[:, :r]).unsqueeze(1)
+                q_bias = U[:, :, :r] * sr
+                k_bias = Vh[:, :r, :].transpose(-2, -1) * sr
 
-                state_dict[f'blocks.{block_idx}.attn.flashbias_q'] = q_bias.to(rpe_table.dtype)
-                state_dict[f'blocks.{block_idx}.attn.flashbias_k'] = k_bias.to(rpe_table.dtype)
-                
+                state_dict[f"blocks.{block_idx}.attn.flashbias_q"] = q_bias.to(
+                    rpe_table.dtype
+                )
+                state_dict[f"blocks.{block_idx}.attn.flashbias_k"] = k_bias.to(
+                    rpe_table.dtype
+                )
+
                 del state_dict[rpe_key]
 
         return super().load_state_dict(state_dict, strict, assign)
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         feat = self.proj(x)
         skip = feat
@@ -487,6 +684,8 @@ class ESC(nn.Module):
         for block in self.blocks:
             feat = block(feat, plk_filter)
         feat = self.last(feat) + skip
-        x = self.to_img(feat) + torch.repeat_interleave(x, self.upscaling_factor**2, dim=1)
+        x = self.to_img(feat) + torch.repeat_interleave(
+            x, self.upscaling_factor**2, dim=1
+        )
         x = F.pixel_shuffle(x, self.upscaling_factor)
         return x

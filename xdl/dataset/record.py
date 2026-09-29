@@ -7,7 +7,13 @@ from typing import Any, Callable, Mapping, Optional
 
 from torch.utils.data import Dataset
 
-from .utils import PathLike, Record, build_sample_id, load_manifest_context, resolve_record_path
+from .utils import (
+    PathLike,
+    Record,
+    build_sample_id,
+    load_manifest_context,
+    resolve_record_path,
+)
 
 
 class RecordDatasetBase(Dataset[Any]):
@@ -37,7 +43,9 @@ class RecordDatasetBase(Dataset[Any]):
         base_index = index % len(self.records)
         return base_index, self.records[base_index]
 
-    def _sample_id_from_path(self, record: Mapping[str, Any], path: Path, index: int) -> str:
+    def _sample_id_from_path(
+        self, record: Mapping[str, Any], path: Path, index: int
+    ) -> str:
         fallback = path.stem if path.name else None
         return build_sample_id(
             record,

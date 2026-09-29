@@ -169,7 +169,9 @@ class NNXModelAdapter:
     @staticmethod
     def _unpack_params(params: PyTree) -> tuple[Any, Any]:
         if not isinstance(params, tuple) or len(params) != 2:
-            raise TrainingError("NNX params must be the internal (GraphDef, State) pair")
+            raise TrainingError(
+                "NNX params must be the internal (GraphDef, State) pair"
+            )
         return params[0], params[1]
 
     def get_params(self, model_state: ModelState) -> PyTree:

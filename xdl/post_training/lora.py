@@ -28,7 +28,9 @@ def normalize_lora_parameters(
             item.strip() for item in target_modules.split(",") if item.strip()
         )
     elif isinstance(target_modules, Sequence):
-        modules = tuple(str(item).strip() for item in target_modules if str(item).strip())
+        modules = tuple(
+            str(item).strip() for item in target_modules if str(item).strip()
+        )
     else:
         raise TypeError("target_modules must be a string or sequence of strings")
     if not modules:

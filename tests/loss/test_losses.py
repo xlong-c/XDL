@@ -142,8 +142,12 @@ class TestDistillationLosses:
     def test_feature_and_relation_losses_match_identical_features(self):
         features = torch.randn(4, 3, 2)
 
-        assert feature_distillation_loss(features, features).item() == pytest.approx(0.0)
-        assert relation_distillation_loss(features, features).item() == pytest.approx(0.0)
+        assert feature_distillation_loss(features, features).item() == pytest.approx(
+            0.0
+        )
+        assert relation_distillation_loss(features, features).item() == pytest.approx(
+            0.0
+        )
 
     def test_delta_behavior(self):
         """小误差用 MSE, 大误差用 MAE。"""

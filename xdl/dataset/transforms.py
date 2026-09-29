@@ -46,7 +46,9 @@ class PairedImageTransform:
             for key, image in images.items()
         }
         mask_tensors = {
-            key: _to_edit_mask_tensor(self._prepare_image(mask.convert("L"), do_flip=do_flip))
+            key: _to_edit_mask_tensor(
+                self._prepare_image(mask.convert("L"), do_flip=do_flip)
+            )
             for key, mask in (masks or {}).items()
         }
         return image_tensors, mask_tensors
@@ -83,7 +85,9 @@ class ImageMaskTransform:
         self.random_flip = bool(random_flip)
         self.normalize = bool(normalize)
 
-    def __call__(self, image: Image.Image, mask: Image.Image) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, image: Image.Image, mask: Image.Image
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         do_flip = self.random_flip and (torch.rand(1).item() < 0.5)
         # image 可以双线性插值, mask 必须用 nearest, 否则类别 id 会被插值污染.
         image = self._prepare_image(
@@ -96,7 +100,9 @@ class ImageMaskTransform:
             do_flip=do_flip,
             resample=Image.Resampling.NEAREST,
         )
-        return _to_image_tensor(image, normalize=self.normalize), _to_segmentation_mask_tensor(mask)
+        return _to_image_tensor(
+            image, normalize=self.normalize
+        ), _to_segmentation_mask_tensor(mask)
 
     def _prepare_image(
         self,

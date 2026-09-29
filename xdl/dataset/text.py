@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 from .record import RecordDatasetBase
-from .utils import DEFAULT_TARGET_TEXT_KEYS, DEFAULT_TEXT_KEYS, PathLike, Record, first_present_value
+from .utils import (
+    DEFAULT_TARGET_TEXT_KEYS,
+    DEFAULT_TEXT_KEYS,
+    PathLike,
+    Record,
+    first_present_value,
+)
 
 
 class RecordTextDataset(RecordDatasetBase):
@@ -39,7 +45,9 @@ class RecordTextDataset(RecordDatasetBase):
         base_index, record = self._record_at(index)
         text = self._select_text(record, self.text_keys)
         sample: Record = {
-            "text": self.text_transform(text) if self.text_transform is not None else text,
+            "text": self.text_transform(text)
+            if self.text_transform is not None
+            else text,
             "sample_id": self._sample_id_from_fallback(record, index=base_index),
         }
 

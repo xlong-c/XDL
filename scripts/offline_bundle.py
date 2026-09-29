@@ -75,7 +75,9 @@ def load_requirement_type() -> Any:
     try:
         module = __import__("packaging.requirements", fromlist=["Requirement"])
     except ModuleNotFoundError:
-        module = __import__("pip._vendor.packaging.requirements", fromlist=["Requirement"])
+        module = __import__(
+            "pip._vendor.packaging.requirements", fromlist=["Requirement"]
+        )
     return module.Requirement
 
 
@@ -212,9 +214,13 @@ def load_project_metadata(pyproject_path: Path) -> ProjectMetadata:
     optional_dependencies = project.get("optional-dependencies", {})
 
     if not isinstance(name, str) or not isinstance(version, str):
-        raise OfflineBundleError("pyproject.toml 中的 project.name / project.version 非法。")
+        raise OfflineBundleError(
+            "pyproject.toml 中的 project.name / project.version 非法。"
+        )
     if not isinstance(dependencies, list):
-        raise OfflineBundleError("pyproject.toml 中的 project.dependencies 必须是数组。")
+        raise OfflineBundleError(
+            "pyproject.toml 中的 project.dependencies 必须是数组。"
+        )
     if not isinstance(optional_dependencies, dict):
         raise OfflineBundleError(
             "pyproject.toml 中的 project.optional-dependencies 必须是表。"
@@ -224,7 +230,9 @@ def load_project_metadata(pyproject_path: Path) -> ProjectMetadata:
     for extra_name, requirements in optional_dependencies.items():
         if not isinstance(extra_name, str) or not isinstance(requirements, list):
             raise OfflineBundleError("存在非法的 optional-dependencies 配置。")
-        extras[extra_name] = [str(item).strip() for item in requirements if str(item).strip()]
+        extras[extra_name] = [
+            str(item).strip() for item in requirements if str(item).strip()
+        ]
 
     return ProjectMetadata(
         name=name,

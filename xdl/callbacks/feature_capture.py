@@ -45,7 +45,9 @@ class FeatureCaptureCallback(Callback):
         self.every_n_epochs = max(1, int(every_n_epochs))
         self.first_val_batch_only = bool(first_val_batch_only)
         self.max_batches_per_epoch = (
-            max(1, int(max_batches_per_epoch)) if max_batches_per_epoch is not None else None
+            max(1, int(max_batches_per_epoch))
+            if max_batches_per_epoch is not None
+            else None
         )
         self.file_prefix = file_prefix
         self.save_format = save_format.lower()
@@ -59,7 +61,9 @@ class FeatureCaptureCallback(Callback):
         if self.save_format not in {"pt", "safetensors"}:
             raise ValueError(f"Unsupported save_format: {save_format}")
 
-    def on_validation_epoch_start(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_start(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         if not self._should_capture_epoch(trainer, core_module):
             return
         model = self._resolve_model(core_module)
@@ -87,7 +91,10 @@ class FeatureCaptureCallback(Callback):
         del outputs, batch, dataloader_idx
         if self._capture is None:
             return
-        if self.max_batches_per_epoch is not None and self._captured_batches >= self.max_batches_per_epoch:
+        if (
+            self.max_batches_per_epoch is not None
+            and self._captured_batches >= self.max_batches_per_epoch
+        ):
             self._teardown_capture()
             return
         if self.first_val_batch_only and batch_idx != 0:
@@ -97,11 +104,15 @@ class FeatureCaptureCallback(Callback):
         if self.first_val_batch_only:
             self._teardown_capture()
 
-    def on_validation_epoch_end(self, trainer: "Trainer", core_module: "CoreModel") -> None:
+    def on_validation_epoch_end(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> None:
         del trainer, core_module
         self._teardown_capture()
 
-    def _should_capture_epoch(self, trainer: "Trainer", core_module: "CoreModel") -> bool:
+    def _should_capture_epoch(
+        self, trainer: "Trainer", core_module: "CoreModel"
+    ) -> bool:
         if not self._is_main_process(trainer, core_module):
             return False
         epoch = getattr(trainer, "current_epoch", 0)
@@ -120,7 +131,9 @@ class FeatureCaptureCallback(Callback):
             return bool(trainer.is_main_process())
         return True
 
-    def _write_records(self, trainer: "Trainer", core_module: "CoreModel", batch_idx: int) -> None:
+    def _write_records(
+        self, trainer: "Trainer", core_module: "CoreModel", batch_idx: int
+    ) -> None:
         assert self._capture is not None
         payload = {
             "epoch": int(getattr(trainer, "current_epoch", 0)),

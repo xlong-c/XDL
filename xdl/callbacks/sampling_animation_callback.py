@@ -24,7 +24,8 @@ FFMpegWriter: Any
 
 try:
     import matplotlib  # pyright: ignore[reportMissingImports]  # 可选依赖, 缺失时降级
-    matplotlib.use('Agg')  # 使用非交互式后端,避免弹出窗口
+
+    matplotlib.use("Agg")  # 使用非交互式后端,避免弹出窗口
     import matplotlib.pyplot as plt  # pyright: ignore[reportMissingImports]
     from matplotlib.animation import (  # pyright: ignore[reportMissingImports]
         FFMpegWriter,
@@ -104,15 +105,15 @@ class SamplingAnimationCallback(Callback):
     def __init__(
         self,
         n_samples: int = 16,
-        save_dir: Union[str, Path] = './others/animations',
-        animation_filename: str = 'sampling_animation.gif',
-        animation_format: str = 'gif',
+        save_dir: Union[str, Path] = "./others/animations",
+        animation_filename: str = "sampling_animation.gif",
+        animation_format: str = "gif",
         fps: int = 2,
-        sample_method: Union[str, Callable] = 'generate_samples',
+        sample_method: Union[str, Callable] = "generate_samples",
         sample_kwargs: Optional[dict] = None,
         save_intermediate_images: bool = True,
         figsize: tuple = (8, 8),
-        cmap: str = 'gray',
+        cmap: str = "gray",
         show_epoch_label: bool = True,
         dpi: int = 100,
         enable_preview: bool = False,
@@ -154,10 +155,8 @@ class SamplingAnimationCallback(Callback):
         elif isinstance(self.sample_method, str):
             if hasattr(core_module, self.sample_method):
                 self._sampler = getattr(core_module, self.sample_method)
-            elif hasattr(core_module, 'inference'):
-                print(
-                    f"警告: 模型没有 {self.sample_method} 方法, 使用 inference 方法"
-                )
+            elif hasattr(core_module, "inference"):
+                print(f"警告: 模型没有 {self.sample_method} 方法, 使用 inference 方法")
                 self._sampler = core_module.inference
             else:
                 raise AttributeError(
@@ -165,9 +164,7 @@ class SamplingAnimationCallback(Callback):
                     "请提供有效的采样方法或自定义采样函数"
                 )
         else:
-            raise TypeError(
-                "sample_method 必须是字符串或可调用对象"
-            )
+            raise TypeError("sample_method 必须是字符串或可调用对象")
 
         if trainer.is_main_process():
             print(f"采样动画回调已初始化, 保存目录: {self.save_dir}")
@@ -191,14 +188,15 @@ class SamplingAnimationCallback(Callback):
             if callable(self._sampler):
                 # 如果采样方法需要n_samples参数
                 import inspect
+
                 sig = inspect.signature(self._sampler)
 
                 # 准备采样参数
                 sample_params = {}
-                if 'n_samples' in sig.parameters:
-                    sample_params['n_samples'] = self.n_samples
-                if 'num_samples' in sig.parameters:
-                    sample_params['num_samples'] = self.n_samples
+                if "n_samples" in sig.parameters:
+                    sample_params["n_samples"] = self.n_samples
+                if "num_samples" in sig.parameters:
+                    sample_params["num_samples"] = self.n_samples
 
                 # 添加自定义参数
                 sample_params.update(self.sample_kwargs)
@@ -222,10 +220,7 @@ class SamplingAnimationCallback(Callback):
 
                 # 保存中间图像
                 if self.save_intermediate_images:
-                    self._save_epoch_image(
-                        samples,
-                        trainer.current_epoch
-                    )
+                    self._save_epoch_image(samples, trainer.current_epoch)
 
                 print(
                     f"Epoch {trainer.current_epoch}: 已采集 {self.n_samples} 个样本, "
@@ -235,6 +230,7 @@ class SamplingAnimationCallback(Callback):
         except Exception as e:
             print(f"采样失败 (Epoch {trainer.current_epoch}): {str(e)}")
             import traceback
+
             traceback.print_exc()
         finally:
             # 恢复训练模式
@@ -267,6 +263,7 @@ class SamplingAnimationCallback(Callback):
         except Exception as e:
             print(f"动画生成失败: {str(e)}")
             import traceback
+
             traceback.print_exc()
 
     def _save_epoch_image(self, samples, epoch_idx):
@@ -276,8 +273,8 @@ class SamplingAnimationCallback(Callback):
             fig = self._create_samples_figure(samples, epoch_idx)
 
             # 保存图像
-            image_path = self.save_dir / f'epoch_{epoch_idx:04d}.png'
-            fig.savefig(image_path, dpi=self.dpi, bbox_inches='tight')
+            image_path = self.save_dir / f"epoch_{epoch_idx:04d}.png"
+            fig.savefig(image_path, dpi=self.dpi, bbox_inches="tight")
             plt.close(fig)
 
         except Exception as e:
@@ -320,8 +317,8 @@ class SamplingAnimationCallback(Callback):
                 else:
                     # 不是完美平方,假设是1D数据
                     ax.plot(sample)
-                    ax.set_title(f'Sample {idx+1}')
-                    ax.axis('off')
+                    ax.set_title(f"Sample {idx + 1}")
+                    ax.axis("off")
                     continue
             elif sample.ndim == 3:
                 # 3D图像 (C, H, W) 或 (H, W, C)
@@ -336,21 +333,21 @@ class SamplingAnimationCallback(Callback):
 
             # 绘制图像
             ax.imshow(sample, cmap=self.cmap)
-            ax.axis('off')
+            ax.axis("off")
 
             # 添加样本编号
             if n_samples <= 64:  # 只在样本数不多时显示编号
-                ax.set_title(f'{idx+1}', fontsize=8)
+                ax.set_title(f"{idx + 1}", fontsize=8)
 
         # 隐藏多余的子图
         for idx in range(n_samples, n_rows * n_cols):
             row = idx // n_cols
             col = idx % n_cols
-            axes[row, col].axis('off')
+            axes[row, col].axis("off")
 
         # 添加epoch标签
         if self.show_epoch_label and epoch_idx is not None:
-            fig.suptitle(f'Epoch {epoch_idx}', fontsize=14, fontweight='bold')
+            fig.suptitle(f"Epoch {epoch_idx}", fontsize=14, fontweight="bold")
 
         plt.tight_layout()
 
@@ -359,9 +356,9 @@ class SamplingAnimationCallback(Callback):
     def _generate_animation(self):
         """生成动画"""
         _require_matplotlib()
-        if self.animation_format == 'gif':
+        if self.animation_format == "gif":
             self._generate_gif()
-        elif self.animation_format == 'mp4':
+        elif self.animation_format == "mp4":
             self._generate_mp4()
         else:
             raise ValueError(f"不支持的动画格式: {self.animation_format}")
@@ -379,7 +376,7 @@ class SamplingAnimationCallback(Callback):
             samples = self._samples_history[frame_idx]
             epoch = self._epoch_indices[frame_idx]
             self._plot_samples_on_axis(ax, samples, epoch)
-            return ax,
+            return (ax,)
 
         # 创建动画
         anim = FuncAnimation(
@@ -387,7 +384,7 @@ class SamplingAnimationCallback(Callback):
             update,
             frames=len(self._samples_history),
             interval=1000 // self.fps,
-            blit=False
+            blit=False,
         )
 
         # 保存GIF
@@ -407,7 +404,7 @@ class SamplingAnimationCallback(Callback):
                 samples = self._samples_history[frame_idx]
                 epoch = self._epoch_indices[frame_idx]
                 self._plot_samples_on_axis(ax, samples, epoch)
-                return ax,
+                return (ax,)
 
             # 创建动画
             anim = FuncAnimation(
@@ -415,12 +412,12 @@ class SamplingAnimationCallback(Callback):
                 update,
                 frames=len(self._samples_history),
                 interval=1000 // self.fps,
-                blit=False
+                blit=False,
             )
 
             # 保存MP4
             mp4_path = self.save_dir / self.animation_filename
-            writer = FFMpegWriter(fps=self.fps, codec='libx264')
+            writer = FFMpegWriter(fps=self.fps, codec="libx264")
             anim.save(mp4_path, writer=writer, dpi=self.dpi)
 
             plt.close(fig)
@@ -428,7 +425,7 @@ class SamplingAnimationCallback(Callback):
         except Exception as e:
             print(f"生成MP4失败, 请确保已安装FFmpeg: {str(e)}")
             print("尝试使用GIF格式替代...")
-            self.animation_filename = self.animation_filename.replace('.mp4', '.gif')
+            self.animation_filename = self.animation_filename.replace(".mp4", ".gif")
             self._generate_gif()
 
     def _plot_samples_on_axis(self, ax, samples, epoch_idx):
@@ -472,9 +469,9 @@ class SamplingAnimationCallback(Callback):
                 else:
                     # 不是完美平方,假设是1D数据,跳过
                     sub_ax.plot(sample)
-                    sub_ax.axis('off')
+                    sub_ax.axis("off")
                     if n_samples <= 64:
-                        sub_ax.set_title(f'{idx+1}', fontsize=6)
+                        sub_ax.set_title(f"{idx + 1}", fontsize=6)
                     continue
             elif sample.ndim == 3:
                 # 3D图像 (C, H, W) 或 (H, W, C)
@@ -488,17 +485,17 @@ class SamplingAnimationCallback(Callback):
                 # 如果是 (H, W, C),保持不变
 
             sub_ax.imshow(sample, cmap=self.cmap)
-            sub_ax.axis('off')
+            sub_ax.axis("off")
 
             # 添加样本编号
             if n_samples <= 64:
-                sub_ax.set_title(f'{idx+1}', fontsize=6)
+                sub_ax.set_title(f"{idx + 1}", fontsize=6)
 
         # 添加标题
         if self.show_epoch_label:
-            ax.set_title(f'Epoch {epoch_idx}', fontsize=12, fontweight='bold')
+            ax.set_title(f"Epoch {epoch_idx}", fontsize=12, fontweight="bold")
 
-        ax.axis('off')
+        ax.axis("off")
 
         return ax
 
@@ -507,6 +504,7 @@ class SamplingAnimationCallback(Callback):
         try:
             # IPython 只在 Jupyter 预览时用, 缺失时下方 except 会提示
             from IPython.display import HTML, display  # pyright: ignore[reportMissingImports]
+
             animation_path = self.save_dir / self.animation_filename
             if animation_path.exists():
                 display(HTML(f'<img src="{animation_path}">'))

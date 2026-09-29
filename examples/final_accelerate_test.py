@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from xdl.trainer.core_model import CoreModel
@@ -18,14 +19,11 @@ from xdl.trainer.trainer import Trainer
 
 class TestModel(CoreModel):
     """测试模型类"""
+
     def __init__(self):
         super().__init__()
 
-        self.model = nn.Sequential(
-            nn.Linear(10, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1)
-        )
+        self.model = nn.Sequential(nn.Linear(10, 32), nn.ReLU(), nn.Linear(32, 1))
         self.loss_fn = nn.MSELoss()
 
     def training_step(self, batch, batch_idx):
@@ -39,14 +37,14 @@ class TestModel(CoreModel):
         self.manual_backward(loss)
         optimizer.step()
 
-        self.log('train_loss', loss.item())
+        self.log("train_loss", loss.item())
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         with torch.no_grad():
             outputs = self.model(x)
             loss = self.loss_fn(outputs, y.float().unsqueeze(1))
-            self.log('val_loss', loss.item())
+            self.log("val_loss", loss.item())
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
@@ -84,10 +82,7 @@ def main():
     print("2. 测试 Accelerate 训练...")
     model_accelerate = TestModel()
 
-    accelerate_config = {
-        'mixed_precision': 'fp16',
-        'gradient_accumulation_steps': 2
-    }
+    accelerate_config = {"mixed_precision": "fp16", "gradient_accumulation_steps": 2}
 
     trainer_accelerate = Trainer(
         max_epochs=2,
@@ -111,7 +106,7 @@ def main():
 
     # 测试模型属性
     try:
-        if hasattr(model_accelerate, '_accelerator'):
+        if hasattr(model_accelerate, "_accelerator"):
             print(f"✓ 模型 _accelerator 属性: {model_accelerate._accelerator}")
         else:
             print("✓ 模型无 _accelerator 属性")

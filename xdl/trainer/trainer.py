@@ -160,7 +160,9 @@ class Trainer:
         self._accumulated_batches = 0
 
         # 设备引用
-        self._device = None if self._should_use_accelerate() else self._get_device_from_spec()
+        self._device = (
+            None if self._should_use_accelerate() else self._get_device_from_spec()
+        )
         self._is_setup = False
         self._test_loader_prepared = False
 
@@ -236,7 +238,9 @@ class Trainer:
         )
 
         diagnostics_cfg = getattr(setup, "diagnostics", None)
-        if diagnostics_cfg is not None and bool(getattr(diagnostics_cfg, "enabled", False)):
+        if diagnostics_cfg is not None and bool(
+            getattr(diagnostics_cfg, "enabled", False)
+        ):
             from xdl.callbacks.diagnostics_callback import DiagnosticsCallback
 
             report_dir = getattr(diagnostics_cfg, "report_dir", "logs/diagnostics")
@@ -245,7 +249,9 @@ class Trainer:
             trainer.callback_list.add_callback(
                 DiagnosticsCallback(
                     report_dir=report_dir,
-                    sample_interval_s=getattr(diagnostics_cfg, "sample_interval_s", 0.5),
+                    sample_interval_s=getattr(
+                        diagnostics_cfg, "sample_interval_s", 0.5
+                    ),
                     deep_dive=getattr(diagnostics_cfg, "deep_dive", True),
                     max_deep_dives=getattr(diagnostics_cfg, "max_deep_dives", 1),
                 )
@@ -303,7 +309,9 @@ class Trainer:
         if enable_console:
             self.callback_list.add_callback(
                 ConsoleCallback(
-                    log_frequency=console_log_frequency if console_log_frequency is not None else log_every_n_steps,
+                    log_frequency=console_log_frequency
+                    if console_log_frequency is not None
+                    else log_every_n_steps,
                     log_train=True,
                     log_validation=True,
                     log_validation_frequency="epoch",
@@ -339,7 +347,10 @@ class Trainer:
     @property
     def steps_per_epoch(self) -> int:
         """获取每轮训练的步数(支持虚拟epoch)"""
-        if hasattr(self, "_virtual_steps_per_epoch") and self._virtual_steps_per_epoch is not None:
+        if (
+            hasattr(self, "_virtual_steps_per_epoch")
+            and self._virtual_steps_per_epoch is not None
+        ):
             return self._virtual_steps_per_epoch
         return len(self._train_dataloader) if self._train_dataloader is not None else 0
 
@@ -406,7 +417,9 @@ class Trainer:
         """获取计划的全局总微步数 (max_epochs * steps_per_epoch)."""
         if getattr(self, "_target_total_train_steps", None) is not None:
             return self._target_total_train_steps
-        if self._train_dataloader is not None and hasattr(self._train_dataloader, "__len__"):
+        if self._train_dataloader is not None and hasattr(
+            self._train_dataloader, "__len__"
+        ):
             return len(self._train_dataloader) * self.max_epochs
         return 1000
 
@@ -491,7 +504,9 @@ class Trainer:
 
         # 提前计算计划总步数与步数区间, 确保 configure_optimizers() 执行时
         # trainer.total_train_steps 与 total_optimizer_steps 已有准确值
-        original_steps_per_epoch = len(train_dataloader) if hasattr(train_dataloader, "__len__") else 1
+        original_steps_per_epoch = (
+            len(train_dataloader) if hasattr(train_dataloader, "__len__") else 1
+        )
         val_step_interval = self._resolve_val_step_interval(
             val_check_interval,
             original_steps_per_epoch,
@@ -582,8 +597,7 @@ class Trainer:
         if self._accelerator:
             self._accelerator.end_training()
         self.callback_list.fit_end(trainer=self, core_module=model)
-        self.callback_list.teardown(
-            trainer=self, core_module=model, stage="fit")
+        self.callback_list.teardown(trainer=self, core_module=model, stage="fit")
 
     @staticmethod
     def _resolve_val_step_interval(
@@ -593,7 +607,9 @@ class Trainer:
         if original_steps_per_epoch <= 0:
             raise ValueError("train_dataloader must contain at least one batch")
         if isinstance(val_check_interval, bool):
-            raise TypeError("val_check_interval must be an int >= 1 or a float in (0, 1]")
+            raise TypeError(
+                "val_check_interval must be an int >= 1 or a float in (0, 1]"
+            )
         if isinstance(val_check_interval, int):
             if val_check_interval < 1:
                 raise ValueError("integer val_check_interval must be >= 1")
@@ -691,7 +707,9 @@ class Trainer:
 
         # 获取平均指标并结束 epoch
         epoch_avg_metrics = (
-            model._step_metrics.get_all_epoch_avg() if hasattr(model, "_step_metrics") else {}
+            model._step_metrics.get_all_epoch_avg()
+            if hasattr(model, "_step_metrics")
+            else {}
         )
         if hasattr(model, "_step_metrics"):
             model._step_metrics.clear_epoch()
@@ -699,7 +717,11 @@ class Trainer:
         model.on_epoch_end()
         self.callback_list.epoch_end(trainer=self, core_module=model)
 
-        return {"epoch": self.current_epoch, "steps": num_steps, "avg_metrics": epoch_avg_metrics}
+        return {
+            "epoch": self.current_epoch,
+            "steps": num_steps,
+            "avg_metrics": epoch_avg_metrics,
+        }
 
     def _validate_epoch(self) -> Dict[str, Any]:
         """验证周期 - 统一处理标准 DataLoader 验证和样本推理采样"""
@@ -720,8 +742,7 @@ class Trainer:
         model.on_validation_start()
         self.callback_list.validation_start(trainer=self, core_module=model)
         model.on_validation_epoch_start()
-        self.callback_list.validation_epoch_start(
-            trainer=self, core_module=model)
+        self.callback_list.validation_epoch_start(trainer=self, core_module=model)
 
         avg_metrics = {}
 
@@ -741,7 +762,11 @@ class Trainer:
 
                     model.on_validation_batch_end()
                     self.callback_list.validation_batch_end(
-                        trainer=self, core_module=model, outputs={}, batch=batch, batch_idx=step
+                        trainer=self,
+                        core_module=model,
+                        outputs={},
+                        batch=batch,
+                        batch_idx=step,
                     )
 
             # 整理指标
@@ -766,8 +791,7 @@ class Trainer:
         # 4. 钩子结束
         self.wait_for_everyone()
         model.on_validation_epoch_end()
-        self.callback_list.validation_epoch_end(
-            trainer=self, core_module=model)
+        self.callback_list.validation_epoch_end(trainer=self, core_module=model)
         model.on_validation_end()
         self.callback_list.validation_end(trainer=self, core_module=model)
 
@@ -775,7 +799,9 @@ class Trainer:
 
     def wait_for_everyone(self) -> None:
         """阻塞当前进程直到所有 rank 都到达该点 (单进程时为空操作)."""
-        if self._accelerator is not None and hasattr(self._accelerator, "wait_for_everyone"):
+        if self._accelerator is not None and hasattr(
+            self._accelerator, "wait_for_everyone"
+        ):
             self._accelerator.wait_for_everyone()
 
     def _requires_collective_sampling(self, model: CoreModel) -> bool:
@@ -792,11 +818,7 @@ class Trainer:
         metrics = getattr(model, "current_metrics", {}) or {}
         if not metrics:
             return False
-        bad = {
-            name: value
-            for name, value in metrics.items()
-            if not _is_finite(value)
-        }
+        bad = {name: value for name, value in metrics.items() if not _is_finite(value)}
         if not bad:
             return False
         logger.warning(
@@ -981,7 +1003,9 @@ class Trainer:
             return {}
         if not isinstance(objects, Mapping):
             raise TypeError("configure_device_objects() must return a mapping")
-        return {str(name): value for name, value in objects.items() if value is not None}
+        return {
+            str(name): value for name, value in objects.items() if value is not None
+        }
 
     def _move_device_object(self, obj: Any) -> Any:
         """将非 accelerate.prepare 对象迁移到当前设备."""
@@ -1018,7 +1042,9 @@ class Trainer:
 
         # 创建 Accelerator
         # 确保 accelerate_config 不为 None 并且是字典类型
-        config = self.accelerate_config.copy() if self.accelerate_config is not None else {}
+        config = (
+            self.accelerate_config.copy() if self.accelerate_config is not None else {}
+        )
 
         # 处理 FSDP 配置
         if self.fsdp is not None:
@@ -1032,7 +1058,10 @@ class Trainer:
             config["mixed_precision"] = self._normalize_precision()
 
         # 确保梯度累积步数同步注入 Accelerator, 避免分布式下每个 micro-step 触发 All-Reduce
-        if "gradient_accumulation_steps" not in config and self.gradient_accumulation_steps > 1:
+        if (
+            "gradient_accumulation_steps" not in config
+            and self.gradient_accumulation_steps > 1
+        ):
             config["gradient_accumulation_steps"] = self.gradient_accumulation_steps
 
         self._accelerator = Accelerator(**config)
@@ -1127,7 +1156,9 @@ class Trainer:
 
     def _unwrapped_module_names(self) -> List[str]:
         """读取模型声明的不需要 prepare 的模块属性名."""
-        if self._model is None or not hasattr(self._model, "configure_unwrapped_modules"):
+        if self._model is None or not hasattr(
+            self._model, "configure_unwrapped_modules"
+        ):
             return []
         try:
             names = self._model.configure_unwrapped_modules()
@@ -1136,9 +1167,7 @@ class Trainer:
         if names is None:
             return []
         if not isinstance(names, (list, tuple, set)):
-            raise TypeError(
-                "configure_unwrapped_modules() 必须返回属性名列表"
-            )
+            raise TypeError("configure_unwrapped_modules() 必须返回属性名列表")
         return [str(name) for name in names]
 
     def _setup_standard(self):
@@ -1237,13 +1266,17 @@ class Trainer:
 
                 # 执行测试步骤
                 model.test_step(batch, step)
-                
+
                 # 调用批次结束钩子
                 model.on_test_batch_end()
                 self.callback_list.test_batch_end(
-                    trainer=self, core_module=model, outputs={}, batch=batch, batch_idx=step
+                    trainer=self,
+                    core_module=model,
+                    outputs={},
+                    batch=batch,
+                    batch_idx=step,
                 )
-                
+
                 results.append(None)
 
         self.callback_list.test_epoch_end(trainer=self, core_module=model)
