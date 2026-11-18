@@ -1,0 +1,49 @@
+version: 1
+id: classification-cifar10
+label: CIFAR-10 VGG 演示
+summary: 使用 XDL VGG-16 + CIFAR-10 配置运行一个可视化训练演示.
+source_config: config/vgg_cifar10.yaml
+fields:
+  - path: runtime.experiment_name
+    type: string
+    label: 实验名称
+    default: cifar10-vgg-demo
+  - path: trainer.max_epochs
+    type: integer
+    label: Epoch 数
+    default: 1
+    min: 1
+    max: 10000
+  - path: trainer.batch_size
+    type: integer
+    label: Batch size
+    default: 128
+    min: 1
+    max: 4096
+  - path: dataloader_defaults.num_workers
+    type: integer
+    label: DataLoader workers
+    default: 4
+    min: 0
+    max: 64
+  - path: optimization.optimizer.params.lr
+    type: number
+    label: Learning rate
+    default: 0.01
+    min: 0.00000001
+    max: 10
+  - path: optimization.optimizer.params.weight_decay
+    type: number
+    label: Weight decay
+    default: 0.0005
+    min: 0
+    max: 10
+  - path: runtime.data_dir
+    type: data_directory
+    label: 数据目录
+    default: cifar10
+    required: true
+  - path: train_dataset.params.download
+    type: boolean
+    label: 缺失时下载 CIFAR-10
+    default: true

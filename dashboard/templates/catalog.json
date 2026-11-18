@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "classification-cifar10-demo",
+      "definition": "templates/classification_cifar10_demo.yaml",
+      "source_config": "config/vgg_cifar10_dashboard_demo.yaml",
+      "allowed_overrides": [
+        "runtime.experiment_name",
+        "trainer.max_epochs",
+        "trainer.batch_size",
+        "dataloader_defaults.num_workers",
+        "optimization.optimizer.params.lr",
+        "optimization.optimizer.params.weight_decay"
+      ],
+      "requires_gpu": true
+    },
+    {
+      "id": "classification-cifar10",
+      "definition": "templates/classification_cifar10.yaml",
+      "source_config": "config/vgg_cifar10.yaml",
+      "allowed_overrides": [
+        "runtime.experiment_name",
+        "runtime.data_dir",
+        "trainer.max_epochs",
+        "trainer.batch_size",
+        "dataloader_defaults.num_workers",
+        "optimization.optimizer.params.lr",
+        "optimization.optimizer.params.weight_decay",
+        "train_dataset.params.download",
+        "val_dataset.params.download"
+      ],
+      "requires_gpu": true
+    },
+    {
+      "id": "classification-cifar100",
+      "definition": "templates/classification.yaml",
+      "source_config": "config/vgg_cifar100.yaml",
+      "allowed_overrides": [
+        "runtime.experiment_name",
+        "runtime.data_dir",
+        "trainer.max_epochs",
+        "trainer.batch_size",
+        "dataloader_defaults.num_workers",
+        "optimization.optimizer.params.lr",
+        "optimization.optimizer.params.weight_decay",
+        "train_dataset.params.download",
+        "val_dataset.params.download"
+      ],
+      "requires_gpu": true
+    },
+    {
+      "id": "synthetic-classification",
+      "definition": "templates/synthetic_classification.yaml",
+      "source_config": "config/unified_logger_example.yaml",
+      "allowed_overrides": [
+        "runtime.experiment_name",
+        "trainer.max_epochs",
+        "trainer.batch_size",
+        "dataloader_defaults.num_workers",
+        "optimization.optimizer.params.lr",
+        "optimization.optimizer.params.weight_decay",
+        "train_dataset.params.num_samples",
+        "val_dataset.params.num_samples"
+      ],
+      "requires_gpu": false
+    }
+  ]
+}

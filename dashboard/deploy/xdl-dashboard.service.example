@@ -1,0 +1,21 @@
+[Unit]
+Description=XDL Training Observatory
+After=network.target
+
+[Service]
+Type=simple
+User=xdl
+Group=xdl
+WorkingDirectory=/opt/xdl
+ExecStart=/opt/xdl/dashboard/bin/xdl-dashboard -config /opt/xdl/dashboard/config.json
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONPATH=/opt/xdl
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/xdl/others/dashboard /opt/xdl/dashboard
+
+[Install]
+WantedBy=multi-user.target

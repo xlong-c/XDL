@@ -1,0 +1,17 @@
+{
+  "listen_addr": "127.0.0.1:8765",
+  "database_path": "./others/dashboard/dashboard.sqlite",
+  "project_root": "..",
+  "python_executable": "python",
+  "data_root": "./data",
+  "output_root": "./others/dashboard/runs",
+  "frontend_dir": "./dashboard/frontend/dist",
+  "template_catalog": "./dashboard/templates/catalog.json",
+  "workflow_catalog": "./xdl/workflow/node_catalog.json",
+  "worker_module": "dashboard.worker.train_worker",
+  "system_interval": "2s",
+  "metrics_interval": "2s",
+  "compiler_timeout": "60s",
+  "event_buffer": 256,
+  "max_parallel_runs": 0
+}

@@ -1,0 +1,461 @@
+{
+  "version": 1,
+  "name": "CIFAR-10 VGG-11 标准训练图",
+  "execution_profile": "schema-v1",
+  "nodes": [
+    {
+      "id": "ckpt",
+      "kind": "checkpoint",
+      "target": "builtin:ModelCheckpoint",
+      "params": {
+        "save_last": true,
+        "save_top_k": 1,
+        "monitor": "Accuracy",
+        "mode": "max",
+        "every_n_epochs": 1
+      },
+      "position": {
+        "x": 1180,
+        "y": 40
+      },
+      "metadata": {
+        "label": "检查点"
+      }
+    },
+    {
+      "id": "ds-train",
+      "kind": "dataset",
+      "target": "torchvision.datasets:FakeData",
+      "params": {
+        "size": 512,
+        "image_size": [
+          3,
+          32,
+          32
+        ],
+        "num_classes": 10,
+        "random_offset": 10
+      },
+      "position": {
+        "x": 400,
+        "y": 40
+      },
+      "metadata": {
+        "label": "训练数据集"
+      }
+    },
+    {
+      "id": "ds-val",
+      "kind": "dataset",
+      "target": "torchvision.datasets:FakeData",
+      "params": {
+        "size": 128,
+        "image_size": [
+          3,
+          32,
+          32
+        ],
+        "num_classes": 10,
+        "random_offset": 1000
+      },
+      "position": {
+        "x": 400,
+        "y": 200
+      },
+      "metadata": {
+        "label": "验证数据集"
+      }
+    },
+    {
+      "id": "dl-train",
+      "kind": "dataloader",
+      "target": "builtin:DataLoader",
+      "params": {
+        "num_workers": 2,
+        "shuffle": true,
+        "drop_last": true,
+        "pin_memory": true
+      },
+      "position": {
+        "x": 620,
+        "y": 40
+      },
+      "metadata": {
+        "label": "训练批次"
+      }
+    },
+    {
+      "id": "dl-val",
+      "kind": "dataloader",
+      "target": "builtin:DataLoader",
+      "params": {
+        "num_workers": 2,
+        "shuffle": false,
+        "drop_last": false,
+        "pin_memory": true
+      },
+      "position": {
+        "x": 620,
+        "y": 200
+      },
+      "metadata": {
+        "label": "验证批次"
+      }
+    },
+    {
+      "id": "loss",
+      "kind": "loss",
+      "target": "torch.nn:CrossEntropyLoss",
+      "params": {},
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "metadata": {
+        "label": "交叉熵"
+      }
+    },
+    {
+      "id": "metric",
+      "kind": "metric",
+      "target": "registry:Accuracy",
+      "params": {
+        "num_classes": 10
+      },
+      "position": {
+        "x": 1180,
+        "y": 200
+      },
+      "metadata": {
+        "label": "准确率"
+      }
+    },
+    {
+      "id": "model",
+      "kind": "model",
+      "target": "registry:vgg11_bn",
+      "params": {
+        "num_classes": 10,
+        "dropout": 0.2
+      },
+      "position": {
+        "x": 40,
+        "y": 200
+      },
+      "metadata": {
+        "label": "VGG-11 BN"
+      }
+    },
+    {
+      "id": "opt",
+      "kind": "optimizer",
+      "target": "torch.optim:SGD",
+      "params": {
+        "lr": 0.01,
+        "momentum": 0.9,
+        "weight_decay": 0.0005
+      },
+      "position": {
+        "x": 240,
+        "y": 200
+      },
+      "metadata": {
+        "label": "SGD"
+      }
+    },
+    {
+      "id": "sched",
+      "kind": "scheduler",
+      "target": "torch.optim.lr_scheduler:StepLR",
+      "params": {
+        "step_size": 1,
+        "gamma": 0.9
+      },
+      "position": {
+        "x": 240,
+        "y": 340
+      },
+      "metadata": {
+        "label": "StepLR"
+      }
+    },
+    {
+      "id": "tf-train-norm",
+      "kind": "transform",
+      "target": "torchvision.transforms:Normalize",
+      "params": {
+        "mean": [
+          0.4914,
+          0.4822,
+          0.4465
+        ],
+        "std": [
+          0.247,
+          0.2435,
+          0.2616
+        ]
+      },
+      "position": {
+        "x": 180,
+        "y": 40
+      },
+      "metadata": {
+        "label": "归一化"
+      }
+    },
+    {
+      "id": "tf-train-tensor",
+      "kind": "transform",
+      "target": "torchvision.transforms:ToTensor",
+      "params": {},
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "metadata": {
+        "label": "转张量"
+      }
+    },
+    {
+      "id": "tf-val-norm",
+      "kind": "transform",
+      "target": "torchvision.transforms:Normalize",
+      "params": {
+        "mean": [
+          0.4914,
+          0.4822,
+          0.4465
+        ],
+        "std": [
+          0.247,
+          0.2435,
+          0.2616
+        ]
+      },
+      "position": {
+        "x": 180,
+        "y": 200
+      },
+      "metadata": {
+        "label": "验证归一化"
+      }
+    },
+    {
+      "id": "tf-val-tensor",
+      "kind": "transform",
+      "target": "torchvision.transforms:ToTensor",
+      "params": {},
+      "position": {
+        "x": 40,
+        "y": 200
+      },
+      "metadata": {
+        "label": "验证转张量"
+      }
+    },
+    {
+      "id": "trainer",
+      "kind": "trainer",
+      "target": "builtin:Trainer",
+      "params": {
+        "max_epochs": 1,
+        "batch_size": 64,
+        "gradient_accumulation_steps": 1,
+        "grad_clip_max_norm": 5.0,
+        "precision": "32"
+      },
+      "position": {
+        "x": 940,
+        "y": 120
+      },
+      "metadata": {
+        "label": "训练循环"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-ckpt",
+      "from": {
+        "node": "trainer",
+        "port": "run"
+      },
+      "to": {
+        "node": "ckpt",
+        "port": "run"
+      }
+    },
+    {
+      "id": "e-dl-train",
+      "from": {
+        "node": "dl-train",
+        "port": "batches"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "train_loader"
+      }
+    },
+    {
+      "id": "e-dl-val",
+      "from": {
+        "node": "dl-val",
+        "port": "batches"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "val_loader"
+      }
+    },
+    {
+      "id": "e-ds-train",
+      "from": {
+        "node": "ds-train",
+        "port": "samples"
+      },
+      "to": {
+        "node": "dl-train",
+        "port": "dataset"
+      }
+    },
+    {
+      "id": "e-ds-val",
+      "from": {
+        "node": "ds-val",
+        "port": "samples"
+      },
+      "to": {
+        "node": "dl-val",
+        "port": "dataset"
+      }
+    },
+    {
+      "id": "e-loss",
+      "from": {
+        "node": "loss",
+        "port": "loss"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "loss"
+      }
+    },
+    {
+      "id": "e-metric",
+      "from": {
+        "node": "trainer",
+        "port": "run"
+      },
+      "to": {
+        "node": "metric",
+        "port": "run"
+      }
+    },
+    {
+      "id": "e-model",
+      "from": {
+        "node": "model",
+        "port": "module"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "model"
+      }
+    },
+    {
+      "id": "e-opt",
+      "from": {
+        "node": "opt",
+        "port": "optimizer"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "optimizer"
+      }
+    },
+    {
+      "id": "e-opt-model",
+      "from": {
+        "node": "model",
+        "port": "module"
+      },
+      "to": {
+        "node": "opt",
+        "port": "model"
+      }
+    },
+    {
+      "id": "e-sched",
+      "from": {
+        "node": "sched",
+        "port": "scheduler"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "scheduler"
+      }
+    },
+    {
+      "id": "e-sched-opt",
+      "from": {
+        "node": "opt",
+        "port": "optimizer"
+      },
+      "to": {
+        "node": "sched",
+        "port": "optimizer"
+      }
+    },
+    {
+      "id": "e-tf-train",
+      "from": {
+        "node": "tf-train-tensor",
+        "port": "pipeline"
+      },
+      "to": {
+        "node": "tf-train-norm",
+        "port": "pipeline"
+      }
+    },
+    {
+      "id": "e-tf-train-ds",
+      "from": {
+        "node": "tf-train-norm",
+        "port": "pipeline"
+      },
+      "to": {
+        "node": "ds-train",
+        "port": "transform"
+      }
+    },
+    {
+      "id": "e-tf-val",
+      "from": {
+        "node": "tf-val-tensor",
+        "port": "pipeline"
+      },
+      "to": {
+        "node": "tf-val-norm",
+        "port": "pipeline"
+      }
+    },
+    {
+      "id": "e-tf-val-ds",
+      "from": {
+        "node": "tf-val-norm",
+        "port": "pipeline"
+      },
+      "to": {
+        "node": "ds-val",
+        "port": "transform"
+      }
+    }
+  ],
+  "settings": {
+    "launcher": "none",
+    "devices": [],
+    "runtime": {
+      "seed": 42
+    }
+  }
+}

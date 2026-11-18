@@ -1,0 +1,40 @@
+version: 1
+id: classification-cifar10-demo
+label: CIFAR-10 VGG 本地演示
+summary: 使用本地 FakeData 运行 VGG-11 训练,无需下载数据即可展示 dashboard.
+source_config: config/vgg_cifar10_dashboard_demo.yaml
+fields:
+  - path: runtime.experiment_name
+    type: string
+    label: 实验名称
+    default: cifar10-vgg-local-demo
+  - path: trainer.max_epochs
+    type: integer
+    label: Epoch 数
+    default: 1
+    min: 1
+    max: 100
+  - path: trainer.batch_size
+    type: integer
+    label: Batch size
+    default: 64
+    min: 1
+    max: 512
+  - path: dataloader_defaults.num_workers
+    type: integer
+    label: DataLoader workers
+    default: 2
+    min: 0
+    max: 16
+  - path: optimization.optimizer.params.lr
+    type: number
+    label: Learning rate
+    default: 0.01
+    min: 0.00000001
+    max: 1
+  - path: optimization.optimizer.params.weight_decay
+    type: number
+    label: Weight decay
+    default: 0.0005
+    min: 0
+    max: 1

@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "name": "分支合并训练图 (dag-runtime)",
+  "execution_profile": "dag-runtime",
+  "nodes": [
+    {
+      "id": "ds-a",
+      "kind": "dataset",
+      "target": "registry:SyntheticClassificationDataset",
+      "params": {
+        "num_samples": 32,
+        "input_shape": [
+          4
+        ],
+        "num_classes": 2,
+        "seed": 1
+      },
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "metadata": {
+        "label": "数据 A"
+      }
+    },
+    {
+      "id": "ds-b",
+      "kind": "dataset",
+      "target": "registry:SyntheticClassificationDataset",
+      "params": {
+        "num_samples": 32,
+        "input_shape": [
+          4
+        ],
+        "num_classes": 2,
+        "seed": 2
+      },
+      "position": {
+        "x": 40,
+        "y": 160
+      },
+      "metadata": {
+        "label": "数据 B"
+      }
+    },
+    {
+      "id": "merge",
+      "kind": "merge",
+      "target": "builtin:Merge",
+      "params": {
+        "strategy": "concat"
+      },
+      "position": {
+        "x": 240,
+        "y": 100
+      },
+      "metadata": {
+        "label": "合并"
+      }
+    },
+    {
+      "id": "dl",
+      "kind": "dataloader",
+      "target": "builtin:DataLoader",
+      "params": {
+        "num_workers": 0,
+        "shuffle": true,
+        "drop_last": false,
+        "pin_memory": false
+      },
+      "position": {
+        "x": 420,
+        "y": 100
+      },
+      "metadata": {
+        "label": "批次"
+      }
+    },
+    {
+      "id": "loss",
+      "kind": "loss",
+      "target": "torch.nn:CrossEntropyLoss",
+      "params": {},
+      "position": {
+        "x": 40,
+        "y": 280
+      },
+      "metadata": {
+        "label": "交叉熵"
+      }
+    },
+    {
+      "id": "model",
+      "kind": "model",
+      "target": "registry:simple_mlp",
+      "params": {
+        "input_size": 4,
+        "hidden_size": 32,
+        "num_classes": 2,
+        "dropout_rate": 0.0
+      },
+      "position": {
+        "x": 40,
+        "y": 400
+      },
+      "metadata": {
+        "label": "MLP"
+      }
+    },
+    {
+      "id": "opt",
+      "kind": "optimizer",
+      "target": "torch.optim:Adam",
+      "params": {
+        "lr": 0.01
+      },
+      "position": {
+        "x": 240,
+        "y": 400
+      },
+      "metadata": {
+        "label": "Adam"
+      }
+    },
+    {
+      "id": "trainer",
+      "kind": "trainer",
+      "target": "builtin:Trainer",
+      "params": {
+        "max_epochs": 1,
+        "batch_size": 16,
+        "gradient_accumulation_steps": 1,
+        "precision": "32"
+      },
+      "position": {
+        "x": 640,
+        "y": 240
+      },
+      "metadata": {
+        "label": "训练循环"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-dl",
+      "from": {
+        "node": "dl",
+        "port": "batches"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "train_loader"
+      }
+    },
+    {
+      "id": "e-ds-a",
+      "from": {
+        "node": "ds-a",
+        "port": "samples"
+      },
+      "to": {
+        "node": "merge",
+        "port": "left"
+      }
+    },
+    {
+      "id": "e-ds-b",
+      "from": {
+        "node": "ds-b",
+        "port": "samples"
+      },
+      "to": {
+        "node": "merge",
+        "port": "right"
+      }
+    },
+    {
+      "id": "e-loss",
+      "from": {
+        "node": "loss",
+        "port": "loss"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "loss"
+      }
+    },
+    {
+      "id": "e-merge",
+      "from": {
+        "node": "merge",
+        "port": "out"
+      },
+      "to": {
+        "node": "dl",
+        "port": "dataset"
+      }
+    },
+    {
+      "id": "e-model",
+      "from": {
+        "node": "model",
+        "port": "module"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "model"
+      }
+    },
+    {
+      "id": "e-opt",
+      "from": {
+        "node": "opt",
+        "port": "optimizer"
+      },
+      "to": {
+        "node": "trainer",
+        "port": "optimizer"
+      }
+    },
+    {
+      "id": "e-opt-model",
+      "from": {
+        "node": "model",
+        "port": "module"
+      },
+      "to": {
+        "node": "opt",
+        "port": "model"
+      }
+    }
+  ],
+  "settings": {
+    "launcher": "none",
+    "devices": [],
+    "runtime": {
+      "seed": 42
+    }
+  }
+}

@@ -1,0 +1,52 @@
+version: 1
+id: synthetic-classification
+label: 合成数据分类
+summary: 使用仓库现有合成分类配置,可在无外部数据时验证训练工作流.
+source_config: config/unified_logger_example.yaml
+fields:
+  - path: runtime.experiment_name
+    type: string
+    label: 实验名称
+    default: synthetic-classification
+  - path: trainer.max_epochs
+    type: integer
+    label: Epoch 数
+    default: 3
+    min: 1
+    max: 10000
+  - path: trainer.batch_size
+    type: integer
+    label: Batch size
+    default: 64
+    min: 1
+    max: 4096
+  - path: dataloader_defaults.num_workers
+    type: integer
+    label: DataLoader workers
+    default: 0
+    min: 0
+    max: 64
+  - path: optimization.optimizer.params.lr
+    type: number
+    label: Learning rate
+    default: 0.001
+    min: 0.00000001
+    max: 10
+  - path: optimization.optimizer.params.weight_decay
+    type: number
+    label: Weight decay
+    default: 0.0001
+    min: 0
+    max: 10
+  - path: train_dataset.params.num_samples
+    type: integer
+    label: 训练样本数
+    default: 1024
+    min: 8
+    max: 10000000
+  - path: val_dataset.params.num_samples
+    type: integer
+    label: 验证样本数
+    default: 256
+    min: 0
+    max: 10000000
