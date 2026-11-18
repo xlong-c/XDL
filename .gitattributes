@@ -4,6 +4,11 @@
 # Python 源文件使用 LF
 *.py text eol=lf
 
+# Go 源文件与模块文件使用 LF
+*.go text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
+
 # 配置文件使用 LF
 *.yaml text eol=lf
 *.yml text eol=lf

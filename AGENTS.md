@@ -70,6 +70,7 @@ XDL 负责训练, XQT 只负责模型本身, 二者通过 checkpoint / 模型产
 - **Lint / 格式**: `ruff check <路径>` 与 `ruff format --check <路径>` (行宽 88, py312, 默认排除 `data/ downloads/ third_party/`); 提交前两个都要过.
 - **半角符号**: `XDL_PUNCT_PATHS=<路径> python scripts/normalize_punctuation.py`, `XDL_PUNCT_CHECK=1` 只检查不改写. `XDL_PUNCT_PATHS` **一次只接受一个路径**, 空格分隔不生效.
 - **跑示例**: 必须 `PYTHONPATH=. python examples/<script>.py`. 直接 `python examples/...` 会报 `ModuleNotFoundError: No module named 'examples'`, 因为示例之间按 `examples.*` 互相 import.
+- **Dashboard (Go + 前端)**: 前端 `cd dashboard/frontend && pnpm run test && pnpm run build` (产物 `dashboard/frontend/dist/`); Go `cd dashboard/backend && go build -o ../bin/xdl-dashboard ./cmd/xdl-dashboard` (最终产物 `dashboard/bin/`, 中间产物进 `GOCACHE`). 测试 `cd dashboard/backend && go test ./...`. 详见 [dashboard/README.md](dashboard/README.md).
 - **知识图谱**: 结构性变更后手动 `index_repository` 刷新, `project` 固定传 `xdl`.
 
 ## 文档规范
@@ -141,6 +142,7 @@ XQT (模型压缩与部署) 与 mylearn (学习与实验) 已拆为独立仓库,
 - [docs/md/README.md#xdl-config-系统说明](docs/md/README.md#xdl-config-系统说明) - YAML 配置系统, schema v1, `target + params`
 - [docs/md/README.md#xdl-api-稳定边界](docs/md/README.md#xdl-api-稳定边界) - Stable/Provisional/Internal API 边界与兼容策略
 - [docs/md/architecture/html-style-policy.md](docs/md/architecture/html-style-policy.md) - 自有 HTML 教程与调研页统一样式, 主题 token, 交互规范
+- [docs/md/architecture/dashboard-workflow-ir.md](docs/md/architecture/dashboard-workflow-ir.md) - dashboard 工作流 IR, 节点目录, 执行 profile 与跨层契约
 - [docs/md/README.md#xdl-模块功能边界速查](docs/md/README.md#xdl-模块功能边界速查) - 各源码子模块职责速查
 - [docs/md/README.md#xdl-当前优化方向](docs/md/README.md#xdl-当前优化方向) - 框架后续优化方向
 - [xdl/USAGE.md](xdl/USAGE.md) - 随 wheel 分发的单文件用法摘要, `xdl-usage` 查看

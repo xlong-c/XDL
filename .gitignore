@@ -190,3 +190,30 @@ third_party/
 # research/ 是 mylearn 内的独立仓库 (mylearn/research); 经 third_party 软链挂入,
 # 由上面的 third_party/ 规则整体忽略.
 
+# Go 构建产物
+# 最终产物统一落在 dashboard/bin/ (见 dashboard/README.md), 中间产物 (测试二进制, 覆盖率, profile) 一律不入库.
+dashboard/bin/
+# go build / go test 未指定 -o 时就地落盘的兜底, 只匹配文件所在层, 不会命中 cmd/xdl-dashboard 源码目录.
+/dashboard/xdl-dashboard
+/dashboard/xdl-dashboard.exe
+dashboard/*/xdl-dashboard
+dashboard/*/xdl-dashboard.exe
+*.test
+*.test.exe
+coverage.out
+*.prof
+go.work
+go.work.sum
+
+# Dashboard 前端构建产物与本地缓存
+# vite 最终产物是 dashboard/frontend/dist/, 由 Go 服务托管; 依赖 (含 node_modules/.vite 增量缓存)
+# 和 tsc 增量缓存都不入库.
+dashboard/frontend/node_modules/
+dashboard/frontend/dist/
+*.tsbuildinfo
+
+# Dashboard 本地运行时文件
+# config.json 由 config.example.json 复制而来, 含本机路径; 数据库和 run 输出在 others/dashboard/ 下.
+dashboard/config.json
+dashboard/design/previews/
+
