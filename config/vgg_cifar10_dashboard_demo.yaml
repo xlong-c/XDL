@@ -1,0 +1,116 @@
+# Dashboard 本地 CIFAR-10 风格演示配置（VGG16 + 10 类 32x32 图像）
+# 使用 torchvision FakeData, 不依赖外网下载, 仅用于 dashboard 可视化演示.
+
+config_version: 1
+
+runtime:
+  device: "cuda"
+  data_dir: "./data"
+  experiment_name: "vgg16_cifar10_dashboard_demo"
+  output_dir: "./others"
+
+trainer:
+  max_epochs: 1
+  batch_size: 64
+  gradient_accumulation_steps: 1
+  grad_clip_max_norm: 5.0
+
+model:
+  target: "registry:vgg11_bn"
+  params:
+    num_classes: 10
+    dropout: 0.2
+
+dataloader_defaults:
+  batch_size: ${trainer.batch_size}
+  num_workers: 2
+  pin_memory: true
+
+train_transforms:
+  target: "torchvision.transforms:Compose"
+  params:
+    transforms:
+      - target: "torchvision.transforms:ToTensor"
+        params: {}
+      - target: "torchvision.transforms:Normalize"
+        params:
+          mean: [0.4914, 0.4822, 0.4465]
+          std: [0.2470, 0.2435, 0.2616]
+
+val_transforms:
+  target: "torchvision.transforms:Compose"
+  params:
+    transforms:
+      - target: "torchvision.transforms:ToTensor"
+        params: {}
+      - target: "torchvision.transforms:Normalize"
+        params:
+          mean: [0.4914, 0.4822, 0.4465]
+          std: [0.2470, 0.2435, 0.2616]
+
+train_dataset:
+  target: "torchvision.datasets:FakeData"
+  params:
+    size: 512
+    image_size: [3, 32, 32]
+    num_classes: 10
+    random_offset: 10
+    transform: ${train_transforms}
+
+val_dataset:
+  target: "torchvision.datasets:FakeData"
+  params:
+    size: 128
+    image_size: [3, 32, 32]
+    num_classes: 10
+    random_offset: 1000
+    transform: ${val_transforms}
+
+train_dataloader:
+  dataset: ${train_dataset}
+  params:
+    shuffle: true
+    drop_last: true
+
+val_dataloader:
+  dataset: ${val_dataset}
+  params:
+    shuffle: false
+    drop_last: false
+
+optimization:
+  optimizer:
+    target: "torch.optim:SGD"
+    params:
+      lr: 0.01
+      momentum: 0.9
+      weight_decay: 0.0005
+  scheduler:
+    target: "torch.optim.lr_scheduler:StepLR"
+    params:
+      step_size: 1
+      gamma: 0.9
+
+loss:
+  - target: "torch.nn:CrossEntropyLoss"
+    weight: 1.0
+    params: {}
+
+metrics:
+  - target: "registry:Accuracy"
+    params:
+      num_classes: 10
+
+logging:
+  log_dir: "./others/logs"
+  enable_console: true
+  enable_tensorboard: true
+  enable_wandb: false
+
+checkpoint:
+  dirpath: "./others"
+  save_last: true
+  save_top_k: 1
+  monitor: "Accuracy"
+  mode: "max"
+  every_n_epochs: 1
