@@ -19,7 +19,11 @@ class SyntheticClassificationDataset(Dataset):
         input_shape: Sequence[int] = (4,),
         num_classes: int = 2,
         seed: int = 42,
-    ):
+        sample_format: str = "tuple",
+    ) -> None:
+        if sample_format not in {"tuple", "dict"}:
+            raise ValueError("sample_format must be tuple or dict")
+        self.sample_format = sample_format
         self.num_samples = int(num_samples)
         self.input_shape = tuple(int(dim) for dim in input_shape)
         self.num_classes = int(num_classes)
@@ -38,5 +42,10 @@ class SyntheticClassificationDataset(Dataset):
     def __len__(self) -> int:
         return self.num_samples
 
-    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        return self.features[index], self.targets[index]
+    def __getitem__(
+        self, index: int
+    ) -> Tuple[torch.Tensor, torch.Tensor] | dict[str, torch.Tensor]:
+        features, label = self.features[index], self.targets[index]
+        if self.sample_format == "dict":
+            return {"features": features, "labels": label}
+        return features, label
