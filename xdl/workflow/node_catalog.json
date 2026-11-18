@@ -1,0 +1,1476 @@
+{
+  "version": 1,
+  "catalog_version": "1",
+  "limits": {
+    "max_nodes": 64,
+    "max_edges": 256,
+    "max_params_depth": 6,
+    "max_params_bytes": 65536,
+    "max_snapshot_bytes": 262144,
+    "max_name_length": 120,
+    "max_id_length": 64
+  },
+  "profiles": {
+    "schema-v1": "编译到现有 XDL schema v1 YAML, 由 setup_from_yaml() 构建.",
+    "dag-runtime": "编译到 XDL workflow runtime, 支持分支, 多输入与合并."
+  },
+  "port_types": {
+    "dataset": "数据集对象",
+    "transform": "预处理流水线",
+    "loader": "DataLoader",
+    "model": "nn.Module",
+    "loss": "损失函数",
+    "optimizer": "优化器",
+    "scheduler": "学习率调度器",
+    "metric": "评估指标",
+    "run": "训练运行句柄",
+    "checkpoint": "检查点配置",
+    "any": "任意类型",
+    "collate": "DataLoader collate callable",
+    "batch": "当前批次 (tuple/list 或字典)",
+    "tensor": "PyTorch 张量",
+    "scalar": "0 维浮点张量",
+    "metric_value": "名称与指标值"
+  },
+  "kinds": [
+    {
+      "kind": "transform",
+      "label": "预处理",
+      "group": "数据",
+      "summary": "图像到张量等单步预处理, 可串联成流水线",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "pipeline",
+          "type": "transform",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pipeline",
+          "type": "transform"
+        }
+      ],
+      "targets": [
+        {
+          "target": "torchvision.transforms:ToTensor",
+          "label": "ToTensor",
+          "summary": "把 PIL 图像或 ndarray 转成张量",
+          "params": []
+        },
+        {
+          "target": "torchvision.transforms:Normalize",
+          "label": "Normalize",
+          "summary": "按通道均值和标准差归一化",
+          "params": [
+            {
+              "name": "mean",
+              "type": "list_number",
+              "label": "通道均值",
+              "required": true
+            },
+            {
+              "name": "std",
+              "type": "list_number",
+              "label": "通道标准差",
+              "required": true
+            }
+          ]
+        },
+        {
+          "target": "torchvision.transforms:Resize",
+          "label": "Resize",
+          "summary": "调整图像尺寸",
+          "params": [
+            {
+              "name": "size",
+              "type": "list_integer",
+              "label": "目标尺寸",
+              "required": true
+            }
+          ]
+        },
+        {
+          "target": "torchvision.transforms:RandomHorizontalFlip",
+          "label": "RandomHorizontalFlip",
+          "summary": "随机水平翻转",
+          "params": [
+            {
+              "name": "p",
+              "type": "number",
+              "label": "翻转概率",
+              "required": false,
+              "default": 0.5,
+              "min": 0.0,
+              "max": 1.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "dataset",
+      "label": "数据集",
+      "group": "数据",
+      "summary": "输出样本与标签",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "transform",
+          "type": "transform",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "samples",
+          "type": "dataset"
+        }
+      ],
+      "targets": [
+        {
+          "target": "torchvision.datasets:FakeData",
+          "label": "FakeData",
+          "summary": "随机张量数据集, 不依赖下载",
+          "params": [
+            {
+              "name": "size",
+              "type": "integer",
+              "label": "样本数",
+              "required": false,
+              "default": 512,
+              "min": 1,
+              "max": 1000000
+            },
+            {
+              "name": "image_size",
+              "type": "list_integer",
+              "label": "图像形状",
+              "required": false,
+              "default": [
+                3,
+                32,
+                32
+              ]
+            },
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 10,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "random_offset",
+              "type": "integer",
+              "label": "随机偏移",
+              "required": false,
+              "default": 0,
+              "min": 0,
+              "max": 1000000
+            }
+          ]
+        },
+        {
+          "target": "torchvision.datasets:CIFAR10",
+          "label": "CIFAR-10",
+          "summary": "CIFAR-10 数据集, 需要本地或允许下载",
+          "params": [
+            {
+              "name": "root",
+              "type": "data_path",
+              "label": "数据目录",
+              "required": true
+            },
+            {
+              "name": "train",
+              "type": "boolean",
+              "label": "训练集",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "download",
+              "type": "boolean",
+              "label": "允许下载",
+              "required": false,
+              "default": false
+            }
+          ]
+        },
+        {
+          "target": "torchvision.datasets:CIFAR100",
+          "label": "CIFAR-100",
+          "summary": "CIFAR-100 数据集, 需要本地或允许下载",
+          "params": [
+            {
+              "name": "root",
+              "type": "data_path",
+              "label": "数据目录",
+              "required": true
+            },
+            {
+              "name": "train",
+              "type": "boolean",
+              "label": "训练集",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "download",
+              "type": "boolean",
+              "label": "允许下载",
+              "required": false,
+              "default": false
+            }
+          ]
+        },
+        {
+          "target": "registry:SyntheticClassificationDataset",
+          "label": "SyntheticClassificationDataset",
+          "summary": "合成分类数据, 特征为 float 张量, 标签为 int64 类别索引. 字典字段为 features / labels.",
+          "params": [
+            {
+              "name": "num_samples",
+              "type": "integer",
+              "label": "样本数",
+              "required": false,
+              "default": 64,
+              "min": 1,
+              "max": 1000000
+            },
+            {
+              "name": "input_shape",
+              "type": "list_integer",
+              "label": "输入形状",
+              "required": false,
+              "default": [
+                4
+              ]
+            },
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 2,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "seed",
+              "type": "integer",
+              "label": "随机种子",
+              "required": false,
+              "default": 42,
+              "min": 0,
+              "max": 1000000
+            },
+            {
+              "name": "sample_format",
+              "type": "enum",
+              "label": "样本结构",
+              "default": "tuple",
+              "options": [
+                "tuple",
+                "dict"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "collate",
+      "label": "批次整理",
+      "group": "数据",
+      "summary": "为 DataLoader 构造样本批次整理器",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "collate",
+          "type": "collate"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:DefaultCollate",
+          "label": "默认整理",
+          "summary": "堆叠同形状张量并保留字典结构",
+          "params": []
+        },
+        {
+          "target": "registry:DictCollate",
+          "label": "DictCollate",
+          "summary": "按键整理字典样本",
+          "params": []
+        },
+        {
+          "target": "registry:PadCollate",
+          "label": "PadCollate",
+          "summary": "对变长张量补齐",
+          "params": [
+            {
+              "name": "pad_value",
+              "type": "number",
+              "label": "填充值",
+              "default": 0
+            },
+            {
+              "name": "batch_first",
+              "type": "boolean",
+              "label": "批次维在前",
+              "default": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "dataloader",
+      "label": "批次加载",
+      "group": "数据",
+      "summary": "把数据集组成 batch",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "dataset",
+          "type": "dataset",
+          "required": true
+        },
+        {
+          "name": "collate",
+          "type": "collate",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "batches",
+          "type": "loader"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:DataLoader",
+          "label": "DataLoader",
+          "summary": "每批样本数优先取此节点参数, 省略时继承 Trainer 的批量大小.",
+          "params": [
+            {
+              "name": "batch_size",
+              "type": "integer",
+              "label": "每批样本数",
+              "required": false,
+              "min": 1,
+              "max": 65536
+            },
+            {
+              "name": "num_workers",
+              "type": "integer",
+              "label": "worker 数",
+              "required": false,
+              "default": 0,
+              "min": 0,
+              "max": 64
+            },
+            {
+              "name": "shuffle",
+              "type": "boolean",
+              "label": "打乱顺序",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "drop_last",
+              "type": "boolean",
+              "label": "丢弃最后不足一批",
+              "required": false,
+              "default": false
+            },
+            {
+              "name": "pin_memory",
+              "type": "boolean",
+              "label": "锁页内存",
+              "required": false,
+              "default": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "dataset_split",
+      "label": "数据拆分",
+      "group": "数据",
+      "summary": "按比例确定性拆分训练与验证数据集",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "dataset",
+          "type": "dataset",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "train",
+          "type": "dataset"
+        },
+        {
+          "name": "val",
+          "type": "dataset"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:DatasetSplit",
+          "label": "Train / validation split",
+          "summary": "使用 settings.runtime.seed 确定拆分",
+          "params": [
+            {
+              "name": "val_ratio",
+              "type": "number",
+              "label": "验证集比例",
+              "required": false,
+              "default": 0.1,
+              "min": 1e-06,
+              "max": 0.999999
+            },
+            {
+              "name": "seed",
+              "type": "integer",
+              "label": "拆分种子 (省略时继承运行种子)",
+              "min": 0,
+              "max": 2147483647
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "model",
+      "label": "模型",
+      "group": "训练",
+      "summary": "输出 logits 的 nn.Module",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "module",
+          "type": "model"
+        }
+      ],
+      "targets": [
+        {
+          "target": "registry:vgg11_bn",
+          "label": "VGG-11 BN",
+          "summary": "VGG-11 with batch norm",
+          "params": [
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 10,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "dropout",
+              "type": "number",
+              "label": "dropout",
+              "required": false,
+              "default": 0.2,
+              "min": 0.0,
+              "max": 1.0
+            }
+          ]
+        },
+        {
+          "target": "registry:vgg16_bn",
+          "label": "VGG-16 BN",
+          "summary": "VGG-16 with batch norm",
+          "params": [
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 10,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "dropout",
+              "type": "number",
+              "label": "dropout",
+              "required": false,
+              "default": 0.2,
+              "min": 0.0,
+              "max": 1.0
+            }
+          ]
+        },
+        {
+          "target": "registry:resnet18",
+          "label": "ResNet-18",
+          "summary": "ResNet-18",
+          "params": [
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 10,
+              "min": 1,
+              "max": 100000
+            }
+          ]
+        },
+        {
+          "target": "registry:resnet34",
+          "label": "ResNet-34",
+          "summary": "ResNet-34",
+          "params": [
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 10,
+              "min": 1,
+              "max": 100000
+            }
+          ]
+        },
+        {
+          "target": "registry:simple_mlp",
+          "label": "SimpleMLP",
+          "summary": "轻量 MLP, 适合 CPU 冒烟测试",
+          "params": [
+            {
+              "name": "input_size",
+              "type": "integer",
+              "label": "输入维度",
+              "required": false,
+              "default": 4,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "hidden_size",
+              "type": "integer",
+              "label": "隐藏层维度",
+              "required": false,
+              "default": 32,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 2,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "dropout_rate",
+              "type": "number",
+              "label": "dropout",
+              "required": false,
+              "default": 0.0,
+              "min": 0.0,
+              "max": 1.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "loss",
+      "label": "损失函数",
+      "group": "训练",
+      "summary": "产生标量 loss, 多个 loss 节点按 weight 加权",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "loss",
+          "type": "loss"
+        }
+      ],
+      "targets": [
+        {
+          "target": "torch.nn:CrossEntropyLoss",
+          "label": "CrossEntropyLoss",
+          "summary": "多分类交叉熵",
+          "params": []
+        },
+        {
+          "target": "torch.nn:MSELoss",
+          "label": "MSELoss",
+          "summary": "均方误差",
+          "params": []
+        },
+        {
+          "target": "torch.nn:BCEWithLogitsLoss",
+          "label": "BCEWithLogitsLoss",
+          "summary": "带 logits 的二分类交叉熵",
+          "params": []
+        },
+        {
+          "target": "registry:FocalLoss",
+          "label": "FocalLoss",
+          "summary": "Focal loss, 缓解类别不平衡",
+          "params": [
+            {
+              "name": "gamma",
+              "type": "number",
+              "label": "gamma",
+              "required": false,
+              "default": 2.0,
+              "min": 0.0,
+              "max": 10.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "optimizer",
+      "label": "优化器",
+      "group": "训练",
+      "summary": "更新模型参数",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "type": "model",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "optimizer",
+          "type": "optimizer"
+        }
+      ],
+      "targets": [
+        {
+          "target": "torch.optim:SGD",
+          "label": "SGD",
+          "summary": "随机梯度下降",
+          "params": [
+            {
+              "name": "lr",
+              "type": "number",
+              "label": "学习率",
+              "required": false,
+              "default": 0.01,
+              "min": 0.0,
+              "max": 10.0
+            },
+            {
+              "name": "momentum",
+              "type": "number",
+              "label": "momentum",
+              "required": false,
+              "default": 0.9,
+              "min": 0.0,
+              "max": 1.0
+            },
+            {
+              "name": "weight_decay",
+              "type": "number",
+              "label": "weight decay",
+              "required": false,
+              "default": 0.0005,
+              "min": 0.0,
+              "max": 1.0
+            }
+          ]
+        },
+        {
+          "target": "torch.optim:AdamW",
+          "label": "AdamW",
+          "summary": "AdamW",
+          "params": [
+            {
+              "name": "lr",
+              "type": "number",
+              "label": "学习率",
+              "required": false,
+              "default": 0.001,
+              "min": 0.0,
+              "max": 10.0
+            },
+            {
+              "name": "weight_decay",
+              "type": "number",
+              "label": "weight decay",
+              "required": false,
+              "default": 0.01,
+              "min": 0.0,
+              "max": 1.0
+            }
+          ]
+        },
+        {
+          "target": "torch.optim:Adam",
+          "label": "Adam",
+          "summary": "Adam",
+          "params": [
+            {
+              "name": "lr",
+              "type": "number",
+              "label": "学习率",
+              "required": false,
+              "default": 0.001,
+              "min": 0.0,
+              "max": 10.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "scheduler",
+      "label": "学习率调度",
+      "group": "训练",
+      "summary": "按 step 或 epoch 调整学习率",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "optimizer",
+          "type": "optimizer",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "scheduler",
+          "type": "scheduler"
+        }
+      ],
+      "targets": [
+        {
+          "target": "torch.optim.lr_scheduler:StepLR",
+          "label": "StepLR",
+          "summary": "按固定步长衰减",
+          "params": [
+            {
+              "name": "step_size",
+              "type": "integer",
+              "label": "step size",
+              "required": false,
+              "default": 1,
+              "min": 1,
+              "max": 10000
+            },
+            {
+              "name": "gamma",
+              "type": "number",
+              "label": "gamma",
+              "required": false,
+              "default": 0.9,
+              "min": 0.0,
+              "max": 1.0
+            }
+          ]
+        },
+        {
+          "target": "torch.optim.lr_scheduler:CosineAnnealingLR",
+          "label": "CosineAnnealingLR",
+          "summary": "余弦退火",
+          "params": [
+            {
+              "name": "T_max",
+              "type": "integer",
+              "label": "T_max",
+              "required": false,
+              "default": 10,
+              "min": 1,
+              "max": 1000000
+            },
+            {
+              "name": "eta_min",
+              "type": "number",
+              "label": "最小学习率",
+              "required": false,
+              "default": 0.0,
+              "min": 0.0,
+              "max": 10.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "metric",
+      "label": "评估指标",
+      "group": "训练",
+      "summary": "挂在一次运行上的评估指标",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "run",
+          "type": "run",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "metrics",
+          "type": "metric"
+        }
+      ],
+      "targets": [
+        {
+          "target": "registry:Accuracy",
+          "label": "Accuracy",
+          "summary": "分类准确率",
+          "params": [
+            {
+              "name": "num_classes",
+              "type": "integer",
+              "label": "类别数",
+              "required": false,
+              "default": 10,
+              "min": 1,
+              "max": 100000
+            }
+          ]
+        },
+        {
+          "target": "registry:MeanAbsoluteError",
+          "label": "MeanAbsoluteError",
+          "summary": "平均绝对误差",
+          "params": []
+        }
+      ]
+    },
+    {
+      "kind": "trainer",
+      "label": "训练循环",
+      "group": "运行",
+      "summary": "驱动 epoch / step 并消费训练组件",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "train_loader",
+          "type": "loader",
+          "required": true
+        },
+        {
+          "name": "val_loader",
+          "type": "loader",
+          "required": false
+        },
+        {
+          "name": "model",
+          "type": "model",
+          "required": true
+        },
+        {
+          "name": "loss",
+          "type": "loss",
+          "required": true,
+          "multi": true
+        },
+        {
+          "name": "optimizer",
+          "type": "optimizer",
+          "required": true
+        },
+        {
+          "name": "scheduler",
+          "type": "scheduler",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "name": "run",
+          "type": "run"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:Trainer",
+          "label": "XDL Trainer",
+          "summary": "复用现有 Trainer 生命周期",
+          "params": [
+            {
+              "name": "max_epochs",
+              "type": "integer",
+              "label": "Epoch 数",
+              "required": false,
+              "default": 1,
+              "min": 1,
+              "max": 100000
+            },
+            {
+              "name": "batch_size",
+              "type": "integer",
+              "label": "Batch size",
+              "required": false,
+              "default": 64,
+              "min": 1,
+              "max": 65536
+            },
+            {
+              "name": "gradient_accumulation_steps",
+              "type": "integer",
+              "label": "梯度累积步数",
+              "required": false,
+              "default": 1,
+              "min": 1,
+              "max": 1024
+            },
+            {
+              "name": "grad_clip_max_norm",
+              "type": "number",
+              "label": "梯度裁剪阈值",
+              "required": false,
+              "min": 0.0,
+              "max": 1000.0
+            },
+            {
+              "name": "precision",
+              "type": "enum",
+              "label": "精度",
+              "required": false,
+              "default": "32",
+              "options": [
+                "32",
+                "16",
+                "bf16"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "checkpoint",
+      "label": "检查点",
+      "group": "运行",
+      "summary": "保存模型与优化器状态",
+      "profiles": [
+        "schema-v1",
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "run",
+          "type": "run",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "checkpoint",
+          "type": "checkpoint"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:ModelCheckpoint",
+          "label": "ModelCheckpoint",
+          "summary": "按 epoch 保存 checkpoint",
+          "params": [
+            {
+              "name": "save_last",
+              "type": "boolean",
+              "label": "保存最后一个",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "save_top_k",
+              "type": "integer",
+              "label": "保留数量",
+              "required": false,
+              "default": 1,
+              "min": 1,
+              "max": 100
+            },
+            {
+              "name": "monitor",
+              "type": "string",
+              "label": "监控指标",
+              "required": false
+            },
+            {
+              "name": "mode",
+              "type": "enum",
+              "label": "监控方向",
+              "required": false,
+              "default": "min",
+              "options": [
+                "min",
+                "max"
+              ]
+            },
+            {
+              "name": "every_n_epochs",
+              "type": "integer",
+              "label": "保存间隔 epoch",
+              "required": false,
+              "default": 1,
+              "min": 1,
+              "max": 1000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "identity",
+      "label": "透传",
+      "group": "图",
+      "summary": "原样透传一个值, 用于占位与对齐端口",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "in",
+          "type": "any",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "any"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:Identity",
+          "label": "Identity",
+          "summary": "不做任何转换",
+          "params": []
+        }
+      ]
+    },
+    {
+      "kind": "compose",
+      "label": "顺序组合",
+      "group": "图",
+      "summary": "把两个同类型值按顺序组合成一个, 支持 transform / loss",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "left",
+          "type": "any",
+          "required": true
+        },
+        {
+          "name": "right",
+          "type": "any",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "any"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:Compose",
+          "label": "Compose",
+          "summary": "支持 transform / loss 组合",
+          "params": []
+        }
+      ]
+    },
+    {
+      "kind": "merge",
+      "label": "数据合并",
+      "group": "图",
+      "summary": "把两个数据集合并成一个",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "left",
+          "type": "dataset",
+          "required": true
+        },
+        {
+          "name": "right",
+          "type": "dataset",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "dataset"
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:Merge",
+          "label": "Merge",
+          "summary": "ConcatDataset 语义",
+          "params": [
+            {
+              "name": "strategy",
+              "type": "enum",
+              "label": "合并策略",
+              "required": false,
+              "default": "concat",
+              "options": [
+                "concat"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "sink",
+      "label": "消耗输出",
+      "group": "图",
+      "summary": "显式消费一个输出, 避免悬空端口",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "in",
+          "type": "any",
+          "required": true
+        }
+      ],
+      "outputs": [],
+      "targets": [
+        {
+          "target": "builtin:Sink",
+          "label": "Sink",
+          "summary": "显式丢弃输入, 不写入产物",
+          "params": []
+        }
+      ]
+    }
+  ],
+  "step_kinds": [
+    {
+      "kind": "BatchInput",
+      "label": "Batch 输入",
+      "group": "训练步",
+      "summary": "读取 DataLoader 产出的当前批次",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "batch",
+          "type": "batch",
+          "required": true
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:BatchInput",
+          "label": "Batch 输入",
+          "summary": "读取 DataLoader 产出的当前批次",
+          "params": []
+        }
+      ]
+    },
+    {
+      "kind": "Select",
+      "label": "读取字段",
+      "group": "训练步",
+      "summary": "按 tuple/list 索引或字典键选出一个张量",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "batch",
+          "type": "batch",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "value",
+          "type": "tensor",
+          "required": true
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:Select",
+          "label": "读取字段",
+          "summary": "按 tuple/list 索引或字典键选出一个张量",
+          "params": [
+            {
+              "name": "index",
+              "type": "integer",
+              "label": "批次索引 (从 0 开始)",
+              "min": 0
+            },
+            {
+              "name": "key",
+              "type": "string",
+              "label": "字典字段名"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Forward",
+      "label": "模型前向",
+      "group": "训练步",
+      "summary": "用 Trainer 绑定的模型计算预测张量",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "features",
+          "type": "tensor",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "predictions",
+          "type": "tensor",
+          "required": true
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:Forward",
+          "label": "模型前向",
+          "summary": "用 Trainer 绑定的模型计算预测张量",
+          "params": []
+        }
+      ]
+    },
+    {
+      "kind": "LossCall",
+      "label": "计算损失",
+      "group": "训练步",
+      "summary": "调用装配图的损失函数, 返回浮点标量",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "predictions",
+          "type": "tensor",
+          "required": true
+        },
+        {
+          "name": "labels",
+          "type": "tensor",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "loss",
+          "type": "scalar",
+          "required": true
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:LossCall",
+          "label": "计算损失",
+          "summary": "调用装配图的损失函数, 返回浮点标量",
+          "params": [
+            {
+              "name": "component",
+              "type": "string",
+              "label": "装配组件",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "MetricCall",
+      "label": "计算指标",
+      "group": "训练步",
+      "summary": "计算并记录脱离梯度的指标",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "predictions",
+          "type": "tensor",
+          "required": true
+        },
+        {
+          "name": "labels",
+          "type": "tensor",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "value",
+          "type": "metric_value",
+          "required": true
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:MetricCall",
+          "label": "计算指标",
+          "summary": "计算并记录脱离梯度的指标",
+          "params": [
+            {
+              "name": "component",
+              "type": "string",
+              "label": "装配组件",
+              "required": true
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "label": "日志指标名",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "WeightedSum",
+      "label": "损失加权",
+      "group": "训练步",
+      "summary": "按左右权重求和, 权重不自动归一",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "left",
+          "type": "scalar",
+          "required": true
+        },
+        {
+          "name": "right",
+          "type": "scalar",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "loss",
+          "type": "scalar",
+          "required": true
+        }
+      ],
+      "targets": [
+        {
+          "target": "builtin:WeightedSum",
+          "label": "损失加权",
+          "summary": "按左右权重求和, 权重不自动归一",
+          "params": [
+            {
+              "name": "left_weight",
+              "type": "number",
+              "label": "左侧权重",
+              "default": 1,
+              "min": 0
+            },
+            {
+              "name": "right_weight",
+              "type": "number",
+              "label": "右侧权重",
+              "default": 1,
+              "min": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "StepOutput",
+      "label": "步输出",
+      "group": "训练步",
+      "summary": "将标量损失交给 CoreModel, 可附加日志指标",
+      "profiles": [
+        "dag-runtime"
+      ],
+      "inputs": [
+        {
+          "name": "loss",
+          "type": "scalar",
+          "required": true
+        },
+        {
+          "name": "metrics",
+          "type": "metric_value",
+          "multi": true
+        }
+      ],
+      "outputs": [],
+      "targets": [
+        {
+          "target": "builtin:StepOutput",
+          "label": "步输出",
+          "summary": "将标量损失交给 CoreModel, 可附加日志指标",
+          "params": []
+        }
+      ]
+    }
+  ]
+}
