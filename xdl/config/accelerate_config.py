@@ -27,7 +27,7 @@ class AccelerateConfig:
     split_batches: bool = False
 
     # 日志和实验跟踪
-    log_with: Optional[Union[str, List[str]]] = None
+    log_with: Any = None
     project_dir: Optional[str] = None
     project_config: Optional[Dict[str, Any]] = None
 
@@ -36,7 +36,7 @@ class AccelerateConfig:
     dynamo_plugin: Optional[str] = None
 
     # DeepSpeed 和 FSDP
-    deepspeed_plugin: Optional[Union[str, Dict[str, Any]]] = None
+    deepspeed_plugin: Any = None
     fsdp_plugin: Optional[Any] = None
 
     # 梯度累积
@@ -184,7 +184,7 @@ class LoggingConfig:
     """
 
     # 实验跟踪
-    log_with: Optional[Union[str, List[str]]] = None
+    log_with: Any = None
     project_name: str = "accelerate-experiment"
     project_dir: Optional[str] = "./others/logs"
 
