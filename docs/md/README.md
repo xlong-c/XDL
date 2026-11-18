@@ -41,6 +41,7 @@
 | 文档结构,索引,长期文档边界 | 当前文件,[../AGENTS.md](../AGENTS.md) | 保持 `docs/md/` 事实源与 `third_party/research/` HTML 阅读页分层清楚. |
 | 中文文档,注释或研究草案 | [XDL 写作标点规范](#xdl-写作标点规范) | 对本次改动文件运行 `scripts/normalize_punctuation.py`,不要一次性重写大量历史文档. |
 | HTML 调研页样式,公共 CSS,主题交互 | [architecture/html-style-policy.md](architecture/html-style-policy.md) | 同步 `../html/assets/` 和 `third_party/research/` 页面引用. |
+| dashboard 工作流节点,快照字段,执行 profile,workflow API | [architecture/dashboard-workflow-ir.md](architecture/dashboard-workflow-ir.md) | 同步 `xdl/workflow/node_catalog.json`,错误码表,`dashboard/README.md` 和前端目录类型. |
 
 ## XDL 知识图谱使用约定
 
