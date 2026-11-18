@@ -1,6 +1,7 @@
 from .base import Callback
 from .attention_rollout import AttentionRolloutCallback
 from .console_callback import ConsoleCallback
+from .dashboard_callback import DashboardCallback
 from .device_stats_monitor import DeviceStatsMonitor
 from .diagnostics_callback import DiagnosticsCallback
 from .early_stopping import EarlyStopping
@@ -38,6 +39,7 @@ __all__ = [
     "QATLifecycleState",
     "SamplingAnimationCallback",
     "ConsoleCallback",
+    "DashboardCallback",
     "LoggingCallback",
     "SystemStatsCallback",
     "ActivationOffloadCallback",
