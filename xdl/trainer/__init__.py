@@ -5,6 +5,7 @@ Trainer模块初始化文件
 from typing import TYPE_CHECKING
 
 from .core_model import CoreModel
+from .control import TrainerControl
 from .trainer import Trainer
 
 if TYPE_CHECKING:
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 __all__ = [
     "Trainer",
     "CoreModel",
+    "TrainerControl",
     "TBSMCoreModel",
     "TBSMModel",
     "TrainSetupModel",

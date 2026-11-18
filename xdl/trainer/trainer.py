@@ -35,6 +35,7 @@ from xdl.errors import TrainingError
 from xdl.utils.memory import global_grad_norm
 
 from .core_model import CoreModel
+from .control import TrainerControl
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +171,9 @@ class Trainer:
         self._diag_enabled: bool = False
         self._phase_timer: Optional[Any] = None
         self._diag_counters: Optional[Any] = None
+
+        # 外部运行控制 (例如 dashboard worker)
+        self._control: Optional[TrainerControl] = None
 
     def _should_use_accelerate(self) -> bool:
         """判断当前配置是否需要走 Accelerate 路径."""
@@ -448,6 +452,11 @@ class Trainer:
         return self.state.current_epoch if hasattr(self, "state") else 0
 
     @property
+    def control(self) -> Optional[TrainerControl]:
+        """获取外部训练控制对象."""
+        return self._control
+
+    @property
     def should_stop(self) -> bool:
         """获取是否应该停止训练"""
         return self.state.should_stop if hasattr(self, "state") else False
@@ -478,6 +487,8 @@ class Trainer:
         val_check_interval: Union[int, float] = 1.0,
         check_val_every_n_epoch: int = 1,
         inference_data: Optional[Any] = None,
+        control: Optional[TrainerControl] = None,
+        resume_from_checkpoint: Optional[Union[str, Path]] = None,
     ):
         """
         执行训练 - 支持 Accelerate
@@ -489,12 +500,15 @@ class Trainer:
             val_check_interval: 验证间隔.
             check_val_every_n_epoch: 每隔多少个 epoch 进行一次验证.
             inference_data: 推理采样数据(Prompt列表/字典等).
+            control: 可选的线程安全训练控制对象.
+            resume_from_checkpoint: 可选的 checkpoint 目录.
         """
         # 保存参数
         self._model = model
         self._train_dataloader = train_dataloader
         self._val_dataloader = val_dataloader
         self._inference_data = inference_data
+        self._control = control
 
         # 立即回填 Trainer 到模型, 确保 setup/configure_optimizers 能通过 self.trainer 拿到实例
         self._assign_model_attribute("trainer", self)
@@ -542,6 +556,13 @@ class Trainer:
         if self._accelerator:
             model._accelerator = self._accelerator
 
+        if resume_from_checkpoint is not None:
+            self.load_checkpoint(
+                model,
+                resume_from_checkpoint,
+                map_location="cpu",
+            )
+
         # 执行回调的 setup
         self.callback_list.setup(trainer=self, core_module=model, stage="fit")
         self.callback_list.fit_start(trainer=self, core_module=model)
@@ -581,8 +602,12 @@ class Trainer:
 
             # 验证或推理采样
             if (
-                self._val_dataloader is not None or self._inference_data is not None
-            ) and epoch % check_val_every_n_epoch == 0:
+                not self.state.should_stop
+                and (
+                    self._val_dataloader is not None or self._inference_data is not None
+                )
+                and epoch % check_val_every_n_epoch == 0
+            ):
                 self._validate_epoch()
 
             # 早停检查
@@ -598,6 +623,21 @@ class Trainer:
             self._accelerator.end_training()
         self.callback_list.fit_end(trainer=self, core_module=model)
         self.callback_list.teardown(trainer=self, core_module=model, stage="fit")
+        if self._control is not None:
+            self._control.mark_finished()
+
+    def _sync_control_state(self, control: TrainerControl) -> None:
+        """Synchronize dashboard control commands across distributed ranks."""
+        distributed = torch.distributed
+        if not distributed.is_available() or not distributed.is_initialized():
+            return
+
+        state = [control.snapshot() if self.is_main_process() else None]
+        distributed.broadcast_object_list(state, src=0)
+        snapshot = state[0]
+        if not isinstance(snapshot, dict):
+            raise TrainingError("分布式训练控制状态同步失败")
+        control.apply_snapshot(snapshot)
 
     @staticmethod
     def _resolve_val_step_interval(
@@ -624,6 +664,10 @@ class Trainer:
         """训练一个 (虚拟) epoch"""
         model = self._model
         if model is None or self._train_dataloader is None:
+            return {}
+
+        if self._control is not None and not self._control.wait_if_paused():
+            self.should_stop = True
             return {}
 
         # 设置模式和钩子
@@ -700,6 +744,11 @@ class Trainer:
             self.callback_list.train_batch_end(
                 trainer=self, core_module=model, outputs={}, batch=batch, batch_idx=step
             )
+            if self._control is not None:
+                self._sync_control_state(self._control)
+                if not self._control.wait_if_paused():
+                    self.should_stop = True
+                    break
             if self._diag_enabled and self._phase_timer is not None:
                 self._phase_timer.mark("batch_end")
                 self._phase_timer.set_step(step, self.state.current_epoch)
